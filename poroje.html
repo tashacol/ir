@@ -1,0 +1,186 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style type="text/css">
+    @keyframes gradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    body {
+        font-family: 'Vazir', Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background: linear-gradient(-45deg, #ff9a9e, #fad0c4, #fbc2eb, #a18cd1);
+        background-size: 400% 400%;
+        animation: gradient 15s ease infinite;
+    }
+    .container {
+        background: rgba(255, 255, 255, 0.9);
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.2);
+        max-width: 600px;
+        width: 95%; 
+        text-align: center;
+        margin: 0 10px; 
+    }
+    h1 {
+        bottom: 20px;
+        color: #333;
+        font-size: 24px;
+        font-weight: bold;
+    }
+    #searchInput {
+        width: 90%; 
+        padding: 15px;
+        margin: 20px auto;
+        border: 1px solid #ccc;
+        border-radius: 10px;
+        font-size: 16px;
+        text-align: right; 
+        display: block;
+    }
+    #errorMsg, #loadingMsg {
+        font-size: 14px;
+        margin-top: 10px;
+    }
+    #errorMsg {
+        color: #d9534f;
+        display: none;
+    }
+    #loadingMsg {
+        color: #0275d8;
+        display: none;
+    }
+    table {
+        border-collapse: collapse;
+        width: 100%;
+        display: none;
+        margin-top: 20px;
+        direction: rtl;
+        text-align: center;
+    }
+    th, td {
+        border: 1px solid #ddd;
+        padding: 12px;
+    }
+    th {
+        background-color: #007bff;
+        color: #fff;
+    }
+    td {
+        background-color: #f9f9f9;
+    }
+    td:nth-child(1) { 
+        text-align: left;
+    }
+    td:nth-child(2) { 
+        text-align: right;
+    }
+    a {
+        color: #007bff;
+        text-decoration: none;
+    }
+    a:hover {
+        text-decoration: underline;
+    }
+</style>
+<div class="container">
+    <h1>مشاهده پروژه</h1>
+    <input type="text" id="searchInput" placeholder="کد ملی را وارد کنید" />
+    <div id="loadingMsg">داده‌ها در حال پردازش هستند، لطفا کمی صبر کنید...</div>
+    <div id="errorMsg">کد ملی اشتباه است</div>
+    <table id="excelData">
+        <thead>
+            <tr>
+                <th>پروژه</th>
+                <th>شماره گواهی</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+<script>
+    const url = 'https://docs.google.com/spreadsheets/d/1c0g7deSI0y-QP4nQNux-l07_cumu3A6Gy0OolnhZWdU/export?format=xlsx';
+
+    document.getElementById('loadingMsg').style.display = 'block';
+
+    fetch(url)
+        .then(response => response.arrayBuffer())
+        .then(data => {
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            displayData(jsonData);
+        })
+        .catch(error => console.error('خطا در دریافت فایل اکسل:', error))
+        .finally(() => {
+            document.getElementById('loadingMsg').style.display = 'none';
+        });
+
+    function displayData(data) {
+        const filteredData = data.slice(1);
+
+        document.getElementById('searchInput').addEventListener('input', function() {
+            const searchTerm = this.value.trim();
+
+            if (/^\d{10,19}$/.test(searchTerm)) {
+                document.getElementById('errorMsg').style.display = 'none';
+                filterTable(filteredData, searchTerm);
+            } else {
+                document.getElementById('excelData').style.display = 'none';
+                document.getElementById('errorMsg').style.display = 'block';
+            }
+        });
+    }
+
+    function filterTable(data, searchTerm) {
+        const table = document.getElementById('excelData');
+        const errorMsg = document.getElementById('errorMsg');
+
+        table.querySelector('tbody').innerHTML = '';
+        let hasResults = false;
+
+        // حذف صفرهای ابتدایی از کد ملی وارد شده
+        const normalizedSearchTerm = searchTerm.replace(/^0+/, '');
+
+        data.forEach(row => {
+            const nationalCode = row[4];
+
+            // حذف صفرهای ابتدایی از کد ملی موجود در داده‌ها
+            const normalizedNationalCode = nationalCode.toString().replace(/^0+/, '');
+
+            if (normalizedNationalCode && normalizedNationalCode.includes(normalizedSearchTerm)) {
+                hasResults = true;
+                const tr = document.createElement('tr');
+
+                const tdLink = document.createElement('td'); 
+                const linkText = row[9];
+                const a = document.createElement('a');
+                a.href = linkText;
+                a.textContent = "لینک پروژه";
+                tdLink.appendChild(a);
+                tr.appendChild(tdLink);
+
+                const tdInfo = document.createElement('td'); 
+                tdInfo.textContent = row[11];
+                tr.appendChild(tdInfo);
+
+                table.querySelector('tbody').appendChild(tr);
+            }
+        });
+
+        if (hasResults) {
+            errorMsg.style.display = 'none';
+            table.style.display = 'table';
+        } else {
+            errorMsg.style.display = 'block';
+            table.style.display = 'none';
+        }
+    }
+</script>
