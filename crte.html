@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width">
+    <title>گواهی سوابق فعالیت</title>
+    <!-- کتابخانه‌های مورد نیاز -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body {
+            text-align: center;
+            font-family: Arial, sans-serif;
+            direction: rtl;
+            font-size: 14px;
+        }
+        #certificate {
+            padding: 20px;
+            width: 795px;
+            margin: auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .header .right {
+            float: right;
+            text-align: right;
+            width: 40%;
+        }
+        .header .left {
+            float: left;
+            text-align: left;
+            width: 40%;
+        }
+        .header .center {
+            text-align: center;
+            width: 100%;
+        }
+        .content {
+            clear: both;
+            text-align: right;
+        }
+        hr {
+            border: none;
+            border-top: 1px solid black;
+            margin: 20px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            direction: rtl;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: center;
+        }
+        .signature {
+            margin-top: 60px;
+            text-align: center;
+        }
+        .signature p {
+            font-size: 14px;
+            font-weight: normal;
+            text-align: center;
+        }
+        .title {
+            text-align: center;
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        .bold-text {
+            font-weight: bold;
+        }
+        .centered-text {
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        /* استایل برای کادر لودینگ */
+        #loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            font-size: 20px;
+            text-align: center;
+            padding-top: 20%;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <h2>سامانه سابقه فعالیت</h2>
+    <form id="loginForm">
+        <label for="username">کد ملی:</label>
+        <input type="tel" id="username" pattern="\d{10}" maxlength="10" required>
+        <br>
+        <label for="password">رمز عبور (تکرار کد ملی):</label>
+        <input type="tel" id="password" pattern="\d{10}" maxlength="10" required>
+        <br>
+        <button type="button" onclick="validateUser()">ورود</button>
+    </form>
+
+    <!-- بخش گواهی -->
+    <div id="result" style="display:none;">
+        <div id="certificate">
+            <div class="header">
+                <div class="right">
+                    <p>شناسه ملی: ۱۴۰۱۳۷۷۰۶۱۱</p>
+                    <p>تلفن: ۰۹۱۳۵۰۷۶۵۸۷</p>
+                </div>
+                <div class="left">
+                    <p>شماره: <span id="certificateNumber"></span></p>
+                    <p>تاریخ: <span id="date"></span></p>
+                </div>
+                <div class="center">
+                    <p class="bold-text centered-text">مؤسسه تعالی اندیشه و رشد</p>
+                </div>
+            </div>
+            <hr>
+            <div class="content">
+                <div class="title">گواهی سابقه فعالیت</div>
+                <p>به استحضار می‌رساند آقا/خانم <span id="fullName"></span> دارای شماره ملی <span id="userId"></span> به مدت <span id="columnG"></span> با جزئیات زیر در مؤسسه فرهنگی و تبلیغی تعالی اندیشه و رشد فعالیت داشته است:</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>فعالیت</th>
+                            <th>تاریخ شروع</th>
+                            <th>تاریخ پایان</th>
+                        </tr>
+                    </thead>
+                    <tbody id="activityTable"></tbody>
+                </table>
+
+                <div class="signature">
+                    <p>مهر و امضای مدیر عامل مؤسسه</p>
+                </div>
+            </div>
+        </div>
+        <!-- دکمه دانلود PDF -->
+        <button id="downloadPdfBtn" style="display:none; margin-top: 20px;">دانلود گواهی به صورت PDF</button>
+    </div>
+
+    <!-- کادر لودینگ -->
+    <div id="loading">گواهی در حال ایجاد است، لطفا کمی صبر کنید...</div>
+
+    <script>
+        let excelData = [];
+
+        async function fetchExcelData() {
+            const response = await fetch('https://docs.google.com/spreadsheets/d/19tVWLwHOMO1zqAId5mY7zYceF1uJUrS67Y_A-nuiT9w/export?format=xlsx');
+            const data = await response.arrayBuffer();
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            excelData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        }
+
+        fetchExcelData();
+
+        function toPersianDigits(input) {
+            const persianDigits = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
+            return input.toString().replace(/\d/g, function(m){
+                return persianDigits[parseInt(m)];
+            });
+        }
+
+        function validateUser() {
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+
+            if (username !== password) {
+                alert("کد ملی و رمز عبور باید یکسان باشند.");
+                return;
+            }
+
+            const filteredData = excelData.filter(row => row[2] == username);
+
+            if (filteredData.length === 0) {
+                alert("کاربری با این کد ملی یافت نشد.");
+                return;
+            }
+
+            document.getElementById("fullName").innerText = filteredData[0][1];
+            document.getElementById("userId").innerText = toPersianDigits(username);
+            document.getElementById("columnG").innerText = toPersianDigits(filteredData[0][6]);
+
+            const now = new Date();
+            const timeStr = now.getHours().toString().padStart(2, '0') + now.getMinutes().toString().padStart(2, '0');
+            const certificateNumber = username + timeStr;
+            document.getElementById("date").innerText = toPersianDigits(new Date().toLocaleDateString("fa-IR"));
+            document.getElementById("certificateNumber").innerText = toPersianDigits(certificateNumber);
+
+            const activityTable = document.getElementById("activityTable");
+            activityTable.innerHTML = "";
+            filteredData.forEach(row => {
+                const tr = document.createElement("tr");
+                const endDate = row[5] ? row[5] : 'تا هم اکنون';
+                tr.innerHTML = `<td>${row[3]}</td><td>${toPersianDigits(row[4])}</td><td>${toPersianDigits(endDate)}</td>`;
+                activityTable.appendChild(tr);
+            });
+
+            document.getElementById("loginForm").style.display = "none";
+            document.getElementById("result").style.display = "block";
+            document.getElementById("downloadPdfBtn").style.display = "block";
+        }
+
+        // رویداد کلیک برای دکمه دانلود PDF
+        document.getElementById("downloadPdfBtn").addEventListener("click", function() {
+            // نمایش کادر لودینگ
+            document.getElementById("loading").style.display = "block";
+
+            const certificate = document.getElementById("certificate");
+            const { jsPDF } = window.jspdf;
+
+            // افزایش مقیاس برای کیفیت بهتر
+            html2canvas(certificate, { scale: 3, useCORS: true }).then(canvas => {
+                const imgData = canvas.toDataURL("image/png");
+                const imgWidth = 842; // عرض PDF
+                const pageHeight = 595; // ارتفاع PDF
+                const imgHeight = canvas.height * (imgWidth / canvas.width);
+
+                let heightLeft = imgHeight;
+                let position = 0;
+
+                const pdf = new jsPDF('landscape', 'pt', 'a4');
+
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+
+                while (heightLeft > 0) {
+                    position = heightLeft - imgHeight;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                }
+
+                // ذخیره PDF
+                pdf.save("سوابق موسسه.pdf");
+
+                // مخفی کردن کادر لودینگ بعد از دانلود
+                document.getElementById("loading").style.display = "none";
+            });
+        });
+    </script>
+</body>
+</html>
