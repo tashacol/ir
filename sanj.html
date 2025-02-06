@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>استعلام گواهی</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <style>
+        /* پویانمایی پس‌زمینه */
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        body {
+            font-family: 'Vazir', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(-45deg, #ff9a9e, #fad0c4, #fbc2eb, #a18cd1);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.2);
+            max-width: 600px;
+            width: 95%; /* کاهش عرض در موبایل */
+            text-align: center;
+            margin: 0 10px; /* اضافه کردن فضای حاشیه برای موبایل */
+        }
+        h1 {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        img {
+            margin-bottom: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        #searchInput {
+            width: 90%; /* فاصله از حاشیه‌ها */
+            padding: 15px;
+            margin: 20px auto; /* وسط‌چین کردن */
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            font-size: 16px;
+            text-align: right; /* راست‌چین کردن متن */
+            display: block;
+        }
+        #errorMsg, #loadingMsg {
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        #errorMsg {
+            color: #d9534f;
+            display: none;
+        }
+        #loadingMsg {
+            color: #0275d8;
+            display: none;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            display: none;
+            margin-top: 20px;
+            direction: rtl;
+            text-align: center;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+        }
+        th {
+            background-color: #007bff;
+            color: #fff;
+        }
+        td {
+            background-color: #f9f9f9;
+        }
+        td:nth-child(1) { /* لینک - ستون چپ */
+            text-align: left;
+        }
+        td:nth-child(2) { /* اطلاعات - ستون راست */
+            text-align: right;
+        }
+        a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>استعلام گواهی</h1>
+        <img height="234" width="215" src="//bayanbox.ir/view/1658127978867304298/%DA%AF%D9%88%D8%A7%D9%87%DB%8C.jpg" alt="گواهی" />
+        <input type="text" id="searchInput" placeholder="شماره گواهی را وارد کنید" />
+        <div id="loadingMsg">داده‌ها در حال پردازش هستند، لطفا کمی صبر کنید...</div>
+        <div id="errorMsg">شماره گواهی اشتباه است یا چنین گواهی صادر نگردیده</div>
+        <table id="excelData">
+            <thead>
+                <tr>
+                    <th>پروژه</th>
+                    <th>اطلاعات</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- سطرها به‌صورت پویا اضافه می‌شوند -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const url = 'https://docs.google.com/spreadsheets/d/1c0g7deSI0y-QP4nQNux-l07_cumu3A6Gy0OolnhZWdU/export?format=xlsx';
+
+        // نمایش پیام در حال بارگذاری
+        document.getElementById('loadingMsg').style.display = 'block';
+
+        fetch(url)
+            .then(response => response.arrayBuffer())
+            .then(data => {
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                displayData(jsonData);
+            })
+            .catch(error => console.error('خطا در دریافت فایل اکسل:', error))
+            .finally(() => {
+                document.getElementById('loadingMsg').style.display = 'none';
+            });
+
+        function displayData(data) {
+            const filteredData = data.slice(1);
+
+            document.getElementById('searchInput').addEventListener('input', function() {
+                const searchTerm = this.value.trim().toLowerCase();
+                filterTable(filteredData, searchTerm);
+            });
+        }
+
+        function filterTable(data, searchTerm) {
+            const table = document.getElementById('excelData');
+            const errorMsg = document.getElementById('errorMsg');
+
+            table.querySelector('tbody').innerHTML = '';
+            let hasResults = false;
+
+            if (searchTerm.length < 7) {
+                table.style.display = 'none';
+                errorMsg.style.display = 'none';
+                return;
+            }
+
+            data.forEach(row => {
+                const cellM = row[11];
+                if (cellM && cellM.toString().toLowerCase().includes(searchTerm)) {
+                    hasResults = true;
+                    const tr = document.createElement('tr');
+
+                    const tdL = document.createElement('td'); // لینک - ستون چپ
+                    const linkText = row[10];
+                    const linkUrl = row[9];
+                    const linkElement = document.createElement('a');
+                    linkElement.textContent = linkText;
+                    linkElement.href = linkUrl;
+                    linkElement.target = "_blank";
+                    tdL.appendChild(linkElement);
+                    tr.appendChild(tdL);
+
+                    const tdN = document.createElement('td'); // اطلاعات - ستون راست
+                    tdN.textContent = row[12];
+                    tr.appendChild(tdN);
+
+                    table.querySelector('tbody').appendChild(tr);
+                }
+            });
+
+            if (hasResults) {
+                errorMsg.style.display = 'none';
+                table.style.display = 'table';
+            } else {
+                errorMsg.style.display = 'block';
+                table.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
