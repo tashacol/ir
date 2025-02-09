@@ -200,10 +200,11 @@
 
 <script>
     let excelData = [];
+    let excelData2 = []; // داده‌های اکسل از فایل دوم
 
     async function loadExcelData() {
         try {
-            const excelFileUrl = "DIRECT_EXCEL_FILE_LINK"; // جایگزین با لینک مستقیم فایل اکسل شما
+            const excelFileUrl = "https://docs.google.com/spreadsheets/d/1QSRAGajWtCWHJHsU-u4dRW85nq2hCGySKqtZQL0iTjY/export?format=xlsx"; // لینک مستقیم فایل اکسل اول
             const response = await fetch(excelFileUrl);
             const arrayBuffer = await response.arrayBuffer();
             const data = new Uint8Array(arrayBuffer);
@@ -216,8 +217,24 @@
         }
     }
 
+    async function loadExcelData2() {
+        try {
+            const excelFileUrl2 = "https://docs.google.com/spreadsheets/d/1GCbyVT2l2TvLsvIchWVNWoM2IwuxRWwwS41qIOu6owk/export?format=xlsx"; // لینک مستقیم فایل اکسل دوم
+            const response = await fetch(excelFileUrl2);
+            const arrayBuffer = await response.arrayBuffer();
+            const data = new Uint8Array(arrayBuffer);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            excelData2 = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        } catch (error) {
+            console.error("Error loading Excel file 2:", error);
+        }
+    }
+
     window.onload = function() {
         loadExcelData();
+        loadExcelData2();
         // اطمینان از اینکه فرم نظرسنجی ابتدا پنهان است
         document.getElementById("surveyFormContainer").style.display = "none";
     };
@@ -239,12 +256,27 @@
             }
         }
         if (foundRow) {
-            // پر کردن فیلد نام و نام خانوادگی با داده موجود در ستون A (اندیس 0) و غیر قابل تغییر کردن آن
-            document.getElementById("name").value = foundRow[0];
-            document.getElementById("name").readOnly = true;
-            // نمایش فرم نظرسنجی و پنهان کردن فرم ورود کد ملی
-            document.getElementById("nationalCodeContainer").style.display = "none";
-            document.getElementById("surveyFormContainer").style.display = "flex";
+            const fullName = foundRow[0];
+            let alreadyVoted = false;
+            if (excelData2 && excelData2.length > 0) {
+                for (let i = 0; i < excelData2.length; i++) {
+                    // ستون A (اندیس 0) حاوی نام و نام خانوادگی است
+                    if(String(excelData2[i][0]).trim() === fullName.trim()) {
+                        alreadyVoted = true;
+                        break;
+                    }
+                }
+            }
+            if (alreadyVoted) {
+                messageDiv.innerText = `آقا/خانم ${fullName} شما قبلا نظر خود را ثبت کرده‌اید.`;
+            } else {
+                // پر کردن فیلد نام و نام خانوادگی با داده موجود در ستون A (اندیس 0) و غیر قابل تغییر کردن آن
+                document.getElementById("name").value = fullName;
+                document.getElementById("name").readOnly = true;
+                // نمایش فرم نظرسنجی و پنهان کردن فرم ورود کد ملی
+                document.getElementById("nationalCodeContainer").style.display = "none";
+                document.getElementById("surveyFormContainer").style.display = "flex";
+            }
         } else {
             messageDiv.innerText = "کد ملی وارد شده یافت نشد.";
         }
@@ -253,10 +285,9 @@
     async function submitForm(event) {
         event.preventDefault();
         const formData = new FormData(event.target);
-        const loadingMessage = document.getElementById('loading');
-        const responseMessage = document.getElementById('responseMessage');
-        loadingMessage.style.display = 'block'; // نمایش پیام در حال ارسال
-        responseMessage.innerHTML = ''; // پاک کردن پیام‌های قبلی
+        const loadingDiv = document.getElementById('loading');
+        loadingDiv.style.display = 'block';
+        loadingDiv.innerHTML = '<p id="loadingMessage">در حال ارسال... لطفاً صبر کنید.</p>';
 
         try {
             const response = await fetch('https://script.google.com/macros/s/AKfycby5OUHaXhfZznFiYNPKq0ry5Zg9KaNNk5dDx3bGfJLAUIp-uvqipTadUiOu1uMr9EOF/exec', {
@@ -264,18 +295,12 @@
                 body: formData
             });
             const result = await response.text();
-            loadingMessage.style.display = 'none'; // مخفی کردن پیام در حال ارسال
-
-            // نمایش پیام موفقیت
-            responseMessage.innerHTML = '<span class="icon">&#10004;</span><span class="success">دیدگاه شما با موفقیت ثبت شد.</span>';
-            responseMessage.style.color = 'green';
+            // تغییر محتوا در پنجره پاپ آپ پس از ثبت موفقیت‌آمیز نظر
+            loadingDiv.innerHTML = '<span class="icon">&#10004;</span><p id="loadingMessage"><span class="success">دیدگاه شما با موفقیت ثبت شد.</span></p>';
         } catch (error) {
             console.error('Error:', error);
-            loadingMessage.style.display = 'none'; // مخفی کردن پیام در حال ارسال
-
-            // نمایش پیام خطا
-            responseMessage.innerHTML = '<span class="icon">&#10006;</span><span class="error">ارسال ناموفق بود. لطفاً دوباره تلاش کنید.</span>';
-            responseMessage.style.color = 'red';
+            // تغییر محتوا در پنجره پاپ آپ در صورت بروز خطا
+            loadingDiv.innerHTML = '<span class="icon">&#10006;</span><p id="loadingMessage"><span class="error">ارسال ناموفق بود. لطفاً دوباره تلاش کنید.</span></p>';
         }
     }
 </script>
