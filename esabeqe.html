@@ -2,17 +2,29 @@
 <html lang="fa">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width">
-    <title>استعلام فعالیت</title>
+    <title>استعلام سوابق</title>
     <!-- کتابخانه مورد نیاز برای خواندن فایل اکسل -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
+        @font-face {
+            font-family: 'IranNastaliq';
+            src: url('https://tashacol.github.io/ir/B%20Titr%20Bold_0.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
         body {
             background: linear-gradient(135deg, #ece9e6, #ffffff);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'IranNastaliq', serif;
             direction: rtl;
-            text-align: center;
-            padding: 40px;
+            text-align: right;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 600px;
+            width: 90%;
+            margin: 0 auto;
+            padding: 20px;
         }
         h2 {
             margin-bottom: 20px;
@@ -20,12 +32,15 @@
             color: #333;
             text-shadow: 2px 2px 5px rgba(0,0,0,0.1);
         }
+        .header-image {
+            display: none;
+        }
         form {
             background: #fff;
             padding: 20px 30px;
             border-radius: 10px;
             box-shadow: 0px 8px 20px rgba(0,0,0,0.15);
-            display: inline-block;
+            display: block;
             margin-bottom: 30px;
         }
         label {
@@ -35,9 +50,10 @@
             color: #555;
         }
         input {
-            width: 250px;
+            width: 100%;
+            max-width: 250px;
             padding: 10px;
-            margin-bottom: 10px;
+            margin: 10px auto;
             border: 1px solid #ddd;
             border-radius: 5px;
             transition: border-color 0.3s ease;
@@ -67,34 +83,80 @@
             border-radius: 10px;
             padding: 30px 40px;
             box-shadow: 0px 8px 20px rgba(0,0,0,0.15);
-            display: inline-block;
-            transition: transform 0.3s ease;
-        }
-        #certificate:hover {
-            transform: scale(1.02);
+            display: none;
         }
         #certificate p {
             font-size: 18px;
             color: #333;
-            margin: 0;
+            margin: 0 0 20px;
             line-height: 1.6;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 10px;
+        }
+        th {
+            background: #007bff;
+            color: #fff;
+        }
+        /* Media query برای نمایش مناسب در موبایل */
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            .container {
+                padding: 10px;
+            }
+            form {
+                padding: 15px 20px;
+            }
+            #certificate {
+                padding: 20px 30px;
+            }
+            input {
+                width: 100%;
+                max-width: none;
+            }
+            button {
+                width: 100%;
+            }
         }
     </style>
 </head>
 <body>
-    <h2>استعلام فعالیت</h2>
-    <form id="loginForm">
-        <label for="username">کد ملی:</label>
-        <input type="tel" id="username" pattern="\d{10}" maxlength="10" required>
-        <label for="password">رمز عبور (تکرار کد ملی):</label>
-        <input type="tel" id="password" pattern="\d{10}" maxlength="10" required>
-        <br>
-        <button type="button" onclick="validateUser()">ورود</button>
-    </form>
+    <div class="container">
+        <!-- تصویر بالای صفحه حذف شده -->
+        <h2>نتیجه استعلام</h2>
+        <form id="loginForm">
+            <label for="nationalCode">کد ملی:</label>
+            <input type="tel" id="nationalCode" pattern="\d{10}" maxlength="10" required>
+            <br>
+            <button type="button" onclick="validateUser()">ورود</button>
+        </form>
 
-    <!-- کارت نمایش پیام گواهی -->
-    <div id="certificate" style="display: none;">
-        <p>آقا/خانم <span id="fullName"></span> با کد ملی <span id="userId"></span>شما به مدت <span id="columnG"></span> در مؤسسه تعالی اندیشه و رشد سابقه فعالیت داشته اید.</p>
+        <!-- کارت نمایش پیام گواهی -->
+        <div id="certificate">
+            <p> آقا/خانم <span id="fullName"></span> با کد ملی <span id="userId"></span> با جزئیات زیر در مؤسسه فعالیت داشته است.</p>
+            <table id="detailsTable">
+                <thead>
+                    <tr>
+                        <th>فعالیت</th>
+                        <th>تاریخ شروع</th>
+                        <th>تاریخ پایان</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- ردیف‌ها به صورت پویا اضافه می‌شوند -->
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <script>
@@ -113,31 +175,56 @@
         // تبدیل ارقام انگلیسی به فارسی
         function toPersianDigits(input) {
             const persianDigits = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
-            return input.toString().replace(/\d/g, function(m){
+            return input.toString().replace(/\d/g, function(m) {
                 return persianDigits[parseInt(m)];
             });
         }
 
         // اعتبارسنجی کاربر و نمایش پیام گواهی
         function validateUser() {
-            const username = document.getElementById("username").value;
-            const password = document.getElementById("password").value;
-
-            if (username !== password) {
-                alert("کد ملی و رمز عبور باید یکسان باشند.");
+            const nationalCode = document.getElementById("nationalCode").value;
+            
+            if(nationalCode.length !== 10) {
+                alert("لطفاً کد ملی معتبر وارد کنید.");
                 return;
             }
 
-            const filteredData = excelData.filter(row => row[2] == username);
+            const filteredData = excelData.filter(row => row[2] == nationalCode);
 
             if (filteredData.length === 0) {
                 alert("کاربری با این کد ملی یافت نشد.");
                 return;
             }
 
+            // استفاده از اولین سطر برای نام و کد ملی
             document.getElementById("fullName").innerText = filteredData[0][1];
-            document.getElementById("userId").innerText = toPersianDigits(username);
-            document.getElementById("columnG").innerText = toPersianDigits(filteredData[0][6]);
+            document.getElementById("userId").innerText = toPersianDigits(nationalCode);
+
+            // پاکسازی ردیف‌های قبلی جدول در صورت وجود
+            const tbody = document.getElementById("detailsTable").querySelector("tbody");
+            tbody.innerHTML = "";
+
+            // اضافه کردن ردیف‌ها برای هر سطر مطابق کد ملی وارد شده
+            filteredData.forEach(row => {
+                const tr = document.createElement("tr");
+
+                // ستون D: فعالیت (index 3)
+                const tdActivity = document.createElement("td");
+                tdActivity.innerText = row[3] || "";
+                tr.appendChild(tdActivity);
+
+                // ستون E: تاریخ شروع (index 4)
+                const tdStartDate = document.createElement("td");
+                tdStartDate.innerText = row[4] || "";
+                tr.appendChild(tdStartDate);
+
+                // ستون F: تاریخ پایان (index 5)
+                const tdEndDate = document.createElement("td");
+                tdEndDate.innerText = row[5] ? row[5] : "(تا اکنون)";
+                tr.appendChild(tdEndDate);
+
+                tbody.appendChild(tr);
+            });
 
             document.getElementById("loginForm").style.display = "none";
             document.getElementById("certificate").style.display = "block";
