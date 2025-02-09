@@ -1,240 +1,308 @@
- <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<!DOCTYPE html>
+<html lang="fa">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>استعلام گواهی</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
-    <style>
-        /* تعریف فونت فارسی از طریق لینک مستقیم */
-        @font-face {
-            font-family: 'IranTitrBold';
-            src: url('https://tashacol.github.io/ir/B-NAZANIN.TTF') format('truetype');
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- افزودن کتابخانه XLSX برای خواندن فایل اکسل -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style type="text/css">
+    @font-face {
+        font-family: 'CustomFont';
+        src: url('https://tashacol.github.io/ir/B%20Titr%20Bold_0.ttf') format('truetype');
+    }
+    body {
+        font-family: 'CustomFont', sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        min-height: 100vh; /* تغییر ارتفاع به حداقل برای رسپانسیو بودن */
+        background-color: #f0f0f0;
+        margin: 0;
+        direction: rtl; /* اضافه کردن راست‌چین */
+    }
+    .container {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        padding: 20px; /* اضافه کردن پدینگ برای رسپانسیو بودن */
+        box-sizing: border-box; /* برای محاسبه صحیح عرض و پدینگ */
+    }
+    form {
+        background-color: white;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        width: 100%; /* تغییر عرض به 100% برای رسپانسیو */
+        max-width: 340px; /* حداکثر عرض فرم */
+        margin-top: 0; /* تغییر به 0 برای چسباندن به بالای صفحه */
+        position: relative;
+        box-sizing: border-box; /* برای محاسبه صحیح عرض و پدینگ */
+    }
+    .form-title {
+        font-size: 20px;
+        font-weight: bold;
+        color: #00796b;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    label {
+        display: block;
+        margin-bottom: 10px;
+        font-weight: bold;
+        color: #00796b;
+    }
+    input[type="text"], input[type="number"], select, textarea {
+        width: 100%;
+        padding: 12px;
+        margin-bottom: 20px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        background-color: #f1f8e9;
+        color: #000;
+        box-sizing: border-box; /* برای محاسبه صحیح عرض و پدینگ */
+    }
+    button {
+        width: 100%;
+        padding: 12px;
+        background-color: #007BFF;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 18px;
+    }
+    button:hover {
+        background-color: #0056b3;
+    }
+    .loading {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        text-align: center;
+        animation: fadeIn 0.5s;
+    }
+    .message {
+        text-align: center;
+        margin-top: 20px;
+        font-size: 16px;
+        color: #00796b;
+    }
+    .success {
+        color: green;
+    }
+    .error {
+        color: red;
+    }
+    .icon {
+        font-size: 24px;
+        margin-bottom: 10px;
+    }
+    @media (max-width: 400px) {
+        .form-title {
+            font-size: 18px;
         }
-        /* پویانمایی پس‌زمینه */
-        @keyframes gradient {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-        /* استایل لودینگ صفحه با مات و مات کردن پس‌زمینه */
-        #loaderOverlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(5px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-        }
-        .loader-spinner {
-            border: 8px solid rgba(255, 255, 255, 0.3);
-            border-top: 8px solid #fff;
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        body {
-            /* استفاده از فونت جدید و راست‌چین کردن تمام متون */
-            font-family: 'IranTitrBold', Arial, sans-serif;
-            direction: rtl;
-            text-align: right;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background: linear-gradient(-45deg, #ff9a9e, #fad0c4, #fbc2eb, #a18cd1);
-            background-size: 400% 400%;
-            animation: gradient 15s ease infinite;
-        }
-        .container {
-            background: rgba(255, 255, 255, 0.9);
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.2);
-            max-width: 600px;
-            width: 95%; /* کاهش عرض در موبایل */
-            /* تغییر از وسط‌چین به راست‌چین */
-            text-align: right;
-            margin: 0 10px; /* اضافه کردن فضای حاشیه برای موبایل */
-        }
-        h1 {
-            margin-bottom: 20px;
-            color: #333;
-            font-size: 24px;
-            font-weight: bold;
-        }
-        img {
-            margin-bottom: 20px;
-            border-radius: 10px;
-            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-        }
-        #searchInput {
-            width: 90%; /* فاصله از حاشیه‌ها */
-            padding: 15px;
-            margin: 20px auto; /* وسط‌چین کردن */
-            border: 1px solid #ccc;
-            border-radius: 10px;
+        button {
             font-size: 16px;
-            text-align: right; /* راست‌چین کردن متن */
-            display: block;
         }
-        #errorMsg, #loadingMsg {
-            font-size: 14px;
-            margin-top: 10px;
-        }
-        #errorMsg {
-            color: #d9534f;
-            display: none;
-        }
-        #loadingMsg {
-            color: #0275d8;
-            display: none;
-        }
-        table {
-            border-collapse: collapse;
-            width: 100%;
-            display: none;
-            margin-top: 20px;
-            direction: rtl;
-            text-align: center;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 12px;
-        }
-        th {
-            background-color: #007bff;
-            color: #fff;
-        }
-        td {
-            background-color: #f9f9f9;
-        }
-        td:nth-child(1) { /* لینک - ستون چپ */
-            text-align: left;
-        }
-        td:nth-child(2) { /* اطلاعات - ستون راست */
-            text-align: right;
-        }
-        a {
-            color: #007bff;
-            text-decoration: none;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
-    </style>
+    }
+</style>
 </head>
 <body>
-    <!-- لایه لودینگ با مات کردن پس‌زمینه -->
-    <div id="loaderOverlay">
-        <div class="loader-spinner"></div>
-    </div>
-    <div class="container">
-        <h1>استعلام گواهی</h1>
-        <img height="234" width="215" src="https://tashacol.github.io/ir/Estelam.gif" alt="گواهی" />
-        <input type="text" id="searchInput" placeholder="شماره گواهی را وارد کنید" />
-        <div id="loadingMsg">داده‌ها در حال پردازش هستند، لطفا کمی صبر کنید...</div>
-        <div id="errorMsg">شماره گواهی اشتباه است یا چنین گواهی صادر نگردیده</div>
-        <table id="excelData">
-            <thead>
-                <tr>
-                    <th>پروژه</th>
-                    <th>اطلاعات</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- سطرها به‌صورت پویا اضافه می‌شوند -->
-            </tbody>
-        </table>
-    </div>
+<!-- فرم دریافت کد ملی -->
+<div class="container" id="nationalCodeContainer">
+    <form onsubmit="checkNationalCode(event)">
+        <div class="form-title">نظرسنجی تربیت‌مربی</div>
+        <label for="nationalCode">کد ملی:</label>
+        <input type="text" id="nationalCode" required name="nationalCode" />
+        <button type="submit">تایید</button>
+        <div id="nationalCodeMessage" class="message">&nbsp;</div>
+    </form>
+</div>
 
-    <script>
-        const url = 'https://docs.google.com/spreadsheets/d/1c0g7deSI0y-QP4nQNux-l07_cumu3A6Gy0OolnhZWdU/export?format=xlsx';
+<!-- فرم نظرسنجی (ابتدا پنهان) -->
+<div class="container" id="surveyFormContainer" style="display: none;">
+    <form onsubmit="submitForm(event)">
+        <div class="form-title">نظر سنجی<br />دوره تربیت مربی نوجوان</div>
+        <label for="name">نام و نام خانوادگی:</label>
+        <input type="text" id="name" required name="name" />
+        <label for="phone">شماره تماس:</label>
+        <input type="text" id="phone" required name="phone" />
+        <label for="education">رشته و مدرک تحصیلی:</label>
+        <input type="text" id="education" required name="education" />
+        <label>سابقه فعالیت تربیتی:</label>
+        <select name="experience" required>
+            <option value="" disabled selected>لطفاً گزینه‌ای انتخاب کنید</option>
+            <option value="کمتر از ۱ سال">کمتر از ۱ سال</option>
+            <option value="۱ سال">۱ سال</option>
+            <option value="دو سال">دو سال</option>
+            <option value="۳ سال">۳ سال</option>
+            <option value="بیش از ۳ سال">بیش از ۳ سال</option>
+        </select>
+        <label>از دوره راضی بودید:</label>
+        <select name="contentSatisfaction" required>
+            <option value="" disabled selected>لطفاً گزینه‌ای انتخاب کنید</option>
+            <option value="خیلی راضی">خیلی راضی</option>
+            <option value="راضی">راضی</option>
+            <option value="متوسط">متوسط</option>
+            <option value="ناراضی">ناراضی</option>
+            <option value="خیلی ناراضی">خیلی ناراضی</option>
+        </select>
+        <label>مطالب مفید بود؟</label>
+        <select name="contentRelevance" required>
+            <option value="" disabled selected>لطفاً گزینه‌ای انتخاب کنید</option>
+            <option value="بله">بله</option>
+            <option value="خیر">خیر</option>
+            <option value="تا حدی">تا حدی</option>
+        </select>
+        <label>کدام مبحث مفیدتر بود؟ </label>
+        <select name="usefulTerm" required>
+            <option value="" disabled selected>لطفاً گزینه‌ای انتخاب کنید</option>
+            <option value="شناخت نوجوان">شناخت نوجوان</option>
+            <option value="تربیت نوجوان">تربیت نوجوان</option>
+            <option value=" راهنمایی نوجوان"> راهنمایی نوجوان</option>
+            <option value="ارتباط با نوجوان">ارتباط با نوجوان </option>
+            <option value="مهارت‌های زندگی">مهارت‌های زندگی</option>
+        </select>
+        <label>انتخاب محتوا چطور بود؟</label>
+        <select name="contentQuality" required>
+            <option value="" disabled selected>لطفاً گزینه‌ای انتخاب کنید</option>
+            <option value="خیلی خوب">خیلی خوب</option>
+            <option value="خوب">خوب</option>
+            <option value="متوسط">متوسط</option>
+            <option value="بد">بد</option>
+            <option value="خیلی بد">خیلی بد</option>
+        </select>
+        <label>دوره را به دیگران توصیه می‌کنید؟ </label>
+        <select name="recommendation" required>
+            <option value="" disabled selected>لطفاً گزینه‌ای انتخاب کنید</option>
+            <option value="بله">بله</option>
+            <option value="خیر">خیر</option>
+            <option value="شاید">شاید</option>
+        </select>
+        <label>در کل، چه نمره‌ای به این دوره می‌دهید؟ (۱ تا ۲۰)</label>
+        <input type="number" id="rating" min="1" max="20" required name="rating" />
+        <label>آیا پیشنهاد خاصی برای دوره‌های آینده دارید؟</label>
+        <textarea id="suggestions" name="suggestions"></textarea>
+        <button type="submit">ثبت نظر</button>
+        <div id="responseMessage" class="message">&nbsp;</div>
+    </form>
+</div>
 
-        // نمایش پیام در حال بارگذاری
-        document.getElementById('loadingMsg').style.display = 'block';
+<div id="loading" class="loading">
+    <p id="loadingMessage">در حال ارسال... لطفاً صبر کنید.</p>
+</div>
 
-        fetch(url)
-            .then(response => response.arrayBuffer())
-            .then(data => {
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                displayData(jsonData);
-            })
-            .catch(error => console.error('خطا در دریافت فایل اکسل:', error))
-            .finally(() => {
-                document.getElementById('loadingMsg').style.display = 'none';
-                document.getElementById('loaderOverlay').style.display = 'none';
-            });
+<script>
+    let excelData = [];
+    let excelData2 = []; // داده‌های اکسل از فایل دوم
 
-        function displayData(data) {
-            const filteredData = data.slice(1);
-
-            document.getElementById('searchInput').addEventListener('input', function() {
-                const searchTerm = this.value.trim().toLowerCase();
-                filterTable(filteredData, searchTerm);
-            });
+    async function loadExcelData() {
+        try {
+            const excelFileUrl = "https://docs.google.com/spreadsheets/d/1QSRAGajWtCWHJHsU-u4dRW85nq2hCGySKqtZQL0iTjY/export?format=xlsx"; // لینک مستقیم فایل اکسل اول
+            const response = await fetch(excelFileUrl);
+            const arrayBuffer = await response.arrayBuffer();
+            const data = new Uint8Array(arrayBuffer);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            excelData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        } catch (error) {
+            console.error("Error loading Excel file:", error);
         }
+    }
 
-        function filterTable(data, searchTerm) {
-            const table = document.getElementById('excelData');
-            const errorMsg = document.getElementById('errorMsg');
+    async function loadExcelData2() {
+        try {
+            const excelFileUrl2 = "https://docs.google.com/spreadsheets/d/1GCbyVT2l2TvLsvIchWVNWoM2IwuxRWwwS41qIOu6owk/export?format=xlsx"; // لینک مستقیم فایل اکسل دوم
+            const response = await fetch(excelFileUrl2);
+            const arrayBuffer = await response.arrayBuffer();
+            const data = new Uint8Array(arrayBuffer);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            excelData2 = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        } catch (error) {
+            console.error("Error loading Excel file 2:", error);
+        }
+    }
 
-            table.querySelector('tbody').innerHTML = '';
-            let hasResults = false;
+    window.onload = function() {
+        loadExcelData();
+        loadExcelData2();
+        // اطمینان از اینکه فرم نظرسنجی ابتدا پنهان است
+        document.getElementById("surveyFormContainer").style.display = "none";
+    };
 
-            if (searchTerm.length < 7) {
-                table.style.display = 'none';
-                errorMsg.style.display = 'none';
-                return;
-            }
-
-            data.forEach(row => {
-                const cellM = row[11];
-                if (cellM && cellM.toString().toLowerCase().includes(searchTerm)) {
-                    hasResults = true;
-                    const tr = document.createElement('tr');
-
-                    const tdL = document.createElement('td'); // لینک - ستون چپ
-                    const linkText = row[10];
-                    const linkUrl = row[9];
-                    const linkElement = document.createElement('a');
-                    linkElement.textContent = linkText;
-                    linkElement.href = linkUrl;
-                    linkElement.target = "_blank";
-                    tdL.appendChild(linkElement);
-                    tr.appendChild(tdL);
-
-                    const tdN = document.createElement('td'); // اطلاعات - ستون راست
-                    tdN.textContent = row[12];
-                    tr.appendChild(tdN);
-
-                    table.querySelector('tbody').appendChild(tr);
+    function checkNationalCode(event) {
+        event.preventDefault();
+        const nationalCodeInput = document.getElementById("nationalCode");
+        const enteredCode = nationalCodeInput.value.trim();
+        const messageDiv = document.getElementById("nationalCodeMessage");
+        messageDiv.innerText = "";
+        let foundRow = null;
+        if (excelData && excelData.length > 0) {
+            for (let i = 0; i < excelData.length; i++) {
+                // ستون B (اندیس 1) حاوی کد ملی است
+                if(String(excelData[i][1]).trim() === enteredCode) {
+                    foundRow = excelData[i];
+                    break;
                 }
-            });
-
-            if (hasResults) {
-                errorMsg.style.display = 'none';
-                table.style.display = 'table';
-            } else {
-                errorMsg.style.display = 'block';
-                table.style.display = 'none';
             }
         }
-    </script>
+        if (foundRow) {
+            const fullName = foundRow[0];
+            let alreadyVoted = false;
+            if (excelData2 && excelData2.length > 0) {
+                for (let i = 0; i < excelData2.length; i++) {
+                    // ستون A (اندیس 0) حاوی نام و نام خانوادگی است
+                    if(String(excelData2[i][0]).trim() === fullName.trim()) {
+                        alreadyVoted = true;
+                        break;
+                    }
+                }
+            }
+            if (alreadyVoted) {
+                messageDiv.innerText = `آقا/خانم ${fullName} شما قبلا نظر خود را ثبت کرده‌اید.`;
+            } else {
+                // پر کردن فیلد نام و نام خانوادگی با داده موجود در ستون A (اندیس 0) و غیر قابل تغییر کردن آن
+                document.getElementById("name").value = fullName;
+                document.getElementById("name").readOnly = true;
+                // نمایش فرم نظرسنجی و پنهان کردن فرم ورود کد ملی
+                document.getElementById("nationalCodeContainer").style.display = "none";
+                document.getElementById("surveyFormContainer").style.display = "flex";
+            }
+        } else {
+            messageDiv.innerText = "کد ملی وارد شده یافت نشد.";
+        }
+    }
+
+    async function submitForm(event) {
+        event.preventDefault();
+        const formData = new FormData(event.target);
+        const loadingDiv = document.getElementById('loading');
+        loadingDiv.style.display = 'block';
+        loadingDiv.innerHTML = '<p id="loadingMessage">در حال ارسال... لطفاً صبر کنید.</p>';
+
+        try {
+            const response = await fetch('https://script.google.com/macros/s/AKfycby5OUHaXhfZznFiYNPKq0ry5Zg9KaNNk5dDx3bGfJLAUIp-uvqipTadUiOu1uMr9EOF/exec', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.text();
+            // تغییر محتوا در پنجره پاپ آپ پس از ثبت موفقیت‌آمیز نظر
+            loadingDiv.innerHTML = '<span class="icon">&#10004;</span><p id="loadingMessage"><span class="success">دیدگاه شما با موفقیت ثبت شد.</span></p>';
+        } catch (error) {
+            console.error('Error:', error);
+            // تغییر محتوا در پنجره پاپ آپ در صورت بروز خطا
+            loadingDiv.innerHTML = '<span class="icon">&#10006;</span><p id="loadingMessage"><span class="error">ارسال ناموفق بود. لطفاً دوباره تلاش کنید.</span></p>';
+        }
+    }
+</script>
 </body>
 </html>
