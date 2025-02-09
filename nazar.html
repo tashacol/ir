@@ -1,7 +1,16 @@
+ <!DOCTYPE html>
+<html lang="fa">
+<head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- افزودن کتابخانه XLSX برای خواندن فایل اکسل -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style type="text/css">
+    @font-face {
+        font-family: 'CustomFont';
+        src: url('https://tashacol.github.io/ir/B%20Titr%20Bold_0.ttf') format('truetype');
+    }
     body {
-        font-family: 'Tahoma', sans-serif;
+        font-family: 'CustomFont', sans-serif;
         display: flex;
         justify-content: center;
         align-items: flex-start;
@@ -103,8 +112,21 @@
         }
     }
 </style>
+</head>
+<body>
+<!-- فرم دریافت کد ملی -->
+<div class="container" id="nationalCodeContainer">
+    <form onsubmit="checkNationalCode(event)">
+        <div class="form-title">نظرسنجی تربیت‌مربی</div>
+        <label for="nationalCode">کد ملی:</label>
+        <input type="text" id="nationalCode" required name="nationalCode" />
+        <button type="submit">تایید</button>
+        <div id="nationalCodeMessage" class="message">&nbsp;</div>
+    </form>
+</div>
 
-<div class="container">
+<!-- فرم نظرسنجی (ابتدا پنهان) -->
+<div class="container" id="surveyFormContainer" style="display: none;">
     <form onsubmit="submitForm(event)">
         <div class="form-title">نظر سنجی<br />دوره تربیت مربی نوجوان</div>
         <label for="name">نام و نام خانوادگی:</label>
@@ -131,24 +153,23 @@
             <option value="ناراضی">ناراضی</option>
             <option value="خیلی ناراضی">خیلی ناراضی</option>
         </select>
-        <label>آیا مطالب ارائه شده برای شما مفید بود؟</label>
+        <label>مطالب مفید بود؟</label>
         <select name="contentRelevance" required>
             <option value="" disabled selected>لطفاً گزینه‌ای انتخاب کنید</option>
             <option value="بله">بله</option>
             <option value="خیر">خیر</option>
             <option value="تا حدی">تا حدی</option>
         </select>
-        <label>کدام مبحث برایتان مفیدتر بود:</label>
+        <label>کدام مبحث مفیدتر بود؟ </label>
         <select name="usefulTerm" required>
             <option value="" disabled selected>لطفاً گزینه‌ای انتخاب کنید</option>
-            <option value="تغییرات نوجوان">تغییرات نوجوان</option>
-            <option value="تربیت ریشه‌ای نوجوان">تربیت ریشه‌ای نوجوان</option>
-            <option value="تربیت دینی">تربیت دینی</option>
-            <option value="تربیت جنسی">تربیت جنسی</option>
-            <option value="اصول و فنون مشاوره و راهنمایی">اصول و فنون مشاوره و راهنمایی</option>
-            <option value="مهارتهای زندگی">مهارتهای زندگی</option>
+            <option value="شناخت نوجوان">شناخت نوجوان</option>
+            <option value="تربیت نوجوان">تربیت نوجوان</option>
+            <option value=" راهنمایی نوجوان"> راهنمایی نوجوان</option>
+            <option value="ارتباط با نوجوان">ارتباط با نوجوان </option>
+            <option value="مهارت‌های زندگی">مهارت‌های زندگی</option>
         </select>
-        <label>کیفیت محتوای انتخاب شده برای آموزش چطور بود؟</label>
+        <label>انتخاب محتوا چطور بود؟</label>
         <select name="contentQuality" required>
             <option value="" disabled selected>لطفاً گزینه‌ای انتخاب کنید</option>
             <option value="خیلی خوب">خیلی خوب</option>
@@ -157,7 +178,7 @@
             <option value="بد">بد</option>
             <option value="خیلی بد">خیلی بد</option>
         </select>
-        <label>آیا شما این دوره را به دیگران توصیه می‌کنید؟</label>
+        <label>دوره را به دیگران توصیه می‌کنید؟ </label>
         <select name="recommendation" required>
             <option value="" disabled selected>لطفاً گزینه‌ای انتخاب کنید</option>
             <option value="بله">بله</option>
@@ -178,6 +199,57 @@
 </div>
 
 <script>
+    let excelData = [];
+
+    async function loadExcelData() {
+        try {
+            const excelFileUrl = "DIRECT_EXCEL_FILE_LINK"; // جایگزین با لینک مستقیم فایل اکسل شما
+            const response = await fetch(excelFileUrl);
+            const arrayBuffer = await response.arrayBuffer();
+            const data = new Uint8Array(arrayBuffer);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            excelData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        } catch (error) {
+            console.error("Error loading Excel file:", error);
+        }
+    }
+
+    window.onload = function() {
+        loadExcelData();
+        // اطمینان از اینکه فرم نظرسنجی ابتدا پنهان است
+        document.getElementById("surveyFormContainer").style.display = "none";
+    };
+
+    function checkNationalCode(event) {
+        event.preventDefault();
+        const nationalCodeInput = document.getElementById("nationalCode");
+        const enteredCode = nationalCodeInput.value.trim();
+        const messageDiv = document.getElementById("nationalCodeMessage");
+        messageDiv.innerText = "";
+        let foundRow = null;
+        if (excelData && excelData.length > 0) {
+            for (let i = 0; i < excelData.length; i++) {
+                // ستون B (اندیس 1) حاوی کد ملی است
+                if(String(excelData[i][1]).trim() === enteredCode) {
+                    foundRow = excelData[i];
+                    break;
+                }
+            }
+        }
+        if (foundRow) {
+            // پر کردن فیلد نام و نام خانوادگی با داده موجود در ستون A (اندیس 0) و غیر قابل تغییر کردن آن
+            document.getElementById("name").value = foundRow[0];
+            document.getElementById("name").readOnly = true;
+            // نمایش فرم نظرسنجی و پنهان کردن فرم ورود کد ملی
+            document.getElementById("nationalCodeContainer").style.display = "none";
+            document.getElementById("surveyFormContainer").style.display = "flex";
+        } else {
+            messageDiv.innerText = "کد ملی وارد شده یافت نشد.";
+        }
+    }
+
     async function submitForm(event) {
         event.preventDefault();
         const formData = new FormData(event.target);
@@ -207,3 +279,5 @@
         }
     }
 </script>
+</body>
+</html>
