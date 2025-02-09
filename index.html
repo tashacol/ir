@@ -442,9 +442,10 @@
       overscroll-behavior: contain;  /* جلوگیری از انتقال اسکرول به عناصر پشت صحنه */
     }
     .popupContent {
+      position: relative;
       width: 360px;
       max-width: 95%;
-      height: 500px;
+      height: 700px;
       background: rgba(255, 255, 255, 0.7); /* پس‌زمینه مدرن با شفافیت مناسب */
       backdrop-filter: blur(10px); /* افکت شیشه‌ای (glassmorphism) */
       border: 1px solid rgba(255, 255, 255, 0.3); /* حاشیه ملایم */
@@ -476,19 +477,30 @@
       position: relative;
       overscroll-behavior: contain;  /* جلوگیری از انتقال اسکرول به صفحه اصلی */
     }
+    /* دکمه بستن جدید: دکمه گرد، سه بعدی، با حاشیه سه بعدی، قرمز با ضربدر سفید */
     .popupFooter {
-      background: #f0f0f0;
-      padding: 15px;
-      text-align: center;
-      font-size: 16px;
-      font-weight: bold;
-      color: #333;
+      position: absolute;
+      left: 10px;
+      bottom: 10px;
+      width: 50px;
+      height: 50px;
+      background: #e74c3c;
+      border: 2px solid #c0392b;
+      border-radius: 50%;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
-      transition: background 0.3s ease, transform 0.3s ease;
+      transition: transform 0.3s ease;
     }
     .popupFooter:hover {
-      background: #e0e0e0;
-      transform: translateY(-3px);
+      transform: scale(1.1);
+    }
+    .popupFooter svg {
+      fill: #fff;
+      width: 24px;
+      height: 24px;
     }
     @keyframes fadeIn {
       from { opacity: 0; }
@@ -542,34 +554,34 @@
       transform: translateY(-5px) scale(1.02);
       box-shadow: 0 8px 20px rgba(0,0,0,0.2);
     }
+    /* ویرایش: نمایش تصویر خبر به صورت مستطیل با حاشیه‌های گرد */
     .chat-image {
-      width: 60px;
-      height: 60px;
+      width: 100%;
+      height: 200px;
       object-fit: cover;
-      border-radius: 50%;
-      align-self: center;
+      border-radius: 10px;
       margin-bottom: 10px;
-      border: 3px solid #ff6347;
       cursor: pointer;
-      transition: transform 0.3s ease, border-color 0.3s ease;
+      transition: transform 0.3s ease;
     }
     .chat-image:hover {
       transform: scale(1.1);
     }
     .chat-image.viewed {
-      border-color: #ccc;
+      /* در صورت نیاز استایل اضافه شود */
     }
+    /* ویرایش: متن تیتر خبر و توضیحات راستچین شوند */  
     .chat-title {
       font-weight: bold;
       font-size: 16px;
       color: #333;
-      text-align: center;
+      text-align: right;
       margin-bottom: 5px;
     }
     .chat-desc {
       font-size: 14px;
       color: #666;
-      text-align: center;
+      text-align: right;
     }
     .more-details {
       display: inline-block;
@@ -583,7 +595,7 @@
       cursor: pointer;
       text-decoration: none;
       transition: transform 0.3s ease, box-shadow 0.3s ease;
-      align-self: center;
+      align-self: flex-end;
     }
     .more-details:hover {
       transform: translateY(-3px);
@@ -792,6 +804,7 @@
           <p>در حال بارگذاری...</p>  
         </div>  
       </div>  
+      <!-- دکمه بستن جدید: دکمه گرد، سه بعدی، قرمز با ضربدر سفید، در سمت چپ قرار دارد -->  
       <div class="popupFooter" id="chatFooter">  
         <svg width="24" height="24" viewBox="0 0 24 24">  
           <path fill="currentColor" d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12Z"/>  
@@ -822,13 +835,29 @@
       const excelUrl = "https://docs.google.com/spreadsheets/d/1il6IPfhfVjw8YJKD1_VkZOxGS0eqmgvO3Z8nfP-1MwA/export?format=xlsx";  
       let chatMessagesData = [];  
   
+      // تابع تبدیل لینک‌های گوگل درایو به لینک مناسب برای نمایش تصویر  
+      function fixImageUrl(url) {  
+        if(url.includes("drive.google.com")) {  
+          const fileIdMatch = url.match(/\/d\/([^\/]+)/);  
+          if(fileIdMatch && fileIdMatch[1]) {  
+            return "https://drive.google.com/uc?export=view&id=" + fileIdMatch[1];  
+          }  
+        }  
+        return url;  
+      }  
+  
       // تابع دریافت URL تصویر با کیفیت پایین  
       function getLowQualityImageUrl(url) {  
-        if(url.indexOf('?') !== -1) {  
-          return url + "&lowq=1";  
-        } else {  
-          return url + "?lowq=1";  
-        }  
+        let fixedUrl = fixImageUrl(url);
+        if(!fixedUrl.includes("drive.google.com")){
+          if(fixedUrl.indexOf('?') !== -1) {  
+            return fixedUrl + "&lowq=1";  
+          } else {  
+            return fixedUrl + "?lowq=1";  
+          }  
+        } else {
+          return fixedUrl;
+        }
       }  
   
       // دریافت و پردازش داده‌های اکسل  
@@ -857,9 +886,9 @@
       }  
   
       // ایجاد المان پیام چت از داده‌های یک ردیف  
-      // ستون‌ها: A: عنوان، B: توضیح، C: لینک تصویر، D: لینک توضیحات بیشتر (اختیاری)  
+      // ستون‌ها: A: عنوان، B: توضیح، C: لینک تصویر، D: لینک توضیحات بیشتر (اختیاری)، E: تاریخ خبر  
       function createChatMessage(row, index) {  
-        const [title, desc, imgUrl, moreLink] = row;  
+        const [title, desc, imgUrl, moreLink, newsDate] = row;  
         const messageDiv = document.createElement("div");  
         messageDiv.className = "chat-message";  
   
@@ -896,7 +925,19 @@
         const descElem = document.createElement("div");  
         descElem.className = "chat-desc";  
         descElem.textContent = desc;  
-        messageDiv.appendChild(descElem);  
+        messageDiv.appendChild(descElem);
+
+        // افزودن تاریخ خبر در پایین توضیحات با فونت کوچکتر (در صورت وجود)
+        if(newsDate && newsDate.toString().trim() !== "") {
+          const dateElem = document.createElement("div");
+          dateElem.className = "chat-date";
+          dateElem.textContent = newsDate;
+          dateElem.style.fontSize = "12px";
+          dateElem.style.color = "#666";
+          dateElem.style.textAlign = "left";
+          dateElem.style.marginTop = "5px";
+          messageDiv.appendChild(dateElem);
+        }
   
         // دکمه «توضیحات بیشتر» در صورت وجود لینک در ستون D  
         if(moreLink && moreLink.toString().trim() !== ""){  
@@ -933,7 +974,7 @@
         document.getElementById("imageModal").style.display = "none";  
       }  
   
-      // رویداد بستن پنجره پاپ‌آپ (فوتر)  
+      // رویداد بستن پنجره پاپ‌آپ (دکمه جدید)  
       document.getElementById("chatFooter").addEventListener("click", function(){  
         document.getElementById("chatPopup").style.display = "none";  
         document.body.style.overflow = "auto";  
