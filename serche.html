@@ -15,15 +15,15 @@
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: linear-gradient(135deg, #ece9e6, #ffffff);
+      min-height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
-      min-height: 100vh;
       padding: 20px;
     }
     
     .container {
-      background: #ffffff;
+      background: #fff;
       border-radius: 15px;
       padding: 30px;
       max-width: 600px;
@@ -50,7 +50,7 @@
       font-size: 2rem;
     }
     
-    /* فیلدها و دکمه‌ها */
+    /* استایل فیلدها و دکمه‌ها */
     select, input[type="text"], button {
       font-size: 1rem;
       width: 100%;
@@ -206,82 +206,176 @@
     </div>
     <div id="historyContainer" class="history" style="display: none;">
       <h3>سوابق جستجو:</h3>
-      <div id="historyList"> </div>
+      <div id="historyList">&nbsp;</div>
     </div>
   </div>
+  
   <script>
     var searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || [];
     
     function showSearchField() {
-        var searchType = document.getElementById("searchType").value;
-        var searchContainer = document.getElementById("searchContainer");
-        var searchInput = document.getElementById("searchInput");
-        var searchButton = document.getElementById("searchButton");
-        var domainOptions = document.getElementById("domainOptions");
-    
-        searchContainer.style.display = searchType ? 'block' : 'none';
-        domainOptions.style.display = (searchType === "domain") ? 'block' : 'none';
-        searchInput.placeholder = "جستجوی " + (searchType ? searchType.toUpperCase() : "");
-    
-        searchButton.onclick = function() {
-            var query = searchInput.value.trim();
-            var excludeQueries = [];
-            var excludeFields = document.querySelectorAll(".excludeInput");
-    
-            excludeFields.forEach(function(field) {
-                if (field.value.trim()) {
-                    excludeQueries.push(field.value.trim());
-                }
-            });
-    
-            var domain = document.getElementById("domainSelect").value;
-            
-            if (query) {
-                if (searchType === "domain" && domain === "") {
-                    alert("لطفاً دامنه را انتخاب کنید.");
-                    return;
-                }
-    
-                // ذخیره سوابق جستجو
-                searchHistory.unshift({ type: searchType, query: query, excludeQueries: excludeQueries, domain: domain }); 
-                localStorage.setItem('searchHistory', JSON.stringify(searchHistory)); 
-                updateHistory();
-                performSearch(searchType, query, excludeQueries, domain);
-            }
-        };
+      var searchType = document.getElementById("searchType").value;
+      var searchContainer = document.getElementById("searchContainer");
+      var searchInput = document.getElementById("searchInput");
+      var searchButton = document.getElementById("searchButton");
+      var domainOptions = document.getElementById("domainOptions");
+  
+      searchContainer.style.display = searchType ? 'block' : 'none';
+      domainOptions.style.display = (searchType === "domain") ? 'block' : 'none';
+      searchInput.placeholder = "جستجوی " + (searchType ? searchType.toUpperCase() : "");
+  
+      searchButton.onclick = function() {
+        var query = searchInput.value.trim();
+        var excludeQueries = [];
+        var excludeFields = document.querySelectorAll(".excludeInput");
+  
+        excludeFields.forEach(function(field) {
+          if (field.value.trim()) {
+            excludeQueries.push(field.value.trim());
+          }
+        });
+  
+        var domain = document.getElementById("domainSelect").value;
+        
+        if (query) {
+          if (searchType === "domain" && domain === "") {
+            alert("لطفاً دامنه را انتخاب کنید.");
+            return;
+          }
+  
+          // ذخیره سوابق جستجو
+          searchHistory.unshift({ type: searchType, query: query, excludeQueries: excludeQueries, domain: domain }); 
+          localStorage.setItem('searchHistory', JSON.stringify(searchHistory)); 
+          updateHistory();
+          performSearch(searchType, query, excludeQueries, domain);
+        }
+      };
     }
     
     function addExcludeField() {
-        var excludeFieldsContainer = document.getElementById("excludeFieldsContainer");
-        var newExcludeField = document.createElement("div");
-        newExcludeField.className = "exclude-field";
-        newExcludeField.innerHTML = `
-            <input type="text" class="excludeInput" placeholder="این کلمات جستجو نشوند..." />
-            <button class="add-button" onclick="removeExcludeField(this)">-</button>
-        `;
-        excludeFieldsContainer.appendChild(newExcludeField);
+      var excludeFieldsContainer = document.getElementById("excludeFieldsContainer");
+      var newExcludeField = document.createElement("div");
+      newExcludeField.className = "exclude-field";
+      newExcludeField.innerHTML = `
+        <input type="text" class="excludeInput" placeholder="این کلمات جستجو نشوند..." />
+        <button class="add-button" onclick="removeExcludeField(this)">-</button>
+      `;
+      excludeFieldsContainer.appendChild(newExcludeField);
     }
     
     function removeExcludeField(button) {
-        button.parentElement.remove();
+      button.parentElement.remove();
     }
     
     function performSearch(searchType, query, excludeQueries, domain) {
-        var finalQuery = query;
-        if (excludeQueries.length > 0) {
-            finalQuery = '"' + query + '" ' + excludeQueries.map(function(word) {
-                return '-' + word;
-            }).join(' ');
-        }
+      var finalQuery = query;
+      if (excludeQueries.length > 0) {
+        finalQuery = '"' + query + '" ' + excludeQueries.map(function(word) {
+          return '-' + word;
+        }).join(' ');
+      }
+  
+      if (searchType === "ppt") {
+        search('ppt', finalQuery);
+      } else if (searchType === "pdf") {
+        search('pdf', finalQuery);
+      } else if (searchType === "docx") {
+        search('docx', finalQuery);
+      } else if (searchType === "xlsx") {
+        search('xlsx', finalQuery);
+      } else if (searchType === "txt") {
+        search('txt', finalQuery);
+      } else if (searchType === "exact") {
+        searchExact(finalQuery);
+      } else if (searchType === "title") {
+        searchAllInTitle(finalQuery);
+      } else if (searchType === "site") {
+        searchInSite(finalQuery);
+      } else if (searchType === "define") {
+        searchDefine(finalQuery);
+      } else if (searchType === "scholar") {
+        searchScholar(finalQuery);
+      } else if (searchType === "domain") {
+        searchDomain(finalQuery, domain);
+      }
+    }
     
-        if (searchType === "ppt") {
-            search('ppt', finalQuery);
-        } else if (searchType === "pdf") {
-            search('pdf', finalQuery);
-        } else if (searchType === "docx") {
-            search('docx', finalQuery);
-        } else if (searchType === "xlsx") {
-            search('xlsx', finalQuery);
-        } else if (searchType === "txt") {
-            search('txt', finalQuery);
-        } else if (searchType === "exact") {
+    function search(fileType, query) {
+      var searchQuery = "filetype:" + fileType + " " + query;
+      var searchURL = "https://www.google.com/search?q=" + encodeURIComponent(searchQuery);
+      window.open(searchURL, "_blank");
+    }
+    
+    function searchInSite(query) {
+      var site = prompt("نام سایت (مثلاً example.com) را وارد کنید:");
+      if (site) {
+        var searchURL = "https://www.google.com/search?q=" + encodeURIComponent(query + " site:" + site);
+        window.open(searchURL, "_blank");
+      }
+    }
+    
+    function searchExact(query) {
+      var searchURL = "https://www.google.com/search?q=" + encodeURIComponent('"' + query + '"');
+      window.open(searchURL, "_blank");
+    }
+    
+    function searchAllInTitle(query) {
+      var searchURL = "https://www.google.com/search?q=" + encodeURIComponent('allintitle: "' + query + '"');
+      window.open(searchURL, "_blank");
+    }
+    
+    function searchDefine(query) {
+      var searchURL = "https://www.google.com/search?q=" + encodeURIComponent('define: ' + query);
+      window.open(searchURL, "_blank");
+    }
+    
+    function searchScholar(query) {
+      var googleScholarUrl = 'https://scholar.google.com/scholar?q=' + encodeURIComponent(query);
+      window.open(googleScholarUrl, '_blank');
+    }
+    
+    function searchDomain(query, domain) {
+      var searchQuery = "site:" + domain + " " + query;
+      var searchURL = "https://www.google.com/search?q=" + encodeURIComponent(searchQuery);
+      window.open(searchURL, "_blank");
+    }
+    
+    function updateHistory() {
+      var historyList = document.getElementById("historyList");
+      historyList.innerHTML = '';
+      searchHistory.forEach(function(item, index) {
+        var div = document.createElement("div");
+        div.className = "history-item";
+        div.innerText = item.query + " (" + item.type + ")";
+        div.onclick = function() {
+          performSearch(item.type, item.query, item.excludeQueries, item.domain);
+        };
+  
+        // دکمه حذف
+        var deleteButton = document.createElement("button");
+        deleteButton.className = "delete-button";
+        deleteButton.innerText = "حذف";
+        deleteButton.onclick = function(event) {
+          event.stopPropagation();
+          searchHistory.splice(index, 1);
+          localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
+          updateHistory();
+        };
+  
+        div.appendChild(deleteButton);
+        historyList.appendChild(div);
+      });
+  
+      document.getElementById("historyContainer").style.display = searchHistory.length > 0 ? 'block' : 'none';
+    }
+    
+    // در صورت نیاز، تابع setDomainSearch را تعریف می‌کنیم (فعلاً به صورت خالی)
+    function setDomainSearch() {
+      // در صورت نیاز می‌توانید کدهای دلخواه خود را اضافه کنید.
+    }
+    
+    // به‌روزرسانی تاریخچه هنگام بارگذاری صفحه
+    updateHistory();
+  </script>
+</body>
+</html>
