@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa">
 <head>
   <meta charset="UTF-8" />
@@ -54,20 +54,21 @@
       box-shadow: 0 2px 8px rgba(0,123,255,0.3);
       outline: none;
     }
+    /* اصلاح دکمه جستجو: حذف حاشیه و سایه‌های اضافی و ظاهر مدرن */
     .input-box button {
       margin-left: 10px;
       padding: 10px 20px;
       border: none;
       border-radius: 8px;
-      background: linear-gradient(145deg, #ffffff, #e6e6e6);
-      box-shadow: 4px 4px 8px rgba(0,0,0,0.1), -4px -4px 8px #ffffff;
+      background-color: #007bff;
+      color: #fff;
       cursor: pointer;
-      transition: transform 0.2s, box-shadow 0.2s;
+      transition: background-color 0.2s, transform 0.2s;
       font-size: 14px;
     }
     .input-box button:hover {
-      transform: translateY(-3px);
-      box-shadow: 2px 2px 6px rgba(0,0,0,0.15), -2px -2px 6px #ffffff;
+      background-color: #0056b3;
+      transform: translateY(-2px);
     }
     /* --- استایل باکس‌های ترم --- */
     .term-container {
@@ -79,10 +80,10 @@
     }
     .term-box {
       background-color: #fff;
-      border-radius: 12px;
+      border-radius: 16px;
       padding: 15px;
       width: 150px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
       transition: transform 0.3s, box-shadow 0.3s;
       text-align: center;
     }
@@ -183,7 +184,7 @@
       border-radius: 8px;
       box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
       user-select: text;
-      text-align: right; /* متن تکلیف در این صفحه به استثنای سایر متون، راست‌چین باشد */
+      text-align: right;
       margin-bottom: 15px;
       white-space: pre-wrap;
       word-wrap: break-word;
@@ -276,7 +277,7 @@
       resize: vertical;
       font-size: 14px;
       direction: rtl;
-      text-align: right; /* متن تکلیف در این صفحه به استثنای سایر متون، راست‌چین باشد */
+      text-align: right;
     }
     .popup-form form textarea:focus {
       background-color: #fff;
@@ -338,6 +339,67 @@
     #toast.show {
       opacity: 1;
       visibility: visible;
+    }
+    /* --- پاپ‌آپ اخطار کد ملی (جذاب و مدرن) --- */
+    #warningOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease;
+      z-index: 1000;
+    }
+    #warningOverlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+    #warningPopup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 300px;
+      max-width: 90%;
+      background-color: #fff;
+      border-radius: 16px;
+      padding: 20px;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+      z-index: 1001;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      text-align: center;
+    }
+    #warningPopup.active {
+      opacity: 1;
+      visibility: visible;
+    }
+    #warningPopup h3 {
+      margin-top: 0;
+      font-size: 18px;
+      color: #c62828;
+    }
+    #warningPopup p {
+      font-size: 16px;
+      margin: 10px 0;
+      color: #333;
+    }
+    #warningPopup button {
+      margin-top: 10px;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      background-color: #c62828;
+      color: #fff;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    #warningPopup button:hover {
+      background-color: #a41c1c;
     }
     /* --- ریسپانسیو (برای موبایل) --- */
     @media (max-width: 600px) {
@@ -410,6 +472,14 @@
   <!-- Toast پیام (برای کپی تکلیف) -->
   <div id="toast"></div>
 
+  <!-- پاپ‌آپ اخطار کد ملی -->
+  <div id="warningOverlay" class="overlay" onclick="closeWarningPopup()"></div>
+  <div id="warningPopup">
+    <h3>هشدار</h3>
+    <p id="warningMessage"></p>
+    <button onclick="closeWarningPopup()">تایید</button>
+  </div>
+
   <script>
     // متغیر سراسری جهت ذخیره داده‌های اکسل تکالیف
     let excelData = [];
@@ -481,13 +551,13 @@
     function fetchData() {
       const nationalCode = document.getElementById("nationalCodeInput").value.trim();
       if (!nationalCode) {
-        alert("لطفاً کد ملی را وارد کنید");
+        showWarningPopup("لطفاً کد ملی را وارد کنید");
         return;
       }
       // بررسی صحت ثبت نام: چک می‌کنیم آیا کد ملی در اکسل ثبت نام موجود است یا خیر
       const registeredUser = registrationData.find(row => row[1] == nationalCode);
       if (!registeredUser) {
-        alert("ارسال تکالیف برای شما مجاز نیست");
+        showWarningPopup("ارسال تکالیف برای شما مجاز نیست");
         return;
       }
       document.getElementById("inputBox").classList.add("hidden");
@@ -626,6 +696,16 @@
       setTimeout(() => {
         toast.classList.remove("show");
       }, 2000);
+    }
+    // نمایش پاپ‌آپ اخطار کد ملی
+    function showWarningPopup(message) {
+      document.getElementById("warningMessage").innerText = message;
+      document.getElementById("warningOverlay").classList.add("active");
+      document.getElementById("warningPopup").classList.add("active");
+    }
+    function closeWarningPopup() {
+      document.getElementById("warningOverlay").classList.remove("active");
+      document.getElementById("warningPopup").classList.remove("active");
     }
     loadExcel();
     loadRegistrationExcel();
