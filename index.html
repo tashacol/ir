@@ -422,40 +422,239 @@
       box-shadow: 0 -4px 8px rgba(0,0,0,0.3);  
       border-top: 3px solid var(--accent-color);  
       margin-top: 40px;  
-    }
+    }  
+  </style>  
 
-    /* ===============================
-       استایل پنجره افزودن به صفحه اصلی (A2HS)
-    ================================ */
-    #a2hsPrompt {
+  <!-- ===============================
+       کدهای مربوط به پنجره پاپ‌آپ اخبار
+       (بدون تغییر سایر بخش‌های سایت)
+  ================================ -->
+  <!-- کتابخانه SheetJS برای پردازش فایل اکسل -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- لینک به فونت Vazir (برای پیام‌های چت) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v28.1.0/dist/font-face.css">
+  <style>
+    /* استایل‌های پنجره پاپ‌آپ اخبار */
+    #chatPopup {
       position: fixed;
-      bottom: -100%;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #fff;
-      color: #333;
-      padding: 15px 20px;
-      border-radius: 10px 10px 0 0;
-      box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
-      z-index: 10000;
-      transition: bottom 0.5s ease-in-out;
-      max-width: 90%;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      animation: fadeIn 0.5s ease;
+      overscroll-behavior: contain;  /* جلوگیری از انتقال اسکرول به عناصر پشت صحنه */
+    }
+    .popupContent {
+      position: relative;
+      width: 360px;
+      max-width: 95%;
+      height: 580px;
+      background: rgba(255, 255, 255, 0.7); /* پس‌زمینه مدرن با شفافیت مناسب */
+      backdrop-filter: blur(10px); /* افکت شیشه‌ای (glassmorphism) */
+      border: 1px solid rgba(255, 255, 255, 0.3); /* حاشیه ملایم */
+      border-radius: 15px;
+      box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transform: perspective(600px) rotateX(5deg);
+      animation: slideDown 0.6s ease forwards;
+      transition: transform 0.3s ease;
+    }
+    .popupHeader {
+      background: linear-gradient(45deg, #5563DE, #74ABE2);
+      color: #fff;
+      padding: 20px;
+      font-size: 20px;
+      font-weight: bold;
       text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .popupBody {
+      flex: 1;
+      background: rgba(255,255,255,0.6); /* پس‌زمینه مدرن برای کادر پیام‌ها */
+      backdrop-filter: blur(5px); /* افکت شیشه‌ای */
+      overflow-y: auto;
+      padding: 15px;
+      position: relative;
+      overscroll-behavior: contain;  /* جلوگیری از انتقال اسکرول به صفحه اصلی */
+    }
+    /* دکمه بستن جدید: دکمه گرد، سه بعدی، با حاشیه سه بعدی، قرمز با ضربدر سفید */
+    .popupFooter {
+      position: absolute;
+      left: 10px;
+      bottom: 10px;
+      width: 50px;
+      height: 50px;
+      background: #e74c3c;
+      border: 2px solid #c0392b;
+      border-radius: 50%;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.3s ease;
+    }
+    .popupFooter:hover {
+      transform: scale(1.1);
+    }
+    .popupFooter svg {
+      fill: #fff;
+      width: 24px;
+      height: 24px;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes slideDown {
+      0% { transform: perspective(600px) rotateX(15deg) translateY(-30px); opacity: 0; }
+      100% { transform: perspective(600px) rotateX(0deg) translateY(0); opacity: 1; }
+    }
+    .spinner {
+      position: relative;
+      width: 40px;
+      height: 40px;
+      margin: 0 auto 10px;
+    }
+    .spinner:before, .spinner:after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: #74ABE2;
+      opacity: 0.6;
+      animation: bounce 0.8s infinite ease-in-out;
+    }
+    .spinner:after {
+      animation-delay: -0.4s;
+    }
+    @keyframes bounce {
+      0%, 100% { transform: scale(0); }
+      50% { transform: scale(1); }
+    }
+    .loading p {
+      text-align: center;
+      color: #555;
       font-size: 14px;
     }
-    #a2hsPrompt.show {
-      bottom: 0;
+    .chat-message {
+      background: #fff;
+      border-radius: 15px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      margin-bottom: 15px;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
-    #a2hsPrompt button {
-      margin-top: 10px;
-      background: #e74c3c;
-      border: none;
-      color: #fff;
-      padding: 5px 10px;
-      border-radius: 5px;
+    .chat-message:hover {
+      transform: translateY(-5px) scale(1.02);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    }
+    /* ویرایش: نمایش تصویر خبر به صورت مستطیل با حاشیه‌های گرد */
+    .chat-image {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 10px;
+      margin-bottom: 10px;
       cursor: pointer;
+      transition: transform 0.3s ease;
     }
-  </style>  
+    .chat-image:hover {
+      transform: scale(1.1);
+    }
+    .chat-image.viewed {
+      /* در صورت نیاز استایل اضافه شود */
+    }
+    /* ویرایش: متن تیتر خبر و توضیحات راستچین شوند */  
+    .chat-title {
+      font-weight: bold;
+      font-size: 16px;
+      color: #333;
+      text-align: right;
+      margin-bottom: 5px;
+    }
+    .chat-desc {
+      font-size: 14px;
+      color: #666;
+      text-align: right;
+    }
+    .more-details {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 8px 16px;
+      background: linear-gradient(45deg, #5563DE, #74ABE2);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      align-self: flex-end;
+    }
+    .more-details:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    #imageModal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      animation: fadeIn 0.5s ease;
+      padding: 20px;
+    }
+    .imageModalContent {
+      position: relative;
+      max-width: 90%;
+      max-height: 90%;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+      border-radius: 15px;
+      overflow: hidden;
+    }
+    #modalImage {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .closeModal {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(255, 71, 87, 0.8);
+      color: #fff;
+      width: 35px;
+      height: 35px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.3s ease;
+    }
+    .closeModal:hover {
+      transform: scale(1.1);
+    }
+    /* تنظیم فونت اختصاصی برای پیام‌ها به فونت فارسی Vazir */
+    .chat-message, .chat-message * {
+      font-family: 'Vazir', Tahoma, sans-serif !important;
+    }
+  </style>
 </head>  
 <body>  
   <!-- لایه لودینگ مدرن (تا زمان بارگذاری کامل صفحه نمایش داده می‌شود) -->  
@@ -637,24 +836,6 @@
     </div>  
   </div>  
 
-  <!-- اسکریپت پنجره افزودن به صفحه اصلی (A2HS) -->  
-  <script>
-    function isInStandaloneMode() {
-      return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || (window.navigator.standalone);
-    }
-    // اگر وب اپ در حالت standalone نباشد، پس از 10 ثانیه پنجره نمایش داده می‌شود
-    if (!isInStandaloneMode()) {
-      setTimeout(function(){
-        var a2hsPrompt = document.getElementById("a2hsPrompt");
-        a2hsPrompt.classList.add("show");
-      }, 10000);
-    }
-    document.getElementById("a2hsClose").addEventListener("click", function(){
-      var a2hsPrompt = document.getElementById("a2hsPrompt");
-      a2hsPrompt.classList.remove("show");
-    });
-  </script>
-
   <!-- کد جاوااسکریپت عملکرد پاپ‌آپ و مودال -->  
   <script>  
     (function(){  
@@ -824,10 +1005,5 @@
       });  
     })();  
   </script>  
-  <!-- HTML پنجره افزودن به صفحه اصلی (A2HS) -->  
-  <div id="a2hsPrompt">
-    <p>برای افزودن برنامه به صفحه اصلی، از منوی مرورگر گزینه "Add to Home Screen" را انتخاب کنید.</p>
-    <button id="a2hsClose">بستن</button>
-  </div>
 </body>  
 </html>
