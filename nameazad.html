@@ -140,3 +140,174 @@
             line-height: 1.5;
             margin: 0;
         }
+        .header-right {
+            position: absolute;
+            top: 10mm;
+            right: 10mm;
+            text-align: right;
+        }
+        .header-left {
+            position: absolute;
+            top: 10mm;
+            left: 10mm;
+            text-align: left;
+        }
+        .line {
+            width: calc(100% - 20mm);
+            height: 1px;
+            background-color: #000;
+            position: absolute;
+            top: 35mm;
+            left: 10mm;
+        }
+        .content {
+            position: absolute;
+            top: 38mm;
+            left: 10mm;
+            right: 10mm;
+            text-align: right;
+            white-space: pre-line;
+        }
+        .content p {
+            margin-bottom: 15px;
+        }
+        .content .letter-paragraph {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .signature {
+            text-align: center;
+        }
+        .signature p {
+            margin-bottom: 15px;
+        }
+        /* استایل برای نمایش لودینگ */
+        #loading {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border: 1px solid #000;
+            z-index: 1000;
+            text-align: center;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <h2>صدور نامه سوابق جهادی</h2>
+    <form id="letterForm">
+        <label for="department">نام اداره:</label>
+        <input type="text" id="department" required>
+
+        <label for="subject">موضوع:</label>
+        <input type="text" id="subject" required>
+
+        <label for="letterText">متن نامه:</label>
+        <textarea id="letterText" rows="6" required></textarea>
+
+        <button type="button" id="generateBtn">تولید نامه</button>
+    </form>
+    <div id="letterContent" style="display: none;">
+        <div class="header-right">
+            <p>مؤسسه تعالی اندیشه و رشد، تأسيس 1400</p>
+            <p>شناسه ملی: 14013770611</p>
+            <p>شماره تماس: ۰۹۱۳۵۰۷۶۵۸۷</p>
+        </div>
+        <div class="header-left">
+            <p id="letterNumber">شماره نامه: </p>
+            <p id="currentDate">تاریخ: </p>
+        </div>
+        <div class="line"></div>
+        <div class="content">
+            <p style="text-align: center; font-weight: bold;">بسمه تعالی</p>
+            <p>ریاست محترم <span id="departmentName"></span></p>
+            <p>موضوع: <span id="subjectText"></span></p>
+            <p>با سلام و احترام،</p>
+            <div class="letter-paragraph">
+                <span id="letterTextContent"></span>
+            </div>
+            <div class="signature">
+                <p>امضاء</p>
+                <p>مدیرعامل مؤسسه تعالی اندیشه و رشد</p>
+                <p style="margin-top: 30px;">
+                    این نامه به صورت الکترونیک صادر شده و بدون مهر و امضاء اعتباری ندارد.
+                </p>
+            </div>
+        </div>
+    </div>
+    <button type="button" id="downloadBtn" style="display: none;">دانلود PDF</button>
+    <!-- بخش لودینگ -->
+    <div id="loading">
+        نامه در حال تولید است، لطفاً کمی صبر کنید...
+    </div>
+    <script>
+        // تابع تبدیل ارقام انگلیسی به فارسی
+        function convertToPersianDigits(str) {
+            const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
+            return str.replace(/\d/g, function(d) {
+                return persianDigits[d];
+            });
+        }
+        // نمایش محتوای نامه
+        document.getElementById('generateBtn').addEventListener('click', function () {
+            const department = document.getElementById('department').value;
+            const subject = document.getElementById('subject').value;
+            const letterText = document.getElementById('letterText').value;
+            if (department && subject && letterText) {
+                const letterContent = document.getElementById('letterContent');
+                letterContent.style.display = 'block';
+                // مخفی کردن فرم پس از ارسال مشخصات
+                document.getElementById('letterForm').style.display = 'none';
+                const now = new Date();
+                const currentDate = now.toLocaleDateString('fa-IR');
+                const hours = now.getHours().toString().padStart(2, '0');
+                const minutes = now.getMinutes().toString().padStart(2, '0');
+                const formattedTime = hours + minutes;
+                const letterNumber = formattedTime + '/ب';
+                document.getElementById('letterNumber').innerText = 'شماره نامه: ' + convertToPersianDigits(letterNumber);
+                document.getElementById('currentDate').innerText = 'تاریخ: ' + convertToPersianDigits(currentDate);
+                document.getElementById('departmentName').innerText = department;
+                document.getElementById('subjectText').innerText = subject;
+                document.getElementById('letterTextContent').innerText = letterText;
+                document.getElementById('downloadBtn').style.display = 'inline-block';
+            } else {
+                alert('لطفاً تمام فیلدها را تکمیل کنید.');
+            }
+        });
+        // دانلود PDF
+        document.getElementById('downloadBtn').addEventListener('click', function () {
+            const { jsPDF } = window.jspdf;
+            // نمایش لودینگ
+            document.getElementById('loading').style.display = 'block';
+            // تبدیل محتوای نامه به تصویر با استفاده از html2canvas
+            html2canvas(document.getElementById('letterContent'), {
+                scale: 5,
+                useCORS: true,
+                onclone: function(clonedDoc) {
+                    clonedDoc.getElementById('letterContent').style.display = 'block';
+                }
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: [148, 210],
+                    compress: true
+                });
+                const imgWidth = 148;
+                const imgHeight = canvas.height * imgWidth / canvas.width;
+                pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+                pdf.save('نامه-جهادی.pdf');
+                document.getElementById('loading').style.display = 'none';
+            }).catch(err => {
+                document.getElementById('loading').style.display = 'none';
+                alert('خطایی در تولید PDF رخ داده است.');
+            });
+        });
+    </script>
+</body>
+</html>
