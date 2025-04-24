@@ -103,14 +103,21 @@
       margin: 20px auto;
       border: 1px solid #000;
       padding: 20px;
-      white-space: pre-wrap;
       line-height: 1.6;
       text-align: center;
       border-radius: 5px;
       background-color: #fff;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     }
-    .center-text {
+    table.result-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    table.result-table th,
+    table.result-table td {
+      border: 1px solid #ccc;
+      padding: 8px;
       text-align: center;
     }
     /* استایل لودینگ */
@@ -144,7 +151,6 @@
       background-color: #fff;
       border: 2px solid #000;
       border-radius: 5px;
-      /* جلوگیری از اسکرول با لمس */
       touch-action: none;
     }
     .modal-buttons {
@@ -198,12 +204,9 @@
         text-align: center;
         font-size: 20px;
       }
-      .center-text {
-        text-align: center;
-      }
-      img {
-        max-width: 100%;
-        max-height: 300px;
+      table.result-table th,
+      table.result-table td {
+        border: 1px solid #000;
       }
     }
   </style>
@@ -238,6 +241,9 @@
   <div class="container" id="courseNameContainer" style="display: none;">
     <input type="text" id="courseName" placeholder="نام دوره" required />
   </div>
+  <div class="container" id="courseCodeContainer" style="display: none;">
+    <input type="text" id="courseCode" placeholder="کد دوره" required />
+  </div>
 
   <!-- مرحله 3: امضای دیجیتال -->
   <div class="container" id="signatureContainer" style="display: none;">
@@ -245,9 +251,22 @@
     <img id="signatureImage" alt="امضا" style="display: none; margin-top: 10px; border: 1px solid #000; max-width: 300px; max-height: 300px;" />
   </div>
 
-  <!-- مرحله 4: تنظیم پروژه (استعلام تکالیف و چاپ نهایی) -->
+  <!-- مرحله 4: استعلام تکالیف و نمایش نتایج -->
   <div class="container" id="projectSetupContainer" style="display: none;">
-    <button class="btn" onclick="handleProjectSetup()">تنظیم پروژه</button>
+    <button class="btn" onclick="handleProjectSetup()">نمایش نتایج</button>
+  </div>
+
+  <!-- نمایش نتایج به صورت ستونی -->
+  <div class="output" id="outputContainer">
+    <h2>اطلاعات کاربر و دوره</h2>
+    <table class="result-table">
+      <tr><th>نام و نام خانوادگی</th><td id="out-fullname"></td></tr>
+      <tr><th>کد ملی</th><td id="out-idcode"></td></tr>
+      <tr><th>نام دوره</th><td id="out-courseName"></td></tr>
+      <tr><th>کد دوره</th><td id="out-courseCode"></td></tr>
+    </table>
+    <h3 style="margin-top:20px;">تکالیف</h3>
+    <div id="out-assignments" style="text-align: left;"></div>
   </div>
 
   <!-- پنجره مدال امضای دیجیتال -->
@@ -280,74 +299,26 @@
     let drawing = false;
     const canvas = document.getElementById('signatureCanvas');
     const ctx = canvas.getContext('2d');
-
-    // رویدادهای موس
     canvas.addEventListener('mousedown', startDrawing, { passive: false });
     canvas.addEventListener('mousemove', draw, { passive: false });
     canvas.addEventListener('mouseup', stopDrawing, { passive: false });
     canvas.addEventListener('mouseleave', stopDrawing, { passive: false });
-
-    // رویدادهای لمسی
     canvas.addEventListener('touchstart', startDrawing, { passive: false });
     canvas.addEventListener('touchmove', draw, { passive: false });
     canvas.addEventListener('touchend', stopDrawing, { passive: false });
-
-    function startDrawing(e) {
-      e.preventDefault();
-      drawing = true;
-      ctx.beginPath();
-      ctx.moveTo(getX(e), getY(e));
-    }
-    function stopDrawing(e) {
-      e.preventDefault();
-      drawing = false;
-    }
-    function draw(e) {
-      e.preventDefault();
-      if (!drawing) return;
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.strokeStyle = '#00008B';
-      ctx.lineTo(getX(e), getY(e));
-      ctx.stroke();
-    }
-    function getX(e) {
-      if (e.touches) {
-        return e.touches[0].clientX - canvas.getBoundingClientRect().left;
-      }
-      return e.clientX - canvas.getBoundingClientRect().left;
-    }
-    function getY(e) {
-      if (e.touches) {
-        return e.touches[0].clientY - canvas.getBoundingClientRect().top;
-      }
-      return e.clientY - canvas.getBoundingClientRect().top;
-    }
-    function openSignatureModal() {
-      document.getElementById('signatureModal').style.display = 'flex';
-    }
-    function closeSignatureModal() {
-      document.getElementById('signatureModal').style.display = 'none';
-    }
-    function saveSignature() {
-      const signatureImage = document.getElementById('signatureImage');
-      signatureImage.src = canvas.toDataURL('image/png');
-      signatureImage.style.display = 'block';
-      closeSignatureModal();
-    }
-    function clearSignature() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      document.getElementById('signatureImage').style.display = 'none';
-    }
+    function startDrawing(e) { e.preventDefault(); drawing = true; ctx.beginPath(); ctx.moveTo(getX(e), getY(e)); }
+    function stopDrawing(e) { e.preventDefault(); drawing = false; }
+    function draw(e) { e.preventDefault(); if (!drawing) return; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#00008B'; ctx.lineTo(getX(e), getY(e)); ctx.stroke(); }
+    function getX(e) { if (e.touches) return e.touches[0].clientX - canvas.getBoundingClientRect().left; return e.clientX - canvas.getBoundingClientRect().left; }
+    function getY(e) { if (e.touches) return e.touches[0].clientY - canvas.getBoundingClientRect().top; return e.clientY - canvas.getBoundingClientRect().top; }
+    function openSignatureModal() { document.getElementById('signatureModal').style.display = 'flex'; }
+    function closeSignatureModal() { document.getElementById('signatureModal').style.display = 'none'; }
+    function saveSignature() { const signatureImage = document.getElementById('signatureImage'); signatureImage.src = canvas.toDataURL('image/png'); signatureImage.style.display = 'block'; closeSignatureModal(); }
+    function clearSignature() { ctx.clearRect(0, 0, canvas.width, canvas.height); document.getElementById('signatureImage').style.display = 'none'; }
 
     /* ------------------ پنجره اخطار ------------------ */
-    function showWarning(message) {
-      document.getElementById('warningMessage').innerText = message;
-      document.getElementById('warningModal').style.display = 'flex';
-    }
-    function closeWarningModal() {
-      document.getElementById('warningModal').style.display = 'none';
-    }
+    function showWarning(message) { document.getElementById('warningMessage').innerText = message; document.getElementById('warningModal').style.display = 'flex'; }
+    function closeWarningModal() { document.getElementById('warningModal').style.display = 'none'; }
 
     /* ------------------ اعتبارسنجی کد ملی ------------------ */
     function validateIdCode() {
@@ -365,190 +336,95 @@
       } else {
         document.getElementById('idcode-error').style.display = 'none';
       }
-
       document.getElementById('loadingIndicator').style.display = 'block';
-
       fetch(googleSheetUrl1)
         .then(response => response.arrayBuffer())
         .then(data => {
-          const workbook = XLSX.read(data, { type: 'array' });
-          const firstSheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[firstSheetName];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-          let found = false, fullName = "", courseName = "";
-          // جستجو در اکسل (ستون A: نام، ستون B: کد ملی، ستون C: نام دوره)
-          for (let i = 0; i < jsonData.length; i++) {
-            const row = jsonData[i];
-            if (row.length >= 3) {
-              if (String(row[1]).trim() === idcode) {
-                fullName = row[0] ? row[0] : "";
-                courseName = row[2] ? row[2] : "";
-                found = true;
-                break;
-              }
+          const wb = XLSX.read(data, { type: 'array' });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+          let found = false, fullName = "", courseName = "", courseCode = "";
+          for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            // ستون B (index 1) = کد ملی، ستون C (2)=نام، G (6)=نام دوره، H (7)=کد دوره
+            if (row[1] && String(row[1]).trim() === idcode) {
+              fullName = row[2] || "";
+              courseName = row[6] || "";
+              courseCode = row[7] || "";
+              found = true;
+              break;
             }
           }
           document.getElementById('loadingIndicator').style.display = 'none';
-
           if (found) {
-            // پر کردن فیلدهای نام و دوره و غیر قابل ویرایش کردن
-            const fullnameInput = document.getElementById('fullname');
-            const courseNameInput = document.getElementById('courseName');
-            fullnameInput.value = fullName;
-            courseNameInput.value = courseName;
-            fullnameInput.setAttribute('readonly', 'readonly');
-            courseNameInput.setAttribute('readonly', 'readonly');
-
-            // پنهان کردن فیلد کد ملی و دکمه اعتبارسنجی
+            // پر کردن فیلدها
+            const fn = document.getElementById('fullname');
+            const cn = document.getElementById('courseName');
+            const cc = document.getElementById('courseCode');
+            fn.value = fullName; fn.setAttribute('readonly','readonly');
+            cn.value = courseName; cn.setAttribute('readonly','readonly');
+            cc.value = courseCode; cc.setAttribute('readonly','readonly');
+            // نمایش مراحل بعدی
             document.getElementById('idcodeContainer').style.display = 'none';
             document.getElementById('validateContainer').style.display = 'none';
-
-            // نمایش فیلدهای تکمیل اطلاعات
             document.getElementById('fullnameContainer').style.display = 'block';
             document.getElementById('courseNameContainer').style.display = 'block';
+            document.getElementById('courseCodeContainer').style.display = 'block';
             document.getElementById('signatureContainer').style.display = 'block';
             document.getElementById('projectSetupContainer').style.display = 'block';
           } else {
             showWarning('کد ملی یافت نشد.');
           }
         })
-        .catch(error => {
+        .catch(err => {
           document.getElementById('loadingIndicator').style.display = 'none';
           showWarning('خطا در بارگذاری اطلاعات.');
-          console.error(error);
+          console.error(err);
         });
     }
 
-// ------------------ تنظیم پروژه: استعلام تکالیف و چاپ ------------------
-function handleProjectSetup() {
-  const fullname = document.getElementById('fullname').value.trim();
-  const idcode = document.getElementById('idcode').value.trim();
-  const courseName = document.getElementById('courseName').value.trim();
-  const signature = document.getElementById('signatureImage').src;
-
-  if (!fullname || !idcode || idcode.length !== 10 || !courseName || !signature) {
-    showWarning('لطفاً ابتدا اطلاعات را به‌طور کامل تکمیل و امضا نمایید.');
-    return;
-  }
-
-  // دریافت داده‌های اکسل دوم (تکالیف)
-  document.getElementById('loadingIndicator').style.display = 'block';
-  fetch(googleSheetUrl2)
-    .then(response => response.arrayBuffer())
-    .then(data => {
-      const workbook = XLSX.read(data, { type: 'array' });
-      const firstSheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-      document.getElementById('loadingIndicator').style.display = 'none';
-
-      // فیلتر سطرهایی که کد ملی مطابق است
-      const matchingRows = jsonData.slice(1).filter(row => row[1] && row[1].toString().trim() === idcode);
-      if (matchingRows.length === 0) {
-        Swal.fire({
-          title: 'خطا!',
-          text: 'هیچ داده‌ای برای تکالیف یافت نشد.',
-          icon: 'error',
-          confirmButtonText: 'باشه'
-        });
+    /* ------------------ نمایش نتایج و تکالیف به صورت ستونی ------------------ */
+    function handleProjectSetup() {
+      const fullname = document.getElementById('fullname').value.trim();
+      const idcode    = document.getElementById('idcode').value.trim();
+      const courseName= document.getElementById('courseName').value.trim();
+      const courseCode= document.getElementById('courseCode').value.trim();
+      const signature = document.getElementById('signatureImage').src;
+      if (!fullname || !idcode || idcode.length!==10 || !courseName || !courseCode || !signature) {
+        showWarning('لطفاً ابتدا اطلاعات را به‌طور کامل تکمیل و امضا نمایید.');
         return;
       }
-
-      // مرتب‌سازی داده‌ها بر اساس ستون C (اعداد از 1 تا 8)
-      matchingRows.sort((a, b) => a[2] - b[2]);
-
-      // استخراج تکالیف (فرض بر این است که تکالیف در ستون D (ایندکس 3) قرار دارد)
-      const assignmentsText = matchingRows.map(row => row[3]).filter(item => item).join('\n');
-      generateFinalOutput(fullname, idcode, courseName, signature, assignmentsText);
-    })
-    .catch(error => {
-      document.getElementById('loadingIndicator').style.display = 'none';
-      Swal.fire({
-        title: 'خطا!',
-        text: 'خطا در دریافت داده‌های تکالیف.',
-        icon: 'error',
-        confirmButtonText: 'باشه'
-      });
-      console.error(error);
-    });
-}
-    /* ------------------ تولید محتوای نهایی جهت چاپ ------------------ */
-    function generateFinalOutput(fullname, idcode, courseName, signature, assignmentsText) {
-      const currentDate = new Date().toLocaleDateString('fa-IR', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      });
-
-      // متن درخواست گواهی همانند نسخه اصلی (بدون تغییر)
-      const certificateHTML = `
-<div class="center-text">
-  <b>بسمه تعالی</b><br>
-  <b>تأییدیه حضور و پذیرش شرایط دوره "${courseName}"</b><br>
-  <b>موسسه تعالی اندیشه و رشد</b>
-</div>
-<br>
-اینجانب <b>${fullname}</b> دارای کد ملی <b>${idcode}</b> با آگاهی کامل تأیید می‌کنم که در دوره "${courseName}" که توسط مؤسسه تعالی اندیشه و رشد برگزار گردید، به‌طور کامل و فعال شرکت کرده‌ام. تمامی مطالب و مفاهیم ارائه‌شده در دوره را مطالعه و آموخته‌ام و درک کافی از آن‌ها دارم. همچنین در تمام آزمون‌های مقرر شرکت نموده و خلاصه‌ای از مطالب و یادگیری‌های خود را طبق دستورالعمل‌ها ارسال کرده‌ام و در صورتیکه فعالیت یا تکلیفی خواسته شده، در تمامی فعالیت‌ها و تمرینات مشارکت فعال داشته‌ام.<br><br>
-علاوه بر این، با شرایط و ضوابط دریافت گواهینامه دوره آشنا هستم و آگاهی کافی در مورد شرکت در دوره‌های آموزشی را دارم و می‌دانم این گواهی به جهت تائید افزایش آگاهی و ارتقای مهارت‌های اینجانب صادر می‌گردد و هیچگونه استفاده‌ای خلاف قوانین جمهوری اسلامی ایران از گواهینامه دوره فوق بعمل نمی‌آورم، به‌عنوان فردی که دوره فوق را به‌طور کامل گذرانده‌ام، درخواست دریافت مدرک رسمی دوره را دارم.<br><br>
-آگاه هستم که ممکن است برای ارتقاء مهارت‌ها و آگاهی‌های خود نیاز به شرکت در دوره‌های تکمیلی و یادگیری بیشتر داشته باشم، تأیید می‌کنم که در جهت ارتقای دانش و مهارت‌های خود در زمینه مربی‌گری و راهنمایی نوجوانان، اهتمام جدی به فراگیری بیشتر و توسعه دانش خود داشته باشم.<br><br>
-<div class="center-text"><img src="${signature}" alt="امضا" style="max-width: 300px; max-height: 300px;"></div>
-<div class="center-text"> <b>${fullname}</b></div>
-<div class="center-text"> <b>${currentDate}</b></div>
-      `;
-
-      // هدر تکالیف همانند نسخه اصلی (بدون تغییر)
-      const assignmentsHTML = `
-<div style="display: flex; align-items: center;">
-  <img src="https://bayanbox.ir/download/2694656287658112135/1000027713-67e97de263aa282ab95aab54200c2e5a-%DB%B1%DB%B4%DB%B0%DB%B3-%DB%B7-%DB%B2%DB%B4-%DB%B1%DB%B6-%DB%B1%DB%B5-%DB%B1%DB%B5.png" alt="Logo" style="max-width: 100px; margin-right: 10px;">
-  <h1 style="margin: 0;">${fullname}, ${idcode}</h1>
-</div>
-<div>${assignmentsText.split('\n').map(line => `<pre>${line}</pre><hr>`).join('')}</div>
-      `;
-
-      // ترکیب نهایی محتوا با شکستن صفحه (تکالیف از صفحه دوم شروع می‌شوند)
-      const finalContent = `
-<html>
-  <head>
-    <meta charset="UTF-8">
-    <title>چاپ پروژه</title>
-    <style>
-      body { 
-        font-family: Tahoma, Arial, sans-serif; 
-        direction: rtl; 
-        text-align: center; 
-        margin: 20px; 
-      }
-      .center-text { text-align: center; }
-      hr {
-        border: none;
-        border-top: 1px solid #000;
-        margin: 10px 0;
-      }
-      pre { white-space: pre-wrap; }
-      @page {
-        size: A4;
-        margin: 20mm;
-      }
-      .page-break { page-break-before: always; }
-    </style>
-  </head>
-  <body>
-    ${certificateHTML}
-    <div class="page-break"></div>
-    ${assignmentsHTML}
-  </body>
-</html>
-      `;
-
-      // باز کردن پنجره جدید جهت چاپ
-      const printWindow = window.open('', '_blank');
-      printWindow.document.open();
-      printWindow.document.write(finalContent);
-      printWindow.document.close();
-      printWindow.focus();
-      printWindow.print();
+      document.getElementById('loadingIndicator').style.display = 'block';
+      fetch(googleSheetUrl2)
+        .then(res => res.arrayBuffer())
+        .then(data => {
+          const wb = XLSX.read(data, { type:'array' });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(ws, { header:1 }).slice(1);
+          const matches = rows.filter(r=>r[1] && String(r[1]).trim()===idcode);
+          document.getElementById('loadingIndicator').style.display = 'none';
+          if (!matches.length) {
+            Swal.fire({ icon:'error', title:'خطا!', text:'هیچ داده‌ای یافت نشد.', confirmButtonText:'باشه' });
+            return;
+          }
+          // استخراج تکالیف از ستون D (index 3)
+          const assignments = matches.map(r=>r[3]).filter(x=>x).join('\n');
+          // نمایش در سایت
+          document.getElementById('out-fullname').innerText   = fullname;
+          document.getElementById('out-idcode').innerText     = idcode;
+          document.getElementById('out-courseName').innerText = courseName;
+          document.getElementById('out-courseCode').innerText = courseCode;
+          // نمایش تکالیف
+          const am = document.getElementById('out-assignments');
+          am.innerHTML = assignments.split('\n').map(line=>`<div>${line}</div>`).join('');
+          document.getElementById('outputContainer').style.display = 'block';
+        })
+        .catch(err=>{
+          document.getElementById('loadingIndicator').style.display = 'none';
+          Swal.fire({ icon:'error', title:'خطا!', text:'خطا در دریافت داده‌ها.', confirmButtonText:'باشه' });
+          console.error(err);
+        });
     }
   </script>
-  
 </body>
-  </html>
+</html>
