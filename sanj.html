@@ -1,264 +1,187 @@
-  <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<!DOCTYPE html><html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>استعلام گواهی</title>
+    <!-- Excel Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
     <style>
-        /* تعریف فونت فارسی از طریق لینک مستقیم */
+        /* ========== Variables & Fonts ========== */
         @font-face {
             font-family: 'IranTitrBold';
             src: url('https://tashacol.github.io/ir/B-NAZANIN.TTF') format('truetype');
         }
-        /* پویانمایی پس‌زمینه */
-        @keyframes gradient {
+        :root {
+            --bg-gradient: linear-gradient(135deg, #4e4376, #2b5876);
+            --card-bg: rgba(255,255,255,0.15);
+            --card-border: rgba(255,255,255,0.3);
+            --primary: #ffeb3b;
+            --secondary: #e91e63;
+            --accent: #00b894;
+            --text-light: #fafafa;
+            --text-dark: #333;
+        }
+        /* ========== Background Animation ========== */
+        @keyframes bgAnim {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
         }
-        /* استایل لودینگ صفحه با مات کردن پس‌زمینه */
+        /* ========== Global Styles ========== */
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; padding: 0;
+            height: 100vh; display: flex; justify-content: center; align-items: center;
+            font-family: 'IranTitrBold', Arial, sans-serif; direction: rtl;
+            background: var(--bg-gradient); background-size: 200% 200%; animation: bgAnim 20s ease infinite;
+            overflow: hidden;
+        }
+        /* ========== Loader Overlay ========== */
         #loaderOverlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(5px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(6px);
+            display: flex; justify-content: center; align-items: center; z-index: 9999;
         }
         .loader-spinner {
-            border: 8px solid rgba(255, 255, 255, 0.3);
-            border-top: 8px solid #fff;
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            animation: spin 1s linear infinite;
+            width: 70px; height: 70px;
+            border: 8px solid rgba(255,255,255,0.3);
+            border-top: 8px solid #fff; border-radius: 50%; animation: spin 1s linear infinite;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        body {
-            /* استفاده از فونت جدید و راست‌چین کردن تمام متون */
-            font-family: 'IranTitrBold', Arial, sans-serif;
-            direction: rtl;
-            text-align: right;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background: linear-gradient(-45deg, #ff9a9e, #fad0c4, #fbc2eb, #a18cd1);
-            background-size: 400% 400%;
-            animation: gradient 15s ease infinite;
-        }
-        .container {
-            background: rgba(255, 255, 255, 0.9);
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.2);
-            max-width: 600px;
-            width: 95%; /* کاهش عرض در موبایل */
-            text-align: right;
-            margin: 0 10px; /* اضافه کردن فضای حاشیه برای موبایل */
-        }
-        h1 {
-            margin-bottom: 20px;
-            color: #333;
-            font-size: 24px;
-            font-weight: bold;
-        }
-        /* حذف تصویر؛ اگرچه استایل img همچنان موجود است اما تصویری نمایش داده نخواهد شد */
-        img {
-            margin-bottom: 20px;
-            border-radius: 10px;
-            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-        }
-        /* ویرایش فیلد به شکل جذاب و مدرن */
-        #searchInput {
-            width: 100%;
-            padding: 15px;
-            margin: 20px auto;
-            border: none;
-            border-bottom: 2px solid #ccc;
-            font-size: 16px;
-            text-align: right;
-            display: block;
-            transition: border-color 0.3s ease;
-        }
-        #searchInput:focus {
-            border-bottom-color: #007bff;
-            outline: none;
-        }
-        /* استایل دکمه استعلام */
-        #searchButton {
-            width: 100%;
-            padding: 15px;
-            margin: 10px auto;
-            background-color: #007bff;
-            color: #fff;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            display: block;
-        }
-        #searchButton:hover {
-            background-color: #0056b3;
-        }
-        #errorMsg, #loadingMsg {
-            font-size: 14px;
-            margin-top: 10px;
-        }
-        #errorMsg {
-            color: #d9534f;
-            display: none;
-        }
-        #loadingMsg {
-            color: #0275d8;
-            display: none;
-        }
-        table {
-            border-collapse: collapse;
-            width: 100%;
-            display: none;
-            margin-top: 20px;
-            direction: rtl;
-            text-align: center;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 12px;
-        }
-        th {
-            background-color: #007bff;
-            color: #fff;
-        }
-        td {
-            background-color: #f9f9f9;
-        }
-        td:nth-child(1) { /* لینک - ستون چپ */
-            text-align: left;
-        }
-        td:nth-child(2) { /* اطلاعات - ستون راست */
-            text-align: right;
-        }
-        a {
-            color: #007bff;
-            text-decoration: none;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
-    </style>
+        @keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }/* ========== Card Container ========== */
+    .container {
+        width: 90%; max-width: 600px;
+        background: var(--card-bg); border-radius: 20px; border: 1px solid var(--card-border);
+        backdrop-filter: blur(12px); padding: 30px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.4); text-align: right;
+        color: var(--text-light);
+    }
+    h1 {
+        margin-top: 0; margin-bottom: 20px;
+        font-size: 1.8rem; color: var(--primary); text-align: center;
+        letter-spacing: 1px; text-transform: uppercase;
+    }
+    /* ========== Input & Button ========== */
+    #searchInput {
+        width: 100%; padding: 14px 16px; margin-bottom: 18px;
+        font-size: 1rem; border: none; border-radius: 10px;
+        outline: none; color: var(--text-dark);
+    }
+    #searchButton {
+        width: 100%; padding: 14px; margin-bottom: 20px;
+        font-size: 1rem; font-weight: bold;
+        background: var(--accent); color: #fff; border: none; border-radius: 10px;
+        cursor: pointer; transition: background 0.3s, transform 0.3s;
+    }
+    #searchButton:hover { background: #009977; transform: translateY(-2px) scale(1.02); }
+
+    /* ========== Messages ========== */
+    #errorMsg, #loadingMsg {
+        text-align: center; font-size: 0.9rem; margin-bottom: 15px; padding: 0 10px;
+    }
+    #errorMsg { color: #ff6b6b; display: none; }
+    #loadingMsg { color: #54a0ff; display: none; }
+    
+    /* ========== Result Table ========== */
+    table {
+        width: 100%; border-collapse: separate; border-spacing: 0;
+        border-radius: 12px; overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2); margin-top: 20px;
+        display: none;
+    }
+    thead { background: var(--secondary); }
+    th, td {
+        padding: 10px 12px; font-size: 0.9rem; text-align: center;
+    }
+    th { color: #fff; text-transform: uppercase; letter-spacing: 1px; }
+    tbody tr { background: #fff; color: var(--text-dark);
+        transition: background 0.2s, transform 0.2s;
+    }
+    tbody tr:nth-child(even) { background: #f1f1f1; }
+    tbody tr:hover { background: var(--primary); color: #000; transform: translateX(5px); }
+
+    /* Column alignment */
+    td:nth-child(1) { text-align: left; }
+    td:nth-child(2) { text-align: right; }
+
+    /* Link styling */
+    td a {
+        display: inline-block; padding: 6px 10px;
+        background: var(--primary); color: #000;
+        border-radius: 8px; text-decoration: none;
+        transition: background 0.2s, transform 0.2s;
+    }
+    td a:hover { background: #ffe24d; transform: scale(1.05); }
+
+    /* Responsive adjustments */
+    @media (max-width: 600px) {
+        .container { padding: 20px 15px; }
+        h1 { font-size: 1.5rem; }
+        #searchInput, #searchButton { padding: 12px; font-size: 0.9rem; }
+        th, td { padding: 8px 10px; font-size: 0.8rem; }
+        td a { padding: 5px 8px; font-size: 0.8rem; }
+    }
+</style>
+
 </head>
 <body>
-    <!-- لایه لودینگ با مات کردن پس‌زمینه -->
     <div id="loaderOverlay">
         <div class="loader-spinner"></div>
     </div>
     <div class="container">
         <h1>استعلام گواهی</h1>
-        <!-- تصویر حذف شده است -->
         <input type="text" id="searchInput" placeholder="شماره گواهی را وارد کنید" />
         <button id="searchButton">استعلام</button>
-        <div id="loadingMsg">داده‌ها در حال پردازش هستند، لطفا کمی صبر کنید...</div>
-        <div id="errorMsg">شماره گواهی اشتباه است یا چنین گواهی صادر نگردیده</div>
+        <div id="loadingMsg">در حال پردازش، لطفاً صبر کنید...</div>
+        <div id="errorMsg">شماره گواهی یافت نشد یا نامعتبر است.</div>
         <table id="excelData">
             <thead>
-                <tr>
-                    <th>پروژه</th>
-                    <th>اطلاعات</th>
-                </tr>
+                <tr><th>پروژه</th><th>اطلاعات</th></tr>
             </thead>
-            <tbody>
-                <!-- سطرها به‌صورت پویا اضافه می‌شوند -->
-            </tbody>
+            <tbody></tbody>
         </table>
     </div>
-
     <script>
         const url = 'https://docs.google.com/spreadsheets/d/1c0g7deSI0y-QP4nQNux-l07_cumu3A6Gy0OolnhZWdU/export?format=xlsx';
+        const loader = document.getElementById('loaderOverlay');
+        const loadingMsg = document.getElementById('loadingMsg');
+        const errorMsg = document.getElementById('errorMsg');
+        const table = document.getElementById('excelData');
+        const tbody = table.querySelector('tbody');
+        const input = document.getElementById('searchInput');
+        const btn = document.getElementById('searchButton');loadingMsg.style.display = 'block';
+    fetch(url)
+        .then(res => res.arrayBuffer())
+        .then(buf => {
+            const wb = XLSX.read(buf, { type: 'array' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            const data = XLSX.utils.sheet_to_json(ws, { header: 1 }).slice(1);
+            btn.addEventListener('click', () => filterTable(data, input.value.trim()));
+        })
+        .catch(console.error)
+        .finally(() => { loader.style.display='none'; loadingMsg.style.display='none'; });
 
-        // نمایش پیام در حال بارگذاری
-        document.getElementById('loadingMsg').style.display = 'block';
-
-        fetch(url)
-            .then(response => response.arrayBuffer())
-            .then(data => {
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                displayData(jsonData);
-            })
-            .catch(error => console.error('خطا در دریافت فایل اکسل:', error))
-            .finally(() => {
-                document.getElementById('loadingMsg').style.display = 'none';
-                document.getElementById('loaderOverlay').style.display = 'none';
-            });
-
-        function displayData(data) {
-            const filteredData = data.slice(1);
-
-            document.getElementById('searchButton').addEventListener('click', function() {
-                const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
-                filterTable(filteredData, searchTerm);
-            });
-        }
-
-        function filterTable(data, searchTerm) {
-            const table = document.getElementById('excelData');
-            const errorMsg = document.getElementById('errorMsg');
-
-            table.querySelector('tbody').innerHTML = '';
-            let hasResults = false;
-
-            if (searchTerm.length < 7) {
-                table.style.display = 'none';
-                errorMsg.style.display = 'none';
-                return;
+    function filterTable(data, term) {
+        tbody.innerHTML = '';
+        table.style.display = 'none';
+        errorMsg.style.display = 'none';
+        if (term.length < 5) return;
+        let found=false;
+        data.forEach(row => {
+            const code = row[11]?.toString().toLowerCase()||'';
+            if (code.includes(term.toLowerCase())) {
+                found=true;
+                const tr = document.createElement('tr');
+                const tdLink=document.createElement('td');
+                const a=document.createElement('a'); a.href=row[9]||'#'; a.textContent='مشاهده'; a.target='_blank';
+                tdLink.appendChild(a);
+                const tdInfo=document.createElement('td'); tdInfo.textContent=row[12]||'';
+                tr.append(tdLink, tdInfo);
+                tbody.appendChild(tr);
             }
+        });
+        if(found) table.style.display='table'; else errorMsg.style.display='block';
+    }
+</script>
 
-            data.forEach(row => {
-                const cellM = row[11];
-                if (cellM && cellM.toString().toLowerCase().includes(searchTerm)) {
-                    hasResults = true;
-                    const tr = document.createElement('tr');
-
-                    const tdL = document.createElement('td'); // لینک - ستون چپ
-                    const linkText = row[10];
-                    const linkUrl = row[9];
-                    const linkElement = document.createElement('a');
-                    linkElement.textContent = linkText;
-                    linkElement.href = linkUrl;
-                    linkElement.target = "_blank";
-                    tdL.appendChild(linkElement);
-                    tr.appendChild(tdL);
-
-                    const tdN = document.createElement('td'); // اطلاعات - ستون راست
-                    tdN.textContent = row[12];
-                    tr.appendChild(tdN);
-
-                    table.querySelector('tbody').appendChild(tr);
-                }
-            });
-
-            if (hasResults) {
-                errorMsg.style.display = 'none';
-                table.style.display = 'table';
-            } else {
-                errorMsg.style.display = 'block';
-                table.style.display = 'none';
-            }
-        }
-    </script>
 </body>
 </html>
