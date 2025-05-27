@@ -102,6 +102,7 @@
     /* Column alignment */
     td:nth-child(1) { text-align: left; }
     td:nth-child(2) { text-align: right; }
+    /* td:nth-child(3) will be center aligned by default from th, td */
 
     /* Link styling */
     td a {
@@ -132,10 +133,10 @@
         <input type="text" id="searchInput" placeholder="شماره گواهی را وارد کنید" />
         <button id="searchButton">استعلام</button>
         <div id="loadingMsg">در حال پردازش، لطفاً صبر کنید...</div>
-        <div id="errorMsg">شماره گواهی یافت نشد یا نامعتبر است.</div>
+        <div id="errorMsg">شماره گواهی یافت نشد یا نامعتبر است. اگر بین اعداد شماره گواهی خط فاصله هست حتما آن را نیز وارد کنید</div>
         <table id="excelData">
             <thead>
-                <tr><th>پروژه</th><th>اطلاعات</th></tr>
+                <tr><th>پروژه</th><th>اطلاعات</th><th>گواهینامه</th></tr>
             </thead>
             <tbody></tbody>
         </table>
@@ -148,7 +149,8 @@
         const table = document.getElementById('excelData');
         const tbody = table.querySelector('tbody');
         const input = document.getElementById('searchInput');
-        const btn = document.getElementById('searchButton');loadingMsg.style.display = 'block';
+        const btn = document.getElementById('searchButton');
+        loadingMsg.style.display = 'block'; // This was outside fetch, kept it as is.
     fetch(url)
         .then(res => res.arrayBuffer())
         .then(buf => {
@@ -164,18 +166,35 @@
         tbody.innerHTML = '';
         table.style.display = 'none';
         errorMsg.style.display = 'none';
-        if (term.length < 5) return;
+        if (term.length < 5) return; // Kept minimum length check
         let found=false;
         data.forEach(row => {
-            const code = row[11]?.toString().toLowerCase()||'';
+            const code = row[11]?.toString().toLowerCase()||''; // Search based on column L (index 11)
             if (code.includes(term.toLowerCase())) {
                 found=true;
                 const tr = document.createElement('tr');
+                
+                // ستون پروژه (لینک مشاهده از ستون J، ایندکس 9)
                 const tdLink=document.createElement('td');
-                const a=document.createElement('a'); a.href=row[9]||'#'; a.textContent='مشاهده'; a.target='_blank';
+                const a=document.createElement('a'); 
+                a.href=row[9]||'#'; 
+                a.textContent='مشاهده'; 
+                a.target='_blank';
                 tdLink.appendChild(a);
-                const tdInfo=document.createElement('td'); tdInfo.textContent=row[12]||'';
-                tr.append(tdLink, tdInfo);
+                
+                // ستون اطلاعات (متن از ستون M، ایندکس 12)
+                const tdInfo=document.createElement('td'); 
+                tdInfo.textContent=row[12]||'';
+                
+                // ستون گواهینامه (لینک از ستون P، ایندکس 15)
+                const tdCertificate = document.createElement('td');
+                const certificateLink = document.createElement('a');
+                certificateLink.href = row[15] || '#'; // لینک گواهی از ستون P (ایندکس 15)
+                certificateLink.textContent = 'دریافت گواهی'; // متن لینک
+                certificateLink.target = '_blank'; // باز شدن در تب جدید
+                tdCertificate.appendChild(certificateLink);
+                
+                tr.append(tdLink, tdInfo, tdCertificate); // اضافه کردن هر سه سلول به ردیف
                 tbody.appendChild(tr);
             }
         });
