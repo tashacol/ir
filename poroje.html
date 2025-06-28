@@ -266,33 +266,23 @@
     <div id="loadingMsg">در حال بارگذاری اطلاعات، لطفاً چند لحظه صبر کنید...</div>
     <div id="errorMsg">کد ملی وارد شده یافت نشد یا در سامانه ثبت نام نکرده است.</div>
 
-    <!-- این بخش به صورت داینامیک با جاوااسکریپت پر می‌شود -->
     <div id="resultsContainer">
-        <div class="course-info" id="courseInfo">
-            <!-- اطلاعات دوره اینجا قرار می‌گیرد -->
-        </div>
-        <div class="action-buttons" id="actionButtons">
-            <!-- دکمه‌های پروژه و گواهی اینجا قرار می‌گیرد -->
-        </div>
-        <ul class="status-checklist" id="statusChecklist">
-            <!-- لیست وضعیت دانشجو اینجا قرار می‌گیرد -->
-        </ul>
+        <div class="course-info" id="courseInfo"></div>
+        <div class="action-buttons" id="actionButtons"></div>
+        <ul class="status-checklist" id="statusChecklist"></ul>
     </div>
 
     <div id="extraLink"></div>
   </div>
 
   <script>
-    // لینک‌های فایل‌های اکسل
-    const url1 = 'https://docs.google.com/spreadsheets/d/1c0g7deSI0y-QP4nQNux-l07_cumu3A6Gy0OolnhZWdU/export?format=xlsx'; // فایل پروژه‌ها و گواهی‌ها
-    const url2 = 'https://docs.google.com/spreadsheets/d/1QSRAGajWtCWHJHsU-u4dRW85nq2hCGySKqtZQL0iTjY/export?format=xlsx'; // فایل ثبت‌نام اولیه
+    const url1 = 'https://docs.google.com/spreadsheets/d/1c0g7deSI0y-QP4nQNux-l07_cumu3A6Gy0OolnhZWdU/export?format=xlsx';
+    const url2 = 'https://docs.google.com/spreadsheets/d/1QSRAGajWtCWHJHsU-u4dRW85nq2hCGySKqtZQL0iTjY/export?format=xlsx';
     const driveFolderLink = 'https://drive.google.com/drive/folders/1-pUvCoHflHaLVIcSZJ3nR471I-HEEbn-';
 
-    // تعریف آیکون‌ها به صورت SVG برای کیفیت بهتر
     const checkIconSVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="#2ecc71"/></svg>`;
     const crossIconSVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z" fill="#e74c3c"/></svg>`;
 
-    // دسترسی به عناصر DOM
     let allData = [], sheet2Data = [];
     const loadingMsg = document.getElementById('loadingMsg');
     const errorMsg = document.getElementById('errorMsg');
@@ -304,29 +294,53 @@
     const btn = document.getElementById('searchBtn');
     const extraLink = document.getElementById('extraLink');
 
-    // نمایش پیام "در حال بارگذاری" و شروع واکشی داده‌ها
-    loadingMsg.style.display = 'block';
-    Promise.all([
-      fetch(url1).then(res => res.arrayBuffer()),
-      fetch(url2).then(res => res.arrayBuffer())
-    ]).then(([buffer1, buffer2]) => {
-      const workbook1 = XLSX.read(buffer1, { type: 'array' });
-      const worksheet1 = workbook1.Sheets[workbook1.SheetNames[0]];
-      allData = XLSX.utils.sheet_to_json(worksheet1, { header: 1 }).slice(1); // فایل پروژه
+    // **شروع تغییرات اصلی اینجا**
 
-      const workbook2 = XLSX.read(buffer2, { type: 'array' });
-      const worksheet2 = workbook2.Sheets[workbook2.SheetNames[0]];
-      sheet2Data = XLSX.utils.sheet_to_json(worksheet2, { header: 1 }).slice(1); // فایل ثبت نام
+    // 1. تابع بارگذاری داده‌ها را در یک Promise قرار می‌دهیم
+    const dataLoadingPromise = new Promise((resolve, reject) => {
+        loadingMsg.style.display = 'block';
+        Promise.all([
+            fetch(url1).then(res => res.arrayBuffer()),
+            fetch(url2).then(res => res.arrayBuffer())
+        ]).then(([buffer1, buffer2]) => {
+            const workbook1 = XLSX.read(buffer1, { type: 'array' });
+            const worksheet1 = workbook1.Sheets[workbook1.SheetNames[0]];
+            allData = XLSX.utils.sheet_to_json(worksheet1, { header: 1 }).slice(1);
 
-    }).catch(err => {
-      console.error("خطا در بارگذاری فایل‌های اکسل:", err);
-      errorMsg.textContent = "خطا در ارتباط با سرور. لطفاً بعداً تلاش کنید.";
-      errorMsg.style.display = 'block';
-    }).finally(() => {
-      loadingMsg.style.display = 'none';
+            const workbook2 = XLSX.read(buffer2, { type: 'array' });
+            const worksheet2 = workbook2.Sheets[workbook2.SheetNames[0]];
+            sheet2Data = XLSX.utils.sheet_to_json(worksheet2, { header: 1 }).slice(1);
+            
+            loadingMsg.style.display = 'none';
+            resolve(); // اعلام موفقیت بارگذاری داده‌ها
+        }).catch(err => {
+            console.error("خطا در بارگذاری فایل‌های اکسل:", err);
+            errorMsg.textContent = "خطا در ارتباط با سرور. لطفاً بعداً تلاش کنید.";
+            errorMsg.style.display = 'block';
+            loadingMsg.style.display = 'none';
+            reject(err); // اعلام شکست بارگذاری
+        });
     });
+
+    // 2. رویداد بارگذاری صفحه DOM
+    window.addEventListener('DOMContentLoaded', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const nationalId = urlParams.get('id');
+
+        // صبر می‌کنیم تا داده‌ها کامل بارگذاری شوند
+        dataLoadingPromise.then(() => {
+            if (nationalId) {
+                input.value = nationalId;
+                performSearch(); // حالا تابع جستجو با داده‌های کامل اجرا می‌شود
+            }
+        }).catch(() => {
+            // در صورت خطا در بارگذاری داده، کاری انجام نمی‌دهیم
+            console.log("جستجوی خودکار به دلیل خطا در بارگذاری داده‌ها لغو شد.");
+        });
+    });
+
+    // **پایان تغییرات اصلی**
     
-    // مدیریت رویداد کلیک دکمه جستجو
     btn.addEventListener('click', performSearch);
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
@@ -336,7 +350,6 @@
 
     function performSearch() {
         const userInput = input.value.trim();
-        // پاک کردن نتایج قبلی
         resultsContainer.style.display = 'none';
         extraLink.innerHTML = '';
         errorMsg.style.display = 'none';
@@ -347,45 +360,33 @@
             return;
         }
 
-        const searchTerm = userInput.replace(/^0+/, ''); // حذف صفرهای اول کد ملی برای جستجو
+        const searchTerm = userInput.replace(/^0+/, '');
 
-        // جستجو برای یافتن رکوردها در هر دو شیت
         const projectRecord = allData.find(row => (row[4]?.toString().replace(/^0+/, '') || '') === searchTerm);
         const registrationInfo = sheet2Data.find(row => (row[1]?.toString().replace(/^0+/, '') || '') === searchTerm);
 
-        // اگر هیچ رکوردی یافت نشد
         if (!projectRecord && !registrationInfo) {
             errorMsg.textContent = "کد ملی وارد شده یافت نشد یا در سامانه ثبت نام نکرده است.";
             errorMsg.style.display = 'block';
             return;
         }
         
-        // --- استخراج داده‌ها ---
-        // استخراج اطلاعات اصلی از هر دو شیت. اولویت با شیت پروژه است.
         const studentName = projectRecord?.[2] || registrationInfo?.[0] || 'دانشجوی گرامی';
         const courseName = projectRecord?.[6] || registrationInfo?.[2] || 'نامشخص';
-        
-        // اطلاعات از شیت ثبت‌نام (url2)
-        const courseId = registrationInfo?.[3];   // ستون D
-        const startDate = registrationInfo?.[4];  // ستون E
-        const endDate = registrationInfo?.[5];    // ستون F
-
-        // اطلاعات از شیت پروژه (url1)
+        const courseId = registrationInfo?.[3];
+        const startDate = registrationInfo?.[4];
+        const endDate = registrationInfo?.[5];
         const projectLink = projectRecord?.[9];
-        const certNumber = projectRecord?.[11];   // ستون L
-        const certDate = projectRecord?.[13];     // ستون N
-        const certLink = projectRecord?.[15];     // ستون P
+        const certNumber = projectRecord?.[11];
+        const certDate = projectRecord?.[13];
+        const certLink = projectRecord?.[15];
 
-        // --- ساخت HTML داینامیک ---
-
-        // 1. بخش اطلاعات دوره
         courseInfo.innerHTML = `
             <h2>${courseName}</h2>
             <p>${studentName} - کد ملی: ${userInput}</p>
             ${courseId ? `<p>شناسه دوره: ${courseId}</p>` : ''}
         `;
 
-        // 2. بخش دکمه‌ها
         let buttonsHTML = '';
         if (projectLink && projectLink.trim() !== '') {
             buttonsHTML += `<a href="${projectLink}" target="_blank" class="project-link">مشاهده پروژه</a>`;
@@ -395,9 +396,8 @@
         }
         actionButtons.innerHTML = buttonsHTML;
 
-        // 3. بخش چک‌لیست وضعیت
         const hasRegistered = !!registrationInfo || !!projectRecord;
-        const hasFinishedCourse = !!projectRecord; // اتمام دوره به منزله وجود در شیت پروژه است
+        const hasFinishedCourse = !!projectRecord;
         const hasSentProject = projectLink && projectLink.trim() !== '';
         const hasCertificate = certLink && certLink.trim() !== '';
 
@@ -424,7 +424,6 @@
             ${endDate ? `<li><span class="status-label">تاریخ اتمام دوره</span> <span class="status-value status-info">${endDate}</span></li>` : ''}
         `;
 
-        // 4. لینک جزوات
         if (registrationInfo) {
             extraLink.innerHTML = `<a href="${driveFolderLink}" target="_blank">مشاهده دروس و جزوات</a>`;
         }
