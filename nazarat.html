@@ -1,1 +1,413 @@
 
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>داشبورد نظرات دوره</title>
+
+    <!-- کتابخانه برای خواندن فایل اکسل -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- لینک به Font Awesome برای آیکن‌ها -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    <style>
+        /* ================================
+           متغیرها و استایل‌های پایه
+        =================================== */
+        :root {
+            --primary-color: #0f2027;
+            --secondary-color: #203a43;
+            --accent-color: #2c5364;
+            --highlight-color: #00c6ff;
+            --text-color: #e0e0e0;
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --card-border: rgba(255, 255, 255, 0.15);
+            --font-family: 'Vazir', 'Tahoma', sans-serif;
+        }
+
+        @font-face {
+            font-family: 'Vazir';
+            src: url('https://cdn.fontcdn.ir/Font/Persian/Vazir/Vazir-Bold.woff2') format('woff2');
+            font-weight: bold;
+        }
+        @font-face {
+            font-family: 'Vazir';
+            src: url('https://cdn.fontcdn.ir/Font/Persian/Vazir/Vazir-Regular.woff2') format('woff2');
+            font-weight: normal;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family);
+            color: var(--text-color);
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color), var(--accent-color));
+            background-size: 400% 400%;
+            animation: gradientBG 20s ease infinite;
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+
+        @keyframes gradientBG {
+            0%   { background-position: 0% 50%; }
+            50%  { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .main-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        header h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 30px;
+            color: #fff;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            animation: fadeIn 1s;
+        }
+
+        /* ================================
+           بخش آمار کلی
+        =================================== */
+        .stats-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+            animation: fadeIn 1.2s;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            text-align: center;
+            width: 280px;
+        }
+
+        .stat-card h3 {
+            font-size: 1rem;
+            margin-bottom: 15px;
+            opacity: 0.8;
+        }
+        
+        .progress-circle {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background: conic-gradient(var(--highlight-color) calc(var(--value) * 1%), #444 0);
+            transition: background 1.5s ease-out;
+            margin: 0 auto;
+        }
+        .progress-circle::before {
+            content: '';
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            background: var(--secondary-color);
+            border-radius: 50%;
+        }
+
+        .progress-value {
+            position: relative;
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #fff;
+        }
+        .progress-value span {
+            font-size: 1rem;
+            opacity: 0.7;
+        }
+
+        #total-comments {
+            font-size: 3rem;
+            font-weight: bold;
+            color: var(--highlight-color);
+        }
+
+        /* ================================
+           لیست نظرات
+        =================================== */
+        .comments-list {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 25px;
+        }
+
+        .comment-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: fadeIn 0.8s ease-out forwards;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 15px;
+        }
+
+        .card-header .name {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #fff;
+        }
+        .card-header .name i {
+            margin-left: 10px;
+            color: var(--highlight-color);
+        }
+        
+        .card-header .score {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            background: rgba(0, 198, 255, 0.1);
+            padding: 8px 15px;
+            border-radius: 20px;
+        }
+        .card-header .score i { color: #ffdd57; }
+
+        .card-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px;
+            border-radius: 10px;
+        }
+        .detail-item i {
+            font-size: 1.2rem;
+            color: var(--highlight-color);
+            opacity: 0.8;
+            width: 20px;
+            text-align: center;
+        }
+        .detail-item span {
+            font-size: 0.95rem;
+        }
+
+        .card-suggestion {
+            margin-top: 10px;
+        }
+        .card-suggestion h4 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+            color: #fff;
+        }
+        .card-suggestion p {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            line-height: 1.8;
+            font-size: 0.95rem;
+            white-space: pre-wrap; /* برای حفظ فاصله‌ها و خطوط جدید */
+        }
+        
+        /* ================================
+           لودینگ و پیام خطا
+        =================================== */
+        #loader { text-align: center; padding: 50px 0; font-size: 1.2rem; }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-top-color: var(--highlight-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <header>
+            <h1><i class="fas fa-chart-line"></i> آخرین نظرات دوره</h1>
+        </header>
+
+        <section id="stats-section" class="stats-container" style="display: none;">
+            <div class="stat-card">
+                <h3><i class="fas fa-star-half-alt"></i> میانگین نمره دوره</h3>
+                <div id="progress-circle" class="progress-circle">
+                    <div class="progress-value">
+                        <span id="average-score">0</span> / <span>۲۰</span>
+                    </div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <h3><i class="fas fa-users"></i> تعداد کل نظرات</h3>
+                <p id="total-comments">0</p>
+            </div>
+        </section>
+
+        <main id="comments-list" class="comments-list"></main>
+
+        <div id="loader">
+            <div class="spinner"></div>
+            <p>در حال بارگذاری و تحلیل نظرات...</p>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const excelUrl = "https://docs.google.com/spreadsheets/d/1GCbyVT2l2TvLsvIchWVNWoM2IwuxRWwwS41qIOu6owk/export?format=xlsx";
+
+            const loader = document.getElementById('loader');
+            const statsSection = document.getElementById('stats-section');
+            const commentsList = document.getElementById('comments-list');
+            const averageScoreEl = document.getElementById('average-score');
+            const totalCommentsEl = document.getElementById('total-comments');
+            const progressCircle = document.getElementById('progress-circle');
+
+            try {
+                // 1. دریافت و خواندن فایل اکسل
+                const response = await fetch(excelUrl);
+                if (!response.ok) throw new Error('Network response was not ok.');
+
+                const arrayBuffer = await response.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                // 2. پردازش داده‌ها
+                // حذف ردیف هدر (اولین ردیف)
+                const commentsData = data.slice(1);
+                
+                const validComments = commentsData
+                    .map(row => ({
+                        name: row[0],
+                        satisfaction: row[4],
+                        usefulness: row[5],
+                        contentQuality: row[7],
+                        recommendation: row[8],
+                        score: parseFloat(row[9]) || 0,
+                        suggestion: row[10] || "پیشنهادی ثبت نشده است."
+                    }))
+                    .filter(comment => comment.name && comment.score > 0); // فقط نظراتی که نام و نمره معتبر دارند
+
+                if (validComments.length === 0) {
+                    loader.innerHTML = '<p>هنوز نظری برای نمایش وجود ندارد.</p>';
+                    return;
+                }
+                
+                // 3. محاسبه آمار کلی
+                const totalScore = validComments.reduce((sum, comment) => sum + comment.score, 0);
+                const averageScore = totalScore / validComments.length;
+                const totalComments = validComments.length;
+
+                // 4. نمایش آمار کلی در هدر
+                averageScoreEl.textContent = averageScore.toFixed(1);
+                totalCommentsEl.textContent = totalComments;
+                // محاسبه درصد برای نمودار دایره‌ای (نمره از 20)
+                const progressPercentage = (averageScore / 20) * 100;
+                progressCircle.style.setProperty('--value', progressPercentage);
+
+                // 5. نمایش نظرات (از آخر به اول)
+                commentsList.innerHTML = ''; // پاک کردن محتوای قبلی
+                validComments.reverse().forEach((comment, index) => {
+                    const card = createCommentCard(comment);
+                    card.style.animationDelay = `${index * 100}ms`; // ایجاد افکت انیمیشن پله‌ای
+                    commentsList.appendChild(card);
+                });
+
+                // 6. نمایش محتوا و پنهان کردن لودر
+                loader.style.display = 'none';
+                statsSection.style.display = 'flex';
+
+            } catch (error) {
+                console.error("خطا در بارگذاری یا پردازش داده‌ها:", error);
+                loader.innerHTML = `<p style="color: #ff6b6b;">خطا در ارتباط با سرور. لطفاً صفحه را دوباره بارگذاری کنید.</p>`;
+            }
+        });
+
+        function createCommentCard(comment) {
+            const cardElement = document.createElement('div');
+            cardElement.className = 'comment-card';
+
+            // مپ کردن مقادیر رضایت به آیکن و متن رنگی
+            const satisfactionMap = {
+                "خیلی راضی": { icon: "fa-laugh-beam", color: "#2ecc71" },
+                "راضی": { icon: "fa-smile", color: "#27ae60" },
+                "متوسط": { icon: "fa-meh", color: "#f1c40f" },
+                "ناراضی": { icon: "fa-frown", color: "#e74c3c" },
+            };
+            const satisfactionInfo = satisfactionMap[comment.satisfaction] || { icon: "fa-question-circle", color: "#95a5a6" };
+
+            cardElement.innerHTML = `
+                <div class="card-header">
+                    <div class="name"><i class="fas fa-user-circle"></i>${comment.name}</div>
+                    <div class="score"><i class="fas fa-star"></i> ${comment.score} / 20</div>
+                </div>
+
+                <div class="card-details">
+                    <div class="detail-item">
+                        <i class="fas ${satisfactionInfo.icon}" style="color: ${satisfactionInfo.color};"></i>
+                        <span>رضایت از دوره: <strong>${comment.satisfaction || 'ثبت نشده'}</strong></span>
+                    </div>
+                    <div class="detail-item">
+                        <i class="fas fa-book-open"></i>
+                        <span>کیفیت محتوا: <strong>${comment.contentQuality || 'ثبت نشده'}</strong></span>
+                    </div>
+                    <div class="detail-item">
+                        <i class="fas fa-bullhorn"></i>
+                        <span>توصیه به دیگران: <strong>${comment.recommendation || 'ثبت نشده'}</strong></span>
+                    </div>
+                    <div class="detail-item">
+                        <i class="fas fa-lightbulb"></i>
+                        <span>مفید بودن دوره: <strong>${comment.usefulness || 'ثبت نشده'}</strong></span>
+                    </div>
+                </div>
+
+                <div class="card-suggestion">
+                    <h4><i class="fas fa-comment-dots"></i> پیشنهاد کاربر</h4>
+                    <p>${comment.suggestion}</p>
+                </div>
+            `;
+            return cardElement;
+        }
+
+    </script>
+</body>
+</html>
