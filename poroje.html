@@ -326,6 +326,30 @@
         const projectLink = projectRecord?.[9];
         const certLink = projectRecord?.[15];
 
+        // --- START: EDIT - Logic for calculating end of course date ---
+        let isCoursePeriodOver = false;
+        let courseEndDateInfo = ''; // Will hold the formatted end date text for display
+
+        if (startDate && typeof startDate === 'string' && startDate.trim() !== '') {
+            try {
+                // Use jalali-moment which is already included in the page
+                const startDateMoment = jalaliMoment(startDate, 'jYYYY/jM/jD');
+                if (startDateMoment.isValid()) {
+                    const endDateMoment = startDateMoment.clone().add(84, 'days');
+                    const now = jalaliMoment();
+                    
+                    isCoursePeriodOver = now.isAfter(endDateMoment);
+                    
+                    // Prepare a string with the calculated end date for display in the message
+                    courseEndDateInfo = `تاریخ اتمام دوره شما: ${endDateMoment.format('jYYYY/jMM/jDD')}`;
+                }
+            } catch (e) {
+                console.error("Error parsing or calculating course end date:", e);
+                // In case of error, keep isCoursePeriodOver as false to be safe
+            }
+        }
+        // --- END: EDIT ---
+
         // --- Status Calculation ---
         const statuses = {
             registered: {
@@ -354,7 +378,8 @@
         updateUserInfo(studentName, courseName, userInput);
         updateProgressBar(statuses);
         updateTimeline(statuses);
-        updateActionButtons(projectLink, certLink, !!registrationInfo);
+        // Pass the date check result to the action buttons function
+        updateActionButtons(projectLink, certLink, !!registrationInfo, isCoursePeriodOver, courseEndDateInfo);
 
         resultsContainer.style.display = 'block';
     }
@@ -396,19 +421,40 @@
         }
     }
 
-    function updateActionButtons(projectLink, certLink, hasRegistered) {
+    // --- START: EDIT - Modified function to handle conditional display ---
+    function updateActionButtons(projectLink, certLink, hasRegistered, isCoursePeriodOver, courseEndDateInfo) {
         let buttonsHTML = '';
-        if (projectLink) {
-            buttonsHTML += `<a href="${projectLink}" target="_blank" class="action-btn project-link"><i class="fas fa-file-alt"></i>مشاهده پروژه</a>`;
+        
+        if (isCoursePeriodOver) {
+            // The course period is over, show the buttons if their links exist.
+            if (projectLink) {
+                buttonsHTML += `<a href="${projectLink}" target="_blank" class="action-btn project-link"><i class="fas fa-file-alt"></i>مشاهده پروژه</a>`;
+            }
+            if (certLink) {
+                buttonsHTML += `<a href="${certLink}" target="_blank" class="action-btn cert-link"><i class="fas fa-certificate"></i>دانلود گواهی</a>`;
+            }
+            if (hasRegistered) {
+                buttonsHTML += `<a href="${driveFolderLink}" target="_blank" class="action-btn drive-link"><i class="fas fa-book-open"></i>مشاهده جزوات</a>`;
+            }
+        } else {
+            // The course period is not yet over. Display the informational message.
+            let message = `<div style="text-align: center; color: var(--text-muted); background-color: var(--input-bg); padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                               <p style="margin: 0; line-height: 1.6;">
+                                   دانشجوی گرامی، دسترسی به گواهینامه، پروژه و جزوات پس از اتمام دوره امکان‌پذیر خواهد بود.
+                               </p>`;
+            
+            // If the end date was successfully calculated, add it to the message for more clarity.
+            if (courseEndDateInfo) {
+                 message += `<p style="margin: 5px 0 0; font-weight: bold; color: var(--primary-blue);">${courseEndDateInfo}</p>`;
+            }
+            
+            message += `</div>`;
+            buttonsHTML = message;
         }
-        if (certLink) {
-            buttonsHTML += `<a href="${certLink}" target="_blank" class="action-btn cert-link"><i class="fas fa-certificate"></i>دانلود گواهی</a>`;
-        }
-        if (hasRegistered) {
-            buttonsHTML += `<a href="${driveFolderLink}" target="_blank" class="action-btn drive-link"><i class="fas fa-book-open"></i>مشاهده جزوات</a>`;
-        }
+        
         actionButtons.innerHTML = buttonsHTML;
     }
+    // --- END: EDIT ---
   </script>
 
 </body>
