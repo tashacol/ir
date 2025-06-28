@@ -6,13 +6,17 @@
   <title>درخواست گواهی</title>
   <!-- استفاده از آیکون‌های فونت آوسام برای دکمه‌های مدرن -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+  <!-- کتابخانه xlsx جهت خواندن فایل اکسل -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
   <style type="text/css">
     /* تنظیمات کلی صفحه */
     body {
       font-family: Tahoma, Arial, sans-serif;
       direction: rtl;
       text-align: right;
-      margin: 20px;
+      margin: 0;
+      padding: 20px;
       font-size: 14px;
       background-color: #f9f9f9;
     }
@@ -27,7 +31,7 @@
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
       text-align: center;
     }
-    /* تنظیمات ورودی‌ها به‌گونه‌ای که داخل کادر به‌صورت مرکزی قرار گیرند */
+    /* تنظیمات ورودی‌ها */
     input {
       display: block;
       width: calc(100% - 40px);
@@ -44,6 +48,10 @@
     input:focus {
       border-color: #4CAF50;
       outline: none;
+    }
+    input[readonly] {
+      background-color: #f1f1f1;
+      cursor: not-allowed;
     }
     /* تنظیمات دکمه‌ها */
     .btn {
@@ -89,28 +97,14 @@
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     }
     .btn-print i {
-      margin-right: 5px;
+      margin-left: 8px; /* فاصله آیکن در حالت RTL */
     }
     .btn-print:hover {
       background-color: #66BB6A;
       box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
       transform: scale(1.05);
     }
-    .arrow {
-      display: inline-block;
-      margin-right: 5px;
-      animation: arrow-animation 1s infinite;
-    }
-    @keyframes arrow-animation {
-      0%, 100% {
-        opacity: 1;
-        transform: translateX(0);
-      }
-      50% {
-        opacity: 0;
-        transform: translateX(5px);
-      }
-    }
+
     /* تنظیمات نمایش خروجی نهایی */
     .output {
       display: none;
@@ -120,7 +114,7 @@
       padding: 20px;
       white-space: pre-wrap;
       line-height: 1.6;
-      text-align: center;
+      text-align: right; /* متن درخواست راست‌چین باشد */
       border-radius: 5px;
       background-color: #fff;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
@@ -128,6 +122,7 @@
     .center-text {
       text-align: center;
     }
+
     /* تنظیمات مدال امضا */
     #signatureModal {
       position: fixed;
@@ -148,7 +143,11 @@
     }
     .modal-buttons {
       margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
     }
+
     /* استایل لودینگ (اسپینر) */
     .loader {
       border: 8px solid #f3f3f3;
@@ -163,6 +162,7 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+
     /* استایل پنجره پاپ‌آپ اخطار مدرن */
     #warningModal {
       position: fixed;
@@ -178,18 +178,20 @@
     }
     #warningModal .modal-content {
       background: #fff;
-      padding: 20px;
+      padding: 30px;
       border-radius: 8px;
       box-shadow: 0 4px 15px rgba(0,0,0,0.2);
       max-width: 90%;
+      width: 400px;
       text-align: center;
     }
     #warningModal .modal-content p {
       margin: 0 0 20px;
       font-size: 16px;
+      color: #333;
     }
     #warningModal .modal-content button {
-      padding: 10px 20px;
+      padding: 10px 25px;
       background-color: #4CAF50;
       color: white;
       border: none;
@@ -200,31 +202,66 @@
     #warningModal .modal-content button:hover {
       background-color: #45a049;
     }
+
+    /* ===========================================
+       === کلیدی‌ترین بخش: استایل‌های مخصوص چاپ ===
+       =========================================== */
     @media print {
+      /* مخفی کردن تمام عناصر صفحه به جز بخش خروجی */
+      body > *:not(#output) {
+        display: none !important;
+      }
+      
+      /* نمایش و تنظیم استایل بخش خروجی برای چاپ */
+      #output {
+        display: block !important;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        border: none;
+        box-shadow: none;
+        color: #000;
+        background-color: #fff;
+        /* برای اینکه محتوای داخل آن هم حتما نمایش داده شود */
+        visibility: visible !important;
+      }
+      #output * {
+        visibility: visible !important;
+      }
+
+      /* تنظیمات صفحه چاپ */
       @page {
         size: A5;
         margin: 20mm;
       }
+
+      /* تنظیمات فونت و متن برای نسخه چاپی */
       body {
+        font-family: Tahoma, Arial, sans-serif;
+        font-size: 14pt; /* اندازه مناسب برای چاپ */
+        line-height: 1.8;
         direction: rtl;
         text-align: right;
-        font-size: 20px;
+        background-color: #fff;
       }
-      .output {
-        margin-top: 0;
-        border: none;
-        padding: 0;
-        white-space: normal;
-        text-align: center;
+      
+      .center-text {
+        text-align: center !important;
       }
+      
+      b {
+        color: #000;
+      }
+
       img {
-        max-width: 100%;
-        max-height: 300px;
+        max-width: 150px !important; /* اندازه مناسب امضا در چاپ */
       }
     }
+
   </style>
-  <!-- کتابخانه xlsx جهت خواندن فایل اکسل از منابع معتبر -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -237,13 +274,13 @@
     <button class="btn" id="validateButton" onclick="validateNationalCode()">اعتبار سنجی</button>
   </div>
 
-  <!-- لودینگ با اسپینر تا زمان بارگذاری داده‌های اکسل -->
+  <!-- لودینگ با اسپینر -->
   <div id="loadingIndicator" class="container" style="display: none;">
     <div class="loader"></div>
     <p>در حال بررسی...</p>
   </div>
 
-  <!-- سایر فیلدها (نام، نام دوره، امضا و دکمه تولید متن) به صورت پیش فرض مخفی هستند -->
+  <!-- سایر فیلدها (به صورت پیش فرض مخفی) -->
   <div class="container" id="fullnameContainer" style="display: none;">
     <input type="text" id="fullname" placeholder="نام و نام خانوادگی" required />
   </div>
@@ -252,14 +289,18 @@
   </div>
   <div class="container" id="signatureContainer" style="display: none;">
     <button class="btn btn-signature" onclick="openSignatureModal()">امضا کنید</button>
-    <img id="signatureImage" alt="امضا" style="display: none; margin-top: 10px; border: 1px solid #000; max-width: 300px; max-height: 300px;" />
+    <img id="signatureImage" alt="امضا" style="display: none; margin: 10px auto; border: 1px solid #ccc; max-width: 200px; border-radius: 5px;" />
   </div>
   <div class="container" id="generateContainer" style="display: none;">
-    <button class="btn" id="generateButton" onclick="generateText()">متن درخواست</button>
+    <button class="btn" id="generateButton" onclick="generateText()">تولید متن درخواست</button>
   </div>
+  
+  <!-- بخش خروجی که در حالت عادی مخفی است -->
   <div class="output" id="output"></div>
+  
+  <!-- دکمه چاپ/ذخیره -->
   <div class="container" id="printContainer" style="display: none;">
-    <button class="btn-print" id="printButton" onclick="printContent()"><i class="fas fa-print"></i>ذخیره فایل</button>
+    <button class="btn-print" id="printButton" onclick="printContent()"><i class="fas fa-print"></i>ذخیره و چاپ فایل</button>
   </div>
 
   <!-- پنجره مدال امضای دیجیتال -->
@@ -268,8 +309,8 @@
       <canvas id="signatureCanvas" width="400" height="200"></canvas>
       <div class="modal-buttons">
         <button class="btn" onclick="saveSignature()">تایید</button>
-        <button class="btn" onclick="clearSignature()">پاک کردن امضا</button>
-        <button class="btn" onclick="closeSignatureModal()">لغو</button>
+        <button class="btn btn-signature" onclick="clearSignature()">پاک کردن</button>
+        <button class="btn btn-signature" onclick="closeSignatureModal()">لغو</button>
       </div>
     </div>
   </div>
@@ -278,43 +319,34 @@
   <div id="warningModal">
     <div class="modal-content">
       <p id="warningMessage"></p>
-      <button onclick="closeWarningModal()">تایید</button>
+      <button onclick="closeWarningModal()">متوجه شدم</button>
     </div>
   </div>
 
   <script>
-    /* -------------------------
-       توابع مربوط به امضا
-    ------------------------- */
     let drawing = false;
-
-    function openSignatureModal() {
-      document.getElementById('signatureModal').style.display = 'flex';
-    }
-
-    function closeSignatureModal() {
-      document.getElementById('signatureModal').style.display = 'none';
-    }
-
     const canvas = document.getElementById('signatureCanvas');
     const ctx = canvas.getContext('2d');
-    canvas.addEventListener('mousedown', startDrawing);
-    canvas.addEventListener('mouseup', stopDrawing);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('touchstart', startDrawing, { passive: false });
-    canvas.addEventListener('touchend', stopDrawing);
-    canvas.addEventListener('touchmove', draw, { passive: false });
-    canvas.addEventListener('touchmove', function(e) {
-      e.preventDefault();
-    }, { passive: false });
-    canvas.addEventListener('mousemove', function(e) {
-      e.preventDefault();
-    });
+
+    function setupSignatureCanvas() {
+        // رویدادهای موس
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseleave', stopDrawing); // توقف طراحی هنگام خروج موس
+
+        // رویدادهای لمسی
+        canvas.addEventListener('touchstart', startDrawing, { passive: false });
+        canvas.addEventListener('touchend', stopDrawing, { passive: false });
+        canvas.addEventListener('touchmove', draw, { passive: false });
+    }
 
     function startDrawing(e) {
+      e.preventDefault();
       drawing = true;
+      const pos = getMousePos(canvas, e);
       ctx.beginPath();
-      ctx.moveTo(getX(e), getY(e));
+      ctx.moveTo(pos.x, pos.y);
     }
 
     function stopDrawing() {
@@ -322,38 +354,57 @@
     }
 
     function draw(e) {
+      e.preventDefault();
       if (!drawing) return;
-      ctx.lineWidth = 2;
+      const pos = getMousePos(canvas, e);
+      ctx.lineWidth = 2.5;
       ctx.lineCap = 'round';
       ctx.strokeStyle = '#00008B';
-      ctx.lineTo(getX(e), getY(e));
+      ctx.lineTo(pos.x, pos.y);
       ctx.stroke();
     }
 
-    function getX(e) {
-      return e.touches ? e.touches[0].clientX - canvas.getBoundingClientRect().left : e.clientX - canvas.getBoundingClientRect().left;
+    function getMousePos(canvas, evt) {
+        const rect = canvas.getBoundingClientRect();
+        const touch = evt.touches ? evt.touches[0] : null;
+        return {
+            x: (touch ? touch.clientX : evt.clientX) - rect.left,
+            y: (touch ? touch.clientY : evt.clientY) - rect.top
+        };
+    }
+    
+    function openSignatureModal() {
+      document.getElementById('signatureModal').style.display = 'flex';
     }
 
-    function getY(e) {
-      return e.touches ? e.touches[0].clientY - canvas.getBoundingClientRect().top : e.clientY - canvas.getBoundingClientRect().top;
+    function closeSignatureModal() {
+      document.getElementById('signatureModal').style.display = 'none';
     }
-
+    
     function saveSignature() {
       const signatureImage = document.getElementById('signatureImage');
+      if (isCanvasBlank(canvas)) {
+        showWarning('لطفاً ابتدا امضای خود را رسم کنید.');
+        return;
+      }
       signatureImage.src = canvas.toDataURL('image/png');
       signatureImage.style.display = 'block';
       closeSignatureModal();
     }
+    
+    function isCanvasBlank(canvas) {
+      const blank = document.createElement('canvas');
+      blank.width = canvas.width;
+      blank.height = canvas.height;
+      return canvas.toDataURL() === blank.toDataURL();
+    }
 
     function clearSignature() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const signatureImage = document.getElementById('signatureImage');
-      signatureImage.style.display = 'none';
     }
 
-    /* -------------------------
-       تابع نمایش اخطار با پنجره پاپ‌آپ مدرن
-    ------------------------- */
+    setupSignatureCanvas();
+
     function showWarning(message) {
       document.getElementById('warningMessage').innerText = message;
       document.getElementById('warningModal').style.display = 'flex';
@@ -362,186 +413,117 @@
     function closeWarningModal() {
       document.getElementById('warningModal').style.display = 'none';
     }
-
-    /* -------------------------
-       تابع تولید متن درخواست
-    ------------------------- */
+    
     function generateText() {
       const fullname = document.getElementById('fullname').value.trim();
       const idcode = document.getElementById('idcode').value.trim();
       const courseName = document.getElementById('courseName').value.trim();
-      const signature = document.getElementById('signatureImage').src;
+      const signatureImage = document.getElementById('signatureImage');
 
-      if (!fullname || !idcode || idcode.length !== 10 || !courseName || !signature) {
-        showWarning('لطفاً تمام فیلدها را به‌طور صحیح پر کنید و امضا کنید.');
+      if (!fullname || !idcode || !courseName || signatureImage.style.display === 'none') {
+        showWarning('لطفاً تمام فیلدها را پر کرده و امضا کنید.');
         return;
       }
-
-      const currentDate = new Date().toLocaleDateString('fa-IR', {
+      
+      const currentDate = new Date().toLocaleDateString('fa-IR-u-nu-latn', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit'
       });
-
+      
       const outputText = `
-<div class="center-text">
-  <b>بسمه تعالی</b><br>
-  <b>تأییدیه حضور و پذیرش شرایط دوره "${courseName}"</b><br>
-  <b>موسسه تعالی اندیشه و رشد</b>
-</div>
-<br>
-اینجانب <b>${fullname}</b> دارای کد ملی <b>${idcode}</b> با آگاهی کامل تأیید می‌کنم که در دوره "${courseName}" که توسط مؤسسه تعالی اندیشه و رشد برگزار گردید، به‌طور کامل و فعال شرکت کرده‌ام. تمامی مطالب و مفاهیم ارائه‌شده در دوره را مطالعه و آموخته‌ام و درک کافی از آن‌ها دارم. همچنین در تمام آزمون‌های مقرر شرکت نموده و خلاصه‌ای از مطالب و یادگیری‌های خود را طبق دستورالعمل‌ها ارسال کرده‌ام و در صورتیکه فعالیت یا تکلیفی خواسته شده، در تمامی فعالیت‌ها و تمرینات مشارکت فعال داشته‌ام.<br><br>
-علاوه بر این، با شرایط و ضوابط دریافت گواهینامه دوره آشنا هستم و آگاهی کافی در مورد شرکت در دوره‌های آموزشی را دارم و می‌دانم این گواهی به جهت تائید افزایش آگاهی و ارتقای مهارت‌های اینجانب صادر می‌گردد و هیچگونه استفاده‌ای خلاف قوانین جمهوری اسلامی ایران از گواهینامه دوره فوق بعمل نمی‌آورم، به‌عنوان فردی که دوره فوق را به‌طور کامل گذرانده‌ام، درخواست دریافت مدرک رسمی دوره را دارم.<br><br>
-آگاه هستم که ممکن است برای ارتقاء مهارت‌ها و آگاهی‌های خود نیاز به شرکت در دوره‌های تکمیلی و یادگیری بیشتر داشته باشم، تأیید می‌کنم که در جهت ارتقای دانش و مهارت‌های خود در زمینه مربی‌گری و راهنمایی نوجوانان، اهتمام جدی به فراگیری بیشتر و توسعه دانش خود داشته باشم.<br><br>
-<div class="center-text"><img src="${signature}" alt="امضا" style="max-width: 200px; max-height: 100px; display: block; margin: 0 auto;"></div>
-<div class="center-text"> <b>${fullname}</b></div>
-<div class="center-text"> <b>${currentDate}</b></div>
+        <div class="center-text">
+          <b>بسمه تعالی</b><br><br>
+          <b>تأییدیه حضور و پذیرش شرایط دوره "${courseName}"</b><br>
+          <b>موسسه تعالی اندیشه و رشد</b>
+        </div>
+        <br><br>
+        <p>اینجانب <b>${fullname}</b> دارای کد ملی <b>${idcode}</b> با آگاهی کامل تأیید می‌کنم که در دوره "${courseName}" که توسط مؤسسه تعالی اندیشه و رشد برگزار گردید، به‌طور کامل و فعال شرکت کرده‌ام. تمامی مطالب و مفاهیم ارائه‌شده در دوره را مطالعه و آموخته‌ام و درک کافی از آن‌ها دارم. همچنین در تمام آزمون‌های مقرر شرکت نموده و خلاصه‌ای از مطالب و یادگیری‌های خود را طبق دستورالعمل‌ها ارسال کرده‌ام و در صورتیکه فعالیت یا تکلیفی خواسته شده، در تمامی فعالیت‌ها و تمرینات مشارکت فعال داشته‌am.</p>
+        <p>علاوه بر این، با شرایط و ضوابط دریافت گواهینامه دوره آشنا هستم و آگاهی کافی در مورد شرکت در دوره‌های آموزشی را دارم و می‌دانم این گواهی به جهت تائید افزایش آگاهی و ارتقای مهارت‌های اینجانب صادر می‌گردد و هیچگونه استفاده‌ای خلاف قوانین جمهوری اسلامی ایران از گواهینامه دوره فوق بعمل نمی‌آورم، به‌عنوان فردی که دوره فوق را به‌طور کامل گذرانده‌ام، درخواست دریافت مدرک رسمی دوره را دارم.</p>
+        <p>آگاه هستم که ممکن است برای ارتقاء مهارت‌ها و آگاهی‌های خود نیاز به شرکت در دوره‌های تکمیلی و یادگیری بیشتر داشته باشم، تأیید می‌کنم که در جهت ارتقای دانش و مهارت‌های خود در زمینه مربی‌گری و راهنمایی نوجوانان، اهتمام جدی به فراگیری بیشتر و توسعه دانش خود داشته باشم.</p>
+        <br>
+        <div class="center-text"><img src="${signatureImage.src}" alt="امضا"></div>
+        <div class="center-text"><b>${fullname}</b></div>
+        <div class="center-text"><b>${currentDate}</b></div>
       `;
       document.getElementById('output').innerHTML = outputText;
 
-      // پنهان کردن فیلدها و دکمه‌های مربوطه
-      document.getElementById('fullnameContainer').style.display = 'none';
-      document.getElementById('idcodeContainer').style.display = 'none';
-      document.getElementById('courseNameContainer').style.display = 'none';
-      document.getElementById('signatureContainer').style.display = 'none';
-      document.getElementById('generateContainer').style.display = 'none';
-
-      // نمایش ناحیه خروجی و دکمه چاپ
+      document.querySelectorAll('.container').forEach(el => el.style.display = 'none');
       document.getElementById('output').style.display = 'block';
       document.getElementById('printContainer').style.display = 'block';
-      
-      // اسکرول به دکمه چاپ
       document.getElementById('printButton').scrollIntoView({ behavior: 'smooth' });
     }
 
-    /**************************************************************
-     * تابع اصلاح شده چاپ: این تابع مشکل رندر را حل می‌کند
-     **************************************************************/
+    /**
+     * تابع اصلاح‌شده برای چاپ
+     * این تابع دیگر پنجره جدیدی باز نمی‌کند، بلکه از استایل‌های @media print استفاده می‌کند.
+     */
     function printContent() {
-      const content = document.getElementById('output').innerHTML;
-      const printWindow = window.open('', '', 'height=800,width=600');
-      
-      printWindow.document.write('<!DOCTYPE html><html lang="fa"><head><title>چاپ درخواست گواهی</title>');
-      
-      // افزودن استایل‌ها و فونت به صورت مستقیم در head پنجره جدید
-      printWindow.document.write(`
-        <style>
-          @font-face {
-            font-family: 'Vazir';
-            src: url('https://cdn.fontcdn.ir/Font/Persian/Vazir/Vazir-Regular.eot');
-            src: url('https://cdn.fontcdn.ir/Font/Persian/Vazir/Vazir-Regular.eot?#iefix') format('embedded-opentype'),
-                 url('https://cdn.fontcdn.ir/Font/Persian/Vazir/Vazir-Regular.woff2') format('woff2'),
-                 url('https://cdn.fontcdn.ir/Font/Persian/Vazir/Vazir-Regular.woff') format('woff'),
-                 url('https://cdn.fontcdn.ir/Font/Persian/Vazir/Vazir-Regular.ttf') format('truetype');
-            font-weight: normal;
-          }
-          body { 
-            font-family: 'Vazir', Tahoma, sans-serif;
-            direction: rtl; 
-            text-align: justify; 
-            font-size: 14px; 
-            line-height: 1.8;
-            margin: 40px;
-          }
-          .center-text { 
-            text-align: center; 
-          }
-          img {
-            display: block;
-            margin: 15px auto;
-            max-width: 200px;
-            max-height: 100px;
-          }
-        </style>
-      `);
-      
-      printWindow.document.write('</head><body>');
-      printWindow.document.write(content);
-      printWindow.document.write('</body></html>');
-
-      // **نکته کلیدی:** منتظر می‌مانیم تا پنجره جدید به طور کامل بارگذاری شود
-      printWindow.onload = function() {
-        printWindow.focus(); // تمرکز روی پنجره جدید
-        printWindow.print(); // اجرای چاپ فقط بعد از بارگذاری کامل
-        printWindow.close(); // بستن پنجره پس از ارسال دستور چاپ
-      };
-      
-      printWindow.document.close(); // پایان نوشتن در سند
+      // یک تأخیر کوتاه برای اطمینان از بارگذاری کامل تصویر امضا در DOM
+      setTimeout(() => {
+        window.print();
+      }, 400); // 400 میلی‌ثانیه تأخیر
     }
 
     function validateIdCode() {
       const idcode = document.getElementById('idcode').value;
       const errorMessage = document.getElementById('idcode-error');
-      errorMessage.style.display = idcode.length !== 10 || isNaN(idcode) ? 'inline' : 'none';
+      if (idcode.length > 0 && (idcode.length !== 10 || !/^\d+$/.test(idcode))) {
+        errorMessage.style.display = 'block';
+      } else {
+        errorMessage.style.display = 'none';
+      }
     }
-
-    /* -------------------------
-       تابع اعتبارسنجی کد ملی و بارگذاری داده‌های اکسل با لودینگ
-    ------------------------- */
+    
     function validateNationalCode() {
       const idcode = document.getElementById('idcode').value.trim();
       if (idcode.length !== 10 || isNaN(idcode)) {
-        document.getElementById('idcode-error').style.display = 'inline';
+        showWarning('لطفاً کد ملی 10 رقمی و معتبر وارد کنید.');
         return;
-      } else {
-        document.getElementById('idcode-error').style.display = 'none';
       }
-
-      // نمایش لودینگ در حین بارگذاری داده‌های اکسل
+      
+      document.getElementById('validateContainer').style.display = 'none';
       document.getElementById('loadingIndicator').style.display = 'block';
 
-      // دریافت فایل اکسل از لینک مستقیم گوگل شیت
       fetch('https://docs.google.com/spreadsheets/d/1QSRAGajWtCWHJHsU-u4dRW85nq2hCGySKqtZQL0iTjY/export?format=xlsx')
-        .then(response => response.arrayBuffer())
+        .then(response => {
+          if (!response.ok) throw new Error('Network response was not ok.');
+          return response.arrayBuffer();
+        })
         .then(data => {
           const workbook = XLSX.read(data, { type: 'array' });
           const firstSheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheetName];
           const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-          let found = false;
-          let fullName = "";
-          let courseName = "";
-          // پیمایش ردیف‌های اکسل برای یافتن کد ملی در ستون B
-          for (let i = 0; i < jsonData.length; i++) {
-            const row = jsonData[i];
-            if (row.length >= 3) {
-              if (String(row[1]).trim() === idcode) {
-                fullName = row[0] ? row[0] : "";
-                courseName = row[2] ? row[2] : "";
-                found = true;
-                break;
-              }
-            }
-          }
-          // پنهان کردن لودینگ پس از دریافت داده
+          
+          const searchTerm = idcode.replace(/^0+/, '');
+          const record = jsonData.find(row => row && String(row[1]).replace(/^0+/, '') === searchTerm);
+
           document.getElementById('loadingIndicator').style.display = 'none';
 
-          if (found) {
-            // پر کردن فیلدهای نام و نام خانوادگی و نام دوره و غیرقابل ویرایش کردن آن‌ها
+          if (record) {
             const fullnameInput = document.getElementById('fullname');
             const courseNameInput = document.getElementById('courseName');
-            fullnameInput.value = fullName;
-            courseNameInput.value = courseName;
+            fullnameInput.value = record[0] || '';
+            courseNameInput.value = record[2] || '';
             fullnameInput.setAttribute('readonly', 'readonly');
             courseNameInput.setAttribute('readonly', 'readonly');
-
-            // پنهان کردن فیلد کد ملی و دکمه اعتبارسنجی
+            
             document.getElementById('idcodeContainer').style.display = 'none';
-            document.getElementById('validateContainer').style.display = 'none';
-
-            // نمایش فیلدهای پر شده و دکمه‌های مربوطه
             document.getElementById('fullnameContainer').style.display = 'block';
             document.getElementById('courseNameContainer').style.display = 'block';
             document.getElementById('signatureContainer').style.display = 'block';
             document.getElementById('generateContainer').style.display = 'block';
           } else {
-            showWarning('کد ملی یافت نشد.');
+            showWarning('کد ملی شما در سامانه یافت نشد.');
+            document.getElementById('validateContainer').style.display = 'block';
           }
         })
         .catch(error => {
           document.getElementById('loadingIndicator').style.display = 'none';
-          showWarning('خطا در بارگذاری اطلاعات.');
-          console.error(error);
+          document.getElementById('validateContainer').style.display = 'block';
+          showWarning('خطا در ارتباط با سرور. لطفاً اتصال اینترنت خود را بررسی کرده و دوباره تلاش کنید.');
+          console.error('Fetch error:', error);
         });
     }
   </script>
