@@ -1,308 +1,427 @@
- <!DOCTYPE html>
-<html lang="fa">
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- افزودن کتابخانه XLSX برای خواندن فایل اکسل -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<style type="text/css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>نظرسنجی دوره - موسسه تعالی اندیشه و رشد</title>
+
+  <!-- کتابخانه برای خواندن فایل اکسل -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  
+  <!-- لینک به Font Awesome برای آیکن‌ها -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css">
+
+  <style>
+    /* ================================
+       متغیرها و استایل‌های پایه
+    =================================== */
+    :root {
+      --primary-color: #1a2980;
+      --secondary-color: #26d0ce;
+      --accent-color: #ffeb3b;
+      --dark-bg: #000428;
+      --text-color: #fff;
+      --card-bg: rgba(255, 255, 255, 0.1);
+      --card-border: rgba(255, 255, 255, 0.25);
+      --danger-color: #e74c3c;
+      --success-color: #2ecc71;
+    }
+
     @font-face {
-        font-family: 'CustomFont';
-        src: url('https://tashacol.github.io/ir/B%20Titr%20Bold_0.ttf') format('truetype');
+      font-family: 'Vazir';
+      src: url('https://cdn.fontcdn.ir/Font/Persian/Vazir/Vazir-Regular.woff2') format('woff2');
+      font-weight: normal;
     }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
-        font-family: 'CustomFont', sans-serif;
-        display: flex;
-        justify-content: center;
-        align-items: flex-start;
-        min-height: 100vh; /* تغییر ارتفاع به حداقل برای رسپانسیو بودن */
-        background-color: #f0f0f0;
-        margin: 0;
-        direction: rtl; /* اضافه کردن راست‌چین */
+      font-family: 'Vazir', 'Tahoma', sans-serif;
+      color: var(--text-color);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      background-size: 400% 400%;
+      animation: gradientBG 15s ease infinite;
     }
-    .container {
-        display: flex;
-        justify-content: center;
+
+    @keyframes gradientBG {
+      0%   { background-position: 0% 50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ================================
+       کارت اصلی و مراحل
+    =================================== */
+    .main-container {
         width: 100%;
-        padding: 20px; /* اضافه کردن پدینگ برای رسپانسیو بودن */
-        box-sizing: border-box; /* برای محاسبه صحیح عرض و پدینگ */
+        max-width: 600px;
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 25px;
+        backdrop-filter: blur(12px);
+        box-shadow: 0 10px 35px rgba(0,0,0,0.3);
+        padding: 30px 40px;
+        animation: fadeIn 0.8s ease-out;
     }
-    form {
-        background-color: white;
-        padding: 25px;
-        border-radius: 10px;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        width: 100%; /* تغییر عرض به 100% برای رسپانسیو */
-        max-width: 340px; /* حداکثر عرض فرم */
-        margin-top: 0; /* تغییر به 0 برای چسباندن به بالای صفحه */
-        position: relative;
-        box-sizing: border-box; /* برای محاسبه صحیح عرض و پدینگ */
-    }
-    .form-title {
-        font-size: 20px;
-        font-weight: bold;
-        color: #00796b;
+    .step { display: none; }
+    .step.active { display: block; animation: fadeIn 0.5s; }
+    
+    h1 {
         text-align: center;
-        margin-bottom: 20px;
+        color: var(--accent-color);
+        margin-bottom: 30px;
+        font-size: 1.8rem;
     }
-    label {
+
+    /* ================================
+       استایل فرم‌ها
+    =================================== */
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    @media (min-width: 600px) {
+        .form-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+        .form-grid .full-width {
+            grid-column: 1 / -1;
+        }
+    }
+    
+    .input-group { text-align: right; }
+    .input-group label {
         display: block;
-        margin-bottom: 10px;
-        font-weight: bold;
-        color: #00796b;
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+        opacity: 0.9;
     }
     input[type="text"], input[type="number"], select, textarea {
         width: 100%;
-        padding: 12px;
-        margin-bottom: 20px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        background-color: #f1f8e9;
-        color: #000;
-        box-sizing: border-box; /* برای محاسبه صحیح عرض و پدینگ */
-    }
-    button {
-        width: 100%;
-        padding: 12px;
-        background-color: #007BFF;
-        color: #fff;
+        padding: 14px;
+        font-size: 1rem;
+        font-family: inherit;
         border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        font-size: 18px;
-    }
-    button:hover {
-        background-color: #0056b3;
-    }
-    .loading {
-        display: none;
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background-color: rgba(255, 255, 255, 0.9);
         border-radius: 10px;
-        padding: 20px;
-        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-        z-index: 1000;
-        text-align: center;
-        animation: fadeIn 0.5s;
+        background: rgba(255,255,255,0.95);
+        color: #333;
+        outline: none;
+        transition: box-shadow 0.3s;
+    }
+    input[readonly] {
+        background-color: rgba(220, 220, 220, 0.8);
+        cursor: not-allowed;
+    }
+    input:focus, select:focus, textarea:focus { 
+        box-shadow: 0 0 0 4px rgba(255, 235, 59, 0.5); 
+    }
+    textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+    
+    .btn {
+        width: 100%;
+        padding: 15px;
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: var(--dark-bg);
+        background-image: linear-gradient(45deg, var(--accent-color), #ffd700);
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 10px;
+    }
+    .btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(255, 235, 59, 0.4);
+    }
+    
+    /* ================================
+       لودینگ و پیام‌ها
+    =================================== */
+    .loader-container { text-align: center; padding: 40px 0; }
+    .loader {
+        width: 50px; height: 50px;
+        border: 5px solid rgba(255,255,255,0.3);
+        border-top-color: var(--accent-color);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 15px;
     }
     .message {
-        text-align: center;
-        margin-top: 20px;
-        font-size: 16px;
-        color: #00796b;
+        text-align: center; padding: 12px;
+        border-radius: 8px; margin-top: 20px;
+        font-weight: bold; animation: fadeIn 0.3s;
+        color: #fff;
     }
-    .success {
-        color: green;
-    }
-    .error {
-        color: red;
-    }
-    .icon {
-        font-size: 24px;
-        margin-bottom: 10px;
-    }
-    @media (max-width: 400px) {
-        .form-title {
-            font-size: 18px;
-        }
-        button {
-            font-size: 16px;
-        }
-    }
-</style>
+    .message.error { background-color: var(--danger-color); }
+    .message.success { background-color: var(--success-color); }
+
+    /* Success view */
+    .success-view { text-align: center; }
+    .success-view .icon { font-size: 4rem; color: var(--success-color); margin-bottom: 15px; }
+    .success-view p { font-size: 1.2rem; }
+  </style>
 </head>
 <body>
-<!-- فرم دریافت کد ملی -->
-<div class="container" id="nationalCodeContainer">
-    <form onsubmit="checkNationalCode(event)">
-        <div class="form-title">نظرسنجی تربیت‌مربی</div>
-        <label for="nationalCode">کد ملی:</label>
-        <input type="text" id="nationalCode" required name="nationalCode" />
-        <button type="submit">تایید</button>
-        <div id="nationalCodeMessage" class="message">&nbsp;</div>
-    </form>
-</div>
 
-<!-- فرم نظرسنجی (ابتدا پنهان) -->
-<div class="container" id="surveyFormContainer" style="display: none;">
-    <form onsubmit="submitForm(event)">
-        <div class="form-title">نظر سنجی<br />دوره تربیت مربی نوجوان</div>
-        <label for="name">نام و نام خانوادگی:</label>
-        <input type="text" id="name" required name="name" />
-        <label for="phone">شماره تماس:</label>
-        <input type="text" id="phone" required name="phone" />
-        <label for="education">رشته و مدرک تحصیلی:</label>
-        <input type="text" id="education" required name="education" />
-        <label>سابقه فعالیت تربیتی:</label>
-        <select name="experience" required>
-            <option value="" disabled selected>لطفاً گزینه‌ای انتخاب کنید</option>
-            <option value="کمتر از ۱ سال">کمتر از ۱ سال</option>
-            <option value="۱ سال">۱ سال</option>
-            <option value="دو سال">دو سال</option>
-            <option value="۳ سال">۳ سال</option>
-            <option value="بیش از ۳ سال">بیش از ۳ سال</option>
-        </select>
-        <label>از دوره راضی بودید:</label>
-        <select name="contentSatisfaction" required>
-            <option value="" disabled selected>لطفاً گزینه‌ای انتخاب کنید</option>
-            <option value="خیلی راضی">خیلی راضی</option>
-            <option value="راضی">راضی</option>
-            <option value="متوسط">متوسط</option>
-            <option value="ناراضی">ناراضی</option>
-            <option value="خیلی ناراضی">خیلی ناراضی</option>
-        </select>
-        <label>مطالب مفید بود؟</label>
-        <select name="contentRelevance" required>
-            <option value="" disabled selected>لطفاً گزینه‌ای انتخاب کنید</option>
-            <option value="بله">بله</option>
-            <option value="خیر">خیر</option>
-            <option value="تا حدی">تا حدی</option>
-        </select>
-        <label>کدام مبحث مفیدتر بود؟ </label>
-        <select name="usefulTerm" required>
-            <option value="" disabled selected>لطفاً گزینه‌ای انتخاب کنید</option>
-            <option value="شناخت نوجوان">شناخت نوجوان</option>
-            <option value="تربیت نوجوان">تربیت نوجوان</option>
-            <option value=" راهنمایی نوجوان"> راهنمایی نوجوان</option>
-            <option value="ارتباط با نوجوان">ارتباط با نوجوان </option>
-            <option value="مهارت‌های زندگی">مهارت‌های زندگی</option>
-        </select>
-        <label>انتخاب محتوا چطور بود؟</label>
-        <select name="contentQuality" required>
-            <option value="" disabled selected>لطفاً گزینه‌ای انتخاب کنید</option>
-            <option value="خیلی خوب">خیلی خوب</option>
-            <option value="خوب">خوب</option>
-            <option value="متوسط">متوسط</option>
-            <option value="بد">بد</option>
-            <option value="خیلی بد">خیلی بد</option>
-        </select>
-        <label>دوره را به دیگران توصیه می‌کنید؟ </label>
-        <select name="recommendation" required>
-            <option value="" disabled selected>لطفاً گزینه‌ای انتخاب کنید</option>
-            <option value="بله">بله</option>
-            <option value="خیر">خیر</option>
-            <option value="شاید">شاید</option>
-        </select>
-        <label>در کل، چه نمره‌ای به این دوره می‌دهید؟ (۱ تا ۲۰)</label>
-        <input type="number" id="rating" min="1" max="20" required name="rating" />
-        <label>آیا پیشنهاد خاصی برای دوره‌های آینده دارید؟</label>
-        <textarea id="suggestions" name="suggestions"></textarea>
-        <button type="submit">ثبت نظر</button>
-        <div id="responseMessage" class="message">&nbsp;</div>
-    </form>
-</div>
+  <div class="main-container">
+    <!-- مرحله لودینگ اولیه -->
+    <div id="step-loading" class="step active">
+        <div class="loader-container">
+            <div class="loader"></div>
+            <p>در حال بارگذاری سامانه...</p>
+        </div>
+    </div>
+  
+    <!-- مرحله ۱: ورود کد ملی (در حالت عادی) -->
+    <div id="step-login" class="step">
+      <h1>نظرسنجی دوره تربیت مربی</h1>
+      <div class="input-group">
+        <label for="nationalCodeInput">کد ملی خود را برای شروع وارد کنید:</label>
+        <input type="tel" id="nationalCodeInput" placeholder="کد ملی ۱۰ رقمی" maxlength="10">
+      </div>
+      <button class="btn" id="validateButton"><i class="fas fa-check-circle"></i>بررسی و شروع</button>
+      <div id="message-box" class="message" style="display: none;"></div>
+    </div>
 
-<div id="loading" class="loading">
-    <p id="loadingMessage">در حال ارسال... لطفاً صبر کنید.</p>
-</div>
+    <!-- مرحله ۲: فرم نظرسنجی -->
+    <div id="step-survey" class="step">
+      <h1>فرم نظرسنجی دوره</h1>
+      <form id="surveyForm">
+        <div class="form-grid">
+            <div class="input-group">
+                <label for="name">نام و نام خانوادگی:</label>
+                <input type="text" id="name" required name="name" readonly />
+            </div>
+            <div class="input-group">
+                <label for="phone">شماره تماس:</label>
+                <input type="text" id="phone" required name="phone" placeholder="مثال: 09123456789" />
+            </div>
+            <div class="input-group">
+                <label for="education">رشته و مدرک تحصیلی:</label>
+                <input type="text" id="education" required name="education" />
+            </div>
+            <div class="input-group">
+                <label>سابقه فعالیت تربیتی:</label>
+                <select name="experience" required>
+                    <option value="" disabled selected>انتخاب کنید...</option>
+                    <option value="کمتر از ۱ سال">کمتر از ۱ سال</option>
+                    <option value="۱ تا ۳ سال">۱ تا ۳ سال</option>
+                    <option value="بیش از ۳ سال">بیش از ۳ سال</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>از محتوای دوره راضی بودید؟</label>
+                <select name="contentSatisfaction" required>
+                    <option value="" disabled selected>انتخاب کنید...</option>
+                    <option value="خیلی راضی">خیلی راضی</option>
+                    <option value="راضی">راضی</option>
+                    <option value="متوسط">متوسط</option>
+                    <option value="ناراضی">ناراضی</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>کدام مبحث مفیدتر بود؟</label>
+                <select name="usefulTerm" required>
+                    <option value="" disabled selected>انتخاب کنید...</option>
+                    <option value="شناخت نوجوان">شناخت نوجوان</option>
+                    <option value="تربیت نوجوان">تربیت نوجوان</option>
+                    <option value="راهنمایی نوجوان">راهنمایی نوجوان</option>
+                    <option value="ارتباط با نوجوان">ارتباط با نوجوان</option>
+                    <option value="مهارت‌های زندگی">مهارت‌های زندگی</option>
+                </select>
+            </div>
+            <div class="input-group full-width">
+                <label>دوره را به دیگران توصیه می‌کنید؟</label>
+                <select name="recommendation" required>
+                    <option value="" disabled selected>انتخاب کنید...</option>
+                    <option value="بله، حتما">بله، حتما</option>
+                    <option value="شاید">شاید</option>
+                    <option value="خیر">خیر</option>
+                </select>
+            </div>
+            <div class="input-group full-width">
+                <label>در کل، چه نمره‌ای به این دوره می‌دهید؟ (۱ تا ۲۰)</label>
+                <input type="number" id="rating" min="1" max="20" required name="rating" />
+            </div>
+            <div class="input-group full-width">
+                <label>آیا پیشنهاد خاصی برای دوره‌های آینده دارید؟</label>
+                <textarea id="suggestions" name="suggestions" placeholder="نظرات شما برای ما ارزشمند است..."></textarea>
+            </div>
+        </div>
+        <button type="submit" class="btn"><i class="fas fa-paper-plane"></i>ثبت نظر</button>
+      </form>
+    </div>
+
+    <!-- مرحله ۳: موفقیت -->
+    <div id="step-success" class="step">
+      <div class="success-view">
+        <div class="icon"><i class="fas fa-check-circle"></i></div>
+        <h1>سپاسگزاریم!</h1>
+        <p>نظر شما با موفقیت ثبت شد. از وقتی که گذاشتید متشکریم.</p>
+      </div>
+    </div>
+  </div>
 
 <script>
-    let excelData = [];
-    let excelData2 = []; // داده‌های اکسل از فایل دوم
+    // URL فایل‌های اکسل
+    const registrationUrl = "https://docs.google.com/spreadsheets/d/1QSRAGajWtCWHJHsU-u4dRW85nq2hCGySKqtZQL0iTjY/export?format=xlsx";
+    const surveySubmissionsUrl = "https://docs.google.com/spreadsheets/d/1GCbyVT2l2TvLsvIchWVNWoM2IwuxRWwwS41qIOu6owk/export?format=xlsx";
+    const googleScriptUrl = 'https://script.google.com/macros/s/AKfycby5OUHaXhfZznFiYNPKq0ry5Zg9KaNNk5dDx3bGfJLAUIp-uvqipTadUiOu1uMr9EOF/exec';
 
-    async function loadExcelData() {
-        try {
-            const excelFileUrl = "https://docs.google.com/spreadsheets/d/1QSRAGajWtCWHJHsU-u4dRW85nq2hCGySKqtZQL0iTjY/export?format=xlsx"; // لینک مستقیم فایل اکسل اول
-            const response = await fetch(excelFileUrl);
-            const arrayBuffer = await response.arrayBuffer();
-            const data = new Uint8Array(arrayBuffer);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
-            excelData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        } catch (error) {
-            console.error("Error loading Excel file:", error);
-        }
+    // متغیرهای گلوبال
+    let registrationData = [];
+    let submissionData = [];
+
+    // عناصر DOM
+    const steps = document.querySelectorAll('.step');
+    const nationalCodeInput = document.getElementById('nationalCodeInput');
+    const validateButton = document.getElementById('validateButton');
+    const messageBox = document.getElementById('message-box');
+    const surveyForm = document.getElementById('surveyForm');
+
+    // تابع کمکی برای نمایش مراحل
+    function showStep(stepId) {
+        steps.forEach(step => step.classList.remove('active'));
+        const activeStep = document.getElementById(stepId);
+        if (activeStep) activeStep.classList.add('active');
+    }
+    
+    // تابع کمکی برای نمایش پیام خطا
+    function showMessage(text, type = 'error') {
+        messageBox.textContent = text;
+        messageBox.className = `message ${type}`;
+        messageBox.style.display = 'block';
     }
 
-    async function loadExcelData2() {
-        try {
-            const excelFileUrl2 = "https://docs.google.com/spreadsheets/d/1GCbyVT2l2TvLsvIchWVNWoM2IwuxRWwwS41qIOu6owk/export?format=xlsx"; // لینک مستقیم فایل اکسل دوم
-            const response = await fetch(excelFileUrl2);
-            const arrayBuffer = await response.arrayBuffer();
-            const data = new Uint8Array(arrayBuffer);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
-            excelData2 = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        } catch (error) {
-            console.error("Error loading Excel file 2:", error);
+    // تابع برای بارگذاری تمام داده‌های اکسل
+    const dataPromise = Promise.all([
+        fetch(registrationUrl).then(res => res.arrayBuffer()),
+        fetch(surveySubmissionsUrl).then(res => res.arrayBuffer())
+    ]).then(([regBuffer, subBuffer]) => {
+        const regWorkbook = XLSX.read(regBuffer, { type: 'array' });
+        registrationData = XLSX.utils.sheet_to_json(regWorkbook.Sheets[regWorkbook.SheetNames[0]], { header: 1 });
+        
+        const subWorkbook = XLSX.read(subBuffer, { type: 'array' });
+        submissionData = XLSX.utils.sheet_to_json(subWorkbook.Sheets[subWorkbook.SheetNames[0]], { header: 1 });
+        
+        console.log("All data loaded successfully.");
+    });
+    
+    // تابع اصلی برای بررسی کد ملی و نمایش فرم
+    async function checkNationalCode(nationalId) {
+        if (!nationalId || !/^\d{10}$/.test(nationalId)) {
+            showMessage('کد ملی وارد شده معتبر نیست.');
+            showStep('step-login');
+            return;
         }
-    }
 
-    window.onload = function() {
-        loadExcelData();
-        loadExcelData2();
-        // اطمینان از اینکه فرم نظرسنجی ابتدا پنهان است
-        document.getElementById("surveyFormContainer").style.display = "none";
-    };
+        const searchTerm = nationalId.replace(/^0+/, '');
+        const userRecord = registrationData.find(row => row && String(row[1]).replace(/^0+/, '') === searchTerm);
 
-    function checkNationalCode(event) {
-        event.preventDefault();
-        const nationalCodeInput = document.getElementById("nationalCode");
-        const enteredCode = nationalCodeInput.value.trim();
-        const messageDiv = document.getElementById("nationalCodeMessage");
-        messageDiv.innerText = "";
-        let foundRow = null;
-        if (excelData && excelData.length > 0) {
-            for (let i = 0; i < excelData.length; i++) {
-                // ستون B (اندیس 1) حاوی کد ملی است
-                if(String(excelData[i][1]).trim() === enteredCode) {
-                    foundRow = excelData[i];
-                    break;
-                }
-            }
+        if (!userRecord) {
+            showMessage('کد ملی شما در لیست شرکت‌کنندگان این دوره یافت نشد.');
+            showStep('step-login');
+            return;
         }
-        if (foundRow) {
-            const fullName = foundRow[0];
-            let alreadyVoted = false;
-            if (excelData2 && excelData2.length > 0) {
-                for (let i = 0; i < excelData2.length; i++) {
-                    // ستون A (اندیس 0) حاوی نام و نام خانوادگی است
-                    if(String(excelData2[i][0]).trim() === fullName.trim()) {
-                        alreadyVoted = true;
-                        break;
-                    }
-                }
-            }
-            if (alreadyVoted) {
-                messageDiv.innerText = `آقا/خانم ${fullName} شما قبلا نظر خود را ثبت کرده‌اید.`;
-            } else {
-                // پر کردن فیلد نام و نام خانوادگی با داده موجود در ستون A (اندیس 0) و غیر قابل تغییر کردن آن
-                document.getElementById("name").value = fullName;
-                document.getElementById("name").readOnly = true;
-                // نمایش فرم نظرسنجی و پنهان کردن فرم ورود کد ملی
-                document.getElementById("nationalCodeContainer").style.display = "none";
-                document.getElementById("surveyFormContainer").style.display = "flex";
-            }
+        
+        const fullName = userRecord[0];
+        const hasVoted = submissionData.some(row => row && String(row[0]).trim() === String(fullName).trim());
+        
+        if (hasVoted) {
+            showMessage(`آقا/خانم ${fullName}، شما قبلاً در این نظرسنجی شرکت کرده‌اید.`, 'success');
+            showStep('step-login');
         } else {
-            messageDiv.innerText = "کد ملی وارد شده یافت نشد.";
+            document.getElementById('name').value = fullName;
+            showStep('step-survey');
         }
     }
 
-    async function submitForm(event) {
+    // رویدادهای مربوط به فرم
+    validateButton.addEventListener('click', () => {
+        const id = nationalCodeInput.value.trim();
+        if (id) {
+            showStep('step-loading');
+            messageBox.style.display = 'none';
+            // تاخیر کوچک برای نمایش بهتر لودینگ
+            setTimeout(() => checkNationalCode(id), 300);
+        } else {
+            showMessage('لطفا کد ملی خود را وارد کنید.');
+        }
+    });
+    
+    nationalCodeInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            validateButton.click();
+        }
+    });
+
+    surveyForm.addEventListener('submit', async (event) => {
         event.preventDefault();
-        const formData = new FormData(event.target);
-        const loadingDiv = document.getElementById('loading');
-        loadingDiv.style.display = 'block';
-        loadingDiv.innerHTML = '<p id="loadingMessage">در حال ارسال... لطفاً صبر کنید.</p>';
+        showStep('step-loading');
 
         try {
-            const response = await fetch('https://script.google.com/macros/s/AKfycby5OUHaXhfZznFiYNPKq0ry5Zg9KaNNk5dDx3bGfJLAUIp-uvqipTadUiOu1uMr9EOF/exec', {
+            const formData = new FormData(surveyForm);
+            const response = await fetch(googleScriptUrl, {
                 method: 'POST',
                 body: formData
             });
-            const result = await response.text();
-            // تغییر محتوا در پنجره پاپ آپ پس از ثبت موفقیت‌آمیز نظر
-            loadingDiv.innerHTML = '<span class="icon">&#10004;</span><p id="loadingMessage"><span class="success">دیدگاه شما با موفقیت ثبت شد.</span></p>';
+
+            if (!response.ok) throw new Error('Network response was not ok.');
+            
+            showStep('step-success');
+
         } catch (error) {
             console.error('Error:', error);
-            // تغییر محتوا در پنجره پاپ آپ در صورت بروز خطا
-            loadingDiv.innerHTML = '<span class="icon">&#10006;</span><p id="loadingMessage"><span class="error">ارسال ناموفق بود. لطفاً دوباره تلاش کنید.</span></p>';
+            showMessage('ارسال ناموفق بود. لطفاً دوباره تلاش کنید.');
+            showStep('step-survey'); // بازگشت به فرم در صورت خطا
         }
-    }
+    });
+
+    // منطق اصلی هنگام بارگذاری صفحه
+    window.addEventListener('DOMContentLoaded', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const idFromUrl = urlParams.get('id');
+
+        dataPromise.then(() => {
+            if (idFromUrl) {
+                // اگر ID در URL بود، مستقیم بررسی کن
+                checkNationalCode(idFromUrl);
+            } else {
+                // در غیر این صورت، فرم ورود را نمایش بده
+                showStep('step-login');
+            }
+        }).catch(error => {
+            console.error("Failed to load initial data:", error);
+            showMessage("خطا در بارگذاری اطلاعات سامانه. لطفاً صفحه را رفرش کنید.");
+            showStep('step-login'); // در صورت خطا هم فرم ورود نمایش داده شود
+        });
+    });
+
 </script>
 </body>
 </html>
