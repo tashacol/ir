@@ -77,6 +77,36 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+    
+    /* ##### شروع ویرایش: افزودن استایل لودر صفحه ##### */
+    #page-loader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      background-size: 400% 400%;
+      animation: gradientBG 15s ease infinite;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      color: #fff;
+      font-size: 1.2rem;
+      transition: opacity 0.5s ease-out;
+    }
+    .loader-spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(255, 255, 255, 0.3);
+      border-top-color: var(--accent-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    /* ##### پایان ویرایش ##### */
 
     /* ================================
        کارت اصلی داشبورد
@@ -351,6 +381,13 @@
 </head>
 <body>
 
+  <!-- ##### شروع ویرایش: افزودن لودر صفحه ##### -->
+  <div id="page-loader">
+    <div class="loader-spinner"></div>
+    <p>لطفا کمی صبر کنید</p>
+  </div>
+  <!-- ##### پایان ویرایش ##### -->
+
   <div class="dashboard-container">
     <!-- بخش ورود -->
     <div id="login-view">
@@ -410,6 +447,11 @@
     const loginBtn = document.getElementById('login-btn');
     const msgBox = document.getElementById('message-box');
     const logoutBtn = document.getElementById('logout-btn');
+    
+    // ##### شروع ویرایش: تعریف متغیرهای مربوط به لودر و سشن #####
+    const pageLoader = document.getElementById('page-loader');
+    const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 ساعت به میلی‌ثانیه
+    // ##### پایان ویرایش #####
 
     function showMessage(text, type = 'error') {
         msgBox.textContent = text;
@@ -425,6 +467,32 @@
             loginBtn.classList.remove('loading');
         }
     }
+    
+    // ##### شروع ویرایش: افزودن تابع بررسی سشن #####
+    function checkSession() {
+        const sessionData = localStorage.getItem('loggedInUser');
+        if (!sessionData) return false;
+
+        const session = JSON.parse(sessionData);
+        const now = new Date().getTime();
+
+        if (now - session.loginTime < SESSION_DURATION) {
+            const nationalId = session.nationalId;
+            const searchTerm = nationalId.replace(/^0+/, '');
+            const studentRecord = studentData.find(row => row && row[1]?.toString().replace(/^0+/, '') === searchTerm);
+            
+            if (studentRecord) {
+                loginView.style.display = 'none'; // مخفی کردن فوری فرم ورود
+                displayDashboard(studentRecord, nationalId, false); // نمایش داشبورد بدون انیمیشن
+                return true; // سشن معتبر است
+            }
+        }
+        
+        // اگر سشن منقضی شده یا کاربر یافت نشد، آن را پاک کن
+        localStorage.removeItem('loggedInUser');
+        return false;
+    }
+    // ##### پایان ویرایش #####
 
     fetch(dataUrl)
       .then(res => res.ok ? res.arrayBuffer() : Promise.reject('Network response was not ok.'))
@@ -433,10 +501,21 @@
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         studentData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }).slice(1);
         console.log('Student data loaded successfully.');
+        
+        // ##### شروع ویرایش: بررسی سشن و مخفی کردن لودر #####
+        const sessionRestored = checkSession();
+        pageLoader.style.opacity = '0';
+        setTimeout(() => { pageLoader.style.display = 'none'; }, 500); // مخفی کردن لودر با انیمیشن
+        // ##### پایان ویرایش #####
+
       })
       .catch(error => {
         console.error('Failed to load student data:', error);
         showMessage('خطا در بارگذاری اطلاعات اولیه. لطفاً اتصال اینترنت خود را بررسی کرده و صفحه را مجددا بارگذاری کنید.');
+        // ##### شروع ویرایش: مخفی کردن لودر در صورت خطا #####
+        pageLoader.style.opacity = '0';
+        setTimeout(() => { pageLoader.style.display = 'none'; }, 500);
+        // ##### پایان ویرایش #####
       });
 
     loginBtn.addEventListener('click', handleLogin);
@@ -473,17 +552,15 @@
       }, 500);
     }
     
-    function displayDashboard(record, originalNationalId) {
+    // ##### شروع ویرایش: تغییر تابع برای ذخیره سشن #####
+    function displayDashboard(record, originalNationalId, animate = true) {
         document.getElementById('student-name').textContent = record[0] || 'نامشخص';
         document.getElementById('national-id').textContent = `کد ملی: ${originalNationalId}`;
         
-        // ##### شروع ویرایش اصلی درخواست شده #####
         const startDate = record[4];
-        let calculatedEndDate = record[5]; // مقدار اولیه برابر با مقدار ستون ۵ است
+        let calculatedEndDate = record[5];
         
-        // اگر تاریخ شروع وجود داشت، تاریخ اتمام را محاسبه کن
         if (startDate) {
-            // تاریخ اتمام برابر است با ۸۴ روز بعد از تاریخ شروع
             calculatedEndDate = moment(startDate, 'jYYYY/jMM/jDD').add(84, 'days').format('jYYYY/jMM/jDD');
         }
         
@@ -491,9 +568,8 @@
             'نام دوره': { icon: 'fa-chalkboard-teacher', value: record[2] },
             'شناسه دوره': { icon: 'fa-hashtag', value: record[3] },
             'تاریخ شروع': { icon: 'fa-calendar-alt', value: startDate },
-            'تاریخ اتمام': { icon: 'fa-calendar-check', value: calculatedEndDate } // استفاده از تاریخ محاسبه شده
+            'تاریخ اتمام': { icon: 'fa-calendar-check', value: calculatedEndDate }
         };
-        // ##### پایان ویرایش اصلی درخواست شده #####
 
         const detailsList = document.getElementById('course-details-list');
         detailsList.innerHTML = '';
@@ -511,16 +587,28 @@
             const baseUrl = link.href.split('?')[0];
             link.href = `${baseUrl}?id=${originalNationalId}`;
         });
+        
+        // ذخیره سشن کاربر در localStorage
+        const now = new Date().getTime();
+        const session = { nationalId: originalNationalId, loginTime: now };
+        localStorage.setItem('loggedInUser', JSON.stringify(session));
 
-        loginView.style.animation = 'fadeOut 0.5s forwards';
-        setTimeout(() => {
-            loginView.style.display = 'none';
-            dashboardView.style.display = 'block';
-            dashboardView.style.animation = 'fadeIn 0.5s forwards';
-        }, 500);
+        if (animate) {
+            loginView.style.animation = 'fadeOut 0.5s forwards';
+            setTimeout(() => {
+                loginView.style.display = 'none';
+                dashboardView.style.display = 'block';
+                dashboardView.style.animation = 'fadeIn 0.5s forwards';
+            }, 500);
+        } else {
+            dashboardView.style.display = 'block'; // نمایش فوری بدون انیمیشن
+        }
     }
     
     function handleLogout() {
+        // پاک کردن سشن از localStorage
+        localStorage.removeItem('loggedInUser');
+
         dashboardView.style.animation = 'fadeOut 0.5s forwards';
         setTimeout(() => {
             dashboardView.style.display = 'none';
@@ -528,8 +616,11 @@
             msgBox.style.display = 'none';
             loginView.style.display = 'block';
             loginView.style.animation = 'fadeIn 0.5s forwards';
+            loginView.style.removeProperty('animation'); // ریست کردن انیمیشن برای ورود بعدی
+            dashboardView.style.removeProperty('animation');
         }, 500);
     }
+    // ##### پایان ویرایش #####
   </script>
 </body>
 </html>
