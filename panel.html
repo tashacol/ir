@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>کاربری دانشجویان - موسسه تعالی اندیشه و رشد</title>
+
+  <!-- کتابخانه برای خواندن فایل اکسل -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+  
+  <!-- لینک به Font Awesome برای آیکن‌ها -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css">
+
+  <style>
+    /* ================================
+       متغیرها و استایل‌های پایه (برگرفته از سایت اصلی)
+    =================================== */
+    :root {
+      --primary-color: #1a2980;
+      --secondary-color: #26d0ce;
+      --accent-color: #ffeb3b;
+      --dark-bg: #000428;
+      --mid-bg: #004e92;
+      --text-color: #fff;
+      --card-bg: rgba(255, 255, 255, 0.1);
+      --card-border: rgba(255, 255, 255, 0.2);
+      --success-color: #2ecc71;
+      --danger-color: #e74c3c;
+    }
+
+    @font-face {
+      font-family: 'Vazir'; /* استفاده از یک فونت خواناتر برای داشبورد */
+      src: url('https://cdn.fontcdn.ir/Font/Persian/Vazir/Vazir-Regular.eot');
+      src: url('https://cdn.fontcdn.ir/Font/Persian/Vazir/Vazir-Regular.eot?#iefix') format('embedded-opentype'),
+           url('https://cdn.fontcdn.ir/Font/Persian/Vazir/Vazir-Regular.woff2') format('woff2'),
+           url('https://cdn.fontcdn.ir/Font/Persian/Vazir/Vazir-Regular.woff') format('woff'),
+           url('https://cdn.fontcdn.ir/Font/Persian/Vazir/Vazir-Regular.ttf') format('truetype');
+      font-weight: normal;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Vazir', 'Tahoma', sans-serif;
+      color: var(--text-color);
+      position: relative;
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      background-size: 400% 400%;
+      animation: gradientBG 15s ease infinite;
+      z-index: -1;
+    }
+
+    @keyframes gradientBG {
+      0%   { background-position: 0% 50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+    }
+
+    /* ================================
+       کارت اصلی داشبورد
+    =================================== */
+    .dashboard-container {
+        width: 100%;
+        max-width: 800px;
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 20px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.37);
+        padding: 30px 40px;
+        animation: fadeIn 0.8s ease-out forwards;
+    }
+    
+    /* ================================
+       بخش ورود (Login View)
+    =================================== */
+    #login-view h1 {
+        text-align: center;
+        color: var(--accent-color);
+        margin-bottom: 30px;
+        font-size: 2rem;
+    }
+
+    #national-id-input {
+        width: 100%;
+        padding: 15px;
+        font-size: 1.1rem;
+        text-align: center;
+        border: none;
+        border-radius: 10px;
+        background: rgba(255,255,255,0.9);
+        color: #333;
+        margin-bottom: 20px;
+        outline: none;
+        transition: box-shadow 0.3s;
+    }
+    #national-id-input:focus {
+        box-shadow: 0 0 0 3px var(--accent-color);
+    }
+    
+    #login-btn {
+        width: 100%;
+        padding: 15px;
+        font-size: 1.2rem;
+        font-weight: bold;
+        background-color: var(--accent-color);
+        color: var(--dark-bg);
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: transform 0.2s, background-color 0.3s;
+    }
+    #login-btn:hover {
+        background-color: #fffb00;
+        transform: translateY(-3px);
+    }
+    
+    .message {
+        text-align: center;
+        padding: 12px;
+        border-radius: 8px;
+        margin-top: 20px;
+        display: none; /* در ابتدا مخفی */
+        font-weight: bold;
+    }
+    .message.error {
+        background-color: var(--danger-color);
+        color: #fff;
+    }
+    .message.loading {
+        background-color: #3498db;
+        color: #fff;
+    }
+    
+    /* ================================
+       بخش داشبورد (Dashboard View)
+    =================================== */
+    #dashboard-view {
+        display: none; /* در ابتدا مخفی */
+        animation: fadeIn 1s ease-out;
+    }
+
+    .user-panel {
+        text-align: center;
+        padding-bottom: 20px;
+        margin-bottom: 25px;
+        border-bottom: 1px solid var(--card-border);
+    }
+
+    .user-panel h2 {
+        color: var(--accent-color);
+        font-size: 1.8rem;
+        margin-bottom: 10px;
+    }
+    .user-panel p {
+        font-size: 1rem;
+        margin: 5px 0;
+        opacity: 0.9;
+    }
+    .user-panel .course-details {
+        display: flex;
+        justify-content: space-around;
+        margin-top: 15px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .nav-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 20px;
+    }
+
+    .nav-item {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 15px;
+        padding: 20px;
+        text-align: center;
+        text-decoration: none;
+        color: var(--text-color);
+        transition: transform 0.3s, box-shadow 0.3s, background-color 0.3s;
+    }
+    .nav-item:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        background-color: rgba(255,255,255,0.2);
+    }
+    
+    .nav-item i {
+        font-size: 2.5rem;
+        color: var(--accent-color);
+        margin-bottom: 15px;
+        display: block;
+    }
+    
+    .nav-item span {
+        font-size: 1.1rem;
+        font-weight: bold;
+    }
+
+    /* واکنش‌گرایی */
+    @media (max-width: 768px) {
+        .dashboard-container {
+            padding: 20px;
+        }
+        #login-view h1 {
+            font-size: 1.5rem;
+        }
+        .nav-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        .nav-item i {
+            font-size: 2rem;
+        }
+        .nav-item span {
+            font-size: 0.9rem;
+        }
+        .user-panel h2 {
+            font-size: 1.5rem;
+        }
+        .user-panel p {
+            font-size: 0.9rem;
+        }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="dashboard-container">
+    <!-- بخش ورود: این بخش در ابتدا نمایش داده می‌شود -->
+    <div id="login-view">
+      <h1>ورود به حساب کاربری</h1>
+      <input type="tel" id="national-id-input" placeholder="کد ملی خود را وارد کنید" maxlength="10" />
+      <button id="login-btn">ورود</button>
+      <div id="message-box" class="message"></div>
+    </div>
+    
+    <!-- بخش داشبورد: این بخش پس از ورود موفق نمایش داده می‌شود -->
+    <div id="dashboard-view">
+      <!-- پنل اطلاعات کاربر -->
+      <div class="user-panel">
+        <h2 id="student-name"></h2>
+        <p id="national-id"></p>
+        <p id="course-name"></p>
+        <div class="course-details">
+          <span id="course-id"></span>
+          <span id="start-date"></span>
+          <span id="end-date"></span>
+        </div>
+      </div>
+      
+      <!-- گرید دسترسی به سامانه‌ها -->
+      <div class="nav-grid">
+        <a href="https://tashacol.github.io/ir/poroje.html" target="_blank" class="nav-item">
+          <i class="fas fa-tasks"></i>
+          <span>وضعیت دانشجو</span>
+        </a>
+        <a href="https://tashacol.github.io/ir/login.html" target="_blank" class="nav-item">
+          <i class="fas fa-book-open"></i>
+          <span>سامانه دروس</span>
+        </a>
+        <a href="http://tashacol.github.io/ir/emza.html" target="_blank" class="nav-item">
+          <i class="fas fa-certificate"></i>
+          <span>درخواست گواهی</span>
+        </a>
+        <a href="https://tashacol.github.io/ir/nazar.html" target="_blank" class="nav-item">
+          <i class="fas fa-poll-h"></i>
+          <span>نظرسنجی دوره</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // URL فایل اکسل
+    const dataUrl = 'https://docs.google.com/spreadsheets/d/1QSRAGajWtCWHJHsU-u4dRW85nq2hCGySKqtZQL0iTjY/export?format=xlsx';
+    let studentData = [];
+
+    // دسترسی به عناصر DOM
+    const loginView = document.getElementById('login-view');
+    const dashboardView = document.getElementById('dashboard-view');
+    const input = document.getElementById('national-id-input');
+    const loginBtn = document.getElementById('login-btn');
+    const msgBox = document.getElementById('message-box');
+
+    // تابع برای نمایش پیام‌ها
+    function showMessage(text, type = 'error') {
+        msgBox.textContent = text;
+        msgBox.className = `message ${type}`;
+        msgBox.style.display = 'block';
+    }
+
+    // پیش‌بارگذاری داده‌ها
+    showMessage('در حال بارگذاری اطلاعات اولیه...', 'loading');
+    fetch(dataUrl)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('خطا در دریافت اطلاعات از سرور');
+        }
+        return response.arrayBuffer();
+      })
+      .then(data => {
+        const workbook = XLSX.read(data, { type: 'array' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        studentData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }).slice(1);
+        msgBox.style.display = 'none'; // مخفی کردن پیام لودینگ
+        console.log('اطلاعات با موفقیت بارگذاری شد.');
+      })
+      .catch(error => {
+        console.error(error);
+        showMessage('خطا در بارگذاری اطلاعات. لطفاً صفحه را رفرش کنید.');
+      });
+
+    // رویداد کلیک دکمه ورود
+    loginBtn.addEventListener('click', handleLogin);
+    input.addEventListener('keydown', (e) => {
+        if(e.key === 'Enter') {
+            handleLogin();
+        }
+    });
+
+    function handleLogin() {
+      const nationalId = input.value.trim();
+      msgBox.style.display = 'none'; // مخفی کردن پیام قبلی
+
+      if (!/^\d{10}$/.test(nationalId)) {
+        showMessage('کد ملی باید ۱۰ رقم و فقط شامل عدد باشد.');
+        return;
+      }
+
+      if (studentData.length === 0) {
+          showMessage('اطلاعات هنوز بارگذاری نشده است، لطفاً کمی صبر کنید و دوباره تلاش کنید.', 'loading');
+          return;
+      }
+      
+      const searchTerm = nationalId.replace(/^0+/, ''); // حذف صفرهای اول برای جستجو
+
+      const studentRecord = studentData.find(row => row && row[1]?.toString().replace(/^0+/, '') === searchTerm);
+
+      if (studentRecord) {
+        // اگر دانشجو پیدا شد، داشبورد را نمایش بده
+        displayDashboard(studentRecord, nationalId);
+      } else {
+        // اگر پیدا نشد، پیام خطا بده
+        showMessage('کد ملی وارد شده در سامانه یافت نشد.');
+      }
+    }
+    
+    function displayDashboard(record, originalNationalId) {
+      // استخراج اطلاعات از رکورد یافت شده
+      const name = record[0] || 'نامشخص';
+      const course = record[2] || 'نامشخص';
+      const courseId = record[3] || 'نامشخص';
+      const startDate = record[4] || 'نامشخص';
+      const endDate = record[5] || 'نامشخص';
+
+      // قرار دادن اطلاعات در عناصر HTML
+      document.getElementById('student-name').textContent = name;
+      document.getElementById('national-id').textContent = `کد ملی: ${originalNationalId}`;
+      document.getElementById('course-name').textContent = `دوره: ${course}`;
+      document.getElementById('course-id').innerHTML = `<i class="fas fa-hashtag"></i> شناسه: ${courseId}`;
+      document.getElementById('start-date').innerHTML = `<i class="fas fa-calendar-alt"></i> شروع: ${startDate}`;
+      document.getElementById('end-date').innerHTML = `<i class="fas fa-calendar-check"></i> پایان: ${endDate}`;
+
+      // نمایش داشبورد و مخفی کردن فرم ورود
+      loginView.style.display = 'none';
+      dashboardView.style.display = 'block';
+    }
+  </script>
+</body>
+</html>
