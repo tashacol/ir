@@ -28,7 +28,6 @@
       --success-color: #16a34a;
       --pending-color: #94a3b8;
       --danger-color: #dc2626;
-      --info-color: #3b82f6;
     }
 
     @font-face {
@@ -125,7 +124,7 @@
       margin-bottom: 30px;
     }
     .user-info-card h2 { margin: 0 0 5px; font-size: 1.6rem; }
-    .user-info-card p { margin: 3px 0; opacity: 0.9; }
+    .user-info-card p { margin: 0; opacity: 0.9; }
 
     /* نوار پیشرفت جدید */
     .progress-section { margin-bottom: 30px; }
@@ -148,6 +147,7 @@
     .status-timeline {
       list-style: none; padding: 0; position: relative;
     }
+    /* خط عمودی تایم‌لاین */
     .status-timeline::before {
       content: ''; position: absolute;
       top: 10px; bottom: 10px; right: 11px;
@@ -167,8 +167,6 @@
     }
     .timeline-item.completed .timeline-icon { background-color: var(--success-color); }
     .timeline-item.pending .timeline-icon { background-color: var(--pending-color); }
-    .timeline-item.info .timeline-icon { background-color: var(--info-color); }
-
     .timeline-content {
       padding: 10px 15px;
       background-color: #f8fafc;
@@ -205,43 +203,45 @@
   </style>
 </head>
 <body>
+
   <div class="container">
     <div class="page-header">
       <h1>وضعیت تحصیلی</h1>
       <p>آخرین وضعیت تحصیلی و گواهی خود را مشاهده کنید</p>
     </div>
-
+    
     <div id="searchForm">
-      <div class="form-group">
-        <input type="tel" id="searchInput" placeholder="کد ملی خود را وارد کنید" maxlength="10" />
-      </div>
-      <button id="searchBtn"><i class="fas fa-search"></i>جستجو</button>
+        <div class="form-group">
+          <input type="tel" id="searchInput" placeholder="کد ملی خود را وارد کنید" maxlength="10" />
+        </div>
+        <button id="searchBtn"><i class="fas fa-search"></i>جستجو</button>
     </div>
 
     <div id="loadingMsg">در حال بارگذاری اطلاعات، لطفاً صبر کنید...</div>
     <div id="errorMsg"></div>
 
     <div id="resultsContainer">
-      <div class="user-info-card" id="userInfo"></div>
-      <div class="progress-section">
-        <div class="progress-bar">
-          <div class="progress-bar-fill"></div>
+        <div class="user-info-card" id="userInfo"></div>
+
+        <div class="progress-section">
+            <div class="progress-bar">
+                <div class="progress-bar-fill"></div>
+            </div>
+            <p class="progress-text"></p>
         </div>
-        <p class="progress-text"></p>
-      </div>
-      <ul class="status-timeline" id="statusTimeline"></ul>
-      <div class="action-buttons" id="actionButtons"></div>
+
+        <ul class="status-timeline" id="statusTimeline"></ul>
+        <div class="action-buttons" id="actionButtons"></div>
     </div>
   </div>
 
 <script>
-    // === ثابت‌ها و آدرس‌ها ===
+    // === URLs and Constants ===
     const url1 = 'https://docs.google.com/spreadsheets/d/1c0g7deSI0y-QP4nQNux-l07_cumu3A6Gy0OolnhZWdU/export?format=xlsx';
     const url2 = 'https://docs.google.com/spreadsheets/d/1QSRAGajWtCWHJHsU-u4dRW85nq2hCGySKqtZQL0iTjY/export?format=xlsx';
     const driveFolderLink = 'https://drive.google.com/drive/folders/1-pUvCoHflHaLVIcSZJ3nR471I-HEEbn-';
-    const COURSE_DURATION_DAYS = 85;
-
-    // === دسترسی به عناصر DOM ===
+    
+    // === DOM Elements ===
     const loadingMsg = document.getElementById('loadingMsg');
     const errorMsg = document.getElementById('errorMsg');
     const resultsContainer = document.getElementById('resultsContainer');
@@ -253,11 +253,11 @@
     const searchForm = document.getElementById('searchForm');
     const progressBarFill = document.querySelector('.progress-bar-fill');
     const progressText = document.querySelector('.progress-text');
-
-    // === ذخیره‌سازی داده‌ها ===
+    
+    // === Data Storage ===
     let allData = [], sheet2Data = [];
 
-    // === بارگذاری داده‌ها از سرور ===
+    // === Data Fetching ===
     const dataLoadingPromise = Promise.all([
         fetch(url1).then(res => res.arrayBuffer()),
         fetch(url2).then(res => res.arrayBuffer())
@@ -269,25 +269,23 @@
         sheet2Data = XLSX.utils.sheet_to_json(workbook2.Sheets[workbook2.SheetNames[0]], { header: 1 }).slice(1);
     }).catch(err => {
         console.error("خطا در بارگذاری فایل‌های اکسل:", err);
-        showError("خطا در ارتباط با سرور. لطفاً اینترنت خود را بررسی کرده و مجدداً تلاش کنید.");
-        throw err;
+        showError("خطا در ارتباط با سرور. لطفاً بعداً تلاش کنید.");
+        throw err; // Re-throw to be caught by later promises
     });
 
-    // === رویدادها ===
+    // === Event Listeners ===
     window.addEventListener('DOMContentLoaded', () => {
         const urlParams = new URLSearchParams(window.location.search);
         const nationalId = urlParams.get('id');
 
         loadingMsg.style.display = 'block';
-        searchForm.style.display = 'none';
 
         dataLoadingPromise.then(() => {
             loadingMsg.style.display = 'none';
             if (nationalId) {
+                searchForm.style.display = 'none';
                 input.value = nationalId;
                 performSearch();
-            } else {
-                searchForm.style.display = 'block';
             }
         }).catch(() => {
             loadingMsg.style.display = 'none';
@@ -295,14 +293,9 @@
     });
 
     btn.addEventListener('click', performSearch);
-    input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            performSearch();
-        }
-    });
+    input.addEventListener('keydown', (e) => e.key === 'Enter' && performSearch());
 
-    // === توابع اصلی ===
+    // === Core Functions ===
     function showError(message) {
         errorMsg.textContent = message;
         errorMsg.style.display = 'block';
@@ -318,65 +311,83 @@
         }
 
         const searchTerm = userInput.replace(/^0+/, '');
-        const projectRecord = allData.find(row => row && (row[4]?.toString().replace(/^0+/, '') || '') === searchTerm);
-        const registrationInfo = sheet2Data.find(row => row && (row[1]?.toString().replace(/^0+/, '') || '') === searchTerm);
+        const projectRecord = allData.find(row => (row[4]?.toString().replace(/^0+/, '') || '') === searchTerm);
+        const registrationInfo = sheet2Data.find(row => (row[1]?.toString().replace(/^0+/, '') || '') === searchTerm);
 
         if (!registrationInfo) {
             return showError("کد ملی وارد شده در سامانه ثبت نام یافت نشد.");
         }
         
-        // --- استخراج تمام جزئیات مورد نیاز ---
+        // --- Data Extraction ---
         const studentName = registrationInfo[0] || 'دانشجوی گرامی';
         const courseName = registrationInfo[2] || 'نامشخص';
         const courseId = registrationInfo[3];
         const startDate = registrationInfo[4];
-        
         const projectLink = projectRecord?.[9];
-        const certNumber = projectRecord?.[11];
-        const certDate = projectRecord?.[13]; // **جزئیات بازگردانده شده**
         const certLink = projectRecord?.[15];
 
-        // --- منطق بررسی تاریخ پایان دوره ---
+        // --- START: EDIT - Logic for calculating end of course date ---
         let isCoursePeriodOver = false;
-        let calculatedEndDate = ''; // برای نمایش تاریخ پایان دوره
+        let courseEndDateInfo = ''; // Will hold the formatted end date text for display
 
         if (startDate && typeof startDate === 'string' && startDate.trim() !== '') {
-            const startDateMoment = window.jalaliMoment(startDate, 'jYYYY/jM/jD');
-            if (startDateMoment.isValid()) {
-                const endDateMoment = startDateMoment.clone().add(COURSE_DURATION_DAYS - 1, 'days');
-                const now = window.jalaliMoment();
-                isCoursePeriodOver = now.isAfter(endDateMoment, 'day');
-                calculatedEndDate = endDateMoment.format('jYYYY/MM/DD');
-            } else {
-                isCoursePeriodOver = true; 
+            try {
+                // Use jalali-moment which is already included in the page
+                const startDateMoment = jalaliMoment(startDate, 'jYYYY/jM/jD');
+                if (startDateMoment.isValid()) {
+                    const endDateMoment = startDateMoment.clone().add(84, 'days');
+                    const now = jalaliMoment();
+                    
+                    isCoursePeriodOver = now.isAfter(endDateMoment);
+                    
+                    // Prepare a string with the calculated end date for display in the message
+                    courseEndDateInfo = `تاریخ اتمام دوره شما: ${endDateMoment.format('jYYYY/jMM/jDD')}`;
+                }
+            } catch (e) {
+                console.error("Error parsing or calculating course end date:", e);
+                // In case of error, keep isCoursePeriodOver as false to be safe
             }
-        } else {
-            isCoursePeriodOver = true;
         }
+        // --- END: EDIT ---
 
-        // --- محاسبه وضعیت‌ها برای نمایش ---
+        // --- Status Calculation ---
         const statuses = {
-            registered: { completed: !!registrationInfo, title: "ثبت نام اولیه", details: "تکمیل شده" },
-            courseFinished: { completed: !!projectRecord, title: "اتمام دوره", details: projectRecord ? "تکمیل شده" : "در حال برگزاری" },
-            projectSent: { completed: projectLink && projectLink.trim() !== '', title: "ارسال پروژه", details: projectLink ? "پروژه ارسال شده" : "در انتظار ارسال" },
-            certificateIssued: { completed: certLink && certLink.trim() !== '', title: "صدور گواهی", details: certLink ? `شماره گواهی: ${certNumber || 'نامشخص'}` : "در انتظار صدور" }
+            registered: {
+                completed: !!registrationInfo,
+                title: "ثبت نام اولیه",
+                details: startDate ? `تاریخ شروع: ${startDate}` : "تکمیل شده"
+            },
+            courseFinished: {
+                completed: !!projectRecord, // Assuming a record in sheet 1 means course is finished
+                title: "اتمام دوره",
+                details: projectRecord ? "تکمیل شده" : "در حال برگزاری"
+            },
+            projectSent: {
+                completed: projectLink && projectLink.trim() !== '',
+                title: "ارسال پروژه",
+                details: projectLink ? "پروژه ارسال شده" : "در انتظار ارسال"
+            },
+            certificateIssued: {
+                completed: certLink && certLink.trim() !== '',
+                title: "صدور گواهی",
+                details: certLink ? `شماره گواهی: ${projectRecord[11] || 'نامشخص'}` : "در انتظار صدور"
+            }
         };
 
-        // --- به‌روزرسانی رابط کاربری با تمام جزئیات ---
-        updateUserInfo(studentName, courseName, userInput, courseId);
+        // --- UI Updates ---
+        updateUserInfo(studentName, courseName, userInput);
         updateProgressBar(statuses);
-        updateTimeline(statuses, { startDate, calculatedEndDate, certDate });
-        updateActionButtons(projectLink, certLink, !!registrationInfo, isCoursePeriodOver, calculatedEndDate);
+        updateTimeline(statuses);
+        // Pass the date check result to the action buttons function
+        updateActionButtons(projectLink, certLink, !!registrationInfo, isCoursePeriodOver, courseEndDateInfo);
 
         resultsContainer.style.display = 'block';
     }
     
-    function updateUserInfo(name, course, nationalId, courseId) {
-        let courseIdHTML = courseId ? `<p>شناسه دوره: ${courseId}</p>` : '';
+    function updateUserInfo(name, course, id) {
         userInfo.innerHTML = `
             <h2>${name}</h2>
-            <p>${course} (کد ملی: ${nationalId})</p>
-            ${courseIdHTML}
+            <p>${course} (کد ملی: ${id})</p>
         `;
     }
 
@@ -385,53 +396,37 @@
         const completedCount = statusValues.filter(s => s.completed).length;
         const totalCount = statusValues.length;
         const percentage = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+
         progressBarFill.style.width = `${percentage}%`;
         progressText.textContent = `پیشرفت شما: ${Math.round(percentage)}% (${completedCount} از ${totalCount} مرحله تکمیل شده)`;
     }
 
-    function updateTimeline(statuses, details) {
+    function updateTimeline(statuses) {
         statusTimeline.innerHTML = '';
-        
-        // تابع کمکی برای ایجاد آیتم تایم‌لاین
-        const createTimelineItem = (config) => {
+        for (const key in statuses) {
+            const status = statuses[key];
             const li = document.createElement('li');
-            li.className = `timeline-item ${config.type}`; // completed, pending, info
+            li.className = `timeline-item ${status.completed ? 'completed' : 'pending'}`;
+            
+            const iconClass = status.completed ? 'fa-check' : 'fa-hourglass-half';
+            
             li.innerHTML = `
-                <div class="timeline-icon"><i class="fas ${config.icon}"></i></div>
+                <div class="timeline-icon"><i class="fas ${iconClass}"></i></div>
                 <div class="timeline-content">
-                    <h3>${config.title}</h3>
-                    <p>${config.details}</p>
+                    <h3>${status.title}</h3>
+                    <p>${status.details}</p>
                 </div>
             `;
             statusTimeline.appendChild(li);
-        };
-
-        // نمایش وضعیت‌های اصلی
-        Object.values(statuses).forEach(status => {
-            createTimelineItem({
-                type: status.completed ? 'completed' : 'pending',
-                icon: status.completed ? 'fa-check' : 'fa-hourglass-half',
-                title: status.title,
-                details: status.details
-            });
-        });
-        
-        // **نمایش جزئیات اضافی و تاریخ‌ها**
-        if (details.startDate) {
-            createTimelineItem({ type: 'info', icon: 'fa-calendar-alt', title: 'تاریخ شروع دوره', details: details.startDate });
-        }
-        if (details.calculatedEndDate) {
-            createTimelineItem({ type: 'info', icon: 'fa-calendar-check', title: 'تاریخ اتمام دوره', details: details.calculatedEndDate });
-        }
-        if (details.certDate) {
-            createTimelineItem({ type: 'info', icon: 'fa-award', title: 'تاریخ صدور گواهی', details: details.certDate });
         }
     }
 
-    function updateActionButtons(projectLink, certLink, hasRegistered, isCoursePeriodOver, courseEndDate) {
+    // --- START: EDIT - Modified function to handle conditional display ---
+    function updateActionButtons(projectLink, certLink, hasRegistered, isCoursePeriodOver, courseEndDateInfo) {
         let buttonsHTML = '';
         
         if (isCoursePeriodOver) {
+            // The course period is over, show the buttons if their links exist.
             if (projectLink) {
                 buttonsHTML += `<a href="${projectLink}" target="_blank" class="action-btn project-link"><i class="fas fa-file-alt"></i>مشاهده پروژه</a>`;
             }
@@ -442,19 +437,25 @@
                 buttonsHTML += `<a href="${driveFolderLink}" target="_blank" class="action-btn drive-link"><i class="fas fa-book-open"></i>مشاهده جزوات</a>`;
             }
         } else {
+            // The course period is not yet over. Display the informational message.
             let message = `<div style="text-align: center; color: var(--text-muted); background-color: var(--input-bg); padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
                                <p style="margin: 0; line-height: 1.6;">
                                    دانشجوی گرامی، دسترسی به گواهینامه، پروژه و جزوات پس از اتمام دوره امکان‌پذیر خواهد بود.
                                </p>`;
-            if (courseEndDate) {
-                 message += `<p style="margin: 5px 0 0; font-weight: bold; color: var(--primary-blue);">تاریخ اتمام دوره شما: ${courseEndDate}</p>`;
+            
+            // If the end date was successfully calculated, add it to the message for more clarity.
+            if (courseEndDateInfo) {
+                 message += `<p style="margin: 5px 0 0; font-weight: bold; color: var(--primary-blue);">${courseEndDateInfo}</p>`;
             }
+            
             message += `</div>`;
             buttonsHTML = message;
         }
         
         actionButtons.innerHTML = buttonsHTML;
     }
-</script>
+    // --- END: EDIT ---
+  </script>
+
 </body>
 </html>
