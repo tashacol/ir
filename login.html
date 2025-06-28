@@ -80,7 +80,7 @@
     #login-box button:hover { background: var(--primary-accent-hover); }
 
     /* --- Dashboard Layout --- */
-    #dashboard { display: none; }
+    #dashboard { display: none; flex-direction: row; }
     
     /* --- Sidebar --- */
     #sidebar {
@@ -166,7 +166,15 @@
     .special-state i { font-size: 4em; color: var(--primary-accent); margin-bottom: 20px; }
     .special-state h2 { font-size: 2em; margin-bottom: 10px; }
     .special-state p { font-size: 1.1em; color: var(--text-muted); }
-    #countdown-timer { font-size: 2.5em; color: var(--text-dark); margin-top: 20px; direction: ltr; }
+    #countdown-timer { font-size: 1.8em; color: var(--text-dark); margin-top: 20px; font-weight: 700; } /* NEW: direction: ltr removed, font-size adjusted */
+
+    /* --- Certificate Request Block --- */
+    .certificate-request-block button {
+        background-color: var(--success-color); color: white; padding: 15px 40px; border-radius: 8px;
+        border: none; font-size: 1.2em; cursor: pointer; transition: background-color var(--transition-speed);
+        margin-top: 20px;
+    }
+     .certificate-request-block button:hover { background-color: #047857; }
 
     /* --- Responsive & Modals --- */
     #menu-toggle {
@@ -182,7 +190,8 @@
     .modal { display: none; position: fixed; z-index: 11000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(5px); }
     .modal-content { background: #fff; margin: 10% auto; padding: 20px; border-radius: var(--border-radius); width: 90%; max-width: 600px; position: relative; }
     .close-btn { position: absolute; top: 15px; left: 15px; font-size: 1.8em; cursor: pointer; color: #9ca3af; }
-    #alertModal .modal-content { max-width: 400px; text-align: center; }
+    #alertModal .modal-content { max-width: 400px; text-align: center; padding: 30px; }
+    #alertModal .modal-content i { font-size: 3em; color: var(--warning-color); margin-bottom: 15px; } /* For warning icon */
     #alertModal button { margin-top: 15px; background: var(--primary-accent); color:white; padding: 10px 30px; border:none; border-radius:8px;}
     #termVideo { width: 100%; border-radius: 8px; } #pdfViewer { width: 100%; height: 60vh; border: none; border-radius: 8px;}
   </style>
@@ -203,15 +212,12 @@
   <div id="alertModal" class="modal"><div class="modal-content" id="alert-modal-content"><p id="alertMessage"></p><button onclick="closeModal('alertModal')">متوجه شدم</button></div></div>
   
 <script>
-// This event listener ensures that the JavaScript code runs only after the entire HTML document has been loaded and parsed.
-// This is the definitive solution to "Cannot set properties of null" errors.
 document.addEventListener('DOMContentLoaded', function() {
 
     // --- Global Variables & Constants ---
     let registeredUsers = [], currentUser = null, courseData = {};
     let countdownInterval;
 
-    // Caching DOM elements for performance and cleaner code
     const DOM = {
         loadingOverlay: document.getElementById('loadingOverlay'),
         loginContainer: document.getElementById('login-container'),
@@ -229,6 +235,7 @@ document.addEventListener('DOMContentLoaded', function() {
         certificateInfo: document.getElementById('certificate-info'),
         logoutBtn: document.getElementById('logoutBtn'),
         menuToggle: document.getElementById('menu-toggle'),
+        alertModalContent: document.getElementById('alert-modal-content'), // Changed for icon
         alertMessage: document.getElementById('alertMessage'),
         termVideo: document.getElementById('termVideo'),
         pdfViewer: document.getElementById('pdfViewer')
@@ -270,9 +277,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- UI Functions ---
     const showLoader = (show) => DOM.loadingOverlay.style.display = show ? 'flex' : 'none';
-    const showAlert = (msg) => { DOM.alertMessage.innerText = msg; openModal('alertModal'); };
+    const showAlert = (msg, isWarning = false) => {
+        let iconHTML = isWarning ? '<i class="fa-solid fa-triangle-exclamation"></i>' : '';
+        DOM.alertModalContent.innerHTML = `${iconHTML}<p id="alertMessage">${msg}</p><button onclick="closeModal('alertModal')">متوجه شدم</button>`;
+        openModal('alertModal');
+    };
     const openModal = (id) => document.getElementById(id).style.display = 'flex';
-    window.closeModal = (id) => document.getElementById(id).style.display = 'none'; // Make it globally accessible for inline onclick
+    window.closeModal = (id) => document.getElementById(id).style.display = 'none';
     window.openVideoModal = (term) => { DOM.termVideo.src = `sample_video_term${term}.mp4`; openModal('videoModal'); };
     window.openPdfModal = (term) => { DOM.pdfViewer.src = `sample_booklet_term${term}.pdf`; openModal('pdfModal'); };
 
@@ -313,12 +324,33 @@ document.addEventListener('DOMContentLoaded', function() {
         countdownInterval = setInterval(() => {
             const distance = courseData.startDate - new Date();
             if (distance < 0) { clearInterval(countdownInterval); location.reload(); return; }
-            const d = Math.floor(distance / (1000*60*60*24)); const h = Math.floor((distance % (1000*60*60*24)) / (1000*60*60));
-            const m = Math.floor((distance % (1000*60*60)) / (1000*60)); const s = Math.floor((distance % (1000*60)) / 1000);
-            timerEl.innerHTML = `${d}d ${h}h ${m}m ${s}s`;
+            const d = Math.floor(distance / (1000*60*60*24));
+            const h = Math.floor((distance % (1000*60*60*24)) / (1000*60*60));
+            const m = Math.floor((distance % (1000*60*60)) / (1000*60));
+            const s = Math.floor((distance % (1000*60)) / 1000);
+            // --- CHANGE: Persian Countdown ---
+            timerEl.innerHTML = `${d.toLocaleString('fa-IR')} روز و ${h.toLocaleString('fa-IR')} ساعت و ${m.toLocaleString('fa-IR')} دقیقه و ${s.toLocaleString('fa-IR')} ثانیه`;
         }, 1000);
     }
-    function renderCourseEndedState() { return `<div class="special-state"><i class="fa-solid fa-award"></i><h2>دوره به پایان رسید!</h2><p>تبریک! شما این دوره را با موفقیت به اتمام رسانده‌اید. امیدواریم مطالب برای شما مفید بوده باشد.</p></div>`; }
+    
+    // --- NEW: Render state for certificate request period ---
+    function renderCertificateRequestState() {
+        const now = new Date();
+        const remaining = Math.ceil((courseData.certificateDeadline - now) / (1000 * 60 * 60 * 24));
+        const remainingDaysText = `شما ${remaining.toLocaleString('fa-IR')} روز دیگر برای ثبت درخواست فرصت دارید.`;
+
+        return `<div class="special-state certificate-request-block">
+                    <i class="fa-solid fa-stamp"></i>
+                    <h2>فرصت درخواست گواهی پایان دوره</h2>
+                    <p>دوره آموزشی به پایان رسیده است. برای دریافت گواهی خود، روی دکمه زیر کلیک کنید.</p>
+                    <p><strong>مهلت نهایی: ${formatDatePersian(courseData.certificateDeadline)}</strong></p>
+                    <p style="margin-top: 10px; color: var(--primary-accent); font-weight:700;">${remainingDaysText}</p>
+                    <button onclick="showAlert('درخواست گواهی شما با موفقیت ثبت شد.')">
+                        <i class="fa-solid fa-award"></i> ثبت درخواست گواهی
+                    </button>
+                </div>`;
+    }
+    function renderCourseEndedState() { return `<div class="special-state"><i class="fa-solid fa-award"></i><h2>دوره به پایان رسید!</h2><p>امیدواریم مطالب برای شما مفید بوده باشد. مهلت درخواست گواهی نیز به اتمام رسیده است.</p></div>`; }
 
     // --- Main Application Logic ---
     function updateCertificateInfo() {
@@ -327,7 +359,7 @@ document.addEventListener('DOMContentLoaded', function() {
             DOM.certificateInfo.innerHTML = `<p>درخواست گواهی پس از <strong>${formatDatePersian(endDate)}</strong> فعال خواهد شد.</p>`;
         } else if (now <= certificateDeadline) {
             const remaining = Math.ceil((certificateDeadline - now) / (1000 * 60 * 60 * 24));
-            DOM.certificateInfo.innerHTML = `<p>مهلت درخواست تا <strong>${formatDatePersian(certificateDeadline)}</strong> (${remaining} روز دیگر) می‌باشد.</p><button id="certificateRequestBtn" onclick="showAlert('درخواست گواهی شما با موفقیت ثبت شد.')">ثبت درخواست گواهی</button>`;
+            DOM.certificateInfo.innerHTML = `<p>مهلت درخواست تا <strong>${formatDatePersian(certificateDeadline)}</strong> (${remaining.toLocaleString('fa-IR')} روز دیگر) می‌باشد.</p><button id="certificateRequestBtn" onclick="showAlert('درخواست گواهی شما با موفقیت ثبت شد.')">ثبت درخواست گواهی</button>`;
         } else {
             DOM.certificateInfo.innerHTML = `<p>مهلت درخواست گواهی به پایان رسیده است.</p>`;
         }
@@ -337,23 +369,42 @@ document.addEventListener('DOMContentLoaded', function() {
         DOM.courseName.innerText = courseData.name; DOM.startDate.innerText = formatDatePersian(courseData.startDate);
         DOM.endDate.innerText = formatDatePersian(courseData.endDate); DOM.welcomeMessage.innerText = `خوش آمدید، ${currentUser[0]}!`;
         updateCertificateInfo();
-        const now = new Date(); let contentHTML = '';
+        
+        const now = new Date(); 
+        let contentHTML = '';
+
+        // --- CHANGE: Added new logic for different course states ---
         if (now < courseData.startDate) {
             contentHTML = renderCountdownHTML();
             DOM.dynamicContent.innerHTML = contentHTML;
             startCountdown();
+        } else if (now > courseData.endDate && now <= courseData.certificateDeadline) {
+            // NEW: Show certificate request page after course ends but before deadline
+            contentHTML = renderCertificateRequestState();
+            DOM.dynamicContent.innerHTML = contentHTML;
         } else if (now > courseData.certificateDeadline) {
             contentHTML = renderCourseEndedState();
             DOM.dynamicContent.innerHTML = contentHTML;
         } else {
+            // This is the default state: during the course
             contentHTML = renderCourseProgress() + renderCourseTimeline();
             DOM.dynamicContent.innerHTML = contentHTML;
+            
+            // --- NEW: Check for the last week warning ---
+            const lastRestWeekStart = new Date(courseData.startDate.getTime() + 11 * 7 * 24 * 60 * 60 * 1000);
+            if (now >= lastRestWeekStart && now < courseData.endDate) {
+                // Show warning only once per session
+                if (!sessionStorage.getItem('lastWeekWarningShown')) {
+                    showAlert('اخطار: شما فقط تا پایان همین هفته فرصت دارید که تکالیف را ارسال کنید. بعد از آن سامانه قفل می‌شود.', true);
+                    sessionStorage.setItem('lastWeekWarningShown', 'true');
+                }
+            }
         }
     }
     function initDashboard() {
         populateDashboard(); DOM.loginContainer.style.display = 'none'; DOM.dashboard.style.display = 'flex';
     }
-    function logout() { if (confirm("آیا برای خروج از سیستم مطمئن هستید؟")) { localStorage.removeItem('rememberedUser'); location.reload(); } }
+    function logout() { if (confirm("آیا برای خروج از سیستم مطمئن هستید؟")) { sessionStorage.removeItem('lastWeekWarningShown'); localStorage.removeItem('rememberedUser'); location.reload(); } }
 
     // --- Authentication & Initialization ---
     function verifyUser() {
@@ -384,6 +435,7 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             if (!courseData.startDate) throw new Error("تاریخ شروع دوره در ستون E فایل اکسل معتبر نیست یا وجود ندارد.");
             courseData.endDate = new Date(courseData.startDate.getTime() + 84 * 24 * 60 * 60 * 1000);
+            // --- CHANGE: Certificate deadline is 30 days after the end date ---
             courseData.certificateDeadline = new Date(courseData.endDate.getTime() + 30 * 24 * 60 * 60 * 1000);
             registeredUsers = json.slice(1);
             checkSessionAndInit();
