@@ -123,7 +123,6 @@
     }
     .header-actions button:hover { background: var(--danger-color); color: white; }
     
-    /* ویرایش دوم: افزودن استایل بنر اخطار */
     .warning-banner {
       background-color: var(--warning-color);
       color: var(--text-light);
@@ -276,7 +275,6 @@
   
   <div id="dashboard">
     <main>
-      <!-- ویرایش دوم: افزودن جایگاه بنر اخطار -->
       <div id="warning-banner" class="warning-banner" style="display: none;"></div>
 
       <header class="main-header">
@@ -318,7 +316,8 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // === Global Variables ===
-    let registeredUsers = [], currentUser = null, courseData = {};
+    // [ویرایش] افزودن متغیر برای نگهداری اطلاعات شیت گواهینامه
+    let registeredUsers = [], currentUser = null, courseData = {}, certificateData = [];
     let countdownInterval;
 
     // === DOM Elements ===
@@ -339,7 +338,7 @@ document.addEventListener('DOMContentLoaded', function() {
         videoTitle: document.getElementById('videoTitle'),
         pdfViewer: document.getElementById('pdfViewer'),
         pdfTitle: document.getElementById('pdfTitle'),
-        warningBanner: document.getElementById('warning-banner'), // ویرایش دوم: گرفتن المان بنر
+        warningBanner: document.getElementById('warning-banner'),
     };
     
     // === Date Helper Functions ===
@@ -428,17 +427,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!isRestWeek) termCounter++;
         }
         
-        timelineHTML += `
-            <div class="accordion-item certificate-item">
-                <div class="accordion-header" onclick="openModal('certificateModal')">
-                    <div class="accordion-icon" style="background-color: var(--success-color); color: white;"><i class="fas fa-award"></i></div>
-                    <div class="accordion-title">
-                        <h3>گواهی پایان دوره</h3>
-                        <span>اقدام پس از اتمام دوره</span>
-                    </div>
-                </div>
-            </div>
-        `;
+        // این بخش حذف شد چون منطق گواهی در تابع populateDashboard مدیریت می‌شود
         
         DOM.dynamicContent.innerHTML = timelineHTML;
     }
@@ -451,13 +440,11 @@ document.addEventListener('DOMContentLoaded', function() {
             item.classList.remove('active');
             content.style.maxHeight = null;
         } else {
-            // Close other active items
             const activeItem = document.querySelector('.accordion-item.active');
             if (activeItem) {
                 activeItem.classList.remove('active');
                 activeItem.querySelector('.accordion-content').style.maxHeight = null;
             }
-            
             item.classList.add('active');
             content.style.maxHeight = content.scrollHeight + "px";
         }
@@ -502,11 +489,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const now = new Date();
         const totalDuration = courseData.endDate - courseData.startDate;
         const elapsed = now - courseData.startDate;
-        const progress = Math.min(100, (elapsed / totalDuration) * 100);
+        const progress = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
         DOM.progressBarFill.style.width = `${progress}%`;
-
-        // ویرایش دوم: منطق نمایش بنر اخطار هفته آخر
-        // هفته آخر استراحت، هفته 12 است (اندیس 11)
+        
         const lastRestWeekStart = new Date(courseData.startDate.getTime() + 11 * 7 * 24 * 60 * 60 * 1000);
         if (now >= lastRestWeekStart && now < courseData.endDate) {
             if (DOM.warningBanner) {
@@ -515,26 +500,58 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        // ویرایش سوم: تغییر منطق نمایش محتوا بر اساس زمان
+        // [ویرایش] تغییر کامل منطق نمایش محتوا بر اساس زمان و وضعیت گواهی
         if (now < courseData.startDate) {
+            // حالت قبل از شروع دوره
             renderSpecialState('fa-hourglass-start', 'دوره به زودی آغاز می‌شود!', `برای شروع این سفر آموزشی آماده شوید. دوره در تاریخ ${formatDatePersian(courseData.startDate)} آغاز خواهد شد.`, '<div id="countdown-timer"></div>');
             startCountdown();
         } else if (now > courseData.endDate) {
-            // حالت پایان دوره: نمایش پیام اتمام و دکمه دریافت گواهی
-            DOM.dynamicContent.innerHTML = `
-                <div class="special-state-card">
-                    <i class="fas fa-check-circle" style="color: var(--success-color);"></i>
-                    <h2>دوره به اتمام رسیده است</h2>
-                    <p>لطفاً جهت اخذ گواهی اقدام نمائید.</p>
-                    <div style="margin-top: 25px;">
-                         <button class="action-button homework" onclick="openModal('certificateModal')">
-                            <i class="fas fa-award"></i> دریافت گواهی
-                         </button>
+            // حالت پس از اتمام دوره
+            const certificateWindowEndDate = new Date(courseData.endDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+            if (now <= certificateWindowEndDate) {
+                // در بازه 30 روزه پس از پایان دوره
+                DOM.dynamicContent.innerHTML = `
+                    <div class="special-state-card">
+                        <i class="fas fa-check-circle" style="color: var(--success-color);"></i>
+                        <h2>دوره به اتمام رسیده است</h2>
+                        <p>لطفاً جهت اخذ گواهی اقدام نمائید.</p>
+                        <div style="margin-top: 25px;">
+                             <button class="action-button homework" onclick="openModal('certificateModal')">
+                                <i class="fas fa-award"></i> درخواست گواهی
+                             </button>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            } else {
+                // پس از بازه 30 روزه: بررسی وضعیت گواهی
+                const nationalCode = currentUser[1].toString(); // کد ملی کاربر از شیت اصلی (ستون B)
+                // جستجو در شیت گواهینامه ها (کد ملی در ستون E یعنی اندیس 4)
+                const certificateRecord = certificateData.find(row => row && row[4] && row[4].toString() === nationalCode);
+                
+                if (certificateRecord && certificateRecord[14]) { // اگر رکورد پیدا شد و لینک در ستون O (اندیس 14) وجود داشت
+                    const certificateLink = certificateRecord[14];
+                    renderSpecialState(
+                        'fa-award',
+                        'گواهی شما صادر شده است',
+                        'برای دریافت فایل گواهی خود، روی دکمه زیر کلیک کنید.',
+                        `<a href="${certificateLink}" target="_blank" rel="noopener noreferrer" class="action-button homework" style="display:inline-flex; text-decoration: none; margin-top: 20px;">
+                            <i class="fas fa-download"></i> دانلود گواهینامه
+                         </a>`
+                    );
+                } else {
+                    // اگر رکورد پیدا نشد یا لینکی وجود نداشت
+                     renderSpecialState(
+                        'fa-times-circle',
+                        'عدم موفقیت در اخذ گواهی',
+                        'شما موفق به اخذ گواهی نشده‌اید.',
+                        ''
+                    );
+                }
+            }
+
         } else {
-            // حالت عادی دوره: نمایش تایم‌لاین دروس
+            // حالت عادی و در حین دوره
             renderCourseTimeline();
         }
     }
@@ -554,9 +571,21 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function verifyUser(code) {
         if (!code) return alert("کد ملی نامعتبر است.");
+        // کد ملی در ستون B (اندیس 1) از شیت اصلی قرار دارد
         currentUser = registeredUsers.find(user => user[1] && user[1].toString() === code);
         
         if (currentUser) {
+            // [ویرایش] تاریخ شروع از ستون E (اندیس 4) ردیف خود کاربر خوانده می‌شود
+            courseData.startDate = parseJalaliDate(currentUser[4]);
+            if (!courseData.startDate) {
+                alert("تاریخ شروع دوره برای شما به درستی ثبت نشده است. لطفا با پشتیبانی تماس بگیرید.");
+                showOverlay(DOM.loadingOverlay, false);
+                showOverlay(DOM.loginContainer, true);
+                return;
+            }
+            // محاسبه تاریخ پایان دوره بر اساس تاریخ شروع همین کاربر (12 هفته = 84 روز)
+            courseData.endDate = new Date(courseData.startDate.getTime() + 84 * 24 * 60 * 60 * 1000);
+
             initDashboard();
         } else {
             alert("کد ملی وارد شده در این دوره ثبت نام نشده است.");
@@ -571,25 +600,36 @@ document.addEventListener('DOMContentLoaded', function() {
             const nationalIdFromUrl = urlParams.get('id');
             showOverlay(DOM.loadingOverlay, true);
 
-            const res = await fetch("https://docs.google.com/spreadsheets/d/1QSRAGajWtCWHJHsU-u4dRW85nq2hCGySKqtZQL0iTjY/export?format=xlsx");
-            if (!res.ok) throw new Error("خطا در ارتباط با سرور");
+            const mainSheetUrl = "https://docs.google.com/spreadsheets/d/1QSRAGajWtCWHJHsU-u4dRW85nq2hCGySKqtZQL0iTjY/export?format=xlsx";
+            // [ویرایش] لینک شیت گواهینامه‌ها
+            const certificateSheetUrl = "https://docs.google.com/spreadsheets/d/1c0g7deSI0y-QP4nQNux-l07_cumu3A6Gy0OolnhZWdU/export?format=xlsx";
 
-            const data = await res.arrayBuffer();
-            const workbook = XLSX.read(data, { type: 'array' });
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-            if (json.length < 2) throw new Error("فایل اکسل خالی است.");
+            // [ویرایش] بارگذاری همزمان هر دو شیت اکسل
+            const [mainRes, certRes] = await Promise.all([
+                fetch(mainSheetUrl),
+                fetch(certificateSheetUrl)
+            ]);
 
-            const courseInfoRow = json[1];
-            courseData = {
-                name: courseInfoRow[2] || "دوره آموزشی",
-                startDate: parseJalaliDate(courseInfoRow[4])
-            };
-            if (!courseData.startDate) throw new Error("تاریخ شروع در فایل اکسل معتبر نیست.");
+            if (!mainRes.ok || !certRes.ok) throw new Error("خطا در ارتباط با سرور برای دریافت فایل‌های اطلاعاتی");
 
-            // دوره 12 هفته (84 روز) است
-            courseData.endDate = new Date(courseData.startDate.getTime() + 84 * 24 * 60 * 60 * 1000);
-            registeredUsers = json.slice(1);
+            // پردازش شیت اصلی کاربران
+            const mainData = await mainRes.arrayBuffer();
+            const mainWorkbook = XLSX.read(mainData, { type: 'array' });
+            const mainSheet = mainWorkbook.Sheets[mainWorkbook.SheetNames[0]];
+            const mainJson = XLSX.utils.sheet_to_json(mainSheet, { header: 1 });
+            if (mainJson.length < 2) throw new Error("فایل اکسل اصلی خالی است.");
+            
+            // پردازش شیت گواهینامه ها
+            const certData = await certRes.arrayBuffer();
+            const certWorkbook = XLSX.read(certData, { type: 'array' });
+            const certSheet = certWorkbook.Sheets[certWorkbook.SheetNames[0]];
+            certificateData = XLSX.utils.sheet_to_json(certSheet, { header: 1 });
+
+            // [ویرایش] فقط نام دوره از اطلاعات عمومی خوانده می‌شود. تاریخ شروع دیگر عمومی نیست
+            const courseInfoRow = mainJson[1];
+            courseData.name = courseInfoRow[2] || "دوره آموزشی";
+            
+            registeredUsers = mainJson.slice(1);
             
             if (nationalIdFromUrl) {
                 verifyUser(nationalIdFromUrl);
