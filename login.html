@@ -3,29 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>سامانه آموزشی - تربیت مربی نوجوان</title>
-  <!-- کتابخانه XLSX برای خواندن فایل اکسل -->
+  <title>داشبورد آموزشی - تربیت مربی نوجوان</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <!-- کتابخانه فونت آیکون Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     @font-face {
       font-family: 'Vazirmatn';
-      src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@33.003/Vazirmatn-Regular.woff2') format('woff2');
+      src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@33.003/Vazirmatn-Medium.woff2') format('woff2');
       font-weight: normal;
       font-style: normal;
     }
 
     :root {
-      --primary-color: #0d1b2a;
-      --secondary-color: #1b263b;
-      --accent-color: #3a86ff;
-      --text-primary: #e0e1dd;
-      --text-secondary: #adb5bd;
-      --card-bg: #1b263b;
-      --shadow-color: rgba(0, 0, 0, 0.4);
-      --success-color: #2a9d8f;
-      --break-color: #fca311;
+      --bg-main: #f0f2f5;
+      --bg-sidebar: #1e293b;
+      --bg-card: #ffffff;
+      --primary-accent: #4f46e5;
+      --primary-accent-hover: #4338ca;
+      --text-dark: #0f172a;
+      --text-light: #f8fafc;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --shadow-color: rgba(0, 0, 0, 0.08);
+      --success-color: #10b981;
+      --warning-color: #f59e0b;
+      --break-color: #64748b;
+      --sidebar-width: 280px;
       --border-radius: 12px;
       --transition-speed: 0.3s;
     }
@@ -38,603 +41,438 @@
 
     body {
       font-family: 'Vazirmatn', sans-serif;
-      background-color: var(--primary-color);
-      color: var(--text-primary);
+      background-color: var(--bg-main);
+      color: var(--text-dark);
       direction: rtl;
       text-align: right;
       line-height: 1.7;
       overflow-x: hidden;
-      min-height: 100vh;
     }
 
-    body.loading-active {
-      overflow: hidden;
-    }
-    
     /* --- لودینگ --- */
     #loadingOverlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: var(--primary-color);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 20000;
-      transition: opacity 0.5s ease-out;
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: #fff; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; z-index: 20000;
+      transition: opacity 0.5s;
     }
-
     .loader {
-      width: 60px;
-      height: 60px;
-      border: 6px solid var(--secondary-color);
-      border-top: 6px solid var(--accent-color);
-      border-radius: 50%;
+      width: 50px; height: 50px; border: 5px solid #e2e8f0;
+      border-top-color: var(--primary-accent); border-radius: 50%;
       animation: spin 1s linear infinite;
     }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
 
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+    /* --- صفحه ورود --- */
+    #login-container {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; background-color: var(--bg-main);
     }
-
-    #loadingText {
-      margin-top: 25px;
-      font-size: 1.3em;
-      color: var(--text-primary);
+    #login-box {
+      background: white; padding: 40px; border-radius: var(--border-radius);
+      box-shadow: 0 10px 25px var(--shadow-color); width: 90%; max-width: 400px;
     }
-    .wave {
-      display: inline-block;
-      animation: wave 2s infinite;
-      transform-origin: 70% 70%;
+    #login-box h2 { text-align: center; margin-bottom: 25px; }
+    #login-box input[type="text"] {
+      width: 100%; padding: 14px; margin-bottom: 15px; border: 1px solid var(--border-color);
+      border-radius: 8px; font-size: 1.1em; font-family: 'Vazirmatn', sans-serif;
     }
-    @keyframes wave {
-      0% { transform: rotate(0deg); } 10% { transform: rotate(14deg); } 20% { transform: rotate(-8deg); } 30% { transform: rotate(14deg); } 40% { transform: rotate(-4deg); } 50% { transform: rotate(10deg); } 60% { transform: rotate(0deg); } 100% { transform: rotate(0deg); }
-    }
-    
-    /* --- مدال ورود --- */
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 10000;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(5px);
-      animation: fadeIn var(--transition-speed);
-      overflow-y: auto;
-      padding: 20px;
-    }
-    .modal-content {
-      background: #f8f9fa;
-      color: var(--primary-color);
-      margin: 5% auto;
-      padding: 30px;
-      width: 90%;
-      max-width: 450px;
-      border-radius: var(--border-radius);
-      position: relative;
-      animation: slideDown var(--transition-speed);
-      box-shadow: 0 8px 25px var(--shadow-color);
-    }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes slideDown { from { transform: translateY(-30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-    
-    .modal-content h2 {
-      text-align: center;
-      margin-bottom: 25px;
-      font-size: 1.8em;
-    }
-    .modal-content input[type="text"] {
-      width: 100%;
-      padding: 14px;
-      margin-bottom: 15px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      font-size: 1.1em;
-      font-family: 'Vazirmatn', sans-serif;
-    }
-     .modal-content input[type="text"]:focus {
-      outline: none;
-      border-color: var(--accent-color);
-      box-shadow: 0 0 5px var(--accent-color);
-     }
-    .modal-content button {
-      width: 100%;
-      padding: 14px;
-      background: var(--accent-color);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 1.2em;
-      font-family: 'Vazirmatn', sans-serif;
+    #login-box button {
+      width: 100%; padding: 14px; background: var(--primary-accent); color: white;
+      border: none; border-radius: 8px; cursor: pointer; font-size: 1.2em;
       transition: background var(--transition-speed);
     }
-    .modal-content button:hover {
-      background: #3178df;
-    }
-    .remember-container {
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-      margin: 15px 0;
-      gap: 10px;
-    }
-    #rememberMe {
-      transform: scale(1.3);
-    }
+    #login-box button:hover { background: var(--primary-accent-hover); }
 
-    /* --- داشبورد اصلی --- */
-    .main-header {
-      background: var(--secondary-color);
-      padding: 20px 40px;
-      border-bottom-left-radius: 20px;
-      border-bottom-right-radius: 20px;
-      box-shadow: 0 5px 15px var(--shadow-color);
-      margin-bottom: 30px;
-    }
-    .header-top {
+    /* --- ساختار اصلی داشبورد --- */
+    #dashboard {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 15px;
-      border-bottom: 1px solid #334155;
-      padding-bottom: 15px;
     }
-    #welcomeMessage {
-      font-size: 1.5em;
-      font-weight: bold;
-    }
-    #courseInfo h1 {
-      font-size: 1.3em;
-      margin-bottom: 5px;
-    }
-     #courseInfo p {
-      font-size: 0.9em;
-      color: var(--text-secondary);
-     }
     
-    nav {
-      width: 100%;
-      padding-top: 15px;
-    }
-    nav ul {
-      list-style: none;
+    /* --- منوی کناری (Sidebar) --- */
+    #sidebar {
+      width: var(--sidebar-width);
+      background-color: var(--bg-sidebar);
+      color: var(--text-light);
+      padding: 25px;
+      position: fixed;
+      top: 0;
+      right: 0;
+      height: 100vh;
       display: flex;
-      justify-content: center;
-      gap: 20px;
-      flex-wrap: wrap;
+      flex-direction: column;
+      transition: transform var(--transition-speed) ease-in-out;
+      z-index: 1000;
     }
-    nav ul li a {
-      text-decoration: none;
-      color: var(--text-primary);
-      background: #475569;
-      padding: 10px 20px;
-      border-radius: 8px;
-      transition: background var(--transition-speed), color var(--transition-speed);
-      display: block;
-    }
-     nav ul li a:hover {
-      background: var(--accent-color);
-      color: white;
-     }
-    #certificateRequestBtn {
-       background-color: var(--success-color);
-       color: white;
-    }
-
-    #certificateCountdown {
-      background: #003049;
-      color: #fca311;
-      padding: 15px;
-      border-radius: var(--border-radius);
-      max-width: 800px;
-      margin: -15px auto 30px auto;
-      box-shadow: 0 4px 10px var(--shadow-color);
+    .sidebar-header {
       text-align: center;
-      font-weight: bold;
-      font-size: 1.1em;
-      border: 2px solid #fca311;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #33415b;
     }
-
-    /* --- بخش محتوای دوره --- */
-    #courseTimeline {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 25px;
-      padding: 0 20px 40px 20px;
-      max-width: 1400px;
-      margin: 0 auto;
-    }
-
-    .card {
-      background: var(--card-bg);
-      border-radius: var(--border-radius);
-      box-shadow: 0 6px 12px var(--shadow-color);
-      width: 320px;
-      padding: 20px;
-      transition: transform var(--transition-speed), box-shadow var(--transition-speed);
-      border-top: 4px solid var(--accent-color);
-    }
-    .card:hover {
-      transform: translateY(-8px);
-      box-shadow: 0 10px 20px var(--shadow-color);
-    }
-    .card.locked {
-      opacity: 0.6;
-      border-top-color: #6c757d;
-    }
-     .card.locked:hover {
-      transform: none;
-     }
+    .sidebar-header h2 { font-size: 1.4em; }
+    .sidebar-header p { font-size: 0.9em; color: var(--text-muted); }
     
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    .sidebar-section {
+      margin-top: 30px;
+    }
+    .sidebar-section h3 {
+      font-size: 0.8em;
+      color: var(--text-muted);
+      text-transform: uppercase;
       margin-bottom: 15px;
     }
-    .card-header h3 {
-      font-size: 1.6em;
+    .sidebar-section ul { list-style: none; }
+    .sidebar-section ul li a {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 12px;
+      border-radius: 8px;
+      text-decoration: none;
+      color: var(--text-light);
+      transition: background-color var(--transition-speed);
     }
-    .card-header .icon {
-      font-size: 1.8em;
-      color: var(--text-secondary);
+    .sidebar-section ul li a:hover, .sidebar-section ul li a.active {
+      background-color: #33415b;
     }
-    .card.locked .icon {
-      color: #e0e1dd;
+    .sidebar-section ul li a i { width: 20px; text-align: center; font-size: 1.2em; }
+
+    #certificate-info { font-size: 0.9em; line-height: 1.8; }
+    #certificate-info strong { color: var(--warning-color); }
+    #certificateRequestBtn {
+      width: 100%; padding: 10px; margin-top: 10px;
+      background-color: var(--success-color); color: white;
+      border: none; border-radius: 8px; cursor: pointer;
     }
-    
-    .card p {
-      color: var(--text-secondary);
-      margin-bottom: 20px;
-      font-size: 0.95em;
+    .logout-section {
+      margin-top: auto; /* Pushes to the bottom */
     }
 
-    .card-actions {
-      display: flex;
-      gap: 10px;
-    }
-    .card-actions button {
+    /* --- محتوای اصلی --- */
+    #main-content {
       flex-grow: 1;
-      padding: 12px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-family: 'Vazirmatn', sans-serif;
-      font-size: 1em;
-      font-weight: bold;
+      padding: 30px;
+      margin-right: var(--sidebar-width);
+      transition: margin-right var(--transition-speed) ease-in-out;
+    }
+    .page-header { margin-bottom: 30px; }
+    #welcomeMessage { font-size: 1.8em; font-weight: bold; }
+    
+    /* Progress Bar */
+    #progress-container {
+      margin-bottom: 30px;
+    }
+    #progress-container p { margin-bottom: 10px; font-weight: bold; }
+    .progress-bar {
+      height: 12px;
+      background-color: var(--border-color);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    #progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background-color: var(--primary-accent);
+      border-radius: 6px;
+      transition: width var(--transition-speed);
+    }
+    
+    /* Timeline */
+    #course-timeline {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 25px;
+    }
+    .card {
+      background: var(--bg-card);
+      border-radius: var(--border-radius);
+      box-shadow: 0 4px 10px var(--shadow-color);
+      padding: 20px;
+      border-top: 4px solid transparent;
       transition: all var(--transition-speed);
     }
-    .card-actions button:disabled {
-      cursor: not-allowed;
-      background-color: #495057 !important;
-      color: #adb5bd;
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 20px var(--shadow-color);
     }
-    .video-btn { background-color: var(--accent-color); color: white; }
-    .pdf-btn { background-color: #6c757d; color: white; }
-    .video-btn:hover:not(:disabled) { background-color: #3178df; }
-    .pdf-btn:hover:not(:disabled) { background-color: #5a6268; }
+    .card.term-card { border-top-color: var(--primary-accent); }
+    .card.break-card { border-top-color: var(--break-color); }
+    .card.locked { opacity: 0.6; cursor: not-allowed; }
+    .card.locked:hover { transform: none; box-shadow: 0 4px 10px var(--shadow-color); }
+    .card.current-week {
+      border: 2px solid var(--primary-accent);
+      box-shadow: 0 0 15px var(--primary-accent);
+    }
 
-    /* کارت استراحت */
-    .break-card {
-      border-top-color: var(--break-color);
-      text-align: center;
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
     }
-    .break-card .card-header {
-      justify-content: center;
-      color: var(--break-color);
+    .card-header h3 { font-size: 1.4em; }
+    .card-header .icon { font-size: 1.5em; color: var(--text-muted); }
+    .card p { color: var(--text-muted); margin-bottom: 20px; font-size: 0.9em; }
+
+    .card-actions { display: flex; flex-direction: column; gap: 10px; }
+    .card-actions button {
+      padding: 12px; border: none; border-radius: 8px; cursor: pointer;
+      font-family: 'Vazirmatn', sans-serif; font-size: 1em; font-weight: bold;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: all var(--transition-speed);
     }
-    .break-card .icon {
-      color: var(--break-color);
-    }
-     .break-card p {
-      font-size: 1.1em;
-      color: var(--text-primary);
-     }
+    .card-actions button:disabled { background-color: #e5e7eb !important; color: var(--text-muted); cursor: not-allowed; }
+    .video-btn { background-color: var(--primary-accent); color: white; }
+    .pdf-btn { background-color: #33415b; color: white; }
+    .assignment-btn { background-color: var(--success-color); color: white; }
     
-    /* --- مدال‌های ویدئو، PDF و پیام --- */
-    .video-modal-content, .pdf-modal-content, .alert-modal-content {
-      padding: 20px;
-      background: #f8f9fa;
+    /* --- دکمه منو برای موبایل --- */
+    #menu-toggle {
+      display: none; position: fixed; top: 15px; left: 15px;
+      background: var(--bg-sidebar); color: white; border: none;
+      width: 45px; height: 45px; border-radius: 50%;
+      font-size: 1.5em; cursor: pointer; z-index: 1001;
     }
-    .close {
-      position: absolute;
-      top: 10px;
-      left: 15px;
-      font-size: 2em;
-      cursor: pointer;
-      color: #6c757d;
+
+    /* --- رسپانسیو --- */
+    @media (max-width: 992px) {
+      #sidebar {
+        transform: translateX(var(--sidebar-width));
+      }
+      #sidebar.open {
+        transform: translateX(0);
+      }
+      #main-content {
+        margin-right: 0;
+      }
+      #menu-toggle {
+        display: block;
+      }
     }
-    .alert-modal-content { max-width: 400px; text-align: center; }
-    .alert-modal-content button { margin-top: 20px; }
-    #alertMessage { font-size: 1.2em; color: var(--primary-color); }
-    #termVideo, #pdfViewer { width: 100%; border-radius: 8px; }
     
-    @media (max-width: 768px) {
-      .main-header { padding: 20px; }
-      .header-top { flex-direction: column; text-align: center; }
-      nav ul { justify-content: center; }
-      .card { width: 90%; }
+    /* مدال‌ها و پاپ آپ ها */
+    .modal {
+      display: none; position: fixed; z-index: 11000; left: 0; top: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px);
     }
+    .modal-content {
+      background: #fff; margin: 10% auto; padding: 20px; border-radius: var(--border-radius);
+      width: 90%; max-width: 600px; position: relative;
+    }
+    .close-btn {
+      position: absolute; top: 15px; left: 15px; font-size: 1.8em;
+      cursor: pointer; color: var(--text-muted);
+    }
+    #alert-modal .modal-content { max-width: 400px; text-align: center; }
+    #alert-modal button { margin-top: 15px; background: var(--primary-accent); color:white; padding: 10px 30px; border:none; border-radius:8px;}
+    #termVideo { width: 100%; border-radius: 8px; }
+    #pdfViewer { width: 100%; height: 60vh; border: none; border-radius: 8px;}
+
   </style>
 </head>
-<body class="loading-active">
+<body>
 
-  <!-- لودینگ -->
-  <div id="loadingOverlay">
-    <div class="loader"></div>
-    <p id="loadingText">سلام <span class="wave">👋</span> در حال بارگذاری سامانه...</p>
-  </div>
+  <div id="loadingOverlay"><div class="loader"></div></div>
 
-  <!-- مدال ورود -->
-  <div id="loginModal" class="modal" style="display: block;">
-    <div class="modal-content">
-      <h2><i class="fa-solid fa-right-to-bracket"></i> ورود به سامانه آموزشی</h2>
-      <input type="text" id="nationalCodeInput" placeholder="کد ملی خود را وارد کنید" />
-      <div class="remember-container">
-        <input type="checkbox" id="rememberMe" />
-        <label for="rememberMe">مرا به خاطر بسپار</label>
-      </div>
+  <div id="login-container" style="display: none;">
+    <div id="login-box">
+      <h2><i class="fa-solid fa-lock"></i> ورود به سامانه</h2>
+      <input type="text" id="nationalCodeInput" placeholder="کد ملی خود را وارد کنید">
       <button id="verifyButton">ورود</button>
     </div>
   </div>
 
-  <!-- داشبورد اصلی -->
   <div id="dashboard" style="display: none;">
-    <header class="main-header">
-      <div class="header-top">
-        <div id="welcomeMessageContainer">
-          <h2 id="welcomeMessage"></h2>
-        </div>
-        <div id="courseInfo">
-          <h1 id="courseName"></h1>
-          <p id="courseDates"></p>
-        </div>
+    <aside id="sidebar">
+      <div class="sidebar-header">
+        <h2 id="userName"></h2>
+        <p id="userNationalCode"></p>
       </div>
-      <nav>
+      
+      <div class="sidebar-section">
+        <h3>منوی اصلی</h3>
         <ul>
-          <li><a href="#courseTimeline"><i class="fa-solid fa-book-open"></i> محتوای دوره</a></li>
-          <li><a href="https://tashacol.github.io/ir/takalif.html" target="_blank"><i class="fa-solid fa-paper-plane"></i> ارسال تکالیف</a></li>
-          <li><a id="certificateRequestBtn" href="#" style="display: none;"><i class="fa-solid fa-award"></i> درخواست گواهی</a></li>
+          <li><a href="#" class="active"><i class="fa-solid fa-house"></i> داشبورد</a></li>
         </ul>
-      </nav>
-    </header>
+      </div>
 
-    <div id="certificateCountdown" style="display: none;"></div>
-    
-    <main id="courseTimeline"></main>
+      <div class="sidebar-section">
+        <h3>اطلاعات دوره</h3>
+        <p id="course-info" style="font-size: 0.9em; line-height: 1.8;">
+          نام دوره: <strong id="courseName"></strong><br>
+          شروع: <strong id="startDate"></strong><br>
+          پایان: <strong id="endDate"></strong>
+        </p>
+      </div>
+      
+      <div class="sidebar-section">
+        <h3>گواهی پایان دوره</h3>
+        <div id="certificate-info"></div>
+      </div>
+      
+      <div class="logout-section">
+        <ul>
+          <li><a href="#" id="logoutBtn"><i class="fa-solid fa-right-from-bracket"></i> خروج از سیستم</a></li>
+        </ul>
+      </div>
+    </aside>
+
+    <button id="menu-toggle"><i class="fa-solid fa-bars"></i></button>
+
+    <main id="main-content">
+      <header class="page-header">
+        <h1 id="welcomeMessage"></h1>
+      </header>
+
+      <section id="progress-container">
+        <p>پیشرفت شما در دوره</p>
+        <div class="progress-bar">
+          <div id="progress-bar-fill"></div>
+        </div>
+      </section>
+
+      <section id="course-timeline"></section>
+    </main>
   </div>
 
-  <!-- مدال‌ها -->
-  <div id="videoModal" class="modal"><div class="modal-content video-modal-content"><span class="close" onclick="closeModal('videoModal')">×</span><video controls id="termVideo" style="height: 400px;"><source src="" type="video/mp4"></video></div></div>
-  <div id="pdfModal" class="modal"><div class="modal-content pdf-modal-content"><span class="close" onclick="closeModal('pdfModal')">×</span><iframe id="pdfViewer" height="600px"></iframe></div></div>
-  <div id="alertModal" class="modal"><div class="modal-content alert-modal-content"><p id="alertMessage"></p><button id="alertOkBtn">متوجه شدم</button></div></div>
-
-  <script>
-    // --- متغیرهای سراسری ---
-    let registeredUsers = [];
-    let currentUser = null;
+  <!-- Modal Templates -->
+  <div id="videoModal" class="modal"><div class="modal-content"><span class="close-btn" onclick="closeModal('videoModal')">×</span><video controls id="termVideo"><source src="" type="video/mp4"></video></div></div>
+  <div id="pdfModal" class="modal"><div class="modal-content"><span class="close-btn" onclick="closeModal('pdfModal')">×</span><iframe id="pdfViewer"></iframe></div></div>
+  <div id="alertModal" class="modal"><div class="modal-content" id="alert-modal-content"><p id="alertMessage"></p><button onclick="closeModal('alertModal')">باشه</button></div></div>
+  
+<script>
+    // --- Global Variables ---
+    let registeredUsers = [], currentUser = null;
     let courseName, courseId, courseStartDateStr;
     let courseStartDate, courseEndDate, certificateDeadline;
 
-    // --- توابع تبدیل تاریخ ---
-    function jalaliToGregorian(jy, jm, jd) {
-      // (کد تبدیل تاریخ بدون تغییر باقی می‌ماند)
-      let gy;if(jy>979){gy=1600;jy-=979;}else{gy=621;}let days=(365*jy)+Math.floor(jy/33)*8+Math.floor((jy%33+3)/4)+78+jd+((jm<7)?((jm-1)*31):(((jm-7)*30)+186));gy+=400*Math.floor(days/146097);days%=146097;if(days>36524){gy+=100*Math.floor((--days)/36524);days%=36524;if(days>=365)days++;}gy+=Math.floor(days/365);days%=365;let leap=((gy%4===0&&gy%100!==0)||(gy%400===0));let sal_a=[0,31,(leap?29:28),31,30,31,30,31,31,30,31,30,31];let gm;for(gm=0;gm<13;gm++){if(days<sal_a[gm])break;days-=sal_a[gm];}let gd=days+1;return[gy,gm,gd];
-    }
-    function parseJalaliDate(jalaliStr) {
-      const parts = jalaliStr.split('/');
-      if (parts.length !== 3) return null;
-      const g = jalaliToGregorian(parseInt(parts[0]), parseInt(parts[1]), parseInt(parts[2]));
-      return new Date(g[0], g[1] - 1, g[2]);
-    }
-    function formatDatePersian(date) {
-      return date.toLocaleDateString("fa-IR", { year: 'numeric', month: 'long', day: 'numeric' });
-    }
+    // --- Date Helpers ---
+    const jalaliToGregorian=(jy,jm,jd)=>{let gy;if(jy>979){gy=1600;jy-=979;}else{gy=621;}let days=(365*jy)+Math.floor(jy/33)*8+Math.floor((jy%33+3)/4)+78+jd+((jm<7)?((jm-1)*31):(((jm-7)*30)+186));gy+=400*Math.floor(days/146097);days%=146097;if(days>36524){gy+=100*Math.floor((--days)/36524);days%=36524;if(days>=365)days++;}gy+=400*Math.floor(days/365);days%=365;let sal_a=[0,31,new Date(gy,1,29).getDate()==29?29:28,31,30,31,30,31,31,30,31,30,31];let gm;for(gm=0;gm<13&&days>=sal_a[gm];gm++)days-=sal_a[gm];return[gy,gm,days+1];}
+    const parseJalaliDate = (jalaliStr) => {
+        const [jy, jm, jd] = jalaliStr.split('/').map(Number);
+        const [gy, gm, gd] = jalaliToGregorian(jy, jm, jd);
+        return new Date(gy, gm - 1, gd);
+    };
+    const formatDatePersian = (date) => date.toLocaleDateString("fa-IR", { year: 'numeric', month: 'long', day: 'numeric' });
 
-    // --- توابع رابط کاربری (UI) ---
-    function hideLoader() {
-      const loader = document.getElementById('loadingOverlay');
-      loader.style.opacity = '0';
-      setTimeout(() => {
-        loader.style.display = 'none';
-        document.body.classList.remove('loading-active');
-      }, 500);
-    }
-    function showAlert(message) {
-      document.getElementById('alertMessage').innerText = message;
-      document.getElementById('alertModal').style.display = 'block';
-    }
-    function openModal(modalId) { document.getElementById(modalId).style.display = 'block'; }
-    function closeModal(modalId) { document.getElementById(modalId).style.display = 'none'; }
-    function openVideoModal(termNumber) {
-      const videoElement = document.getElementById("termVideo");
-      videoElement.querySelector("source").src = `sample_video_term${termNumber}.mp4`;
-      videoElement.load();
-      openModal('videoModal');
-    }
-    function openPdfModal(termNumber) {
-      document.getElementById("pdfViewer").src = `sample_booklet_term${termNumber}.pdf`;
-      openModal('pdfModal');
-    }
-    
-    // --- منطق اصلی برنامه ---
-    function populateCourseHeader() {
-      document.getElementById('courseName').innerText = courseName;
-      document.getElementById('courseDates').innerText = `تاریخ شروع: ${formatDatePersian(courseStartDate)} | پایان دوره: ${formatDatePersian(courseEndDate)}`;
-      document.getElementById('welcomeMessage').innerText = `سلام، ${currentUser[0]}!`;
-    }
+    // --- UI Functions ---
+    const showLoader = (show) => document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+    const showAlert = (message) => {
+        document.getElementById('alertMessage').innerText = message;
+        openModal('alertModal');
+    };
+    const openModal = (id) => document.getElementById(id).style.display = 'flex';
+    const closeModal = (id) => document.getElementById(id).style.display = 'none';
+    const openVideoModal = (term) => { document.getElementById('termVideo').src = `sample_video_term${term}.mp4`; openModal('videoModal'); };
+    const openPdfModal = (term) => { document.getElementById('pdfViewer').src = `sample_booklet_term${term}.pdf`; openModal('pdfModal'); };
 
-    // تابع جدید برای ساخت کارت ترم
-    function createTermCard(termNumber, termStart, now) {
-        const isLocked = now < termStart;
-        const card = document.createElement('div');
-        card.className = `card term-card ${isLocked ? 'locked' : ''}`;
-
-        card.innerHTML = `
-            <div class="card-header">
-                <h3>ترم ${termNumber}</h3>
-                <i class="icon fa-solid ${isLocked ? 'fa-lock' : 'fa-lock-open'}"></i>
-            </div>
-            <p>شروع ترم از تاریخ: ${formatDatePersian(termStart)}</p>
-            <div class="card-actions">
-                <button class="video-btn" ${isLocked ? 'disabled' : ''} onclick="openVideoModal(${termNumber})"><i class="fa-solid fa-video"></i> مشاهده ویدئو</button>
-                <button class="pdf-btn" ${isLocked ? 'disabled' : ''} onclick="openPdfModal(${termNumber})"><i class="fa-solid fa-file-pdf"></i> مشاهده جزوه</button>
-            </div>
-        `;
-        return card;
-    }
-
-    // تابع جدید برای ساخت کارت استراحت
-    function createBreakCard(breakStart, now) {
-        const isLocked = now < breakStart;
-        const card = document.createElement('div');
-        card.className = `card break-card ${isLocked ? 'locked' : ''}`;
-        
-        card.innerHTML = `
-            <div class="card-header">
-                <h3>هفته استراحت</h3>
-                <i class="icon fa-solid fa-mug-saucer"></i>
-            </div>
-            <p>${isLocked ? 'این هفته برای استراحت در نظر گرفته شده است.' : 'هفته استراحت فعال است. از فرصت برای مرور استفاده کنید.'}</p>
-            <p>شروع از تاریخ: ${formatDatePersian(breakStart)}</p>
-        `;
-        return card;
-    }
-
-    // تابع اصلی بازنویسی شده برای نمایش ترم و استراحت
-    function generateCourseTimeline() {
-        const timelineSection = document.getElementById('courseTimeline');
-        timelineSection.innerHTML = '';
+    // --- Core Logic ---
+    function calculateProgress() {
         const now = new Date();
+        if (now < courseStartDate) return 0;
+        if (now > courseEndDate) return 100;
 
-        // اگر دوره هنوز شروع نشده
-        if (now < courseStartDate) {
-            timelineSection.innerHTML = `<p style="width:100%; text-align:center; font-size:1.2em;">دوره هنوز شروع نشده است. اولین ترم در تاریخ ${formatDatePersian(courseStartDate)} فعال خواهد شد.</p>`;
-            return;
-        }
+        const totalDuration = courseEndDate - courseStartDate;
+        const elapsed = now - courseStartDate;
+        const progress = Math.min(100, (elapsed / totalDuration) * 100);
+        
+        document.getElementById('progress-bar-fill').style.width = `${progress}%`;
+    }
 
+    function generateCourseTimeline() {
+        const timeline = document.getElementById('course-timeline');
+        timeline.innerHTML = '';
+        const now = new Date();
         let termCounter = 1;
-        const totalWeeks = 12; // 8 ترم + 4 استراحت
 
-        for (let i = 0; i < totalWeeks; i++) {
+        for (let i = 0; i < 12; i++) { // 12 weeks total
             const weekStart = new Date(courseStartDate.getTime() + i * 7 * 24 * 60 * 60 * 1000);
+            const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+            const isLocked = now < weekStart;
+            const isCurrent = now >= weekStart && now < weekEnd;
             
-            // هفته‌های 3, 6, 9, 12 (اندیس 2, 5, 8, 11) هفته‌های استراحت هستند
-            const isBreakWeek = (i + 1) % 3 === 0;
+            const card = document.createElement('div');
+            card.className = 'card';
+            if (isLocked) card.classList.add('locked');
+            if (isCurrent) card.classList.add('current-week');
 
-            if (isBreakWeek) {
-                timelineSection.appendChild(createBreakCard(weekStart, now));
-            } else {
-                timelineSection.appendChild(createTermCard(termCounter, weekStart, now));
+            if ((i + 1) % 3 === 0) { // Break week
+                card.classList.add('break-card');
+                card.innerHTML = `
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-mug-hot"></i> هفته استراحت</h3>
+                    </div>
+                    <p>این هفته برای استراحت و مرور در نظر گرفته شده است.</p>
+                    <p>شروع از: ${formatDatePersian(weekStart)}</p>
+                `;
+            } else { // Term week
+                card.classList.add('term-card');
+                card.innerHTML = `
+                    <div class="card-header">
+                        <h3>ترم ${termCounter}</h3>
+                        <i class="icon fa-solid ${isLocked ? 'fa-lock' : 'fa-lock-open'}"></i>
+                    </div>
+                    <p>شروع ترم از تاریخ: ${formatDatePersian(weekStart)}</p>
+                    <div class="card-actions">
+                        <button class="video-btn" onclick="openVideoModal(${termCounter})" ${isLocked ? 'disabled' : ''}><i class="fa-solid fa-play"></i> مشاهده ویدئو</button>
+                        <button class="pdf-btn" onclick="openPdfModal(${termCounter})" ${isLocked ? 'disabled' : ''}><i class="fa-solid fa-file-lines"></i> مشاهده جزوه</button>
+                        <button class="assignment-btn" onclick="window.open('https://tashacol.github.io/ir/takalif.html', '_blank')" ${isLocked ? 'disabled' : ''}><i class="fa-solid fa-feather-pointed"></i> ارسال تکلیف</button>
+                    </div>
+                `;
                 termCounter++;
             }
+            timeline.appendChild(card);
         }
     }
 
-    function updateCertificateStatus() {
+    function updateCertificateInfo() {
+        const container = document.getElementById('certificate-info');
         const now = new Date();
-        const certBtn = document.getElementById('certificateRequestBtn');
-        const countdownBar = document.getElementById('certificateCountdown');
 
-        if (now > courseEndDate && now <= certificateDeadline) {
-            certBtn.style.display = 'inline-block';
-            countdownBar.style.display = 'block';
-
-            const remainingTime = certificateDeadline - now;
-            const remainingDays = Math.ceil(remainingTime / (1000 * 60 * 60 * 24));
-            countdownBar.innerText = `فرصت درخواست گواهی: فقط ${remainingDays} روز باقی مانده است.`;
-
-            certBtn.onclick = (e) => {
-                e.preventDefault();
-                showAlert("درخواست گواهی شما با موفقیت ثبت شد!");
-            };
-        } else if (now > certificateDeadline) {
-            const timelineSection = document.getElementById('courseTimeline');
-            timelineSection.innerHTML = `<p style="width:100%; text-align:center; font-size:1.2em;">این دوره به پایان رسیده و مهلت درخواست گواهی نیز تمام شده است.</p>`;
-            document.querySelector('nav').style.display = 'none';
+        if (now < courseEndDate) {
+            container.innerHTML = `<p>گزینه درخواست گواهی پس از پایان دوره در تاریخ <strong>${formatDatePersian(courseEndDate)}</strong> فعال خواهد شد.</p>`;
+        } else if (now >= courseEndDate && now <= certificateDeadline) {
+            const remainingDays = Math.ceil((certificateDeadline - now) / (1000 * 60 * 60 * 24));
+            container.innerHTML = `
+                <p>مهلت درخواست تا <strong>${formatDatePersian(certificateDeadline)}</strong> (${remainingDays} روز دیگر) می‌باشد.</p>
+                <button id="certificateRequestBtn" onclick="showAlert('درخواست گواهی شما با موفقیت ثبت شد.')">درخواست گواهی</button>
+            `;
         } else {
-            certBtn.style.display = 'none';
-            countdownBar.style.display = 'none';
+            container.innerHTML = `<p>مهلت درخواست گواهی به پایان رسیده است.</p>`;
         }
     }
     
     function initDashboard() {
-        document.getElementById('loginModal').style.display = 'none';
-        document.getElementById('dashboard').style.display = 'block';
-        populateCourseHeader();
+        // Populate UI elements
+        document.getElementById('userName').innerText = currentUser[0];
+        document.getElementById('userNationalCode').innerText = `کد ملی: ${currentUser[1]}`;
+        document.getElementById('courseName').innerText = courseName;
+        document.getElementById('startDate').innerText = formatDatePersian(courseStartDate);
+        document.getElementById('endDate').innerText = formatDatePersian(courseEndDate);
+        document.getElementById('welcomeMessage').innerText = `خوش آمدید، ${currentUser[0]}!`;
+
+        // Generate dynamic content
+        calculateProgress();
         generateCourseTimeline();
-        updateCertificateStatus();
+        updateCertificateInfo();
+
+        // Show dashboard
+        document.getElementById('login-container').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'flex';
+    }
+    
+    function logout() {
+        localStorage.removeItem('rememberedUser');
+        location.reload();
     }
 
-    function loadRegisteredUsers() {
-      fetch("https://docs.google.com/spreadsheets/d/1QSRAGajWtCWHJHsU-u4dRW85nq2hCGySKqtZQL0iTjY/export?format=xlsx")
-        .then(response => {
-            if (!response.ok) throw new Error("Network response was not ok.");
-            return response.arrayBuffer();
-        })
-        .then(data => {
-            const workbook = XLSX.read(data, { type: "array" });
-            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-            if (jsonData.length > 1) {
-                const courseData = jsonData[1];
-                courseName = courseData[2] || "دوره آموزشی";
-                courseId = courseData[3] || "N/A";
-                courseStartDateStr = courseData[4] || "";
-
-                if (!courseStartDateStr) {
-                    showAlert("اطلاعات تاریخ شروع دوره یافت نشد.");
-                    hideLoader();
-                    return;
-                }
-
-                courseStartDate = parseJalaliDate(courseStartDateStr);
-                // محاسبه تاریخ‌ها بر اساس ساختار جدید
-                const COURSE_DURATION_DAYS = 84; // 12 هفته
-                const CERTIFICATE_PERIOD_DAYS = 30; // 1 ماه
-
-                courseEndDate = new Date(courseStartDate.getTime() + COURSE_DURATION_DAYS * 24 * 60 * 60 * 1000);
-                certificateDeadline = new Date(courseEndDate.getTime() + CERTIFICATE_PERIOD_DAYS * 24 * 60 * 60 * 1000);
-                
-                registeredUsers = jsonData.slice(1); // از ردیف دوم به بعد
-                checkRememberMe();
-            } else {
-                 showAlert("اطلاعات دوره یافت نشد.");
-            }
-            hideLoader();
-        })
-        .catch(error => {
-            console.error("Error loading data:", error);
-            showAlert("خطا در بارگذاری اطلاعات. لطفاً اتصال اینترنت خود را بررسی کرده و صفحه را دوباره بارگیری کنید.");
-            hideLoader();
-        });
-    }
-
+    // --- Authentication and Initialization ---
     function verifyUser() {
         const inputCode = document.getElementById('nationalCodeInput').value.trim();
-        if (!inputCode) {
-            showAlert("لطفاً کد ملی خود را وارد کنید.");
-            return;
-        }
+        if (!inputCode) return showAlert("لطفاً کد ملی خود را وارد کنید.");
+        
+        currentUser = registeredUsers.find(user => user[1] && user[1].toString() === inputCode);
 
-        const userFound = registeredUsers.find(user => user[1] && user[1].toString() === inputCode);
-
-        if (userFound) {
-            currentUser = userFound;
-            if (document.getElementById('rememberMe').checked) {
-                localStorage.setItem('rememberedUser', inputCode);
-            }
+        if (currentUser) {
+            localStorage.setItem('rememberedUser', inputCode);
             initDashboard();
         } else {
             showAlert("کد ملی وارد شده در این دوره ثبت نام نشده است.");
@@ -644,30 +482,60 @@
     function checkRememberMe() {
         const rememberedCode = localStorage.getItem('rememberedUser');
         if (rememberedCode) {
-            const userFound = registeredUsers.find(user => user[1] && user[1].toString() === rememberedCode);
-            if (userFound) {
-                currentUser = userFound;
-                initDashboard();
-            } else {
-                localStorage.removeItem('rememberedUser');
-            }
+            currentUser = registeredUsers.find(user => user[1] && user[1].toString() === rememberedCode);
         }
+        
+        if (currentUser) {
+            initDashboard();
+        } else {
+            document.getElementById('login-container').style.display = 'flex';
+        }
+        showLoader(false);
     }
     
+    function loadAndInit() {
+        fetch("https://docs.google.com/spreadsheets/d/1QSRAGajWtCWHJHsU-u4dRW85nq2hCGySKqtZQL0iTjY/export?format=xlsx")
+        .then(res => res.arrayBuffer())
+        .then(data => {
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+            if (json.length > 1) {
+                const courseData = json[1];
+                courseName = courseData[2] || "دوره آموزشی";
+                courseId = courseData[3] || "N/A";
+                courseStartDateStr = courseData[4] || "";
+
+                if (!courseStartDateStr) throw new Error("تاریخ شروع دوره یافت نشد.");
+
+                courseStartDate = parseJalaliDate(courseStartDateStr);
+                courseEndDate = new Date(courseStartDate.getTime() + 84 * 24 * 60 * 60 * 1000); // 12 weeks
+                certificateDeadline = new Date(courseEndDate.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
+                
+                registeredUsers = json.slice(1);
+                checkRememberMe();
+            } else {
+                throw new Error("اطلاعات دوره یافت نشد.");
+            }
+        }).catch(err => {
+            console.error(err);
+            showAlert("خطا در بارگذاری اطلاعات دوره. لطفاً صفحه را مجدداً بارگیری کنید.");
+            showLoader(false);
+        });
+    }
+
     // --- Event Listeners ---
     document.getElementById('verifyButton').addEventListener('click', verifyUser);
-    document.getElementById('nationalCodeInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') verifyUser();
-    });
-    document.getElementById('alertOkBtn').addEventListener('click', () => closeModal('alertModal'));
-    window.addEventListener('click', (event) => {
-        if (event.target.classList.contains('modal')) {
-            closeModal(event.target.id);
-        }
+    document.getElementById('nationalCodeInput').addEventListener('keypress', (e) => e.key === 'Enter' && verifyUser());
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+    document.getElementById('menu-toggle').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.toggle('open');
     });
 
-    // --- شروع برنامه ---
-    loadRegisteredUsers();
-  </script>
+    // --- Start Application ---
+    loadAndInit();
+
+</script>
 </body>
 </html>
