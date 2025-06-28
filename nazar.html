@@ -90,7 +90,7 @@
     }
 
     /* ================================
-       فرم ورود بازطراحی شده
+       استایل فرم‌ها
     =================================== */
     .input-wrapper {
         position: relative;
@@ -105,25 +105,11 @@
         font-size: 1.2rem;
     }
     #nationalCodeInput {
-        width: 100%;
         padding: 18px 55px 18px 20px;
         font-size: 1.2rem;
         text-align: center;
-        border: none;
-        border-radius: 12px;
-        background: rgba(255,255,255,0.95);
-        color: #333;
-        outline: none;
-        transition: box-shadow 0.3s, background-color 0.3s;
     }
-    #nationalCodeInput:focus {
-        background-color: #fff;
-        box-shadow: 0 0 0 4px rgba(255, 235, 59, 0.5);
-    }
-    
-    /* ================================
-       استایل فرم نظرسنجی
-    =================================== */
+
     .form-grid {
         display: grid;
         grid-template-columns: 1fr;
@@ -145,10 +131,7 @@
         font-size: 0.95rem;
         opacity: 0.9;
     }
-    .input-group input[type="text"], 
-    .input-group input[type="number"], 
-    .input-group select, 
-    .input-group textarea {
+    input[type="text"], input[type="number"], select, textarea {
         width: 100%;
         padding: 14px;
         font-size: 1rem;
@@ -160,13 +143,11 @@
         outline: none;
         transition: box-shadow 0.3s;
     }
-    .input-group input[readonly] {
+    input[readonly] {
         background-color: rgba(220, 220, 220, 0.8);
         cursor: not-allowed;
     }
-    .input-group input:focus, 
-    .input-group select:focus, 
-    .input-group textarea:focus { 
+    input:focus, select:focus, textarea:focus { 
         box-shadow: 0 0 0 4px rgba(255, 235, 59, 0.5); 
     }
     textarea {
@@ -184,6 +165,7 @@
         border: none;
         border-radius: 12px;
         cursor: pointer;
+        text-decoration: none; /* برای تگ a */
         transition: transform 0.2s, box-shadow 0.3s;
         display: flex;
         align-items: center;
@@ -195,6 +177,12 @@
         transform: translateY(-3px);
         box-shadow: 0 5px 15px rgba(255, 235, 59, 0.4);
     }
+    .btn-secondary {
+        background: rgba(255,255,255,0.15);
+        color: var(--text-color);
+        border: 1px solid var(--card-border);
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.25); }
     
     /* ================================
        لودینگ و پیام‌ها
@@ -213,6 +201,7 @@
         border-radius: 8px; margin-top: 20px;
         font-weight: bold; animation: fadeIn 0.3s;
         color: #fff;
+        display: block; /* برای نمایش صحیح */
     }
     .message.error { background-color: var(--danger-color); }
     .message.success { background-color: var(--success-color); }
@@ -234,15 +223,15 @@
         </div>
     </div>
   
-    <!-- مرحله ۱: ورود کد ملی (در حالت عادی) -->
+    <!-- مرحله ۱: ورود کد ملی -->
     <div id="step-login" class="step">
       <h1>نظرسنجی دوره تربیت مربی</h1>
       <div class="input-wrapper">
         <i class="fas fa-id-card"></i>
-        <input type="tel" id="nationalCodeInput" placeholder="کد ملی خود را وارد کنید" maxlength="10" autocomplete="off">
+        <input type="tel" id="nationalCodeInput" placeholder="کد ملی خود را وارد کنید" maxlength="10">
       </div>
       <button class="btn" id="validateButton"><i class="fas fa-check-circle"></i>بررسی و شروع</button>
-      <div id="message-box" class="message" style="display: none;"></div>
+      <div id="login-feedback"></div>
     </div>
 
     <!-- مرحله ۲: فرم نظرسنجی -->
@@ -320,6 +309,9 @@
         <div class="icon"><i class="fas fa-check-circle"></i></div>
         <h1>سپاسگزاریم!</h1>
         <p>نظر شما با موفقیت ثبت شد. از وقتی که گذاشتید متشکریم.</p>
+        <a href="https://tashacol.github.io/ir/nazarat.html" target="_blank" class="btn btn-secondary">
+          <i class="fas fa-comments"></i> نمایش آخرین نظرات
+        </a>
       </div>
     </div>
   </div>
@@ -329,6 +321,7 @@
     const registrationUrl = "https://docs.google.com/spreadsheets/d/1QSRAGajWtCWHJHsU-u4dRW85nq2hCGySKqtZQL0iTjY/export?format=xlsx";
     const surveySubmissionsUrl = "https://docs.google.com/spreadsheets/d/1GCbyVT2l2TvLsvIchWVNWoM2IwuxRWwwS41qIOu6owk/export?format=xlsx";
     const googleScriptUrl = 'https://script.google.com/macros/s/AKfycby5OUHaXhfZznFiYNPKq0ry5Zg9KaNNk5dDx3bGfJLAUIp-uvqipTadUiOu1uMr9EOF/exec';
+    const commentsUrl = 'https://tashacol.github.io/ir/nazarat.html';
 
     // متغیرهای گلوبال
     let registrationData = [];
@@ -338,7 +331,7 @@
     const steps = document.querySelectorAll('.step');
     const nationalCodeInput = document.getElementById('nationalCodeInput');
     const validateButton = document.getElementById('validateButton');
-    const messageBox = document.getElementById('message-box');
+    const loginFeedback = document.getElementById('login-feedback');
     const surveyForm = document.getElementById('surveyForm');
 
     // تابع کمکی برای نمایش مراحل
@@ -348,11 +341,9 @@
         if (activeStep) activeStep.classList.add('active');
     }
     
-    // تابع کمکی برای نمایش پیام خطا
-    function showMessage(text, type = 'error') {
-        messageBox.textContent = text;
-        messageBox.className = `message ${type}`;
-        messageBox.style.display = 'block';
+    // تابع کمکی برای نمایش پیام و دکمه‌ها در بخش ورود
+    function showLoginFeedback(htmlContent) {
+        loginFeedback.innerHTML = htmlContent;
     }
 
     // تابع برای بارگذاری تمام داده‌های اکسل
@@ -371,12 +362,9 @@
     
     // تابع اصلی برای بررسی کد ملی و نمایش فرم
     async function checkNationalCode(nationalId) {
-        // اگر کاربر از پنل آمده باشد، فرم ورود نباید دوباره نمایش داده شود
-        const idFromUrl = new URLSearchParams(window.location.search).get('id');
-
         if (!nationalId || !/^\d{10}$/.test(nationalId)) {
-            showMessage('کد ملی وارد شده معتبر نیست.');
-            if (!idFromUrl) showStep('step-login'); // فقط اگر مستقیم آمده فرم را نشان بده
+            showLoginFeedback('<p class="message error">کد ملی وارد شده معتبر نیست.</p>');
+            showStep('step-login');
             return;
         }
 
@@ -384,8 +372,8 @@
         const userRecord = registrationData.find(row => row && String(row[1]).replace(/^0+/, '') === searchTerm);
 
         if (!userRecord) {
-            showMessage('کد ملی شما در لیست شرکت‌کنندگان این دوره یافت نشد.');
-            if (!idFromUrl) showStep('step-login');
+            showLoginFeedback('<p class="message error">کد ملی شما در لیست شرکت‌کنندگان این دوره یافت نشد.</p>');
+            showStep('step-login');
             return;
         }
         
@@ -393,8 +381,14 @@
         const hasVoted = submissionData.some(row => row && String(row[0]).trim() === String(fullName).trim());
         
         if (hasVoted) {
-            showMessage(`آقا/خانم ${fullName}، شما قبلاً در این نظرسنجی شرکت کرده‌اید.`, 'success');
-            if (!idFromUrl) showStep('step-login');
+            const feedbackHTML = `
+                <p class="message success">آقا/خانم ${fullName}، شما قبلاً در این نظرسنجی شرکت کرده‌اید.</p>
+                <a href="${commentsUrl}" target="_blank" class="btn btn-secondary">
+                    <i class="fas fa-comments"></i> نمایش آخرین نظرات
+                </a>
+            `;
+            showLoginFeedback(feedbackHTML);
+            showStep('step-login');
         } else {
             document.getElementById('name').value = fullName;
             showStep('step-survey');
@@ -406,11 +400,10 @@
         const id = nationalCodeInput.value.trim();
         if (id) {
             showStep('step-loading');
-            messageBox.style.display = 'none';
-            // تاخیر کوچک برای نمایش بهتر لودینگ
+            loginFeedback.innerHTML = ''; // پاک کردن پیام‌های قبلی
             setTimeout(() => checkNationalCode(id), 300);
         } else {
-            showMessage('لطفا کد ملی خود را وارد کنید.');
+            showLoginFeedback('<p class="message error">لطفا کد ملی خود را وارد کنید.</p>');
         }
     });
     
@@ -437,7 +430,10 @@
 
         } catch (error) {
             console.error('Error:', error);
-            showMessage('ارسال ناموفق بود. لطفاً دوباره تلاش کنید.');
+            const feedbackHTML = `
+                <p class="message error">ارسال ناموفق بود. لطفاً دوباره تلاش کنید.</p>
+            `;
+            showLoginFeedback(feedbackHTML);
             showStep('step-survey'); // بازگشت به فرم در صورت خطا
         }
     });
@@ -457,11 +453,8 @@
             }
         }).catch(error => {
             console.error("Failed to load initial data:", error);
-            showMessage("خطا در بارگذاری اطلاعات سامانه. لطفاً صفحه را رفرش کنید.");
-            // فقط اگر کاربر مستقیم آمده فرم ورود را نمایش بده
-            if (!idFromUrl) {
-                showStep('step-login');
-            }
+            showLoginFeedback('<p class="message error">خطا در بارگذاری اطلاعات سامانه. لطفاً صفحه را رفرش کنید.</p>');
+            showStep('step-login'); // در صورت خطا هم فرم ورود نمایش داده شود
         });
     });
 
