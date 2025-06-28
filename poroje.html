@@ -1,461 +1,580 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>پیگیری وضعیت دوره</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>پیگیری وضعیت دوره</title>
+    <!-- کتابخانه‌ها -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jalali-moment/dist/jalali-moment.browser.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css">
+    <style>
+        /* ================================ متغیرها و تم جدید (روشن و رسمی) =================================== */
+        :root {
+            --bg-gradient-start: #e0eafc;
+            --bg-gradient-end: #cfdef3;
+            --primary-blue: #3a7bd5;
+            --accent-blue: #004e92;
+            --text-dark: #1e293b;
+            --text-muted: #64748b;
+            --card-bg: rgba(255, 255, 255, 0.9);
+            --card-border: rgba(255, 255, 255, 1);
+            --input-bg: rgba(241, 245, 249, 0.8);
+            --success-color: #16a34a;
+            --pending-color: #94a3b8;
+            --danger-color: #dc2626;
+        }
 
-  <!-- کتابخانه‌ها -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jalali-moment/dist/jalali-moment.browser.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css">
+        @font-face {
+            font-family: 'Vazir';
+            src: url('https://cdn.fontcdn.ir/Font/Persian/Vazir/Vazir-Regular.woff2') format('woff2');
+            font-weight: normal;
+            font-display: swap;
+        }
 
-  <style>
-    /* ================================
-       متغیرها و تم جدید (روشن و رسمی)
-    =================================== */
-    :root {
-      --bg-gradient-start: #e0eafc;
-      --bg-gradient-end: #cfdef3;
-      --primary-blue: #3a7bd5;
-      --accent-blue: #004e92;
-      --text-dark: #1e293b;
-      --text-muted: #64748b;
-      --card-bg: rgba(255, 255, 255, 0.9);
-      --card-border: rgba(255, 255, 255, 1);
-      --input-bg: rgba(241, 245, 249, 0.8);
-      --success-color: #16a34a;
-      --pending-color: #94a3b8;
-      --danger-color: #dc2626;
-    }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-    @font-face {
-      font-family: 'Vazir';
-      src: url('https://cdn.fontcdn.ir/Font/Persian/Vazir/Vazir-Regular.woff2') format('woff2');
-      font-weight: normal;
-      font-display: swap;
-    }
+        body {
+            font-family: 'Vazir', 'Tahoma', sans-serif;
+            color: var(--text-dark);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+            background-attachment: fixed;
+        }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+        /* ================================ کانتینر اصلی و لودر =================================== */
+        .container {
+            width: 95%;
+            max-width: 700px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            animation: fadeIn 0.8s ease forwards;
+        }
 
-    body {
-      font-family: 'Vazir', 'Tahoma', sans-serif;
-      color: var(--text-dark);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
-      background-attachment: fixed;
-    }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
 
-    /* ================================
-       کانتینر اصلی و لودر
-    =================================== */
-    .container {
-      width: 95%; max-width: 700px;
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 20px;
-      backdrop-filter: blur(15px);
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
-      padding: 40px;
-      animation: fadeIn 0.8s ease forwards;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
+        .page-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
 
-    .page-header { text-align: center; margin-bottom: 30px; }
-    .page-header h1 { font-size: 2.2rem; color: var(--accent-blue); }
-    .page-header p { font-size: 1rem; color: var(--text-muted); margin-top: 5px; }
+        .page-header h1 {
+            font-size: 2.2rem;
+            color: var(--accent-blue);
+        }
 
-    /* لودر و پیام‌ها */
-    #loadingMsg { display: none; text-align: center; color: var(--text-muted); padding: 40px 0; }
-    #errorMsg { text-align: center; padding: 12px; border-radius: 8px; margin-bottom: 15px; background-color: rgba(220, 38, 38, 0.1); color: var(--danger-color); display: none; }
+        .page-header p {
+            font-size: 1rem;
+            color: var(--text-muted);
+            margin-top: 5px;
+        }
 
-    /* ================================
-       فرم جستجو (طراحی جدید)
-    =================================== */
-    #searchForm { display: block; }
-    .form-group { position: relative; margin-bottom: 15px; }
-    #searchInput {
-      width: 100%; padding: 15px;
-      background: var(--input-bg);
-      border: 1px solid rgba(0,0,0,0.1);
-      border-radius: 10px;
-      color: var(--text-dark);
-      font-size: 1.1rem;
-      outline: none;
-      transition: all 0.3s ease;
-      text-align: center;
-    }
-    #searchInput:focus {
-      border-color: var(--primary-blue);
-      box-shadow: 0 0 10px rgba(58, 123, 213, 0.2);
-    }
-    #searchBtn {
-      width: 100%; padding: 15px;
-      font-size: 1.1rem; font-weight: bold;
-      background: linear-gradient(135deg, var(--primary-blue), var(--accent-blue));
-      color: #fff; border: none; border-radius: 10px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    #searchBtn:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0, 78, 146, 0.2); }
-    #searchBtn i { margin-left: 8px; }
+        /* لودر و پیام‌ها */
+        #loadingMsg {
+            display: none;
+            text-align: center;
+            color: var(--text-muted);
+            padding: 40px 0;
+        }
 
-    /* ================================
-       بخش نتایج (طراحی کاملاً جدید)
-    =================================== */
-    #resultsContainer { display: none; margin-top: 25px; animation: slideIn 0.5s ease-out; }
-    @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        #errorMsg {
+            text-align: center;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            background-color: rgba(220, 38, 38, 0.1);
+            color: var(--danger-color);
+            display: none;
+        }
 
-    /* کارت اطلاعات کاربر */
-    .user-info-card {
-      background: linear-gradient(135deg, var(--primary-blue), var(--accent-blue));
-      color: #fff;
-      padding: 20px;
-      border-radius: 15px;
-      text-align: center;
-      margin-bottom: 30px;
-    }
-    .user-info-card h2 { margin: 0 0 5px; font-size: 1.6rem; }
-    .user-info-card p { margin: 0; opacity: 0.9; }
+        /* ================================ فرم جستجو (طراحی جدید) =================================== */
+        #searchForm {
+            display: block;
+        }
 
-    /* نوار پیشرفت جدید */
-    .progress-section { margin-bottom: 30px; }
-    .progress-bar {
-      height: 12px; background-color: #e2e8f0;
-      border-radius: 6px; overflow: hidden;
-    }
-    .progress-bar-fill {
-      height: 100%; width: 0;
-      background: linear-gradient(90deg, #34d399, var(--success-color));
-      border-radius: 6px;
-      transition: width 0.8s ease-in-out;
-    }
-    .progress-text {
-      text-align: center; margin-top: 10px;
-      font-size: 0.9rem; font-weight: bold; color: var(--text-muted);
-    }
+        .form-group {
+            position: relative;
+            margin-bottom: 15px;
+        }
 
-    /* تایم‌لاین وضعیت‌ها */
-    .status-timeline {
-      list-style: none; padding: 0; position: relative;
-    }
-    /* خط عمودی تایم‌لاین */
-    .status-timeline::before {
-      content: ''; position: absolute;
-      top: 10px; bottom: 10px; right: 11px;
-      width: 2px; background-color: #e2e8f0;
-    }
-    .timeline-item {
-      display: flex; align-items: flex-start;
-      margin-bottom: 25px; position: relative;
-    }
-    .timeline-icon {
-      width: 24px; height: 24px;
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      margin-left: 20px;
-      z-index: 1;
-      color: #fff;
-    }
-    .timeline-item.completed .timeline-icon { background-color: var(--success-color); }
-    .timeline-item.pending .timeline-icon { background-color: var(--pending-color); }
-    .timeline-content {
-      padding: 10px 15px;
-      background-color: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      flex-grow: 1;
-    }
-    .timeline-content h3 { font-size: 1rem; margin: 0 0 5px; }
-    .timeline-content p { font-size: 0.9rem; margin: 0; color: var(--text-muted); }
-    .timeline-item.completed .timeline-content { border-color: var(--success-color); }
+        #searchInput {
+            width: 100%;
+            padding: 15px;
+            background: var(--input-bg);
+            border: 1px solid rgba(0,0,0,0.1);
+            border-radius: 10px;
+            color: var(--text-dark);
+            font-size: 1.1rem;
+            outline: none;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
 
-    /* دکمه‌های اقدام */
-    .action-buttons {
-      display: flex; justify-content: center; gap: 15px;
-      margin-top: 30px; flex-wrap: wrap;
-    }
-    .action-btn {
-      padding: 12px 25px; border-radius: 8px; text-decoration: none;
-      color: #fff; font-weight: bold; font-size: 0.95rem;
-      transition: all 0.2s; text-align: center;
-    }
-    .action-btn i { margin-left: 8px; }
-    .action-btn.project-link { background-color: #ef4444; }
-    .action-btn.cert-link { background-color: var(--primary-blue); }
-    .action-btn.drive-link { background-color: #f97316; }
-    .action-btn:hover { transform: translateY(-3px); box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
+        #searchInput:focus {
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 10px rgba(58, 123, 213, 0.2);
+        }
 
-    /* واکنش‌گرایی */
-    @media (max-width: 600px) {
-      .container { padding: 25px 20px; }
-      .page-header h1 { font-size: 1.8rem; }
-      .user-info-card h2 { font-size: 1.4rem; }
-    }
-  </style>
+        #searchBtn {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, var(--primary-blue), var(--accent-blue));
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        #searchBtn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 78, 146, 0.2);
+        }
+
+        #searchBtn i {
+            margin-left: 8px;
+        }
+
+        /* ================================ بخش نتایج (طراحی کاملاً جدید) =================================== */
+        #resultsContainer {
+            display: none;
+            margin-top: 25px;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* کارت اطلاعات کاربر */
+        .user-info-card {
+            background: linear-gradient(135deg, var(--primary-blue), var(--accent-blue));
+            color: #fff;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .user-info-card h2 {
+            margin: 0 0 5px;
+            font-size: 1.6rem;
+        }
+
+        .user-info-card p {
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        /* نوار پیشرفت جدید */
+        .progress-section {
+            margin-bottom: 30px;
+        }
+
+        .progress-bar {
+            height: 12px;
+            background-color: #e2e8f0;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0;
+            background: linear-gradient(90deg, #34d399, var(--success-color));
+            border-radius: 6px;
+            transition: width 0.8s ease-in-out;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: var(--text-muted);
+        }
+
+        /* تایم‌لاین وضعیت‌ها */
+        .status-timeline {
+            list-style: none;
+            padding: 0;
+            position: relative;
+        }
+
+        /* خط عمودی تایم‌لاین */
+        .status-timeline::before {
+            content: '';
+            position: absolute;
+            top: 10px;
+            bottom: 10px;
+            right: 11px;
+            width: 2px;
+            background-color: #e2e8f0;
+        }
+
+        .timeline-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        .timeline-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 20px;
+            z-index: 1;
+            color: #fff;
+        }
+
+        .timeline-item.completed .timeline-icon {
+            background-color: var(--success-color);
+        }
+
+        .timeline-item.pending .timeline-icon {
+            background-color: var(--pending-color);
+        }
+
+        .timeline-content {
+            padding: 10px 15px;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            flex-grow: 1;
+        }
+
+        .timeline-content h3 {
+            font-size: 1rem;
+            margin: 0 0 5px;
+        }
+
+        .timeline-content p {
+            font-size: 0.9rem;
+            margin: 0;
+            color: var(--text-muted);
+        }
+
+        .timeline-item.completed .timeline-content {
+            border-color: var(--success-color);
+        }
+
+        /* دکمه‌های اقدام */
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 12px 25px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #fff;
+            font-weight: bold;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .action-btn i {
+            margin-left: 8px;
+        }
+
+        .action-btn.project-link { background-color: #ef4444; }
+        .action-btn.cert-link { background-color: var(--primary-blue); }
+        .action-btn.drive-link { background-color: #f97316; }
+
+        .action-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+        
+        /* واکنش‌گرایی */
+        @media (max-width: 600px) {
+            .container { padding: 25px 20px; }
+            .page-header h1 { font-size: 1.8rem; }
+            .user-info-card h2 { font-size: 1.4rem; }
+        }
+    </style>
 </head>
+
 <body>
-
-  <div class="container">
-    <div class="page-header">
-      <h1>وضعیت تحصیلی</h1>
-      <p>آخرین وضعیت تحصیلی و گواهی خود را مشاهده کنید</p>
-    </div>
-    
-    <div id="searchForm">
-        <div class="form-group">
-          <input type="tel" id="searchInput" placeholder="کد ملی خود را وارد کنید" maxlength="10" />
+    <div class="container">
+        <div class="page-header">
+            <h1>وضعیت تحصیلی</h1>
+            <p>آخرین وضعیت تحصیلی و گواهی خود را مشاهده کنید</p>
         </div>
-        <button id="searchBtn"><i class="fas fa-search"></i>جستجو</button>
-    </div>
 
-    <div id="loadingMsg">در حال بارگذاری اطلاعات، لطفاً صبر کنید...</div>
-    <div id="errorMsg"></div>
-
-    <div id="resultsContainer">
-        <div class="user-info-card" id="userInfo"></div>
-
-        <div class="progress-section">
-            <div class="progress-bar">
-                <div class="progress-bar-fill"></div>
+        <div id="searchForm">
+            <div class="form-group">
+                <input type="tel" id="searchInput" placeholder="کد ملی خود را وارد کنید" maxlength="10" />
             </div>
-            <p class="progress-text"></p>
+            <button id="searchBtn"><i class="fas fa-search"></i>جستجو</button>
         </div>
 
-        <ul class="status-timeline" id="statusTimeline"></ul>
-        <div class="action-buttons" id="actionButtons"></div>
-    </div>
-  </div>
+        <div id="loadingMsg">در حال بارگذاری اطلاعات، لطفاً صبر کنید...</div>
+        <div id="errorMsg"></div>
 
-<script>
-    // === URLs and Constants ===
-    const url1 = 'https://docs.google.com/spreadsheets/d/1c0g7deSI0y-QP4nQNux-l07_cumu3A6Gy0OolnhZWdU/export?format=xlsx';
-    const url2 = 'https://docs.google.com/spreadsheets/d/1QSRAGajWtCWHJHsU-u4dRW85nq2hCGySKqtZQL0iTjY/export?format=xlsx';
-    const driveFolderLink = 'https://drive.google.com/drive/folders/1-pUvCoHflHaLVIcSZJ3nR471I-HEEbn-';
-    
-    // === DOM Elements ===
-    const loadingMsg = document.getElementById('loadingMsg');
-    const errorMsg = document.getElementById('errorMsg');
-    const resultsContainer = document.getElementById('resultsContainer');
-    const userInfo = document.getElementById('userInfo');
-    const actionButtons = document.getElementById('actionButtons');
-    const statusTimeline = document.getElementById('statusTimeline');
-    const input = document.getElementById('searchInput');
-    const btn = document.getElementById('searchBtn');
-    const searchForm = document.getElementById('searchForm');
-    const progressBarFill = document.querySelector('.progress-bar-fill');
-    const progressText = document.querySelector('.progress-text');
-    
-    // === Data Storage ===
-    let allData = [], sheet2Data = [];
-
-    // === Data Fetching ===
-    const dataLoadingPromise = Promise.all([
-        fetch(url1).then(res => res.arrayBuffer()),
-        fetch(url2).then(res => res.arrayBuffer())
-    ]).then(([buffer1, buffer2]) => {
-        const workbook1 = XLSX.read(buffer1, { type: 'array' });
-        allData = XLSX.utils.sheet_to_json(workbook1.Sheets[workbook1.SheetNames[0]], { header: 1 }).slice(1);
-        
-        const workbook2 = XLSX.read(buffer2, { type: 'array' });
-        sheet2Data = XLSX.utils.sheet_to_json(workbook2.Sheets[workbook2.SheetNames[0]], { header: 1 }).slice(1);
-    }).catch(err => {
-        console.error("خطا در بارگذاری فایل‌های اکسل:", err);
-        showError("خطا در ارتباط با سرور. لطفاً بعداً تلاش کنید.");
-        throw err; // Re-throw to be caught by later promises
-    });
-
-    // === Event Listeners ===
-    window.addEventListener('DOMContentLoaded', () => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const nationalId = urlParams.get('id');
-
-        loadingMsg.style.display = 'block';
-
-        dataLoadingPromise.then(() => {
-            loadingMsg.style.display = 'none';
-            if (nationalId) {
-                searchForm.style.display = 'none';
-                input.value = nationalId;
-                performSearch();
-            }
-        }).catch(() => {
-            loadingMsg.style.display = 'none';
-        });
-    });
-
-    btn.addEventListener('click', performSearch);
-    input.addEventListener('keydown', (e) => e.key === 'Enter' && performSearch());
-
-    // === Core Functions ===
-    function showError(message) {
-        errorMsg.textContent = message;
-        errorMsg.style.display = 'block';
-    }
-
-    function performSearch() {
-        resultsContainer.style.display = 'none';
-        errorMsg.style.display = 'none';
-
-        const userInput = input.value.trim();
-        if (!/^\d{10}$/.test(userInput)) {
-            return showError("لطفاً یک کد ملی معتبر ۱۰ رقمی وارد کنید.");
-        }
-
-        const searchTerm = userInput.replace(/^0+/, '');
-        const projectRecord = allData.find(row => (row[4]?.toString().replace(/^0+/, '') || '') === searchTerm);
-        const registrationInfo = sheet2Data.find(row => (row[1]?.toString().replace(/^0+/, '') || '') === searchTerm);
-
-        if (!registrationInfo) {
-            return showError("کد ملی وارد شده در سامانه ثبت نام یافت نشد.");
-        }
-        
-        // --- Data Extraction ---
-        const studentName = registrationInfo[0] || 'دانشجوی گرامی';
-        const courseName = registrationInfo[2] || 'نامشخص';
-        const courseId = registrationInfo[3];
-        const startDate = registrationInfo[4];
-        const projectLink = projectRecord?.[9];
-        const certLink = projectRecord?.[15];
-
-        // --- START: EDIT - Logic for calculating end of course date ---
-        let isCoursePeriodOver = false;
-        let courseEndDateInfo = ''; // Will hold the formatted end date text for display
-
-        if (startDate && typeof startDate === 'string' && startDate.trim() !== '') {
-            try {
-                // Use jalali-moment which is already included in the page
-                const startDateMoment = jalaliMoment(startDate, 'jYYYY/jM/jD');
-                if (startDateMoment.isValid()) {
-                    const endDateMoment = startDateMoment.clone().add(84, 'days');
-                    const now = jalaliMoment();
-                    
-                    isCoursePeriodOver = now.isAfter(endDateMoment);
-                    
-                    // Prepare a string with the calculated end date for display in the message
-                    courseEndDateInfo = `تاریخ اتمام دوره شما: ${endDateMoment.format('jYYYY/jMM/jDD')}`;
-                }
-            } catch (e) {
-                console.error("Error parsing or calculating course end date:", e);
-                // In case of error, keep isCoursePeriodOver as false to be safe
-            }
-        }
-        // --- END: EDIT ---
-
-        // --- Status Calculation ---
-        const statuses = {
-            registered: {
-                completed: !!registrationInfo,
-                title: "ثبت نام اولیه",
-                details: startDate ? `تاریخ شروع: ${startDate}` : "تکمیل شده"
-            },
-            courseFinished: {
-                completed: !!projectRecord, // Assuming a record in sheet 1 means course is finished
-                title: "اتمام دوره",
-                details: projectRecord ? "تکمیل شده" : "در حال برگزاری"
-            },
-            projectSent: {
-                completed: projectLink && projectLink.trim() !== '',
-                title: "ارسال پروژه",
-                details: projectLink ? "پروژه ارسال شده" : "در انتظار ارسال"
-            },
-            certificateIssued: {
-                completed: certLink && certLink.trim() !== '',
-                title: "صدور گواهی",
-                details: certLink ? `شماره گواهی: ${projectRecord[11] || 'نامشخص'}` : "در انتظار صدور"
-            }
-        };
-
-        // --- UI Updates ---
-        updateUserInfo(studentName, courseName, userInput);
-        updateProgressBar(statuses);
-        updateTimeline(statuses);
-        // Pass the date check result to the action buttons function
-        updateActionButtons(projectLink, certLink, !!registrationInfo, isCoursePeriodOver, courseEndDateInfo);
-
-        resultsContainer.style.display = 'block';
-    }
-    
-    function updateUserInfo(name, course, id) {
-        userInfo.innerHTML = `
-            <h2>${name}</h2>
-            <p>${course} (کد ملی: ${id})</p>
-        `;
-    }
-
-    function updateProgressBar(statuses) {
-        const statusValues = Object.values(statuses);
-        const completedCount = statusValues.filter(s => s.completed).length;
-        const totalCount = statusValues.length;
-        const percentage = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
-
-        progressBarFill.style.width = `${percentage}%`;
-        progressText.textContent = `پیشرفت شما: ${Math.round(percentage)}% (${completedCount} از ${totalCount} مرحله تکمیل شده)`;
-    }
-
-    function updateTimeline(statuses) {
-        statusTimeline.innerHTML = '';
-        for (const key in statuses) {
-            const status = statuses[key];
-            const li = document.createElement('li');
-            li.className = `timeline-item ${status.completed ? 'completed' : 'pending'}`;
-            
-            const iconClass = status.completed ? 'fa-check' : 'fa-hourglass-half';
-            
-            li.innerHTML = `
-                <div class="timeline-icon"><i class="fas ${iconClass}"></i></div>
-                <div class="timeline-content">
-                    <h3>${status.title}</h3>
-                    <p>${status.details}</p>
+        <div id="resultsContainer">
+            <div class="user-info-card" id="userInfo"></div>
+            <div class="progress-section">
+                <div class="progress-bar">
+                    <div class="progress-bar-fill"></div>
                 </div>
+                <p class="progress-text"></p>
+            </div>
+            <ul class="status-timeline" id="statusTimeline"></ul>
+            <div class="action-buttons" id="actionButtons"></div>
+        </div>
+    </div>
+
+    <script>
+        // === URLs and Constants ===
+        const url1 = 'https://docs.google.com/spreadsheets/d/1c0g7deSI0y-QP4nQNux-l07_cumu3A6Gy0OolnhZWdU/export?format=xlsx';
+        const url2 = 'https://docs.google.com/spreadsheets/d/1QSRAGajWtCWHJHsU-u4dRW85nq2hCGySKqtZQL0iTjY/export?format=xlsx';
+        const driveFolderLink = 'https://drive.google.com/drive/folders/1-pUvCoHflHaLVIcSZJ3nR471I-HEEbn-';
+
+        // === DOM Elements ===
+        const loadingMsg = document.getElementById('loadingMsg');
+        const errorMsg = document.getElementById('errorMsg');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const userInfo = document.getElementById('userInfo');
+        const actionButtons = document.getElementById('actionButtons');
+        const statusTimeline = document.getElementById('statusTimeline');
+        const input = document.getElementById('searchInput');
+        const btn = document.getElementById('searchBtn');
+        const searchForm = document.getElementById('searchForm');
+        const progressBarFill = document.querySelector('.progress-bar-fill');
+        const progressText = document.querySelector('.progress-text');
+
+        // === Data Storage ===
+        let allData = [], sheet2Data = [];
+
+        // === Data Fetching ===
+        const dataLoadingPromise = Promise.all([
+            fetch(url1).then(res => res.arrayBuffer()),
+            fetch(url2).then(res => res.arrayBuffer())
+        ]).then(([buffer1, buffer2]) => {
+            const workbook1 = XLSX.read(buffer1, { type: 'array' });
+            allData = XLSX.utils.sheet_to_json(workbook1.Sheets[workbook1.SheetNames[0]], { header: 1 }).slice(1);
+            const workbook2 = XLSX.read(buffer2, { type: 'array' });
+            sheet2Data = XLSX.utils.sheet_to_json(workbook2.Sheets[workbook2.SheetNames[0]], { header: 1 }).slice(1);
+        }).catch(err => {
+            console.error("خطا در بارگذاری فایل‌های اکسل:", err);
+            showError("خطا در ارتباط با سرور. لطفاً بعداً تلاش کنید.");
+            throw err; // Re-throw to be caught by later promises
+        });
+
+        // === Event Listeners ===
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const nationalId = urlParams.get('id');
+            loadingMsg.style.display = 'block';
+            dataLoadingPromise.then(() => {
+                loadingMsg.style.display = 'none';
+                if (nationalId) {
+                    searchForm.style.display = 'none';
+                    input.value = nationalId;
+                    performSearch();
+                }
+            }).catch(() => {
+                loadingMsg.style.display = 'none';
+            });
+        });
+
+        btn.addEventListener('click', performSearch);
+        input.addEventListener('keydown', (e) => e.key === 'Enter' && performSearch());
+
+        // === Core Functions ===
+        function showError(message) {
+            errorMsg.textContent = message;
+            errorMsg.style.display = 'block';
+        }
+
+        function performSearch() {
+            resultsContainer.style.display = 'none';
+            errorMsg.style.display = 'none';
+
+            const userInput = input.value.trim();
+            if (!/^\d{10}$/.test(userInput)) {
+                return showError("لطفاً یک کد ملی معتبر ۱۰ رقمی وارد کنید.");
+            }
+
+            const searchTerm = userInput.replace(/^0+/, '');
+            const projectRecord = allData.find(row => (row[4]?.toString().replace(/^0+/, '') || '') === searchTerm);
+            const registrationInfo = sheet2Data.find(row => (row[1]?.toString().replace(/^0+/, '') || '') === searchTerm);
+
+            if (!registrationInfo) {
+                return showError("کد ملی وارد شده در سامانه ثبت نام یافت نشد.");
+            }
+
+            // --- Data Extraction ---
+            const studentName = registrationInfo[0] || 'دانشجوی گرامی';
+            const courseName = registrationInfo[2] || 'نامشخص';
+            const courseId = registrationInfo[3];
+            const startDate = registrationInfo[4];
+            const projectLink = projectRecord?.[9];
+            const certLink = projectRecord?.[15];
+
+            // --- START: EDIT - Logic for calculating course period ---
+            let isCoursePeriodOver = false;
+            let courseEndDateFormatted = '';
+            
+            if (startDate && typeof startDate === 'string' && startDate.trim() !== '') {
+                try {
+                    const startDateMoment = jalaliMoment(startDate, 'jYYYY/jM/jD');
+                    if (startDateMoment.isValid()) {
+                        const endDateMoment = startDateMoment.clone().add(80, 'days');
+                        const now = jalaliMoment();
+                        isCoursePeriodOver = now.isAfter(endDateMoment);
+                        courseEndDateFormatted = endDateMoment.format('jYYYY/jMM/jDD');
+                    }
+                } catch (e) {
+                    console.error("Error parsing or calculating course end date:", e);
+                }
+            }
+            // --- END: EDIT ---
+
+            // --- Status Calculation ---
+            const statuses = {
+                registered: {
+                    completed: !!registrationInfo,
+                    title: "ثبت نام اولیه",
+                    details: startDate ? `تاریخ شروع: ${startDate}` : "تکمیل شده"
+                },
+                courseFinished: {
+                    completed: isCoursePeriodOver, // EDITED: Now based on 80-day rule
+                    title: "اتمام دوره",
+                    details: isCoursePeriodOver ? "تکمیل شده" : "در حال برگزاری" // EDITED: Reflects the new logic
+                },
+                projectSent: {
+                    completed: projectLink && projectLink.trim() !== '',
+                    title: "ارسال پروژه",
+                    details: projectLink ? "پروژه ارسال شده" : "در انتظار ارسال"
+                },
+                certificateIssued: {
+                    completed: certLink && certLink.trim() !== '',
+                    title: "صدور گواهی",
+                    details: certLink ? `شماره گواهی: ${projectRecord[11] || 'نامشخص'}` : "در انتظار صدور"
+                }
+            };
+            
+            // --- UI Updates ---
+            updateUserInfo(studentName, courseName, userInput);
+            updateProgressBar(statuses);
+            updateTimeline(statuses);
+            updateActionButtons(projectLink, certLink, !!registrationInfo, isCoursePeriodOver, courseEndDateFormatted); // EDITED: Pass new variables
+            resultsContainer.style.display = 'block';
+        }
+
+        function updateUserInfo(name, course, id) {
+            userInfo.innerHTML = `
+                <h2>${name}</h2>
+                <p>${course} (کد ملی: ${id})</p>
             `;
-            statusTimeline.appendChild(li);
         }
-    }
 
-    // --- START: EDIT - Modified function to handle conditional display ---
-    function updateActionButtons(projectLink, certLink, hasRegistered, isCoursePeriodOver, courseEndDateInfo) {
-        let buttonsHTML = '';
-        
-        if (isCoursePeriodOver) {
-            // The course period is over, show the buttons if their links exist.
-            if (projectLink) {
-                buttonsHTML += `<a href="${projectLink}" target="_blank" class="action-btn project-link"><i class="fas fa-file-alt"></i>مشاهده پروژه</a>`;
-            }
-            if (certLink) {
-                buttonsHTML += `<a href="${certLink}" target="_blank" class="action-btn cert-link"><i class="fas fa-certificate"></i>دانلود گواهی</a>`;
-            }
-            if (hasRegistered) {
-                buttonsHTML += `<a href="${driveFolderLink}" target="_blank" class="action-btn drive-link"><i class="fas fa-book-open"></i>مشاهده جزوات</a>`;
-            }
-        } else {
-            // The course period is not yet over. Display the informational message.
-            let message = `<div style="text-align: center; color: var(--text-muted); background-color: var(--input-bg); padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
-                               <p style="margin: 0; line-height: 1.6;">
-                                   دانشجوی گرامی، دسترسی به گواهینامه، پروژه و جزوات پس از اتمام دوره امکان‌پذیر خواهد بود.
-                               </p>`;
-            
-            // If the end date was successfully calculated, add it to the message for more clarity.
-            if (courseEndDateInfo) {
-                 message += `<p style="margin: 5px 0 0; font-weight: bold; color: var(--primary-blue);">${courseEndDateInfo}</p>`;
-            }
-            
-            message += `</div>`;
-            buttonsHTML = message;
+        function updateProgressBar(statuses) {
+            const statusValues = Object.values(statuses);
+            const completedCount = statusValues.filter(s => s.completed).length;
+            const totalCount = statusValues.length;
+            const percentage = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+
+            progressBarFill.style.width = `${percentage}%`;
+            progressText.textContent = `پیشرفت شما: ${Math.round(percentage)}% (${completedCount} از ${totalCount} مرحله تکمیل شده)`;
         }
-        
-        actionButtons.innerHTML = buttonsHTML;
-    }
-    // --- END: EDIT ---
-  </script>
 
+        function updateTimeline(statuses) {
+            statusTimeline.innerHTML = '';
+            for (const key in statuses) {
+                const status = statuses[key];
+                const li = document.createElement('li');
+                li.className = `timeline-item ${status.completed ? 'completed' : 'pending'}`;
+                const iconClass = status.completed ? 'fa-check' : 'fa-hourglass-half';
+                li.innerHTML = `
+                    <div class="timeline-icon"><i class="fas ${iconClass}"></i></div>
+                    <div class="timeline-content">
+                        <h3>${status.title}</h3>
+                        <p>${status.details}</p>
+                    </div>
+                `;
+                statusTimeline.appendChild(li);
+            }
+        }
+
+        // --- START: EDITED - Modified function to handle conditional display of buttons ---
+        function updateActionButtons(projectLink, certLink, hasRegistered, isCoursePeriodOver, courseEndDateFormatted) {
+            let buttonsHTML = '';
+            
+            if (isCoursePeriodOver) {
+                // 80-day period is over, show the buttons if links exist.
+                if (projectLink) {
+                    buttonsHTML += `<a href="${projectLink}" target="_blank" class="action-btn project-link"><i class="fas fa-file-alt"></i>دانلود پروژه</a>`;
+                }
+                if (certLink) {
+                    buttonsHTML += `<a href="${certLink}" target="_blank" class="action-btn cert-link"><i class="fas fa-certificate"></i>دانلود گواهی</a>`;
+                }
+                if (hasRegistered) {
+                    buttonsHTML += `<a href="${driveFolderLink}" target="_blank" class="action-btn drive-link"><i class="fas fa-book-open"></i>دانلود جزوات</a>`;
+                }
+            } else {
+                // 80-day period is not over. Display the informational message.
+                let message = `
+                    <div style="text-align: center; color: var(--text-muted); background-color: var(--input-bg); padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                        <p style="margin: 0; line-height: 1.6;">
+                            دانشجوی گرامی، دسترسی به گواهینامه، پروژه و جزوات پس از اتمام دوره امکان‌پذیر خواهد بود.
+                        </p>`;
+                if (courseEndDateFormatted) {
+                    message += `
+                        <p style="margin: 5px 0 0; font-weight: bold; color: var(--primary-blue);">
+                            تاریخ دسترسی شما: ${courseEndDateFormatted}
+                        </p>`;
+                }
+                message += `</div>`;
+                buttonsHTML = message;
+            }
+            
+            actionButtons.innerHTML = buttonsHTML;
+        }
+        // --- END: EDITED ---
+
+    </script>
 </body>
 </html>
