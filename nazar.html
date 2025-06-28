@@ -90,7 +90,39 @@
     }
 
     /* ================================
-       استایل فرم‌ها
+       فرم ورود بازطراحی شده
+    =================================== */
+    .input-wrapper {
+        position: relative;
+        margin-bottom: 20px;
+    }
+    .input-wrapper .fa-id-card {
+        position: absolute;
+        top: 50%;
+        right: 20px;
+        transform: translateY(-50%);
+        color: #888;
+        font-size: 1.2rem;
+    }
+    #nationalCodeInput {
+        width: 100%;
+        padding: 18px 55px 18px 20px;
+        font-size: 1.2rem;
+        text-align: center;
+        border: none;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.95);
+        color: #333;
+        outline: none;
+        transition: box-shadow 0.3s, background-color 0.3s;
+    }
+    #nationalCodeInput:focus {
+        background-color: #fff;
+        box-shadow: 0 0 0 4px rgba(255, 235, 59, 0.5);
+    }
+    
+    /* ================================
+       استایل فرم نظرسنجی
     =================================== */
     .form-grid {
         display: grid;
@@ -113,7 +145,10 @@
         font-size: 0.95rem;
         opacity: 0.9;
     }
-    input[type="text"], input[type="number"], select, textarea {
+    .input-group input[type="text"], 
+    .input-group input[type="number"], 
+    .input-group select, 
+    .input-group textarea {
         width: 100%;
         padding: 14px;
         font-size: 1rem;
@@ -125,11 +160,13 @@
         outline: none;
         transition: box-shadow 0.3s;
     }
-    input[readonly] {
+    .input-group input[readonly] {
         background-color: rgba(220, 220, 220, 0.8);
         cursor: not-allowed;
     }
-    input:focus, select:focus, textarea:focus { 
+    .input-group input:focus, 
+    .input-group select:focus, 
+    .input-group textarea:focus { 
         box-shadow: 0 0 0 4px rgba(255, 235, 59, 0.5); 
     }
     textarea {
@@ -200,9 +237,9 @@
     <!-- مرحله ۱: ورود کد ملی (در حالت عادی) -->
     <div id="step-login" class="step">
       <h1>نظرسنجی دوره تربیت مربی</h1>
-      <div class="input-group">
-        <label for="nationalCodeInput">کد ملی خود را برای شروع وارد کنید:</label>
-        <input type="tel" id="nationalCodeInput" placeholder="کد ملی ۱۰ رقمی" maxlength="10">
+      <div class="input-wrapper">
+        <i class="fas fa-id-card"></i>
+        <input type="tel" id="nationalCodeInput" placeholder="کد ملی خود را وارد کنید" maxlength="10" autocomplete="off">
       </div>
       <button class="btn" id="validateButton"><i class="fas fa-check-circle"></i>بررسی و شروع</button>
       <div id="message-box" class="message" style="display: none;"></div>
@@ -334,9 +371,12 @@
     
     // تابع اصلی برای بررسی کد ملی و نمایش فرم
     async function checkNationalCode(nationalId) {
+        // اگر کاربر از پنل آمده باشد، فرم ورود نباید دوباره نمایش داده شود
+        const idFromUrl = new URLSearchParams(window.location.search).get('id');
+
         if (!nationalId || !/^\d{10}$/.test(nationalId)) {
             showMessage('کد ملی وارد شده معتبر نیست.');
-            showStep('step-login');
+            if (!idFromUrl) showStep('step-login'); // فقط اگر مستقیم آمده فرم را نشان بده
             return;
         }
 
@@ -345,7 +385,7 @@
 
         if (!userRecord) {
             showMessage('کد ملی شما در لیست شرکت‌کنندگان این دوره یافت نشد.');
-            showStep('step-login');
+            if (!idFromUrl) showStep('step-login');
             return;
         }
         
@@ -354,7 +394,7 @@
         
         if (hasVoted) {
             showMessage(`آقا/خانم ${fullName}، شما قبلاً در این نظرسنجی شرکت کرده‌اید.`, 'success');
-            showStep('step-login');
+            if (!idFromUrl) showStep('step-login');
         } else {
             document.getElementById('name').value = fullName;
             showStep('step-survey');
@@ -418,7 +458,10 @@
         }).catch(error => {
             console.error("Failed to load initial data:", error);
             showMessage("خطا در بارگذاری اطلاعات سامانه. لطفاً صفحه را رفرش کنید.");
-            showStep('step-login'); // در صورت خطا هم فرم ورود نمایش داده شود
+            // فقط اگر کاربر مستقیم آمده فرم ورود را نمایش بده
+            if (!idFromUrl) {
+                showStep('step-login');
+            }
         });
     });
 
