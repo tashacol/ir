@@ -7,13 +7,19 @@
 
   <!-- کتابخانه برای خواندن فایل اکسل -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+  
+  <!-- کتابخانه‌های لازم برای کار با تاریخ شمسی -->
+  <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jalali-moment/dist/jalali-moment.browser.js"></script>
 
   <style>
-    /* ... تمام استایل‌ها بدون تغییر باقی می‌مانند ... */
+    /* ... استایل‌ها با کمی ویرایش در رنگ‌ها برای روشن‌تر شدن ... */
     :root {
-      --bg-gradient: linear-gradient(135deg, #1e3c72, #2a5298);
-      --card-bg: rgba(255, 255, 255, 0.1);
-      --card-border: rgba(255, 255, 255, 0.2);
+      /* مقادیر رنگ پس‌زمینه کمی روشن‌تر شدند */
+      --bg-gradient: linear-gradient(135deg, #3a5f9f, #4b77be);
+      /* شفافیت کادر و حاشیه آن کمی بیشتر شد تا روشن‌تر به نظر برسد */
+      --card-bg: rgba(255, 255, 255, 0.15);
+      --card-border: rgba(255, 255, 255, 0.25);
       --primary: #ffeb3b;
       --secondary: #e91e63;
       --text-light: #fafafa;
@@ -37,7 +43,8 @@
       position: relative; width: 90%; max-width: 650px; margin: 20px auto;
       padding: 40px 30px; background: var(--card-bg); border-radius: 20px;
       border: 1px solid var(--card-border); backdrop-filter: blur(10px);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); color: var(--text-light);
+      /* سایه کمی ملایم‌تر شد */
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); color: var(--text-light);
       animation: fadeIn 0.8s ease forwards; overflow: hidden; box-sizing: border-box;
     }
     @keyframes fadeIn {
@@ -178,11 +185,8 @@
     const input = document.getElementById('searchInput');
     const btn = document.getElementById('searchBtn');
     const extraLink = document.getElementById('extraLink');
-    const loginForm = document.getElementById('loginForm'); // کانتینر فرم
+    const loginForm = document.getElementById('loginForm');
 
-    // **شروع ویرایش اصلی**
-
-    // 1. تابع بارگذاری داده‌ها
     const dataLoadingPromise = new Promise((resolve, reject) => {
         Promise.all([
             fetch(url1).then(res => res.arrayBuffer()),
@@ -203,25 +207,22 @@
         });
     });
 
-    // 2. رویداد بارگذاری صفحه
     window.addEventListener('DOMContentLoaded', () => {
         const urlParams = new URLSearchParams(window.location.search);
         const nationalId = urlParams.get('id');
 
         if (nationalId) {
-            // حالت نمایش مستقیم: فرم را مخفی کن و لودینگ را نشان بده
             loginForm.style.display = 'none';
             loadingMsg.style.display = 'block';
 
             dataLoadingPromise.then(() => {
-                input.value = nationalId; // کد ملی را ست کن
-                loadingMsg.style.display = 'none'; // لودینگ را مخفی کن
-                performSearch(); // جستجو را انجام بده
+                input.value = nationalId;
+                loadingMsg.style.display = 'none';
+                performSearch();
             }).catch(() => {
-                loadingMsg.style.display = 'none'; // در صورت خطا هم لودینگ را مخفی کن
+                loadingMsg.style.display = 'none';
             });
         } else {
-            // حالت عادی: لودینگ را برای بارگذاری اولیه داده‌ها نمایش بده
             loadingMsg.style.display = 'block';
             dataLoadingPromise.then(() => {
                 loadingMsg.style.display = 'none';
@@ -230,8 +231,6 @@
             });
         }
     });
-
-    // **پایان ویرایش اصلی**
 
     btn.addEventListener('click', performSearch);
     input.addEventListener('keydown', (e) => {
@@ -241,7 +240,6 @@
     });
 
     function performSearch() {
-        // بقیه تابع performSearch بدون هیچ تغییری باقی می‌ماند
         const userInput = input.value.trim();
         resultsContainer.style.display = 'none';
         extraLink.innerHTML = '';
@@ -268,7 +266,17 @@
         const courseName = projectRecord?.[6] || registrationInfo?.[2] || 'نامشخص';
         const courseId = registrationInfo?.[3];
         const startDate = registrationInfo?.[4];
-        const endDate = registrationInfo?.[5];
+        
+        // ##### شروع ویرایش اصلی درخواست شده #####
+        // به جای خواندن تاریخ اتمام، آن را محاسبه می‌کنیم
+        // const endDate = registrationInfo?.[5]; // این خط حذف می‌شود
+        let calculatedEndDate = null;
+        if (startDate) {
+            // با استفاده از کتابخانه jalali-moment تاریخ را ۸۵ روز به جلو می‌بریم
+            calculatedEndDate = moment(startDate, 'jYYYY/jMM/jDD').add(85, 'days').format('jYYYY/jMM/jDD');
+        }
+        // ##### پایان ویرایش اصلی درخواست شده #####
+
         const projectLink = projectRecord?.[9];
         const certNumber = projectRecord?.[11];
         const certDate = projectRecord?.[13];
@@ -314,7 +322,7 @@
             ${certNumber ? `<li><span class="status-label">شماره گواهی</span> <span class="status-value status-info">${certNumber}</span></li>` : ''}
             ${certDate ? `<li><span class="status-label">تاریخ اخذ گواهی</span> <span class="status-value status-info">${certDate}</span></li>` : ''}
             ${startDate ? `<li><span class="status-label">تاریخ شروع دوره</span> <span class="status-value status-info">${startDate}</span></li>` : ''}
-            ${endDate ? `<li><span class="status-label">تاریخ اتمام دوره</span> <span class="status-value status-info">${endDate}</span></li>` : ''}
+            ${calculatedEndDate ? `<li><span class="status-label">تاریخ اتمام دوره</span> <span class="status-value status-info">${calculatedEndDate}</span></li>` : ''}
         `;
 
         if (registrationInfo) {
