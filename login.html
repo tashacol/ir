@@ -32,7 +32,7 @@
       --text-dark: #2c3e50;
       --text-light: #ffffff;
       --text-muted: #7f8c8d;
-      --border-color: #e_a_e_c_f_0;
+      --border-color: #eaecf0; /* ویرایش اول: تصحیح کد رنگ */
       --success-color: #2ecc71;
       --warning-color: #f39c12;
       --danger-color: #e74c3c;
@@ -123,9 +123,24 @@
     }
     .header-actions button:hover { background: var(--danger-color); color: white; }
     
+    /* ویرایش دوم: افزودن استایل بنر اخطار */
+    .warning-banner {
+      background-color: var(--warning-color);
+      color: var(--text-light);
+      padding: 15px 20px;
+      border-radius: var(--border-radius);
+      margin-bottom: 25px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 1rem;
+    }
+    .warning-banner i {
+      margin-left: 10px;
+    }
+    
     .progress-section { margin-top: 20px; }
     .progress-info { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem; font-weight: 700; }
-    .progress-bar { height: 10px; background-color: #e_a_e_c_f_0; border-radius: 5px; overflow: hidden; }
+    .progress-bar { height: 10px; background-color: var(--border-color); border-radius: 5px; overflow: hidden; }
     #progress-bar-fill {
       height: 100%; width: 0%;
       background: var(--primary-color);
@@ -165,7 +180,7 @@
     /* وضعیت‌های مختلف درس */
     .accordion-item.completed .accordion-icon { background-color: var(--success-color); color: white; }
     .accordion-item.current .accordion-icon { background-color: var(--primary-color); color: white; animation: pulse 2s infinite; }
-    .accordion-item.locked .accordion-icon { background-color: #e_a_e_c_f_0; color: #bdc3c7; }
+    .accordion-item.locked .accordion-icon { background-color: var(--border-color); color: #bdc3c7; }
     .accordion-item.locked .accordion-header { cursor: not-allowed; opacity: 0.7; }
     .accordion-item.rest-week .accordion-icon { background-color: var(--warning-color); color: white; }
 
@@ -261,6 +276,9 @@
   
   <div id="dashboard">
     <main>
+      <!-- ویرایش دوم: افزودن جایگاه بنر اخطار -->
+      <div id="warning-banner" class="warning-banner" style="display: none;"></div>
+
       <header class="main-header">
         <div class="top-bar">
           <div class="user-profile">
@@ -321,6 +339,7 @@ document.addEventListener('DOMContentLoaded', function() {
         videoTitle: document.getElementById('videoTitle'),
         pdfViewer: document.getElementById('pdfViewer'),
         pdfTitle: document.getElementById('pdfTitle'),
+        warningBanner: document.getElementById('warning-banner'), // ویرایش دوم: گرفتن المان بنر
     };
     
     // === Date Helper Functions ===
@@ -486,13 +505,36 @@ document.addEventListener('DOMContentLoaded', function() {
         const progress = Math.min(100, (elapsed / totalDuration) * 100);
         DOM.progressBarFill.style.width = `${progress}%`;
 
+        // ویرایش دوم: منطق نمایش بنر اخطار هفته آخر
+        // هفته آخر استراحت، هفته 12 است (اندیس 11)
+        const lastRestWeekStart = new Date(courseData.startDate.getTime() + 11 * 7 * 24 * 60 * 60 * 1000);
+        if (now >= lastRestWeekStart && now < courseData.endDate) {
+            if (DOM.warningBanner) {
+                DOM.warningBanner.innerHTML = `<i class="fas fa-exclamation-triangle"></i> توجه: این آخرین هفته برای ارسال خلاصه دروس است. در انتهای این هفته، دسترسی به دروس غیرفعال خواهد شد.`;
+                DOM.warningBanner.style.display = 'block';
+            }
+        }
+
+        // ویرایش سوم: تغییر منطق نمایش محتوا بر اساس زمان
         if (now < courseData.startDate) {
             renderSpecialState('fa-hourglass-start', 'دوره به زودی آغاز می‌شود!', `برای شروع این سفر آموزشی آماده شوید. دوره در تاریخ ${formatDatePersian(courseData.startDate)} آغاز خواهد شد.`, '<div id="countdown-timer"></div>');
             startCountdown();
         } else if (now > courseData.endDate) {
-            renderSpecialState('fa-award', 'دوره به پایان رسید!', 'امیدواریم مطالب برای شما مفید بوده باشد. اکنون می‌توانید برای دریافت گواهی اقدام کنید.');
-            renderCourseTimeline(); // Show timeline even after course ends
+            // حالت پایان دوره: نمایش پیام اتمام و دکمه دریافت گواهی
+            DOM.dynamicContent.innerHTML = `
+                <div class="special-state-card">
+                    <i class="fas fa-check-circle" style="color: var(--success-color);"></i>
+                    <h2>دوره به اتمام رسیده است</h2>
+                    <p>لطفاً جهت اخذ گواهی اقدام نمائید.</p>
+                    <div style="margin-top: 25px;">
+                         <button class="action-button homework" onclick="openModal('certificateModal')">
+                            <i class="fas fa-award"></i> دریافت گواهی
+                         </button>
+                    </div>
+                </div>
+            `;
         } else {
+            // حالت عادی دوره: نمایش تایم‌لاین دروس
             renderCourseTimeline();
         }
     }
@@ -545,6 +587,7 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             if (!courseData.startDate) throw new Error("تاریخ شروع در فایل اکسل معتبر نیست.");
 
+            // دوره 12 هفته (84 روز) است
             courseData.endDate = new Date(courseData.startDate.getTime() + 84 * 24 * 60 * 60 * 1000);
             registeredUsers = json.slice(1);
             
