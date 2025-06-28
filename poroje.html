@@ -466,24 +466,31 @@
         const projectLink = projectRecord?.[9];
         const certLink = projectRecord?.[15];
 
-        // --- START: EDIT - Logic for calculating course end date ---
+        // --- START: EDIT - Logic for calculating course end date and status ---
         let isCoursePeriodOver = false;
-        let courseEndDateFormatted = ''; // Will hold the formatted end date for display
+        let courseEndDateFormatted = '';
+        let courseFinishedDetails = 'در حال برگزاری'; // Default text for timeline
 
         if (startDate && typeof startDate === 'string' && startDate.trim() !== '') {
             try {
-                // Use jalali-moment which is already included in the page
                 const startDateMoment = jalaliMoment(startDate, 'jYYYY/jM/jD');
                 if (startDateMoment.isValid()) {
-                    const endDateMoment = startDateMoment.clone().add(80, 'days'); // Check for 80 days
+                    const endDateMoment = startDateMoment.clone().add(80, 'days');
                     const now = jalaliMoment();
+                    
                     isCoursePeriodOver = now.isAfter(endDateMoment);
-                    // Prepare just the formatted date string for display in the message
                     courseEndDateFormatted = endDateMoment.format('jYYYY/jMM/jDD');
+                    
+                    // Update details text based on whether the course period is over
+                    if (isCoursePeriodOver) {
+                        courseFinishedDetails = `تاریخ پایان دوره: ${courseEndDateFormatted}`;
+                    } else {
+                        courseFinishedDetails = 'در حال برگزاری';
+                    }
                 }
             } catch (e) {
-                console.error("Error parsing or calculating course end date:", e);
-                // In case of error, keep isCoursePeriodOver as false to be safe
+                console.error("خطا در محاسبه تاریخ پایان دوره:", e);
+                // In case of error, safe defaults will be used
             }
         }
         // --- END: EDIT ---
@@ -496,10 +503,11 @@
                 details: startDate ? `تاریخ شروع: ${startDate}` : "تکمیل شده"
             },
             courseFinished: {
-                // EDIT: Check for project record AND if 80 days have passed
+                // EDIT: Completion depends on having a record AND passing the 80-day mark
                 completed: !!projectRecord && isCoursePeriodOver,
                 title: "اتمام دوره",
-                details: (!!projectRecord && isCoursePeriodOver) ? "تکمیل شده" : "در حال برگزاری"
+                // EDIT: Use the dynamically calculated detail string
+                details: courseFinishedDetails 
             },
             projectSent: {
                 completed: projectLink && projectLink.trim() !== '',
@@ -517,7 +525,7 @@
         updateUserInfo(studentName, courseName, userInput);
         updateProgressBar(statuses);
         updateTimeline(statuses);
-        // Pass the date check result and formatted date to the action buttons function
+        // Pass the date check result and the formatted end date to the action buttons function
         updateActionButtons(projectLink, certLink, !!registrationInfo, isCoursePeriodOver, courseEndDateFormatted);
         resultsContainer.style.display = 'block';
     }
@@ -556,7 +564,7 @@
         }
     }
 
-    // --- START: EDIT - Modified function to handle conditional display ---
+    // --- START: EDIT - Modified function to handle conditional display and show the date ---
     function updateActionButtons(projectLink, certLink, hasRegistered, isCoursePeriodOver, courseEndDate) {
         let buttonsHTML = '';
         if (isCoursePeriodOver) {
@@ -571,7 +579,7 @@
                  buttonsHTML += `<a href="${projectLink}" target="_blank" class="action-btn project-link"><i class="fas fa-file-alt"></i>دانلود پروژه</a>`;
             }
         } else {
-            // The 80-day period is not yet over. Display the informational message as requested.
+            // The 80-day period is not yet over. Display the informational message with the calculated end date.
             let message = `
                 <div style="text-align: center; color: var(--text-muted); background-color: var(--input-bg); padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
                     <p style="margin: 0; line-height: 1.6;">
