@@ -123,7 +123,7 @@
       display: none;
     }
 
-    /* ========== بخش نمایش نتایج (جایگزین جدول) ========== */
+    /* ========== بخش نمایش نتایج ========== */
     #resultsContainer {
         display: none;
         margin-top: 25px;
@@ -145,12 +145,12 @@
         margin-bottom: 20px;
     }
     .course-info h2 {
-        margin: 0 0 5px;
+        margin: 0 0 10px;
         color: var(--primary);
         font-size: 1.6rem;
     }
     .course-info p {
-        margin: 0;
+        margin: 5px 0 0;
         font-size: 1.1rem;
         color: var(--text-light);
     }
@@ -335,100 +335,97 @@
     });
 
     function performSearch() {
-        const term = input.value.trim();
+        const userInput = input.value.trim();
         // پاک کردن نتایج قبلی
         resultsContainer.style.display = 'none';
         extraLink.innerHTML = '';
         errorMsg.style.display = 'none';
 
-        if (!/^\d{1,19}$/.test(term) || term === "") {
+        if (!/^\d{1,19}$/.test(userInput) || userInput === "") {
             errorMsg.textContent = "لطفاً یک کد ملی معتبر وارد کنید.";
             errorMsg.style.display = 'block';
             return;
         }
 
-        const searchTerm = term.replace(/^0+/, ''); // حذف صفرهای اول کد ملی
-        
-        // جستجو در هر دو شیت
-        const projectRecord = allData.find(row => (row[4]?.toString().replace(/^0+/, '') || '') === searchTerm);
-        const registrationRecord = sheet2Data.some(row => (row[1]?.toString().replace(/^0+/, '') || '') === searchTerm);
+        const searchTerm = userInput.replace(/^0+/, ''); // حذف صفرهای اول کد ملی برای جستجو
 
-        if (!projectRecord && !registrationRecord) {
+        // جستجو برای یافتن رکوردها در هر دو شیت
+        const projectRecord = allData.find(row => (row[4]?.toString().replace(/^0+/, '') || '') === searchTerm);
+        const registrationInfo = sheet2Data.find(row => (row[1]?.toString().replace(/^0+/, '') || '') === searchTerm);
+
+        // اگر هیچ رکوردی یافت نشد
+        if (!projectRecord && !registrationInfo) {
             errorMsg.textContent = "کد ملی وارد شده یافت نشد یا در سامانه ثبت نام نکرده است.";
             errorMsg.style.display = 'block';
             return;
         }
+        
+        // --- استخراج داده‌ها ---
+        // استخراج اطلاعات اصلی از هر دو شیت. اولویت با شیت پروژه است.
+        const studentName = projectRecord?.[2] || registrationInfo?.[0] || 'دانشجوی گرامی';
+        const courseName = projectRecord?.[6] || registrationInfo?.[2] || 'نامشخص';
+        
+        // اطلاعات از شیت ثبت‌نام (url2)
+        const courseId = registrationInfo?.[3];   // ستون D
+        const startDate = registrationInfo?.[4];  // ستون E
+        const endDate = registrationInfo?.[5];    // ستون F
 
-        // اگر فرد فقط ثبت نام کرده ولی پروژه نداده
-        if (!projectRecord && registrationRecord) {
-            // استخراج نام از شیت ثبت‌نام (فرض می‌کنیم نام در ستون 0 است)
-            const regInfo = sheet2Data.find(row => (row[1]?.toString().replace(/^0+/, '') || '') === searchTerm);
-            const studentName = regInfo[0] || 'دانشجوی گرامی';
+        // اطلاعات از شیت پروژه (url1)
+        const projectLink = projectRecord?.[9];
+        const certNumber = projectRecord?.[11];   // ستون L
+        const certDate = projectRecord?.[13];     // ستون N
+        const certLink = projectRecord?.[15];     // ستون P
 
-            courseInfo.innerHTML = `
-                <h2>وضعیت نامشخص</h2>
-                <p>${studentName}</p>
-            `;
-            actionButtons.innerHTML = ''; // دکمه‌ای وجود ندارد
-            statusChecklist.innerHTML = `
-                <li><span class="status-label">ثبت نام</span> <span class="status-value">${checkIconSVG}</span></li>
-                <li><span class="status-label">اتمام دوره</span> <span class="status-value">${crossIconSVG}</span></li>
-                <li><span class="status-label">ارسال پروژه</span> <span class="status-value">${crossIconSVG}</span></li>
-                <li><span class="status-label">اخذ گواهی</span> <span class="status-value">${crossIconSVG}</span></li>
-            `;
+        // --- ساخت HTML داینامیک ---
+
+        // 1. بخش اطلاعات دوره
+        courseInfo.innerHTML = `
+            <h2>${courseName}</h2>
+            <p>${studentName} - کد ملی: ${userInput}</p>
+            ${courseId ? `<p>شناسه دوره: ${courseId}</p>` : ''}
+        `;
+
+        // 2. بخش دکمه‌ها
+        let buttonsHTML = '';
+        if (projectLink && projectLink.trim() !== '') {
+            buttonsHTML += `<a href="${projectLink}" target="_blank" class="project-link">مشاهده پروژه</a>`;
         }
-
-        // اگر فرد پروژه و اطلاعات کامل دارد
-        if (projectRecord) {
-            // استخراج اطلاعات از ستون‌های مشخص شده
-            const studentName = projectRecord[2] || 'نامشخص';
-            const courseName = projectRecord[6] || 'نامشخص';
-            const projectLink = projectRecord[9];
-            const certNumber = projectRecord[11]; // ستون L
-            const certDate = projectRecord[13];   // ستون N
-            const certLink = projectRecord[15];   // ستون P
-
-            // بخش اطلاعات دوره
-            courseInfo.innerHTML = `
-                <h2>${courseName}</h2>
-                <p>${studentName}</p>
-            `;
-
-            // بخش دکمه‌ها
-            let buttonsHTML = '';
-            if (projectLink && projectLink.trim() !== '') {
-                buttonsHTML += `<a href="${projectLink}" target="_blank" class="project-link">مشاهده پروژه</a>`;
-            }
-            if (certLink && certLink.trim() !== '') {
-                buttonsHTML += `<a href="${certLink}" target="_blank" class="cert-link">دانلود گواهی</a>`;
-            }
-            actionButtons.innerHTML = buttonsHTML;
-
-            // بخش چک‌لیست وضعیت
-            statusChecklist.innerHTML = `
-                <li>
-                    <span class="status-label">ثبت نام</span>
-                    <span class="status-value">${checkIconSVG}</span>
-                </li>
-                <li>
-                    <span class="status-label">اتمام دوره</span>
-                    <span class="status-value">${checkIconSVG}</span>
-                </li>
-                <li>
-                    <span class="status-label">ارسال پروژه</span>
-                    <span class="status-value">${projectLink && projectLink.trim() !== '' ? checkIconSVG : crossIconSVG}</span>
-                </li>
-                <li>
-                    <span class="status-label">اخذ گواهی</span>
-                    <span class="status-value">${certLink && certLink.trim() !== '' ? checkIconSVG : crossIconSVG}</span>
-                </li>
-                ${certNumber ? `<li><span class="status-label">شماره گواهی</span> <span class="status-value status-info">${certNumber}</span></li>` : ''}
-                ${certDate ? `<li><span class="status-label">تاریخ اخذ گواهی</span> <span class="status-value status-info">${certDate}</span></li>` : ''}
-            `;
+        if (certLink && certLink.trim() !== '') {
+            buttonsHTML += `<a href="${certLink}" target="_blank" class="cert-link">دانلود گواهی</a>`;
         }
+        actionButtons.innerHTML = buttonsHTML;
 
-        // نمایش لینک جزوات در هر صورت اگر ثبت‌نام کرده باشد
-        if (registrationRecord) {
+        // 3. بخش چک‌لیست وضعیت
+        const hasRegistered = !!registrationInfo || !!projectRecord;
+        const hasFinishedCourse = !!projectRecord; // اتمام دوره به منزله وجود در شیت پروژه است
+        const hasSentProject = projectLink && projectLink.trim() !== '';
+        const hasCertificate = certLink && certLink.trim() !== '';
+
+        statusChecklist.innerHTML = `
+            <li>
+                <span class="status-label">ثبت نام</span>
+                <span class="status-value">${hasRegistered ? checkIconSVG : crossIconSVG}</span>
+            </li>
+            <li>
+                <span class="status-label">اتمام دوره</span>
+                <span class="status-value">${hasFinishedCourse ? checkIconSVG : crossIconSVG}</span>
+            </li>
+            <li>
+                <span class="status-label">ارسال پروژه</span>
+                <span class="status-value">${hasSentProject ? checkIconSVG : crossIconSVG}</span>
+            </li>
+            <li>
+                <span class="status-label">اخذ گواهی</span>
+                <span class="status-value">${hasCertificate ? checkIconSVG : crossIconSVG}</span>
+            </li>
+            ${certNumber ? `<li><span class="status-label">شماره گواهی</span> <span class="status-value status-info">${certNumber}</span></li>` : ''}
+            ${certDate ? `<li><span class="status-label">تاریخ اخذ گواهی</span> <span class="status-value status-info">${certDate}</span></li>` : ''}
+            ${startDate ? `<li><span class="status-label">تاریخ شروع دوره</span> <span class="status-value status-info">${startDate}</span></li>` : ''}
+            ${endDate ? `<li><span class="status-label">تاریخ اتمام دوره</span> <span class="status-value status-info">${endDate}</span></li>` : ''}
+        `;
+
+        // 4. لینک جزوات
+        if (registrationInfo) {
             extraLink.innerHTML = `<a href="${driveFolderLink}" target="_blank">مشاهده دروس و جزوات</a>`;
         }
         
