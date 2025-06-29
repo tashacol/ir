@@ -1,194 +1,383 @@
-<!DOCTYPE html><html lang="fa" dir="rtl">
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>استعلام سوابق</title>
-  <!-- Excel Library -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <style>
-    /* ========== Variables & Fonts ========== */
-    @font-face {
-      font-family: 'IranNastaliq';
-      src: url('https://tashacol.github.io/ir/B%20Titr%20Bold_0.ttf') format('truetype');
-    }
-    :root {
-      --bg-gradient: linear-gradient(135deg, #1e3c72, #2a5298);
-      --card-bg: rgba(255,255,255,0.15);
-      --card-border: rgba(255,255,255,0.3);
-      --primary: #ffeb3b;
-      --secondary: #e91e63;
-      --accent: #00b894;
-      --text-light: #fafafa;
-      --text-dark: #333;
-    }
-    /* ========== Background Animation ========== */
-    @keyframes bgAnim {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-    /* ========== Global Styles ========== */
-    * { box-sizing: border-box; }
-    body {
-      margin: 0; padding: 0;
-      height: 100vh; display: flex; justify-content: center; align-items: center;
-      font-family: 'IranNastaliq', serif; direction: rtl; text-align: right;
-      background: var(--bg-gradient); background-size: 200% 200%; animation: bgAnim 20s ease infinite;
-    }
-    /* ========== Loader Overlay ========== */
-    #loaderOverlay {
-      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(0,0,0,0.6); backdrop-filter: blur(6px);
-      display: flex; justify-content: center; align-items: center; z-index: 9999;
-    }
-    .loader-spinner {
-      width: 60px; height: 60px;
-      border: 8px solid rgba(255,255,255,0.3);
-      border-top: 8px solid #fff; border-radius: 50%; animation: spin 1s linear infinite;
-    }
-    @keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }/* ========== Card Container ========== */
-.container {
-  width: 90%; max-width: 600px;
-  background: var(--card-bg); border-radius: 20px; border: 1px solid var(--card-border);
-  backdrop-filter: blur(10px); padding: 30px 20px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.4); color: var(--text-light);
-}
-h2 {
-  margin-top: 0; margin-bottom: 20px;
-  font-size: 1.8rem; color: var(--primary);
-  text-align: center; letter-spacing: 1px; text-transform: uppercase;
-}
-/* ========== Form & Inputs ========== */
-#loginForm {
-  display: flex; flex-direction: column; gap: 15px;
-}
-label {
-  font-size: 0.95rem; font-weight: bold; color: var(--text-light);
-}
-input {
-  padding: 12px 15px; font-size: 1rem;
-  border: none; border-radius: 8px;
-  outline: none;
-  background: rgba(255,255,255,0.8);
-  color: var(--text-dark);
-  transition: transform 0.2s;
-}
-input:focus { transform: scale(1.02); }
-/* ========== Button ========== */
-#searchButton {
-  padding: 14px; font-size: 1rem; font-weight: bold;
-  color: #fff; background: var(--accent); border: none; border-radius: 8px;
-  cursor: pointer; text-transform: uppercase;
-  transition: background 0.3s, transform 0.3s;
-}
-#searchButton:hover { background: #009977; transform: translateY(-2px) scale(1.02); }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>استعلام سوابق</title>
+    <!-- Excel Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        /* ========== Fonts ========== */
+        @font-face {
+            font-family: 'Vazirmatn';
+            src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-Regular.woff2') format('woff2');
+            font-weight: normal;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Vazirmatn';
+            src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-Bold.woff2') format('woff2');
+            font-weight: bold;
+            font-style: normal;
+        }
 
-/* ========== Messages ========== */
-#loadingMsg, #errorMsg {
-  text-align: center; font-size: 0.9rem; margin: 10px 0;
-}
-#loadingMsg { color: #54a0ff; display: none; }
-#errorMsg { color: #ff6b6b; display: none; }
+        /* ========== Variables ========== */
+        :root {
+            --primary-color: #0d6efd;
+            --primary-light: #e7f3ff;
+            --primary-dark: #0a58ca;
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --text-dark: #212529;
+            --text-light: #6c757d;
+            --border-color: #dee2e6;
+            --error-color: #dc3545;
+        }
 
-/* ========== Certificate Section ========== */
-#certificate {
-  margin-top: 30px; display: none;
-  background: rgba(255,255,255,0.9); border-radius: 12px;
-  padding: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-  color: var(--text-dark);
-}
-#certificate p {
-  font-size: 1rem; margin: 0 0 15px; line-height: 1.6;
-}
-/* ========== Details Table ========== */
-table {
-  width: 100%; border-collapse: collapse; margin-top: 15px;
-}
-th, td { padding: 10px; border: 1px solid #ddd; }
-thead th {
-  background: var(--secondary); color: #fff; font-size: 0.9rem;
-  text-transform: uppercase;
-}
-tbody tr:nth-child(even) { background: #f7f7f7; }
-tbody tr:hover { background: var(--primary); color: #000; }
+        /* ========== Global Styles ========== */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-/* ========== Responsive ========== */
-@media (max-width: 480px) {
-  .container { padding: 20px 15px; }
-  h2 { font-size: 1.5rem; }
-  input, #searchButton { font-size: 0.9rem; padding: 12px; }
-  th, td { font-size: 0.8rem; padding: 8px; }
-}
+        body {
+            font-family: 'Vazirmatn', Arial, sans-serif;
+            direction: rtl;
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
 
-  </style>
+        /* ========== Main Container ========== */
+        .container {
+            width: 100%;
+            max-width: 600px; /* Slightly wider for the table */
+        }
+
+        /* ========== Search Box ========== */
+        .search-box {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 1.75rem;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 1.5rem;
+            color: var(--text-dark);
+        }
+
+        #searchInput {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 1rem;
+            font-family: 'Vazirmatn', Arial, sans-serif;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+
+        #searchInput::placeholder {
+            color: #a9aeb4;
+            letter-spacing: normal;
+        }
+
+        #searchInput:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.2);
+        }
+
+        #searchButton {
+            position: relative;
+            width: 100%;
+            padding: 12px;
+            margin-top: 1rem;
+            font-size: 1.1rem;
+            font-weight: bold;
+            font-family: 'Vazirmatn', Arial, sans-serif;
+            background: var(--primary-color);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+            overflow: hidden;
+            height: 50px; /* Fixed height for loader alignment */
+        }
+
+        #searchButton:hover:not(:disabled) {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        #searchButton:disabled {
+            background-color: #a9aeb4;
+            cursor: not-allowed;
+        }
+
+        /* Button Loader */
+        .btn-loader {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255, 255, 255, 0.4);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+        
+        #searchButton.loading .btn-text {
+            opacity: 0;
+        }
+        
+        #searchButton.loading .btn-loader {
+            display: block;
+        }
+
+        @keyframes spin {
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        /* ========== Messages ========== */
+        #errorMsg {
+            color: var(--error-color);
+            text-align: center;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            display: none;
+            min-height: 20px;
+        }
+
+        /* ========== Results Area ========== */
+        #resultsContainer {
+            transition: opacity 0.5s;
+        }
+
+        .result-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card-header {
+            padding: 1.5rem;
+            background-color: var(--primary-light);
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .card-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--text-dark);
+        }
+        
+        .card-header p {
+            margin: 0.25rem 0 0;
+            font-size: 1rem;
+            color: var(--text-light);
+        }
+
+        .card-body {
+            padding: 0; /* Remove padding to allow table to span full width */
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+
+        thead th {
+            background-color: #f8f9fa;
+            padding: 12px 16px;
+            text-align: right;
+            font-weight: bold;
+            color: var(--text-dark);
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        tbody td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-light);
+        }
+        
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        tbody tr:nth-child(odd) {
+            background-color: var(--card-bg); /* white */
+        }
+        
+        tbody tr:nth-child(even) {
+            background-color: #f8f9fa; /* very light grey */
+        }
+    </style>
 </head>
 <body>
-  <div id="loaderOverlay">
-    <div class="loader-spinner"></div>
-  </div>
-  <div class="container">
-    <h2>استعلام سوابق</h2>
-    <form id="loginForm">
-      <label for="nationalCode">کد ملی:</label>
-      <input type="tel" id="nationalCode" pattern="\d{10}" maxlength="10" required placeholder="۱۰ رقم کد ملی را وارد کنید">
-      <button type="button" id="searchButton">استعلام</button>
-    </form>
-    <div id="loadingMsg">در حال بارگذاری، لطفاً صبر کنید...</div>
-    <div id="errorMsg">کد ملی یافت نشد یا نامعتبر است.</div>
-    <div id="certificate">
-      <p>آقا/خانم <span id="fullName"></span> با کد ملی <span id="userId"></span> در مؤسسه فعالیت داشته‌اند:</p>
-      <table id="detailsTable">
-        <thead>
-          <tr><th>فعالیت</th><th>تاریخ شروع</th><th>تاریخ پایان</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+
+    <div class="container">
+        <div class="search-box">
+            <h1>استعلام سوابق</h1>
+            <input type="text" id="searchInput" placeholder="کد ملی خود را وارد کنید" inputmode="numeric" maxlength="10" />
+            <button id="searchButton">
+                <span class="btn-text">استعلام</span>
+                <div class="btn-loader"></div>
+            </button>
+            <div id="errorMsg"></div>
+        </div>
+
+        <div id="resultsContainer"></div>
     </div>
-  </div>  <script>
-    let excelData = [];
-    const loader = document.getElementById('loaderOverlay');
-    const loadingMsg = document.getElementById('loadingMsg');
-    const errorMsg = document.getElementById('errorMsg');
-    const form = document.getElementById('loginForm');
-    const cert = document.getElementById('certificate');
-    const tbody = document.getElementById('detailsTable').querySelector('tbody');
 
-    async function fetchData() {
-      loadingMsg.style.display = 'block';
-      const res = await fetch('https://docs.google.com/spreadsheets/d/19tVWLwHOMO1zqAId5mY7zYceF1uJUrS67Y_A-nuiT9w/export?format=xlsx');
-      const buf = await res.arrayBuffer();
-      const wb = XLSX.read(buf, { type: 'array' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      excelData = XLSX.utils.sheet_to_json(ws, { header: 1 }).slice(1);
-      loadingMsg.style.display = 'none';
-      loader.style.display = 'none';
-    }
-    fetchData();
+    <script>
+        const url = 'https://docs.google.com/spreadsheets/d/19tVWLwHOMO1zqAId5mY7zYceF1uJUrS67Y_A-nuiT9w/export?format=xlsx';
+        
+        const input = document.getElementById('searchInput');
+        const btn = document.getElementById('searchButton');
+        const errorMsg = document.getElementById('errorMsg');
+        const resultsContainer = document.getElementById('resultsContainer');
 
-    function toPersianDigits(str) {
-      return str.replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
-    }
+        const toggleLoading = (isLoading) => {
+            btn.classList.toggle('loading', isLoading);
+            btn.disabled = isLoading;
+        };
 
-    document.getElementById('searchButton').addEventListener('click', () => {
-      const code = document.getElementById('nationalCode').value.trim();
-      if (!/^\d{10}$/.test(code)) { errorMsg.style.display = 'block'; return; }
-      errorMsg.style.display = 'none';
-      tbody.innerHTML = '';
-      const matches = excelData.filter(r => r[2] == code);
-      if (!matches.length) { errorMsg.style.display = 'block'; return; }
-      form.style.display = 'none';
-      cert.style.display = 'block';
-      document.getElementById('fullName').innerText = matches[0][1];
-      document.getElementById('userId').innerText = toPersianDigits(code);
-      matches.forEach(row => {
-        const tr=document.createElement('tr');
-        [3,4,5].forEach(i => {
-          const td=document.createElement('td');
-          td.innerText = row[i] || (i==5?'(تا اکنون)':'');
-          tr.appendChild(td);
+        const showError = (message) => {
+            errorMsg.textContent = message;
+            errorMsg.style.display = 'block';
+        };
+
+        const searchAndDisplay = (data) => {
+            resultsContainer.innerHTML = '';
+            errorMsg.style.display = 'none';
+
+            const nationalId = input.value.trim();
+
+            if (!/^\d{10}$/.test(nationalId)) {
+                showError('کد ملی باید 10 رقم و به صورت عددی وارد شود.');
+                return;
+            }
+
+            // In this sheet, National ID is in Column C (index 2)
+            const matches = data.filter(row => row[2]?.toString().trim() === nationalId);
+
+            if (matches.length > 0) {
+                displayResults(matches);
+            } else {
+                showError('سوابقی با این کد ملی یافت نشد. لطفا مجددا تلاش کنید.');
+            }
+        };
+
+        btn.addEventListener('click', () => {
+            resultsContainer.innerHTML = '';
+            errorMsg.style.display = 'none';
+
+            if (!/^\d{10}$/.test(input.value.trim())) {
+                showError('کد ملی باید 10 رقم و به صورت عددی وارد شود.');
+                return;
+            }
+
+            toggleLoading(true);
+
+            fetch(url)
+                .then(res => {
+                    if (!res.ok) throw new Error('Network response was not ok');
+                    return res.arrayBuffer();
+                })
+                .then(buf => {
+                    const wb = XLSX.read(buf, { type: 'array' });
+                    const ws = wb.Sheets[wb.SheetNames[0]];
+                    const data = XLSX.utils.sheet_to_json(ws, { header: 1 }).slice(1);
+                    searchAndDisplay(data);
+                })
+                .catch(err => {
+                    console.error("Error fetching or parsing Excel data:", err);
+                    showError("خطا در بارگذاری اطلاعات. لطفاً اتصال اینترنت خود را بررسی کرده و مجدداً تلاش کنید.");
+                })
+                .finally(() => {
+                    toggleLoading(false);
+                });
         });
-        tbody.appendChild(tr);
-      });
-    });
-  </script></body>
+        
+        input.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                btn.click();
+            }
+        });
+
+        function displayResults(matches) {
+            // Name from column B (index 1), National ID from column C (index 2)
+            const fullName = matches[0][1] || 'کاربر گرامی';
+            const nationalId = matches[0][2] || 'ثبت نشده';
+
+            // Generate table rows from all matched records
+            const tableRows = matches.map(row => {
+                // Activity=D(3), StartDate=E(4), EndDate=F(5)
+                const activity = row[3] || '-';
+                const startDate = row[4] || '-';
+                const endDate = row[5] || 'تاکنون';
+                return `
+                    <tr>
+                        <td>${activity}</td>
+                        <td>${startDate}</td>
+                        <td>${endDate}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            const cardHTML = `
+                <div class="result-card">
+                    <div class="card-header">
+                        <h2>${fullName}</h2>
+                        <p>کد ملی: ${nationalId}</p>
+                    </div>
+                    <div class="card-body">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>نوع فعالیت</th>
+                                    <th>تاریخ شروع</th>
+                                    <th>تاریخ پایان</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tableRows}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            resultsContainer.innerHTML = cardHTML;
+        }
+    </script>
+</body>
 </html>
