@@ -114,13 +114,19 @@
         border: none;
         border-radius: 12px;
         cursor: pointer;
-        transition: transform 0.2s, box-shadow 0.3s;
+        transition: transform 0.2s, box-shadow 0.3s, background-color 0.3s;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 10px;
     }
-    .btn:hover {
+    .btn:disabled {
+        cursor: not-allowed;
+        background-image: none;
+        background-color: #aaa;
+        opacity: 0.7;
+    }
+    .btn:hover:not(:disabled) {
         transform: translateY(-3px);
         box-shadow: 0 5px 15px rgba(255, 235, 59, 0.4);
     }
@@ -129,7 +135,7 @@
         color: var(--text-color);
         border: 1px solid var(--card-border);
     }
-    .btn-secondary:hover { background: rgba(255,255,255,0.25); }
+    .btn-secondary:hover:not(:disabled) { background: rgba(255,255,255,0.25); }
     .actions-group {
         display: flex;
         gap: 15px;
@@ -211,14 +217,13 @@
         line-height: 2;
         margin-bottom: 15px;
     }
-    /* ##########  شروع تغییر اصلی  ########## */
+    /* حل مشکل صفحه دوم PDF با حذف margin-top: auto */
     #preview-area .signature-block {
-        /* دستور margin-top: auto حذف شد که باعث ایجاد فاصله زیاد می‌شد */
-        margin-top: 50px; /* یک فاصله ثابت و منطقی تعریف شد */
+        /* دستور margin-top: auto حذف شد که باعث ایجاد فاصله زیاد و ایجاد صفحه دوم خالی می‌شد */
+        margin-top: 50px; /* یک فاصله ثابت و منطقی برای جلوگیری از سرریز شدن محتوا تعریف شد */
         text-align: center;
         font-size: 11pt;
     }
-    /* ##########   پایان تغییر اصلی  ########## */
     #preview-area .signature-block img {
         display: block;
         margin: 0 auto 5px;
@@ -232,11 +237,15 @@
   <div class="main-container">
     <!-- مرحله ۱: ورود -->
     <div id="step1" class="step active">
-      <h1>درخواست گواهی حضور</h1>
+      <h1>درخواست صدور گواهینامه</h1>
       <div class="input-group">
         <input type="tel" id="idcode" placeholder="کد ملی خود را وارد کنید" maxlength="10">
       </div>
-      <button class="btn" id="validateButton"><i class="fas fa-check-circle"></i>اعتبارسنجی</button>
+      <!-- تغییر ۱: دکمه در ابتدا غیرفعال است تا داده‌ها بارگذاری شوند -->
+      <button class="btn" id="validateButton" disabled>
+          <i class="fas fa-spinner fa-spin"></i>
+          در حال بارگذاری اطلاعات...
+      </button>
       <div id="message-box" class="message" style="display: none;"></div>
     </div>
 
@@ -250,7 +259,7 @@
 
     <!-- مرحله ۲: تکمیل اطلاعات -->
     <div id="step2" class="step">
-      <h1>تکمیل اطلاعات</h1>
+      <h1>درخواست صدور گواهی</h1>
       <div class="input-group">
         <label>نام و نام خانوادگی</label>
         <input type="text" id="fullname" readonly>
@@ -335,25 +344,39 @@
         msgBox.style.display = 'block';
     }
 
+    // تغییر ۱: بارگذاری داده‌ها در ابتدای کار و در پس‌زمینه
     const dataPromise = fetch(dataUrl)
-        .then(res => res.ok ? res.arrayBuffer() : Promise.reject('Network Error'))
+        .then(res => {
+            if (!res.ok) throw new Error('Network response was not ok');
+            return res.arrayBuffer();
+        })
         .then(data => {
             const workbook = XLSX.read(data, { type: 'array' });
             studentData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
-            console.log("Data loaded.");
+            console.log("Data loaded successfully.");
         });
     
     window.addEventListener('DOMContentLoaded', () => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const nationalId = urlParams.get('id');
-        if (nationalId && /^\d{10}$/.test(nationalId)) {
-            idcodeInput.value = nationalId;
-            validateAndFetch();
-        } else {
-            dataPromise.catch(err => showMessage('خطا در بارگذاری اولیه. لطفا صفحه را رفرش کنید.'));
-        }
+        // تغییر ۱: فعال‌سازی دکمه پس از بارگذاری موفق داده‌ها
+        dataPromise.then(() => {
+            validateBtn.disabled = false;
+            validateBtn.innerHTML = '<i class="fas fa-check-circle"></i>اعتبارسنجی';
+            
+            // بررسی پارامتر URL پس از بارگذاری داده‌ها
+            const urlParams = new URLSearchParams(window.location.search);
+            const nationalId = urlParams.get('id');
+            if (nationalId && /^\d{10}$/.test(nationalId)) {
+                idcodeInput.value = nationalId;
+                validateAndFetch(); // اعتبارسنجی خودکار
+            }
+        }).catch(err => {
+            console.error("Data loading failed:", err);
+            showMessage('خطا در بارگذاری اطلاعات اولیه. لطفاً صفحه را رفرش کنید.');
+            validateBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> خطا در بارگذاری';
+            // دکمه همچنان غیرفعال باقی می‌ماند
+        });
     });
-
+    
     validateBtn.addEventListener('click', validateAndFetch);
 
     async function validateAndFetch() {
@@ -366,23 +389,30 @@
         showStep('step-loading');
         
         try {
-            await dataPromise;
+            // تغییر ۱: دیگر نیازی به انتظار طولانی نیست چون داده‌ها قبلاً بارگذاری شده‌اند
+            await dataPromise; // این await بلافاصله رد می‌شود چون promise قبلاً resolve شده است
             const searchTerm = idcode.replace(/^0+/, '');
             const record = studentData.find(row => row && String(row[1]).replace(/^0+/, '') === searchTerm);
 
-            if (record) {
-                fullnameInput.value = record[0] || '';
-                courseNameInput.value = record[2] || '';
-                showStep('step2');
-            } else {
-                showMessage('کد ملی یافت نشد.');
-                showStep('step1');
-            }
+            // تأخیر عمدی کوتاه برای نمایش بهتر انیمیشن لودینگ
+            setTimeout(() => {
+                if (record) {
+                    fullnameInput.value = record[0] || '';
+                    courseNameInput.value = record[2] || '';
+                    showStep('step2');
+                } else {
+                    showMessage('کد ملی یافت نشد.');
+                    showStep('step1');
+                }
+            }, 500); // 0.5 ثانیه تأخیر
+
         } catch (error) {
-            showMessage('خطا در بارگذاری اطلاعات. لطفاً دوباره تلاش کنید.');
+            // این خطا در صورتی رخ می‌دهد که dataPromise در ابتدا reject شده باشد
+            showMessage('خطا در پردازش اطلاعات. لطفاً صفحه را رفرش کنید.');
             showStep('step1');
         }
     }
+
 
     // --- منطق امضا ---
     let drawing = false;
@@ -454,6 +484,8 @@
         };
 
         try {
+            // تأخیر عمدی برای نمایش بهتر انیمیشن لودینگ
+            await new Promise(resolve => setTimeout(resolve, 500));
             pdfBlob = await html2pdf().from(elementToPrint).set(options).output('blob');
             if (pdfBlob) {
                 showStep('step4');
@@ -467,9 +499,14 @@
         }
     }
 
+    // تغییر ۲: افزودن بازخورد به کاربر هنگام دانلود
     function savePdf() {
         if (!pdfBlob) return alert('فایل PDF هنوز ایجاد نشده است.');
         
+        const originalBtnHtml = savePdfBtn.innerHTML;
+        savePdfBtn.disabled = true;
+        savePdfBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> در حال شروع دانلود...';
+
         const url = URL.createObjectURL(pdfBlob);
         const a = document.createElement('a');
         a.href = url;
@@ -477,7 +514,18 @@
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        
+        // کمی بعد از کلیک، URL را آزاد می‌کنیم
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+
+        // نمایش پیام موفقیت و بازگرداندن دکمه به حالت اولیه
+        setTimeout(() => {
+            savePdfBtn.innerHTML = '<i class="fas fa-check-circle"></i> دانلود آغاز شد';
+            setTimeout(() => {
+                savePdfBtn.innerHTML = originalBtnHtml;
+                savePdfBtn.disabled = false;
+            }, 3000); // پس از ۳ ثانیه دکمه به حالت اول برمیگردد
+        }, 500); // پس از نیم ثانیه پیام موفقیت نمایش داده می‌شود
     }
     
     async function sharePdf() {
@@ -500,10 +548,10 @@
                 }
             }
         } else {
-            alert('مرورگر شما از قابلیت ارسال مستقیم فایل پشتیبانی نمی‌کند. لطفاً ابتدا فایل را ذخیره کرده و سپس ارسال کنید.');
+            alert('مرورگر شما از قابلیت ارسال مستقیم فایل پشتیبانی نمی‌کند. لطفاً فایل را ذخیره کرده و سپس ارسال کنید.');
         }
     }
   </script>
 
 </body>
-</html>
+</html> 
