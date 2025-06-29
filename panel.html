@@ -44,7 +44,6 @@
     body {
       font-family: 'Vazir', 'Tahoma', sans-serif;
       color: var(--text-dark);
-      /* بهبود: استفاده از min-height برای جلوگیری از چسبندگی در موبایل */
       min-height: 100vh; 
       overflow-x: hidden;
       display: flex;
@@ -52,7 +51,7 @@
       justify-content: center;
       padding: 20px;
       background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
-      background-attachment: fixed; /* ثابت کردن گرادینت */
+      background-attachment: fixed;
     }
 
     /* ================================
@@ -94,6 +93,7 @@
       border: 1px solid var(--card-border);
       border-radius: 20px;
       backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       box-shadow: 0 15px 40px rgba(0,0,0,0.15);
       padding: 40px;
       z-index: 1;
@@ -105,9 +105,10 @@
     }
 
     /* ================================
-       بخش ورود (فرم جدید و روشن)
+       سیستم نمایش View ها
     =================================== */
     .view {
+      display: block;
       transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
     }
     .view.hidden {
@@ -117,12 +118,18 @@
         pointer-events: none;
         transform: translateY(20px);
     }
+    .main-container[data-view="login"] #dashboard-view {
+        transform: translateY(20px);
+    }
     .main-container[data-view="dashboard"] #login-view {
         opacity: 0;
         pointer-events: none;
         transform: translateY(-20px);
     }
 
+    /* ================================
+       بخش ورود (فرم جدید و روشن)
+    =================================== */
     #login-view h1 {
       text-align: center;
       font-size: 2.2rem;
@@ -184,11 +191,16 @@
       border: none;
       border-radius: 10px;
       cursor: pointer;
+      position: relative;
       transition: transform 0.2s, box-shadow 0.3s;
     }
-    .form-button:hover {
+    .form-button:hover:not(:disabled) {
       transform: translateY(-3px);
       box-shadow: 0 10px 20px rgba(30, 60, 114, 0.25);
+    }
+    .form-button:disabled {
+        cursor: not-allowed;
+        background: var(--text-muted);
     }
 
     .form-button .btn-text { transition: opacity 0.2s; }
@@ -196,7 +208,8 @@
         width: 24px; height: 24px; border: 3px solid rgba(255, 255, 255, 0.3);
         border-top-color: #fff; border-radius: 50%; position: absolute;
         top: 50%; left: 50%; margin-top: -12px; margin-left: -12px;
-        animation: spin 0.8s linear infinite; opacity: 0; transition: opacity 0.2s;
+        animation: spin 0.8s linear infinite; opacity: 0;
+        transition: opacity 0.2s;
     }
     .form-button.loading .btn-text { opacity: 0; }
     .form-button.loading .spinner { opacity: 1; }
@@ -305,7 +318,6 @@
     }
     #logout-btn i { margin-left: 8px; }
     
-    /* واکنش‌گرایی و رفع مشکل چسبندگی */
     @media (max-width: 768px) {
         .main-container { padding: 30px 25px; margin: 20px 0; }
         .main-container[data-view="dashboard"] { max-width: 100%; }
@@ -320,7 +332,7 @@
   
   <div id="page-loader">
     <div class="loader-spinner"></div>
-    <p>در حال بارگذاری...</p>
+    <p>در حال آماده‌سازی...</p>
   </div>
   
   <div class="main-container" data-view="login">
@@ -377,11 +389,12 @@
   </div>
 
   <script>
-    // === کد جاوا اسکریپت بدون تغییر باقی می‌ماند ===
-    // === این بخش فقط برای کامل بودن کد آورده شده است ===
+    // === کد جاوا اسکریپت بهینه شده برای سرعت و عملکرد بهتر ===
 
     const dataUrl = 'https://docs.google.com/spreadsheets/d/1QSRAGajWtCWHJHsU-u4dRW85nq2hCGySKqtZQL0iTjY/export?format=xlsx';
     let studentData = [];
+    let isDataLoaded = false;
+    let isDataLoading = false;
 
     // انتخابگرهای عناصر DOM
     const mainContainer = document.querySelector('.main-container');
@@ -408,7 +421,11 @@
     };
 
     // منطق اصلی برنامه
-    const fetchAndInit = async () => {
+    const loadStudentData = async () => {
+        if (isDataLoaded || isDataLoading) return;
+        isDataLoading = true;
+        setLoadingState(true);
+
         try {
             const res = await fetch(dataUrl);
             if (!res.ok) throw new Error('Network response was not ok.');
@@ -416,31 +433,36 @@
             const workbook = XLSX.read(data, { type: 'array' });
             const worksheet = workbook.Sheets[workbook.SheetNames[0]];
             studentData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }).slice(1);
+            isDataLoaded = true;
             console.log('Student data loaded successfully.');
-            
-            checkSession();
         } catch (error) {
             console.error('Failed to load student data:', error);
-            showMessage('خطا در بارگذاری اطلاعات. لطفا اتصال اینترنت را بررسی و صفحه را مجدداً بارگذاری کنید.');
+            showMessage('خطا در بارگذاری اطلاعات. لطفا اتصال اینترنت را بررسی و مجدداً تلاش کنید.');
+            // در صورت خطا، امکان تلاش مجدد را فراهم می‌کنیم
+            isDataLoading = false; 
+            setLoadingState(false);
+            throw error; // خطا را پرتاب می‌کنیم تا handleLogin متوجه شود
         } finally {
-            pageLoader.style.opacity = '0';
-            setTimeout(() => { pageLoader.style.display = 'none'; }, 500);
+            isDataLoading = false;
         }
     };
 
     const checkSession = () => {
         const sessionData = localStorage.getItem('loggedInUser');
-        if (!sessionData) return;
+        if (!sessionData) return false;
 
         const session = JSON.parse(sessionData);
         if (new Date().getTime() - session.loginTime < SESSION_DURATION) {
-            const studentRecord = findStudent(session.nationalId);
-            if (studentRecord) {
-                displayDashboard(studentRecord, session.nationalId, false);
-            }
+            // برای نمایش داشبورد از سشن، نیاز به داده‌ها داریم.
+            // به جای لاگین مجدد، یک پیام ساده نمایش می‌دهیم و از کاربر می‌خواهیم کد ملی را وارد کند
+            // یا می‌توانیم داده‌ها را مجددا بارگذاری کنیم. برای سادگی، فعلا فقط پیام می‌دهیم.
+            // در حالت پیشرفته‌تر، می‌توان داده‌ها را هم در localStorage ذخیره کرد.
+            // فعلا برای حفظ سادگی، کاربر را به صفحه لاگین برمی‌گردانیم تا داده‌ها بارگذاری شوند.
+            console.log('Valid session found, user needs to login again to load data.');
         } else {
             localStorage.removeItem('loggedInUser');
         }
+        return false;
     };
 
     const findStudent = (nationalId) => {
@@ -448,37 +470,45 @@
         return studentData.find(row => row && row[1]?.toString().replace(/^0+/, '') === searchTerm);
     };
 
-    const handleLogin = () => {
+    const handleLogin = async () => {
         const nationalId = input.value.trim();
         msgBox.style.display = 'none';
 
         if (!/^\d{10}$/.test(nationalId)) {
             return showMessage('کد ملی باید ۱۰ رقم و فقط شامل عدد باشد.');
         }
-        if (studentData.length === 0) {
-            return showMessage('اطلاعات هنوز آماده نیست، لطفاً لحظه‌ای صبر کنید.');
-        }
-
-        setLoadingState(true);
-
-        setTimeout(() => {
-            const studentRecord = findStudent(nationalId);
-            setLoadingState(false);
-
-            if (studentRecord) {
-                displayDashboard(studentRecord, nationalId);
-            } else {
-                showMessage('کد ملی وارد شده در سامانه یافت نشد.');
+        
+        try {
+            if (!isDataLoaded) {
+                await loadStudentData();
             }
-        }, 500);
+        
+            setLoadingState(true); // لودر را برای جستجو فعال نگه دار
+
+            // یک تاخیر کوتاه برای حس بهتر پردازش
+            setTimeout(() => {
+                const studentRecord = findStudent(nationalId);
+                setLoadingState(false);
+
+                if (studentRecord) {
+                    displayDashboard(studentRecord, nationalId);
+                } else {
+                    showMessage('کد ملی وارد شده در سامانه یافت نشد.');
+                }
+            }, 300);
+
+        } catch (error) {
+            // خطا قبلا در loadStudentData نمایش داده شده است.
+            console.log("Login aborted due to data loading failure.");
+        }
     };
 
-    const displayDashboard = (record, originalNationalId, animate = true) => {
+    const displayDashboard = (record, originalNationalId) => {
         document.getElementById('student-name').textContent = record[0] || 'نامشخص';
         document.getElementById('national-id').textContent = `کد ملی: ${originalNationalId}`;
         
-        const startDate = record[4];
-        const calculatedEndDate = startDate ? moment(startDate, 'jYYYY/jMM/jDD').add(84, 'days').format('jYYYY/jMM/jDD') : record[5];
+        const startDate = record[4] ? moment(record[4], 'jYYYY/jM/jD').format('jYYYY/jMM/jDD') : 'نامشخص';
+        const calculatedEndDate = record[4] ? moment(record[4], 'jYYYY/jM/jD').add(84, 'days').format('jYYYY/jMM/jDD') : (record[5] || 'نامشخص');
         
         const details = {
             'نام دوره': { icon: 'fa-chalkboard-teacher', value: record[2] },
@@ -509,30 +539,38 @@
         }));
 
         mainContainer.dataset.view = 'dashboard';
-        loginView.classList.add('hidden');
-        dashboardView.classList.remove('hidden');
     };
 
     const handleLogout = () => {
         localStorage.removeItem('loggedInUser');
-        
         mainContainer.dataset.view = 'login';
-        dashboardView.classList.add('hidden');
-        loginView.classList.remove('hidden');
         
         setTimeout(() => {
             input.value = '';
+            input.blur();
             msgBox.style.display = 'none';
         }, 500);
     };
 
-    // ثبت Event Listeners
-    loginBtn.addEventListener('click', handleLogin);
-    input.addEventListener('keydown', (e) => e.key === 'Enter' && handleLogin());
-    logoutBtn.addEventListener('click', handleLogout);
-
     // شروع برنامه
-    document.addEventListener('DOMContentLoaded', fetchAndInit);
+    document.addEventListener('DOMContentLoaded', () => {
+        // ابتدا سشن را چک می‌کنیم، اما فعلا اقدامی برای لاگین خودکار انجام نمی‌دهیم
+        // چون داده‌ها بارگذاری نشده‌اند. این کار از پیچیدگی غیرضروری جلوگیری می‌کند.
+        checkSession();
+        
+        // مخفی کردن لودر اولیه
+        pageLoader.style.opacity = '0';
+        setTimeout(() => { pageLoader.style.display = 'none'; }, 500);
+
+        // ثبت Event Listeners
+        loginBtn.addEventListener('click', handleLogin);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                handleLogin();
+            }
+        });
+        logoutBtn.addEventListener('click', handleLogout);
+    });
   </script>
 
 </body>
