@@ -4,9 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>داشبورد آموزشی - تربیت مربی نوجوان</title>
-  
+
   <!-- کتابخانه‌ها -->
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
   <style>
@@ -190,7 +192,8 @@
       transition: max-height 0.5s ease-out;
     }
     .accordion-content-inner {
-      padding: 0 20px 20px 20px;
+      /* [ویرایش]: اضافه کردن padding-top برای رفع چسبندگی دکمه‌ها */
+      padding: 20px;
       display: flex; flex-direction: column; gap: 15px;
     }
     .action-button {
@@ -200,8 +203,9 @@
       font-family: inherit; font-size: 1rem; font-weight: 700;
       display: flex; align-items: center; justify-content: center; gap: 10px;
       transition: all var(--transition-speed);
-      text-decoration: none; /* برای تگ a اضافه شد */
-      color: var(--text-dark); /* برای تگ a اضافه شد */
+      /* [ویرایش]: استایل برای تگ a که شبیه دکمه است */
+      text-decoration: none;
+      color: var(--text-dark);
     }
     .action-button:hover { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
     .action-button.homework { background-color: var(--primary-color); color: white; border-color: transparent; }
@@ -211,7 +215,6 @@
     .special-state-card {
       text-align: center; padding: 50px 20px;
     }
-    /* [ویرایش اول]: سلکتور اصلاح شد تا فقط روی آیکن اصلی کارت اثر بگذارد */
     .special-state-card > i { font-size: 4rem; color: var(--primary-color); margin-bottom: 20px; }
     .special-state-card h2 { font-size: 2rem; margin-bottom: 10px; }
     .special-state-card p { font-size: 1.1rem; color: var(--text-muted); }
@@ -230,7 +233,7 @@
     .modal-content {
       background: #fff; padding: 30px;
       border-radius: var(--border-radius);
-      width: 90%; max-width: 600px; /* Max-width for video modal can be larger */
+      width: 90%; max-width: 500px;
       position: relative; text-align: center;
       box-shadow: var(--shadow-medium);
     }
@@ -249,17 +252,24 @@
     .modal-footer .btn-primary { background: var(--primary-color); color: white; }
     .modal-footer .btn-primary:hover { background: var(--primary-hover); }
 
-    /* [تغییر] استایل برای نگهدارنده ویدیو */
-    #video-container {
-        padding: 0; /* حذف پدینگ اضافی */
-        aspect-ratio: 16 / 9; /* حفظ نسبت تصویر ویدیو */
+    /* [ویرایش]: استایل برای نگهدارنده ویدئو و آی‌فریم */
+    #video-player-container {
+        position: relative;
+        padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+        height: 0;
+        overflow: hidden;
+    }
+    #video-player-container iframe {
+        position: absolute;
+        top: 0;
+        left: 0;
         width: 100%;
-        background-color: #000;
+        height: 100%;
         border-radius: 8px;
     }
-    #video-container > div {
-        border-radius: 8px; /* گرد کردن گوشه‌های پلیر آپارات */
-    }
+
+    #pdfModal iframe { width: 100%; height: 60vh; border: none; border-radius: 8px; }
+    #pdfModal .modal-content { max-width: 800px; }
 
     /* واکنش‌گرایی */
     @media (max-width: 768px) {
@@ -269,13 +279,14 @@
       .user-profile-info h1 { font-size: 1.1rem; }
     }
   </style>
+
 </head>
 <body>
 
   <div id="loadingOverlay" class="overlay">
     <div class="loader"></div>
   </div>
-  
+
   <div id="login-container" class="overlay" style="display: none;">
     <div id="login-box">
       <h2><i class="fas fa-chalkboard-teacher"></i><br>ورود به پنل آموزشی</h2>
@@ -283,7 +294,7 @@
       <button id="verifyButton">ورود</button>
     </div>
   </div>
-  
+
   <div id="dashboard">
     <main>
       <div id="warning-banner" class="warning-banner" style="display: none;"></div>
@@ -311,7 +322,7 @@
           </div>
         </div>
       </header>
-      
+
       <div id="dynamic-content" class="course-content">
         <!-- محتوای آکاردئونی یا حالت‌های خاص اینجا قرار می‌گیرد -->
       </div>
@@ -319,43 +330,31 @@
   </div>
 
   <!-- پاپ‌آپ‌ها -->
-  <!-- [تغییر] تگ ویدیو با یک نگهدارنده برای اسکریپت جایگزین شد -->
+
+  <!-- [ویرایش]: ساختار پاپ‌آپ ویدئو برای پشتیبانی از اسکریپت آپارات تغییر کرد -->
   <div id="videoModal" class="modal">
     <div class="modal-content">
-        <div class="modal-header">
-            <h3 id="videoTitle"></h3>
-            <button class="close-btn" onclick="closeModal('videoModal')">×</button>
-        </div>
-        <div id="video-container"></div>
+      <div class="modal-header">
+        <h3 id="videoTitle"></h3>
+        <button class="close-btn" onclick="closeModal('videoModal')">×</button>
+      </div>
+      <div id="video-player-container">
+          <!-- اسکریپت ویدئو از آپارات اینجا تزریق می‌شود -->
+      </div>
     </div>
   </div>
-  <!-- [توجه] پاپ‌آپ جزوه حفظ شده ولی دیگر استفاده نمی‌شود -->
+
+  <!-- این پاپ‌آپ دیگر برای جزوات استفاده نمی‌شود اما طبق درخواست حذف نشده است -->
   <div id="pdfModal" class="modal"><div class="modal-content"><div class="modal-header"><h3 id="pdfTitle"></h3><button class="close-btn" onclick="closeModal('pdfModal')">×</button></div><iframe id="pdfViewer"></iframe></div></div>
+  
   <div id="homeworkModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-feather-alt"></i> دستورالعمل ارسال تکلیف</h3><button class="close-btn" onclick="closeModal('homeworkModal')">×</button></div><div class="modal-body"><p>لطفا خلاصه‌ای از این درس را در <strong>حداقل سه صفحه A4</strong> به صورت <strong>دست‌نویس</strong> تهیه کرده و تصویر آن را برای ادمین در پیام‌رسان ایتا ارسال نمایید.</p></div><div class="modal-footer"><a href="https://eitaa.com/irtaali" target="_blank" class="btn btn-primary"><i class="fas fa-paper-plane"></i> ارسال پیام به ادمین ایتا</a></div></div></div>
   <div id="certificateModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-award"></i> درخواست گواهی پایان دوره</h3><button class="close-btn" onclick="closeModal('certificateModal')">×</button></div><div class="modal-body"><p>برای درخواست گواهی، ابتدا باید تمام تکالیف دوره را با موفقیت ارسال کرده باشید. پس از اطمینان از تکمیل تکالیف، جهت هماهنگی برای صدور گواهی به ادمین مراجعه کنید.</p></div><div class="modal-footer"><a href="https://eitaa.com/irtaali" target="_blank" class="btn btn-primary"><i class="fas fa-paper-plane"></i> تماس با ادمین ایتا</a></div></div></div>
-  
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // === Global Variables ===
     let registeredUsers = [], currentUser = null, courseData = {}, certificateData = [];
     let countdownInterval;
-
-    // [افزوده شد] لینک جزوات و ویدیوها برای دسترسی آسان
-    const pdfLinks = {
-        1: "https://drive.google.com/file/d/1jpQw_Si57LxDzWPNirbUWJ9GRVoPRskW/view?usp=drivesdk",
-        2: "https://drive.google.com/file/d/1jvGWk_6ZugxbclXJad9B39qgobWaY4B6/view?usp=drivesdk",
-        3: "https://drive.google.com/file/d/1joBvMQzV2qV3Sz-rsIGhjw1wY93xg8Yz/view?usp=drivesdk",
-        4: "https://drive.google.com/file/d/1k6_5QmpVPxb0FWDpOfUPxUHujBzn_ML5/view?usp=drivesdk",
-        5: "https://drive.google.com/file/d/1k0KFs3GEScdDsJ-EwipdhaIsV1peIgI4/view?usp=drivesdk",
-        6: "https://drive.google.com/file/d/1kAtuiyD7pbkYsMFkvaoguFPOiefQdEFr/view?usp=drivesdk"
-        // ترم ۷ و ۸ لینک ندارند
-    };
-
-    const videoScripts = {
-        1: '<div id="50375348038"><script type="text/JavaScript" src="https://www.aparat.com/embed/t38232t?data[rnddiv]=50375348038&data[responsive]=yes&titleShow=true"><\/script></div>'
-        // ویدیوهای دیگر هنوز آماده نیستند
-    };
-
 
     // === DOM Elements ===
     const DOM = {
@@ -371,13 +370,31 @@ document.addEventListener('DOMContentLoaded', function() {
         endDate: document.getElementById('endDate'),
         progressBarFill: document.getElementById('progress-bar-fill'),
         logoutBtn: document.getElementById('logoutBtn'),
-        videoContainer: document.getElementById('video-container'), // [تغییر] نگهدارنده ویدیو
+        // [ویرایش]: تعریف نگهدارنده ویدئو
+        videoPlayerContainer: document.getElementById('video-player-container'),
         videoTitle: document.getElementById('videoTitle'),
+        // این موارد دیگر استفاده نمی‌شوند اما طبق درخواست حذف نشده‌اند
+        termVideo: document.getElementById('termVideo'),
         pdfViewer: document.getElementById('pdfViewer'),
         pdfTitle: document.getElementById('pdfTitle'),
         warningBanner: document.getElementById('warning-banner'),
     };
     
+    // [ویرایش]: تعریف لینک‌های جزوات و ویدئوها
+    const termContent = {
+        1: {
+            pdf: 'https://drive.google.com/file/d/1jpQw_Si57LxDzWPNirbUWJ9GRVoPRskW/preview',
+            videoScript: '<div id="50375348038"><script type="text/JavaScript" src="https://www.aparat.com/embed/t38232t?data[rnddiv]=50375348038&data[responsive]=yes&titleShow=true"><\/script><\/div>'
+        },
+        2: { pdf: 'https://drive.google.com/file/d/1jvGWk_6ZugxbclXJad9B39qgobWaY4B6/preview', videoScript: null },
+        3: { pdf: 'https://drive.google.com/file/d/1joBvMQzV2qV3Sz-rsIGhjw1wY93xg8Yz/preview', videoScript: null },
+        4: { pdf: 'https://drive.google.com/file/d/1k6_5QmpVPxb0FWDpOfUPxUHujBzn_ML5/preview', videoScript: null },
+        5: { pdf: 'https://drive.google.com/file/d/1k0KFs3GEScdDsJ-EwipdhaIsV1peIgI4/preview', videoScript: null },
+        6: { pdf: 'https://drive.google.com/file/d/1kAtuiyD7pbkYsMFkvaoguFPOiefQdEFr/preview', videoScript: null },
+        7: { pdf: null, videoScript: null },
+        8: { pdf: null, videoScript: null }
+    };
+
     // === Date Helper Functions ===
     function jalaliToGregorian(jy, jm, jd) {
         let sal_a, gy, gm, gd, days;
@@ -406,37 +423,33 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     window.openModal = (id) => { document.getElementById(id).style.display = 'flex'; };
     
-    // [تغییر] تابع بستن مودال برای توقف ویدیو اصلاح شد
+    // [ویرایش]: تابع بستن پاپ آپ برای پاک کردن محتوای ویدئو
     window.closeModal = (id) => {
-        const modal = document.getElementById(id);
-        if (modal) {
-            modal.style.display = 'none';
+        if (id === 'videoModal' && DOM.videoPlayerContainer) {
+            DOM.videoPlayerContainer.innerHTML = ''; // برای توقف پخش ویدئو
         }
-        // اگر مودال ویدیو بسته شد، محتوای آن را پاک کن تا ویدیو متوقف شود
-        if (id === 'videoModal' && DOM.videoContainer) {
-            DOM.videoContainer.innerHTML = '';
-        }
+        document.getElementById(id).style.display = 'none';
     };
 
-    // [تغییر] تابع باز کردن مودال ویدیو برای استفاده از اسکریپت
-    window.openVideoModal = (term) => {
-        const scriptContent = videoScripts[term];
-        if (!scriptContent) return; // اگر اسکریپتی برای این ترم نبود، کاری نکن
-
-        DOM.videoTitle.innerText = `ویدیوی آموزشی ترم ${term}`;
-        
-        // محتوای قبلی را پاک کرده و اسکریپت جدید را قرار بده
-        DOM.videoContainer.innerHTML = scriptContent;
-        
+    // [ویرایش]: تابع باز کردن پاپ آپ ویدئو با اسکریپت آپارات
+    window.openVideoModal = (termNumber) => {
+        const content = termContent[termNumber];
+        if (!content || !content.videoScript) {
+            alert('ویدئویی برای این ترم وجود ندارد.');
+            return;
+        }
+        DOM.videoTitle.innerText = `ویدیوی آموزشی ترم ${termNumber}`;
+        DOM.videoPlayerContainer.innerHTML = content.videoScript;
         openModal('videoModal');
     };
-
-    // [توجه] این تابع دیگر برای جزوات استفاده نمی‌شود اما برای کاربردهای احتمالی دیگر حفظ شده است
+    
+    // این تابع دیگر برای جزوات استفاده نمی‌شود اما طبق درخواست حذف نشده است
     window.openPdfModal = (term) => {
         DOM.pdfTitle.innerText = `جزوه آموزشی ترم ${term}`;
-        DOM.pdfViewer.src = `sample_booklet_term${term}.pdf`; // این یک لینک نمونه است
+        DOM.pdfViewer.src = `sample_booklet_term${term}.pdf`;
         openModal('pdfModal');
     };
+
 
     // === Dynamic Content Rendering ===
     function renderCourseTimeline() {
@@ -456,16 +469,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (isRestWeek) statusClass += ' rest-week';
 
             const termNumber = isRestWeek ? null : termCounter;
+            const termInfo = termNumber ? termContent[termNumber] : null;
             
-            // [تغییر] دکمه‌های ویدیو و جزوه به صورت شرطی و با لینک‌های جدید ساخته می‌شوند
-            const videoButtonHTML = videoScripts[termNumber] 
-                ? `<button class="action-button" onclick="openVideoModal(${termNumber})"><i class="fas fa-video"></i> مشاهده ویدیو</button>` 
-                : '';
-
-            const pdfButtonHTML = pdfLinks[termNumber] 
-                ? `<a href="${pdfLinks[termNumber]}" target="_blank" rel="noopener noreferrer" class="action-button"><i class="fas fa-file-pdf"></i> مشاهده جزوه</a>` 
-                : '';
-
             timelineHTML += `
                 <div class="accordion-item ${statusClass}" data-week="${i + 1}" data-term="${termNumber || ''}">
                     <div class="accordion-header" ${isLocked ? '' : 'onclick="toggleAccordion(this)"'}>
@@ -482,8 +487,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="accordion-content">
                         <div class="accordion-content-inner">
                             ${isRestWeek ? '<p>این هفته برای استراحت و مرور دروس گذشته در نظر گرفته شده است.</p>' : `
-                            ${videoButtonHTML}
-                            ${pdfButtonHTML}
+                            
+                            ${termInfo && termInfo.videoScript ? `
+                                <button class="action-button" onclick="openVideoModal(${termNumber})"><i class="fas fa-video"></i> مشاهده ویدیو</button>
+                            ` : ''}
+                            
+                            ${termInfo && termInfo.pdf ? `
+                                <a href="${termInfo.pdf}" target="_blank" rel="noopener noreferrer" class="action-button"><i class="fas fa-file-pdf"></i> مشاهده جزوه</a>
+                            ` : ''}
+
                             <button class="action-button homework" onclick="openModal('homeworkModal')"><i class="fas fa-paper-plane"></i> ارسال تکلیف</button>
                             `}
                         </div>
@@ -571,7 +583,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const certificateWindowEndDate = new Date(courseData.endDate.getTime() + 30 * 24 * 60 * 60 * 1000);
 
             if (now <= certificateWindowEndDate) {
-                // [ویرایش دوم]: استایل وسط‌چین به div نگهدارنده دکمه اضافه شد
                 DOM.dynamicContent.innerHTML = `
                     <div class="special-state-card">
                         <i class="fas fa-check-circle" style="color: var(--success-color);"></i>
@@ -702,5 +713,6 @@ document.addEventListener('DOMContentLoaded', function() {
     loadAndInit();
 });
 </script>
+
 </body>
 </html>
