@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+ <!DOCTYPE html> 
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
@@ -141,7 +141,7 @@
       margin: 5px 0 0; font-size: 1.1rem; color: var(--text-light);
     }
     .action-buttons {
-      display: flex; justify-content: center; gap: 15px; margin-bottom: 25px;
+      display: flex; justify-content: center; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;
     }
     .action-buttons a {
       padding: 12px 25px; border-radius: 10px; text-decoration: none;
@@ -150,6 +150,7 @@
     }
     .action-buttons a.project-link { background-color: var(--secondary); }
     .action-buttons a.cert-link { background-color: var(--accent); }
+    .action-buttons a.lessons-link { background-color: var(--success); }
     .action-buttons a:hover {
       transform: translateY(-3px); box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     }
@@ -291,6 +292,7 @@
         resultsContainer.style.display = 'none';
         extraLink.innerHTML = '';
         errorMsg.style.display = 'none';
+        actionButtons.innerHTML = ''; // پاک کردن دکمه‌های قبلی
 
         if (!/^\d{1,19}$/.test(userInput) || userInput === "") {
             errorMsg.textContent = "لطفاً یک کد ملی معتبر وارد کنید.";
@@ -315,9 +317,15 @@
         const startDate = registrationInfo?.[4];
         
         let calculatedEndDate = null;
+        let isAfter85Days = false;
         if (startDate) {
-            // استفاده از کتابخانه jalali-moment برای محاسبه تاریخ ۸۵ روز بعد
-            calculatedEndDate = moment(startDate, 'jYYYY/jMM/jDD').add(85, 'days').format('jYYYY/jMM/jDD');
+            const startMoment = moment(startDate, 'jYYYY/jMM/jDD');
+            if(startMoment.isValid()){
+                calculatedEndDate = startMoment.clone().add(85, 'days').format('jYYYY/jMM/jDD');
+                // بررسی اینکه آیا از تاریخ شروع دوره، ۸۵ روز یا بیشتر گذشته است یا خیر
+                const daysPassed = moment().diff(startMoment, 'days');
+                isAfter85Days = daysPassed >= 85;
+            }
         }
 
         const projectLink = projectRecord?.[9];
@@ -332,16 +340,28 @@
         `;
 
         let buttonsHTML = '';
-        if (projectLink && projectLink.trim() !== '') {
-            buttonsHTML += `<a href="${projectLink}" target="_blank" class="project-link">مشاهده پروژه</a>`;
-        }
-        if (certLink && certLink.trim() !== '') {
-            buttonsHTML += `<a href="${certLink}" target="_blank" class="cert-link">دانلود گواهی</a>`;
+        if (isAfter85Days) {
+            // اگر ۸۵ روز گذشته باشد، دکمه‌ها نمایش داده می‌شوند
+            if (projectLink && projectLink.trim() !== '') {
+                buttonsHTML += `<a href="${projectLink}" target="_blank" class="project-link">مشاهده پروژه</a>`;
+            }
+            if (certLink && certLink.trim() !== '') {
+                buttonsHTML += `<a href="${certLink}" target="_blank" class="cert-link">دانلود گواهی</a>`;
+            }
+            if (registrationInfo) { // دکمه جزوات در کنار بقیه قرار می‌گیرد
+                buttonsHTML += `<a href="${driveFolderLink}" target="_blank" class="lessons-link">مشاهده دروس و جزوات</a>`;
+            }
+        } else {
+            // اگر ۸۵ روز نگذشته باشد، پیام اطلاع‌رسانی نمایش داده می‌شود
+            if(calculatedEndDate){
+                buttonsHTML = `<p style="text-align: center; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; width: 100%;">دانشجوی گرامی، دسترسی به گواهینامه، پروژه و جزوات پس از تاریخ ${calculatedEndDate} دوره امکان‌پذیر خواهد بود.</p>`;
+            }
         }
         actionButtons.innerHTML = buttonsHTML;
 
         const hasRegistered = !!registrationInfo || !!projectRecord;
-        const hasFinishedCourse = !!projectRecord;
+        // شرط اتمام دوره به گذشت ۸۵ روز از شروع دوره تغییر یافت
+        const hasFinishedCourse = isAfter85Days;
         const hasSentProject = projectLink && projectLink.trim() !== '';
         const hasCertificate = certLink && certLink.trim() !== '';
 
@@ -365,12 +385,10 @@
             ${certNumber ? `<li><span class="status-label">شماره گواهی</span> <span class="status-value status-info">${certNumber}</span></li>` : ''}
             ${certDate ? `<li><span class="status-label">تاریخ اخذ گواهی</span> <span class="status-value status-info">${certDate}</span></li>` : ''}
             ${startDate ? `<li><span class="status-label">تاریخ شروع دوره</span> <span class="status-value status-info">${startDate}</span></li>` : ''}
-            ${calculatedEndDate ? `<li><span class="status-label">تاریخ اتمام دوره</span> <span class="status-value status-info">${calculatedEndDate}</span></li>` : ''}
+            ${calculatedEndDate ? `<li><span class="status-label">تاریخ پایان دسترسی</span> <span class="status-value status-info">${calculatedEndDate}</span></li>` : ''}
         `;
 
-        if (registrationInfo) {
-            extraLink.innerHTML = `<a href="${driveFolderLink}" target="_blank">مشاهده دروس و جزوات</a>`;
-        }
+        // لینک اضافه که قبلا در اینجا بود، اکنون منطق آن به داخل دکمه‌ها منتقل شده است
         
         resultsContainer.style.display = 'block';
     }
