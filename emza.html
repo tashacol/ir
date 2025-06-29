@@ -214,13 +214,13 @@
     #preview-area p {
         text-align: justify;
         font-size: 11pt;
-        line-height: 2;
+        line-height: 1.8; /* <-- ویرایش نهایی: این خط برای جا شدن محتوا در یک صفحه اصلاح شد */
         margin-bottom: 15px;
     }
-    /* ویرایش ۱: حل مشکل صفحه دوم PDF با حذف margin-top: auto */
+    
     #preview-area .signature-block {
-        /* دستور margin-top: auto حذف شد که باعث ایجاد فاصله زیاد و ایجاد صفحه دوم خالی می‌شد */
-        margin-top: 50px; /* یک فاصله ثابت و منطقی برای جلوگیری از سرریز شدن محتوا تعریف شد */
+        margin-top: auto; /* این دستور باعث می‌شود بلوک امضا به پایین‌ترین قسمت ممکن هل داده شود */
+        padding-top: 20px; /* یک فاصله کوچک از متن بالا برای خوانایی بهتر */
         text-align: center;
         font-size: 11pt;
     }
@@ -241,7 +241,6 @@
       <div class="input-group">
         <input type="tel" id="idcode" placeholder="کد ملی خود را وارد کنید" maxlength="10">
       </div>
-      <!-- تغییر ۱: دکمه در ابتدا غیرفعال است تا داده‌ها بارگذاری شوند -->
       <button class="btn" id="validateButton" disabled>
           <i class="fas fa-spinner fa-spin"></i>
           در حال بارگذاری اطلاعات...
@@ -344,7 +343,6 @@
         msgBox.style.display = 'block';
     }
 
-    // تغییر ۱: بارگذاری داده‌ها در ابتدای کار و در پس‌زمینه
     const dataPromise = fetch(dataUrl)
         .then(res => {
             if (!res.ok) throw new Error('Network response was not ok');
@@ -357,23 +355,20 @@
         });
     
     window.addEventListener('DOMContentLoaded', () => {
-        // تغییر ۱: فعال‌سازی دکمه پس از بارگذاری موفق داده‌ها
         dataPromise.then(() => {
             validateBtn.disabled = false;
             validateBtn.innerHTML = '<i class="fas fa-check-circle"></i>اعتبارسنجی';
             
-            // بررسی پارامتر URL پس از بارگذاری داده‌ها
             const urlParams = new URLSearchParams(window.location.search);
             const nationalId = urlParams.get('id');
             if (nationalId && /^\d{10}$/.test(nationalId)) {
                 idcodeInput.value = nationalId;
-                validateAndFetch(); // اعتبارسنجی خودکار
+                validateAndFetch(); 
             }
         }).catch(err => {
             console.error("Data loading failed:", err);
             showMessage('خطا در بارگذاری اطلاعات اولیه. لطفاً صفحه را رفرش کنید.');
             validateBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> خطا در بارگذاری';
-            // دکمه همچنان غیرفعال باقی می‌ماند
         });
     });
     
@@ -389,12 +384,10 @@
         showStep('step-loading');
         
         try {
-            // تغییر ۱: دیگر نیازی به انتظار طولانی نیست چون داده‌ها قبلاً بارگذاری شده‌اند
-            await dataPromise; // این await بلافاصله رد می‌شود چون promise قبلاً resolve شده است
+            await dataPromise; 
             const searchTerm = idcode.replace(/^0+/, '');
             const record = studentData.find(row => row && String(row[1]).replace(/^0+/, '') === searchTerm);
 
-            // تأخیر عمدی کوتاه برای نمایش بهتر انیمیشن لودینگ
             setTimeout(() => {
                 if (record) {
                     fullnameInput.value = record[0] || '';
@@ -404,10 +397,9 @@
                     showMessage('کد ملی یافت نشد.');
                     showStep('step1');
                 }
-            }, 500); // 0.5 ثانیه تأخیر
+            }, 500); 
 
         } catch (error) {
-            // این خطا در صورتی رخ می‌دهد که dataPromise در ابتدا reject شده باشد
             showMessage('خطا در پردازش اطلاعات. لطفاً صفحه را رفرش کنید.');
             showStep('step1');
         }
@@ -484,7 +476,6 @@
         };
 
         try {
-            // تأخیر عمدی برای نمایش بهتر انیمیشن لودینگ
             await new Promise(resolve => setTimeout(resolve, 500));
             pdfBlob = await html2pdf().from(elementToPrint).set(options).output('blob');
             if (pdfBlob) {
@@ -533,7 +524,6 @@
         
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
             try {
-                // ویرایش ۲: تغییر متن ارسالی به فرمت درخواستی
                 const fullname = fullnameInput.value;
                 const idcode = idcodeInput.value;
                 const persianIdCode = idcode.replace(/[0-9]/g, w => '۰۱۲۳۴۵۶۷۸۹'[w]);
@@ -546,7 +536,7 @@
 
                 await navigator.share({
                     files: [file],
-                    title: 'درخواست صدور گواهی', // عنوان نیز برای هماهنگی بهتر اصلاح شد
+                    title: 'درخواست صدور گواهی',
                     text: shareText
                 });
             } catch (error) {
