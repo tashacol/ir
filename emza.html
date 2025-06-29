@@ -214,12 +214,13 @@
     #preview-area p {
         text-align: justify;
         font-size: 11pt;
-        line-height: 1.8; /* <-- ویرایش قطعی ۱: کاهش فاصله خطوط برای جا شدن در یک صفحه */
+        line-height: 2;
         margin-bottom: 15px;
     }
-    
+    /* حل مشکل صفحه دوم PDF با حذف margin-top: auto */
     #preview-area .signature-block {
-        margin-top: 50px; /* <-- ویرایش قطعی ۲: تعیین فاصله ثابت و منطقی برای جلوگیری از به هم ریختگی */
+        /* دستور margin-top: auto حذف شد که باعث ایجاد فاصله زیاد و ایجاد صفحه دوم خالی می‌شد */
+        margin-top: 50px; /* یک فاصله ثابت و منطقی برای جلوگیری از سرریز شدن محتوا تعریف شد */
         text-align: center;
         font-size: 11pt;
     }
@@ -240,6 +241,7 @@
       <div class="input-group">
         <input type="tel" id="idcode" placeholder="کد ملی خود را وارد کنید" maxlength="10">
       </div>
+      <!-- تغییر ۱: دکمه در ابتدا غیرفعال است تا داده‌ها بارگذاری شوند -->
       <button class="btn" id="validateButton" disabled>
           <i class="fas fa-spinner fa-spin"></i>
           در حال بارگذاری اطلاعات...
@@ -342,6 +344,7 @@
         msgBox.style.display = 'block';
     }
 
+    // تغییر ۱: بارگذاری داده‌ها در ابتدای کار و در پس‌زمینه
     const dataPromise = fetch(dataUrl)
         .then(res => {
             if (!res.ok) throw new Error('Network response was not ok');
@@ -354,20 +357,23 @@
         });
     
     window.addEventListener('DOMContentLoaded', () => {
+        // تغییر ۱: فعال‌سازی دکمه پس از بارگذاری موفق داده‌ها
         dataPromise.then(() => {
             validateBtn.disabled = false;
             validateBtn.innerHTML = '<i class="fas fa-check-circle"></i>اعتبارسنجی';
             
+            // بررسی پارامتر URL پس از بارگذاری داده‌ها
             const urlParams = new URLSearchParams(window.location.search);
             const nationalId = urlParams.get('id');
             if (nationalId && /^\d{10}$/.test(nationalId)) {
                 idcodeInput.value = nationalId;
-                validateAndFetch(); 
+                validateAndFetch(); // اعتبارسنجی خودکار
             }
         }).catch(err => {
             console.error("Data loading failed:", err);
             showMessage('خطا در بارگذاری اطلاعات اولیه. لطفاً صفحه را رفرش کنید.');
             validateBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> خطا در بارگذاری';
+            // دکمه همچنان غیرفعال باقی می‌ماند
         });
     });
     
@@ -383,10 +389,12 @@
         showStep('step-loading');
         
         try {
-            await dataPromise; 
+            // تغییر ۱: دیگر نیازی به انتظار طولانی نیست چون داده‌ها قبلاً بارگذاری شده‌اند
+            await dataPromise; // این await بلافاصله رد می‌شود چون promise قبلاً resolve شده است
             const searchTerm = idcode.replace(/^0+/, '');
             const record = studentData.find(row => row && String(row[1]).replace(/^0+/, '') === searchTerm);
 
+            // تأخیر عمدی کوتاه برای نمایش بهتر انیمیشن لودینگ
             setTimeout(() => {
                 if (record) {
                     fullnameInput.value = record[0] || '';
@@ -396,9 +404,10 @@
                     showMessage('کد ملی یافت نشد.');
                     showStep('step1');
                 }
-            }, 500); 
+            }, 500); // 0.5 ثانیه تأخیر
 
         } catch (error) {
+            // این خطا در صورتی رخ می‌دهد که dataPromise در ابتدا reject شده باشد
             showMessage('خطا در پردازش اطلاعات. لطفاً صفحه را رفرش کنید.');
             showStep('step1');
         }
@@ -475,6 +484,7 @@
         };
 
         try {
+            // تأخیر عمدی برای نمایش بهتر انیمیشن لودینگ
             await new Promise(resolve => setTimeout(resolve, 500));
             pdfBlob = await html2pdf().from(elementToPrint).set(options).output('blob');
             if (pdfBlob) {
@@ -489,6 +499,7 @@
         }
     }
 
+    // تغییر ۲: افزودن بازخورد به کاربر هنگام دانلود
     function savePdf() {
         if (!pdfBlob) return alert('فایل PDF هنوز ایجاد نشده است.');
         
@@ -504,39 +515,56 @@
         a.click();
         document.body.removeChild(a);
         
+        // کمی بعد از کلیک، URL را آزاد می‌کنیم
         setTimeout(() => URL.revokeObjectURL(url), 100);
 
+        // نمایش پیام موفقیت و بازگرداندن دکمه به حالت اولیه
         setTimeout(() => {
             savePdfBtn.innerHTML = '<i class="fas fa-check-circle"></i> دانلود آغاز شد';
             setTimeout(() => {
                 savePdfBtn.innerHTML = originalBtnHtml;
                 savePdfBtn.disabled = false;
-            }, 3000); 
-        }, 500); 
+            }, 3000); // پس از ۳ ثانیه دکمه به حالت اول برمیگردد
+        }, 500); // پس از نیم ثانیه پیام موفقیت نمایش داده می‌شود
     }
     
+    // START: ویرایش درخواستی شما در اینجا اعمال شده است
+    /**
+     * تابع کمکی برای تبدیل ارقام انگلیسی به فارسی در یک رشته
+     * @param {string} str رشته ورودی حاوی اعداد انگلیسی
+     * @returns {string} رشته با اعداد تبدیل شده به فارسی
+     */
+    function toPersianDigits(str) {
+        const persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+        return str.toString().replace(/\d/g, d => persianDigits[parseInt(d)]);
+    }
+
     async function sharePdf() {
         if (!pdfBlob) return alert('فایل PDF هنوز ایجاد نشده است.');
 
         const filename = `taayidie-${fullnameInput.value.replace(/\s/g, '-')}.pdf`;
         const file = new File([pdfBlob], filename, { type: 'application/pdf' });
         
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            try {
-                const fullname = fullnameInput.value;
-                const idcode = idcodeInput.value;
-                const persianIdCode = idcode.replace(/[0-9]/g, w => '۰۱۲۳۴۵۶۷۸۹'[w]);
+        // دریافت اطلاعات برای ساخت متن
+        const fullname = fullnameInput.value;
+        const nationalId = idcodeInput.value;
+        // تبدیل کد ملی به ارقام فارسی
+        const persianNationalId = toPersianDigits(nationalId);
 
-                const shareText = `درخواست صدور گواهی:
+        // ساخت متن جدید مطابق با فرمت درخواستی
+        const shareText = `*درخواست صدور گواهی*
+
 نام: ${fullname}
-کد ملی: ${persianIdCode}
+کد ملی: ${persianNationalId}
 
 نکته: لطفا چک کنید که اطلاعات شما اشتباه نباشد`;
-
+        
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
                 await navigator.share({
                     files: [file],
-                    title: 'درخواست صدور گواهی',
-                    text: shareText
+                    title: 'درخواست صدور گواهی', // عنوان نیز به‌روز شد
+                    text: shareText // استفاده از متن جدید
                 });
             } catch (error) {
                 if (error.name !== 'AbortError') {
@@ -548,6 +576,7 @@
             alert('مرورگر شما از قابلیت ارسال مستقیم فایل پشتیبانی نمی‌کند. لطفاً فایل را ذخیره کرده و سپس ارسال کنید.');
         }
     }
+    // END: پایان بخش ویرایش شده
   </script>
 
 </body>
