@@ -200,6 +200,8 @@
       font-family: inherit; font-size: 1rem; font-weight: 700;
       display: flex; align-items: center; justify-content: center; gap: 10px;
       transition: all var(--transition-speed);
+      text-decoration: none; /* برای تگ a اضافه شد */
+      color: var(--text-dark); /* برای تگ a اضافه شد */
     }
     .action-button:hover { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
     .action-button.homework { background-color: var(--primary-color); color: white; border-color: transparent; }
@@ -228,7 +230,7 @@
     .modal-content {
       background: #fff; padding: 30px;
       border-radius: var(--border-radius);
-      width: 90%; max-width: 500px;
+      width: 90%; max-width: 600px; /* Max-width for video modal can be larger */
       position: relative; text-align: center;
       box-shadow: var(--shadow-medium);
     }
@@ -247,16 +249,17 @@
     .modal-footer .btn-primary { background: var(--primary-color); color: white; }
     .modal-footer .btn-primary:hover { background: var(--primary-hover); }
 
-    /* [EDIT] Replaced video tag with a container for the script */
-    #videoModal .modal-content { max-width: 640px; }
-    #video-container-for-script {
+    /* [تغییر] استایل برای نگهدارنده ویدیو */
+    #video-container {
+        padding: 0; /* حذف پدینگ اضافی */
+        aspect-ratio: 16 / 9; /* حفظ نسبت تصویر ویدیو */
         width: 100%;
-        min-height: 300px; /* Placeholder height */
-        position: relative;
+        background-color: #000;
+        border-radius: 8px;
     }
-
-    #pdfModal iframe { width: 100%; height: 60vh; border: none; border-radius: 8px; }
-    #pdfModal .modal-content { max-width: 800px; }
+    #video-container > div {
+        border-radius: 8px; /* گرد کردن گوشه‌های پلیر آپارات */
+    }
 
     /* واکنش‌گرایی */
     @media (max-width: 768px) {
@@ -316,8 +319,17 @@
   </div>
 
   <!-- پاپ‌آپ‌ها -->
-  <!-- [EDIT] Replaced <video> tag with a div to host the Aparat script -->
-  <div id="videoModal" class="modal"><div class="modal-content"><div class="modal-header"><h3 id="videoTitle"></h3><button class="close-btn" onclick="closeModal('videoModal')">×</button></div><div id="video-container-for-script"></div></div></div>
+  <!-- [تغییر] تگ ویدیو با یک نگهدارنده برای اسکریپت جایگزین شد -->
+  <div id="videoModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="videoTitle"></h3>
+            <button class="close-btn" onclick="closeModal('videoModal')">×</button>
+        </div>
+        <div id="video-container"></div>
+    </div>
+  </div>
+  <!-- [توجه] پاپ‌آپ جزوه حفظ شده ولی دیگر استفاده نمی‌شود -->
   <div id="pdfModal" class="modal"><div class="modal-content"><div class="modal-header"><h3 id="pdfTitle"></h3><button class="close-btn" onclick="closeModal('pdfModal')">×</button></div><iframe id="pdfViewer"></iframe></div></div>
   <div id="homeworkModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-feather-alt"></i> دستورالعمل ارسال تکلیف</h3><button class="close-btn" onclick="closeModal('homeworkModal')">×</button></div><div class="modal-body"><p>لطفا خلاصه‌ای از این درس را در <strong>حداقل سه صفحه A4</strong> به صورت <strong>دست‌نویس</strong> تهیه کرده و تصویر آن را برای ادمین در پیام‌رسان ایتا ارسال نمایید.</p></div><div class="modal-footer"><a href="https://eitaa.com/irtaali" target="_blank" class="btn btn-primary"><i class="fas fa-paper-plane"></i> ارسال پیام به ادمین ایتا</a></div></div></div>
   <div id="certificateModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-award"></i> درخواست گواهی پایان دوره</h3><button class="close-btn" onclick="closeModal('certificateModal')">×</button></div><div class="modal-body"><p>برای درخواست گواهی، ابتدا باید تمام تکالیف دوره را با موفقیت ارسال کرده باشید. پس از اطمینان از تکمیل تکالیف، جهت هماهنگی برای صدور گواهی به ادمین مراجعه کنید.</p></div><div class="modal-footer"><a href="https://eitaa.com/irtaali" target="_blank" class="btn btn-primary"><i class="fas fa-paper-plane"></i> تماس با ادمین ایتا</a></div></div></div>
@@ -328,15 +340,22 @@ document.addEventListener('DOMContentLoaded', function() {
     let registeredUsers = [], currentUser = null, courseData = {}, certificateData = [];
     let countdownInterval;
 
-    // [EDIT] Added PDF links object
+    // [افزوده شد] لینک جزوات و ویدیوها برای دسترسی آسان
     const pdfLinks = {
-        1: 'https://drive.google.com/file/d/1jpQw_Si57LxDzWPNirbUWJ9GRVoPRskW/view?usp=drivesdk',
-        2: 'https://drive.google.com/file/d/1jvGWk_6ZugxbclXJad9B39qgobWaY4B6/view?usp=drivesdk',
-        3: 'https://drive.google.com/file/d/1joBvMQzV2qV3Sz-rsIGhjw1wY93xg8Yz/view?usp=drivesdk',
-        4: 'https://drive.google.com/file/d/1k6_5QmpVPxb0FWDpOfUPxUHujBzn_ML5/view?usp=drivesdk',
-        5: 'https://drive.google.com/file/d/1k0KFs3GEScdDsJ-EwipdhaIsV1peIgI4/view?usp=drivesdk',
-        6: 'https://drive.google.com/file/d/1kAtuiyD7pbkYsMFkvaoguFPOiefQdEFr/view?usp=drivesdk'
+        1: "https://drive.google.com/file/d/1jpQw_Si57LxDzWPNirbUWJ9GRVoPRskW/view?usp=drivesdk",
+        2: "https://drive.google.com/file/d/1jvGWk_6ZugxbclXJad9B39qgobWaY4B6/view?usp=drivesdk",
+        3: "https://drive.google.com/file/d/1joBvMQzV2qV3Sz-rsIGhjw1wY93xg8Yz/view?usp=drivesdk",
+        4: "https://drive.google.com/file/d/1k6_5QmpVPxb0FWDpOfUPxUHujBzn_ML5/view?usp=drivesdk",
+        5: "https://drive.google.com/file/d/1k0KFs3GEScdDsJ-EwipdhaIsV1peIgI4/view?usp=drivesdk",
+        6: "https://drive.google.com/file/d/1kAtuiyD7pbkYsMFkvaoguFPOiefQdEFr/view?usp=drivesdk"
+        // ترم ۷ و ۸ لینک ندارند
     };
+
+    const videoScripts = {
+        1: '<div id="50375348038"><script type="text/JavaScript" src="https://www.aparat.com/embed/t38232t?data[rnddiv]=50375348038&data[responsive]=yes&titleShow=true"><\/script></div>'
+        // ویدیوهای دیگر هنوز آماده نیستند
+    };
+
 
     // === DOM Elements ===
     const DOM = {
@@ -352,7 +371,7 @@ document.addEventListener('DOMContentLoaded', function() {
         endDate: document.getElementById('endDate'),
         progressBarFill: document.getElementById('progress-bar-fill'),
         logoutBtn: document.getElementById('logoutBtn'),
-        termVideo: document.getElementById('termVideo'),
+        videoContainer: document.getElementById('video-container'), // [تغییر] نگهدارنده ویدیو
         videoTitle: document.getElementById('videoTitle'),
         pdfViewer: document.getElementById('pdfViewer'),
         pdfTitle: document.getElementById('pdfTitle'),
@@ -387,39 +406,35 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     window.openModal = (id) => { document.getElementById(id).style.display = 'flex'; };
     
-    // [EDIT] Updated closeModal to stop video playback by clearing the container
+    // [تغییر] تابع بستن مودال برای توقف ویدیو اصلاح شد
     window.closeModal = (id) => {
-        document.getElementById(id).style.display = 'none';
-        if (id === 'videoModal') {
-            const videoContainer = document.getElementById('video-container-for-script');
-            if (videoContainer) {
-                videoContainer.innerHTML = '';
-            }
+        const modal = document.getElementById(id);
+        if (modal) {
+            modal.style.display = 'none';
+        }
+        // اگر مودال ویدیو بسته شد، محتوای آن را پاک کن تا ویدیو متوقف شود
+        if (id === 'videoModal' && DOM.videoContainer) {
+            DOM.videoContainer.innerHTML = '';
         }
     };
 
-    // [EDIT] Replaced function logic to handle Aparat script for Term 1
+    // [تغییر] تابع باز کردن مودال ویدیو برای استفاده از اسکریپت
     window.openVideoModal = (term) => {
-        const videoContainer = document.getElementById('video-container-for-script');
-        if (!videoContainer) return;
+        const scriptContent = videoScripts[term];
+        if (!scriptContent) return; // اگر اسکریپتی برای این ترم نبود، کاری نکن
 
-        videoContainer.innerHTML = ''; // Clear previous content
         DOM.videoTitle.innerText = `ویدیوی آموزشی ترم ${term}`;
-
-        if (term === 1) {
-            // Embed the Aparat script provided by the user
-            videoContainer.innerHTML = '<div id="50375348038"><script type="text/JavaScript" src="https://www.aparat.com/embed/t38232t?data[rnddiv]=50375348038&data[responsive]=yes&titleShow=true"><\/script></div>';
-        } else {
-            // Show a message for other terms
-            videoContainer.innerHTML = '<p style="padding: 20px 0;">ویدیوی این ترم هنوز در دسترس نیست.</p>';
-        }
+        
+        // محتوای قبلی را پاک کرده و اسکریپت جدید را قرار بده
+        DOM.videoContainer.innerHTML = scriptContent;
+        
         openModal('videoModal');
     };
 
-    // NOTE: This function is no longer used for PDFs but is kept as requested.
+    // [توجه] این تابع دیگر برای جزوات استفاده نمی‌شود اما برای کاربردهای احتمالی دیگر حفظ شده است
     window.openPdfModal = (term) => {
         DOM.pdfTitle.innerText = `جزوه آموزشی ترم ${term}`;
-        DOM.pdfViewer.src = `sample_booklet_term${term}.pdf`;
+        DOM.pdfViewer.src = `sample_booklet_term${term}.pdf`; // این یک لینک نمونه است
         openModal('pdfModal');
     };
 
@@ -442,6 +457,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const termNumber = isRestWeek ? null : termCounter;
             
+            // [تغییر] دکمه‌های ویدیو و جزوه به صورت شرطی و با لینک‌های جدید ساخته می‌شوند
+            const videoButtonHTML = videoScripts[termNumber] 
+                ? `<button class="action-button" onclick="openVideoModal(${termNumber})"><i class="fas fa-video"></i> مشاهده ویدیو</button>` 
+                : '';
+
+            const pdfButtonHTML = pdfLinks[termNumber] 
+                ? `<a href="${pdfLinks[termNumber]}" target="_blank" rel="noopener noreferrer" class="action-button"><i class="fas fa-file-pdf"></i> مشاهده جزوه</a>` 
+                : '';
+
             timelineHTML += `
                 <div class="accordion-item ${statusClass}" data-week="${i + 1}" data-term="${termNumber || ''}">
                     <div class="accordion-header" ${isLocked ? '' : 'onclick="toggleAccordion(this)"'}>
@@ -458,13 +482,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="accordion-content">
                         <div class="accordion-content-inner">
                             ${isRestWeek ? '<p>این هفته برای استراحت و مرور دروس گذشته در نظر گرفته شده است.</p>' : `
-                            <button class="action-button" onclick="openVideoModal(${termNumber})"><i class="fas fa-video"></i> مشاهده ویدیو</button>
-                            ${
-                                // [EDIT] Replaced PDF button with conditional link or disabled button
-                                (pdfLinks[termNumber])
-                                ? `<a href="${pdfLinks[termNumber]}" target="_blank" rel="noopener noreferrer" class="action-button" style="text-decoration: none; color: var(--text-dark);"><i class="fas fa-file-pdf"></i> مشاهده جزوه</a>`
-                                : `<button class="action-button" disabled style="opacity: 0.6; cursor: not-allowed;"><i class="fas fa-file-pdf"></i> جزوه در دسترس نیست</button>`
-                            }
+                            ${videoButtonHTML}
+                            ${pdfButtonHTML}
                             <button class="action-button homework" onclick="openModal('homeworkModal')"><i class="fas fa-paper-plane"></i> ارسال تکلیف</button>
                             `}
                         </div>
