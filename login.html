@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
+
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -6,7 +7,9 @@
 <title>پنل آموزشی - تربیت مربی نوجوان</title>
 
 <!-- کتابخانه‌ها -->
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
 <style>
@@ -85,37 +88,22 @@ border-radius: 8px; font-size: 1rem; font-family: inherit; text-align: center;
 width: 100%; padding: 14px; background: var(--primary-color); color: white; border: none;
 border-radius: 8px; cursor: pointer; font-size: 1.1rem; font-weight: 700;
 transition: all var(--transition-speed);
-position: relative; /* برای لودر داخل دکمه */
-min-height: 51px; /* برای جلوگیری از تغییر ارتفاع هنگام لود */
+display: flex; align-items: center; justify-content: center; min-height: 53px;
 }
 #login-box button:hover { background: var(--primary-hover); transform: translateY(-2px); }
-
-/* استایل‌های لودر داخل دکمه */
-.button-text { transition: opacity 0.2s ease; }
+#login-box button:disabled { background: var(--primary-hover); cursor: not-allowed; opacity: 0.8; }
 .button-loader {
-    display: none;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 24px;
-    height: 24px;
-    border: 3px solid rgba(255, 255, 255, 0.4);
-    border-top-color: var(--text-light);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+width: 24px; height: 24px; border: 3px solid rgba(255, 255, 255, 0.4);
+border-top-color: white; border-radius: 50%;
+animation: spin 0.8s linear infinite;
+display: none;
 }
-#login-box button.loading {
-    background-color: var(--primary-hover);
-    cursor: wait;
+#login-box button.loading .button-text { display: none; }
+#login-box button.loading .button-loader { display: block; }
+.auto-login-status {
+color: var(--success-color); font-weight: 700; margin-top: 15px; font-size: 1.1rem;
 }
-#login-box button.loading .button-text {
-    visibility: hidden;
-    opacity: 0;
-}
-#login-box button.loading .button-loader {
-    display: block;
-}
+
 
 /* ================================
 ساختار اصلی داشبورد
@@ -298,17 +286,7 @@ transform: translateY(-2px); box-shadow: var(--shadow-soft);
 </head>
 <body>
 
-<div id="loadingOverlay" class="overlay" style="display: none;"><div class="loader"></div></div>
-<div id="login-container" class="overlay" style="display: none;">
-    <div id="login-box">
-        <h2><i class="fas fa-chalkboard-teacher"></i><br>ورود به پنل آموزشی</h2>
-        <input type="tel" id="nationalCodeInput" placeholder="کد ملی خود را وارد کنید" maxlength="10">
-        <button id="verifyButton">
-            <span class="button-text">ورود</span>
-            <div class="button-loader"></div>
-        </button>
-    </div>
-</div>
+<div id="login-container" class="overlay"><div id="login-box"><h2><i class="fas fa-chalkboard-teacher"></i><br>ورود به پنل آموزشی</h2><input type="tel" id="nationalCodeInput" placeholder="کد ملی خود را وارد کنید" maxlength="10"><button id="verifyButton"><span class="button-text">ورود</span><div class="button-loader"></div></button></div></div>
 
 <div id="dashboard">
 <main>
@@ -391,31 +369,14 @@ transform: translateY(-2px); box-shadow: var(--shadow-soft);
 </div>
 </div>
 
-<div id="certificateModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3><i class="fas fa-award"></i> درخواست گواهی پایان دوره</h3>
-            <button class="close-btn" onclick="closeModal('certificateModal')">×</button>
-        </div>
-        <div class="modal-body">
-            <p>در صورتیکه خلاصه تمام دروس را ارسال کرده‌اید و تائید شده است از طریق دکمه زیر نامه درخواست گواهی را برای ادمین ایتا ارسال کنید.</p>
-        </div>
-        <div class="modal-footer-container" style="border:none; padding-top:0; margin-top:25px; display: flex; justify-content: center;">
-            <a id="certificateLinkBtn" href="#" target="_blank" class="btn-footer" style="background-color:var(--success-color); color:white;">
-                <i class="fas fa-file-signature"></i> سامانه درخواست مدرک
-            </a>
-        </div>
-    </div>
-</div>
-
+<div id="certificateModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-award"></i> درخواست گواهی پایان دوره</h3><button class="close-btn" onclick="closeModal('certificateModal')">×</button></div><div class="modal-body"><p>در صورتیکه خلاصه تمام دروس را ارسال کرده‌اید و تائید شده است از طریق دکمه زیر نامه درخواست گواهی را برای ادمین ایتا ارسال کنید.</p></div><div class="modal-footer-container" style="border:none; padding-top:0; margin-top:25px;"><a id="certificateLinkBtn" href="#" target="_blank" class="btn-footer btn-confirm"><i class="fas fa-graduation-cap"></i> سامانه درخواست مدرک</a></div></div></div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
 let registeredUsers = [], currentUser = null, courseData = {}, certificateData = [];
 let countdownInterval;
-
 const CACHE_KEY = 'courseDataCache';
-const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours
+const CACHE_EXPIRATION = 6 * 60 * 60 * 1000; // 6 hours
 
 const termTitles = {
 1: 'شناخت نوجوانی', 2: 'کلیات تربیت', 3: 'تربیت جنسی', 4: 'تربیت دینی',
@@ -434,18 +395,51 @@ const pdfLinks = {
 };
 
 const DOM = {
-loadingOverlay: document.getElementById('loadingOverlay'), loginContainer: document.getElementById('login-container'),
-nationalCodeInput: document.getElementById('nationalCodeInput'), verifyButton: document.getElementById('verifyButton'),
-dashboard: document.getElementById('dashboard'), dynamicContent: document.getElementById('dynamic-content'),
-userName: document.getElementById('userName'), courseName: document.getElementById('courseName'),
-startDate: document.getElementById('startDate'), endDate: document.getElementById('endDate'),
-progressBarFill: document.getElementById('progress-bar-fill'), logoutBtn: document.getElementById('logoutBtn'),
-termVideo: document.getElementById('termVideo'), videoTitle: document.getElementById('videoTitle'),
+loginContainer: document.getElementById('login-container'),
+loginBox: document.getElementById('login-box'),
+nationalCodeInput: document.getElementById('nationalCodeInput'),
+verifyButton: document.getElementById('verifyButton'),
+dashboard: document.getElementById('dashboard'),
+dynamicContent: document.getElementById('dynamic-content'),
+userName: document.getElementById('userName'),
+courseName: document.getElementById('courseName'),
+startDate: document.getElementById('startDate'),
+endDate: document.getElementById('endDate'),
+progressBarFill: document.getElementById('progress-bar-fill'),
+logoutBtn: document.getElementById('logoutBtn'),
+termVideo: document.getElementById('termVideo'),
+videoTitle: document.getElementById('videoTitle'),
 warningBanner: document.getElementById('warning-banner'),
 eitaBtn: document.getElementById('eita-btn'),
 fahmidamBtn: document.getElementById('fahmidam-btn'),
 homeworkModalTitle: document.getElementById('homework-modal-title'),
 };
+
+function setCache(data) {
+const cachePayload = {
+timestamp: new Date().getTime(),
+data: data
+};
+localStorage.setItem(CACHE_KEY, JSON.stringify(cachePayload));
+}
+
+function getCache() {
+const cachedData = localStorage.getItem(CACHE_KEY);
+if (!cachedData) return null;
+
+const cache = JSON.parse(cachedData);
+const isExpired = (new Date().getTime() - cache.timestamp) > CACHE_EXPIRATION;
+
+if (isExpired) {
+localStorage.removeItem(CACHE_KEY);
+return null;
+}
+return cache.data;
+}
+
+function clearCache() {
+localStorage.removeItem(CACHE_KEY);
+}
 
 function jalaliToGregorian(jy, jm, jd) {
 let sal_a, gy, gm, gd, days; jy += 1595;
@@ -464,6 +458,7 @@ const [jy, jm, jd] = parts.map(Number); if (isNaN(jy) || isNaN(jm) || isNaN(jd))
 return new Date(gy, gm - 1, gd);
 };
 const formatDatePersian = (date) => date.toLocaleDateString("fa-IR-u-nu-latn", { year: 'numeric', month: 'long', day: 'numeric' });
+
 const showOverlay = (element, show) => { element.style.display = show ? 'flex' : 'none'; };
 
 function resetHomeworkModal() {
@@ -496,15 +491,11 @@ if(url) { DOM.videoTitle.innerText = `ویدیوی آموزشی: ${title}`; DOM.
 window.openPdfModal = (term) => { if (pdfLinks[term]) window.open(pdfLinks[term], '_blank'); };
 
 window.openCertificateModal = () => {
-    const modal = document.getElementById('certificateModal');
-    const linkBtn = document.getElementById('certificateLinkBtn');
-    if (currentUser && currentUser[1]) {
-        const nationalCode = currentUser[1];
-        linkBtn.href = `https://tashacol.github.io/ir/emza.html?id=${nationalCode}`;
-        openModal('certificateModal');
-    } else {
-        alert('خطا: اطلاعات کاربر برای ایجاد لینک یافت نشد.');
-    }
+const linkBtn = document.getElementById('certificateLinkBtn');
+if (linkBtn && currentUser && currentUser[1]) {
+linkBtn.href = `https://tashacol.github.io/ir/emza.html?id=${currentUser[1]}`;
+}
+openModal('certificateModal');
 };
 
 window.showHomeworkGuidance = function() {
@@ -609,130 +600,122 @@ function initDashboard() {
 populateDashboard(); 
 showOverlay(DOM.loginContainer, false);
 DOM.dashboard.style.display = 'block'; 
-showOverlay(DOM.loadingOverlay, false);
 }
 
 function logout() { 
-    if (confirm("آیا برای خروج از سیستم مطمئن هستید؟")) {
-        sessionStorage.removeItem(CACHE_KEY); // پاکسازی کش هنگام خروج
-        location.reload(); 
-    }
+if (confirm("آیا برای خروج از سیستم مطمئن هستید؟")) {
+clearCache();
+location.reload(); 
+}
 }
 
-async function getCourseData() {
-    const cachedItemRaw = sessionStorage.getItem(CACHE_KEY);
-    if (cachedItemRaw) {
-        const cachedItem = JSON.parse(cachedItemRaw);
-        if (Date.now() - cachedItem.timestamp < CACHE_DURATION) {
-            console.log("Loading data from cache.");
-            return cachedItem.data;
-        }
-    }
+function verifyUser(code) {
+if (!registeredUsers || registeredUsers.length === 0) {
+alert("اطلاعات دوره یافت نشد. لطفا دوباره تلاش کنید.");
+return false;
+}
+currentUser = registeredUsers.find(user => user && user[1] && user[1].toString() === code);
+if (currentUser) {
+courseData.startDate = parseJalaliDate(currentUser[4]);
+if (!courseData.startDate) {
+alert("تاریخ شروع دوره برای شما به درستی ثبت نشده است. لطفا با پشتیبانی تماس بگیرید.");
+return false;
+}
+courseData.endDate = new Date(courseData.startDate.getTime() + 84 * 24 * 60 * 60 * 1000);
+initDashboard();
+return true;
+} else {
+alert("کد ملی وارد شده در این دوره ثبت نام نشده است.");
+return false;
+}
+}
 
-    console.log("Fetching new data from server.");
-    try {
-        const mainSheetUrl = "https://docs.google.com/spreadsheets/d/1QSRAGajWtCWHJHsU-u4dRW85nq2hCGySKqtZQL0iTjY/export?format=xlsx";
-        const certificateSheetUrl = "https://docs.google.com/spreadsheets/d/1c0g7deSI0y-QP4nQNux-l07_cumu3A6Gy0OolnhZWdU/export?format=xlsx";
-        
-        const [mainRes, certRes] = await Promise.all([fetch(mainSheetUrl), fetch(certificateSheetUrl)]);
-        if (!mainRes.ok || !certRes.ok) throw new Error("خطا در ارتباط با سرور برای دریافت فایل‌های اطلاعاتی");
+async function fetchAndProcessData() {
+try {
+const mainSheetUrl = "https://docs.google.com/spreadsheets/d/1QSRAGajWtCWHJHsU-u4dRW85nq2hCGySKqtZQL0iTjY/export?format=xlsx";
+const certificateSheetUrl = "https://docs.google.com/spreadsheets/d/1c0g7deSI0y-QP4nQNux-l07_cumu3A6Gy0OolnhZWdU/export?format=xlsx";
 
-        const mainData = await mainRes.arrayBuffer();
-        const mainWorkbook = XLSX.read(mainData, { type: 'array' });
-        const mainSheet = mainWorkbook.Sheets[mainWorkbook.SheetNames[0]];
-        const mainJson = XLSX.utils.sheet_to_json(mainSheet, { header: 1 });
-        if (mainJson.length < 2) throw new Error("فایل اکسل اصلی خالی است.");
+const [mainRes, certRes] = await Promise.all([ fetch(mainSheetUrl), fetch(certificateSheetUrl) ]);
+if (!mainRes.ok || !certRes.ok) throw new Error("خطا در ارتباط با سرور برای دریافت فایل‌های اطلاعاتی");
 
-        const certData = await certRes.arrayBuffer();
-        const certWorkbook = XLSX.read(certData, { type: 'array' });
-        const certSheet = certWorkbook.Sheets[certWorkbook.SheetNames[0]];
-        const certificateJson = XLSX.utils.sheet_to_json(certSheet, { header: 1 });
+const mainData = await mainRes.arrayBuffer(); const mainWorkbook = XLSX.read(mainData, { type: 'array' });
+const mainSheet = mainWorkbook.Sheets[mainWorkbook.SheetNames[0]]; const mainJson = XLSX.utils.sheet_to_json(mainSheet, { header: 1 });
+if (mainJson.length < 2) throw new Error("فایل اکسل اصلی خالی است.");
 
-        const dataToCache = {
-            courseName: mainJson[1][2] || "دوره آموزشی",
-            registeredUsers: mainJson.slice(1),
-            certificateData: certificateJson
-        };
+const certData = await certRes.arrayBuffer(); const certWorkbook = XLSX.read(certData, { type: 'array' });
+const certSheet = certWorkbook.Sheets[certWorkbook.SheetNames[0]]; 
+const loadedCertificateData = XLSX.utils.sheet_to_json(certSheet, { header: 1 });
 
-        sessionStorage.setItem(CACHE_KEY, JSON.stringify({
-            timestamp: Date.now(),
-            data: dataToCache
-        }));
+const dataToCache = {
+courseName: mainJson[1][2] || "دوره آموزشی",
+registeredUsers: mainJson.slice(1),
+certificateData: loadedCertificateData
+};
+setCache(dataToCache);
+return dataToCache;
+} catch (err) {
+console.error("Data Fetching Error:", err);
+alert(err.message || "خطا در بارگذاری اطلاعات از سرور.");
+return null;
+}
+}
 
-        return dataToCache;
-    } catch (err) {
-        console.error("Data Fetching Error:", err);
-        throw err; // Re-throw to be caught by verifyUser
-    }
+async function handleLogin(code) {
+if (!code) {
+alert("کد ملی نامعتبر است.");
+return;
+}
+
+DOM.verifyButton.classList.add('loading');
+DOM.verifyButton.disabled = true;
+
+let cachedData = getCache();
+if (cachedData) {
+courseData.name = cachedData.courseName;
+registeredUsers = cachedData.registeredUsers;
+certificateData = cachedData.certificateData;
+} else {
+const fetchedData = await fetchAndProcessData();
+if (fetchedData) {
+courseData.name = fetchedData.courseName;
+registeredUsers = fetchedData.registeredUsers;
+certificateData = fetchedData.certificateData;
+} else {
+DOM.verifyButton.classList.remove('loading');
+DOM.verifyButton.disabled = false;
+return; 
+}
+}
+const success = verifyUser(code);
+
+if (!success) {
+DOM.verifyButton.classList.remove('loading');
+DOM.verifyButton.disabled = false;
+}
 }
 
 
-async function verifyUser(code) {
-    if (!code) {
-        alert("کد ملی نامعتبر است.");
-        return;
-    }
-    
-    DOM.verifyButton.classList.add('loading');
-    DOM.verifyButton.disabled = true;
-    DOM.nationalCodeInput.disabled = true;
-
-    try {
-        const data = await getCourseData();
-        registeredUsers = data.registeredUsers;
-        certificateData = data.certificateData;
-        courseData.name = data.courseName;
-
-        currentUser = registeredUsers.find(user => user[1] && user[1].toString() === code);
-        
-        if (currentUser) {
-            courseData.startDate = parseJalaliDate(currentUser[4]);
-            if (!courseData.startDate) {
-                alert("تاریخ شروع دوره برای شما به درستی ثبت نشده است. لطفا با پشتیبانی تماس بگیرید.");
-            } else {
-                courseData.endDate = new Date(courseData.startDate.getTime() + 84 * 24 * 60 * 60 * 1000);
-                initDashboard();
-            }
-        } else {
-            alert("کد ملی وارد شده در این دوره ثبت نام نشده است.");
-        }
-    } catch (err) {
-        alert(err.message || "خطا در بارگذاری اطلاعات. لطفا اتصال اینترنت خود را بررسی کرده و مجددا تلاش کنید.");
-    } finally {
-        DOM.verifyButton.classList.remove('loading');
-        // فقط اگر با لینک وارد نشده باشد، دکمه‌ها فعال شوند
-        if (!DOM.nationalCodeInput.readOnly) {
-           DOM.verifyButton.disabled = false;
-           DOM.nationalCodeInput.disabled = false;
-        }
-    }
-}
-
-// =======================
-// INITIALIZATION LOGIC
-// =======================
 const urlParams = new URLSearchParams(window.location.search);
 const nationalIdFromUrl = urlParams.get('id');
 
 if (nationalIdFromUrl) {
-    DOM.nationalCodeInput.value = nationalIdFromUrl;
-    DOM.nationalCodeInput.readOnly = true;
-    showOverlay(DOM.loginContainer, true);
-    verifyUser(nationalIdFromUrl); // Automatically start verification
+DOM.loginBox.innerHTML = `
+<h2><i class="fas fa-user-check"></i><br>ورود خودکار</h2>
+<p style="font-size: 1.2rem; font-weight: bold; margin-bottom: 15px;">${nationalIdFromUrl}</p>
+<p class="auto-login-status">در حال ورود...</p>
+<div class="loader" style="margin: 20px auto 0;"></div>
+`;
+handleLogin(nationalIdFromUrl);
 } else {
-    showOverlay(DOM.loginContainer, true);
+showOverlay(DOM.loginContainer, true);
 }
 
-DOM.verifyButton.addEventListener('click', () => {
-    if (DOM.verifyButton.classList.contains('loading')) return;
-    verifyUser(DOM.nationalCodeInput.value.trim());
-});
 
+DOM.verifyButton.addEventListener('click', () => handleLogin(DOM.nationalCodeInput.value.trim()));
 DOM.nationalCodeInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        if (DOM.verifyButton.classList.contains('loading')) return;
-        verifyUser(DOM.nationalCodeInput.value.trim());
-    }
+if (e.key === 'Enter') {
+handleLogin(DOM.nationalCodeInput.value.trim());
+}
 });
 DOM.logoutBtn.addEventListener('click', logout);
 
