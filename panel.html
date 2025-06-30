@@ -1,19 +1,18 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>پنل کاربری - موسسه تعالی اندیشه و رشد</title>
-
-  <!-- کتابخانه‌ها (کتابخانه اکسل حذف شد) -->
+  
+  <!-- کتابخانه اکسل حذف شده است -->
   <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jalali-moment/dist/jalali-moment.browser.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css">
 
+  <!-- استایل‌ها بدون تغییر باقی می‌مانند -->
   <style>
-    /* ================================
-       متغیرها و تم جدید (روشن و رسمی)
-    =================================== */
+    /* ... تمام کدهای CSS شما بدون تغییر اینجا قرار می‌گیرد ... */
     :root {
       --bg-gradient-start: #f4f7fa;
       --bg-gradient-end: #e9eff5;
@@ -54,9 +53,6 @@
       background-attachment: fixed;
     }
     
-    /* ================================
-       کانتینر اصلی (طراحی شیشه‌ای جدید)
-    =================================== */
     .main-container {
       width: 100%;
       max-width: 400px; /* کمی کاهش عرض برای ظاهر بهتر فرم ورود */
@@ -75,9 +71,6 @@
         max-width: 800px;
     }
 
-    /* ================================
-       مدیریت نمایش بخش‌ها (ورود و داشبورد)
-    =================================== */
     .view {
       transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
     }
@@ -94,9 +87,6 @@
         transform: translateY(-20px);
     }
 
-    /* ================================
-       بخش ورود (فرم جدید و مدرن - ویرایش شده)
-    =================================== */
     .login-header {
       text-align: center;
       margin-bottom: 35px;
@@ -217,9 +207,6 @@
     .message.error { background-color: rgba(222, 53, 11, 0.1); color: var(--danger-color); }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* ================================
-       بخش داشبورد (بدون تغییر)
-    =================================== */
     .dashboard-header {
       display: flex; align-items: center; padding-bottom: 25px;
       margin-bottom: 25px; border-bottom: 1px solid var(--card-border);
@@ -282,13 +269,8 @@
     #logout-btn i { margin-left: 8px; }
     
     @media (max-width: 768px) {
-        body {
-            padding: 10px; 
-        }
-        .main-container[data-view] {
-            padding: 30px 20px; 
-            max-width: 100%; 
-        }
+        body { padding: 10px; }
+        .main-container[data-view] { padding: 30px 20px; max-width: 100%; }
         #login-view h1 { font-size: 1.8rem; }
         .dashboard-header { flex-direction: column; text-align: center; }
         .dashboard-header .avatar { margin-left: 0; margin-bottom: 15px; }
@@ -344,15 +326,10 @@
 
   <script>
     // ==========================================================
-    //   هسته اصلی جاوا اسکریپت - بازنویسی شده برای اتصال به API
+    //   هسته اصلی جاوا اسکریپت - بازنویسی نهایی با روش JSONP
     // ==========================================================
     
-    // **ویرایش ۱: تعریف آدرس API مرکزی**
     const API_URL = 'https://script.google.com/macros/s/AKfycbzxDpjvoO7CGqyFBtgQmQJjMyfh_jymKNK3h9zw-Sbq1t0U5ws08zSNeG1QqJF8otlReg/exec';
-
-    // **ویرایش ۲: حذف متغیرهای مربوط به اکسل**
-    // const dataUrl = ...;
-    // let studentData = [];
 
     const mainContainer = document.querySelector('.main-container');
     const loginView = document.getElementById('login-view');
@@ -374,11 +351,22 @@
         loginBtn.disabled = isLoading;
         loginBtn.classList.toggle('loading', isLoading);
     };
-
-    // **ویرایش ۳: حذف توابع loadStudentData و findStudent**
-    // این توابع دیگر لازم نیستند چون منطق به سرور منتقل شده است.
     
-    const handleLogin = async () => {
+    // تابع callback که پاسخ را از اسکریپت دریافت می‌کند
+    function handleApiResponse(result) {
+        if (result.success && result.data.found) {
+            setTimeout(() => displayDashboard(result.data), 300);
+        } else if (result.success && !result.data.found) {
+            setLoadingState(false);
+            showMessage('کد ملی وارد شده در سامانه یافت نشد.');
+        } else {
+            setLoadingState(false);
+            showMessage(result.error || 'خطا در پردازش درخواست.');
+            console.error('API Error:', result.error);
+        }
+    }
+
+    const handleLogin = () => {
         const nationalId = input.value.trim();
         msgBox.style.display = 'none';
 
@@ -388,56 +376,34 @@
 
         setLoadingState(true);
 
-        // **ویرایش ۴: فراخوانی API به جای خواندن فایل اکسل**
-        try {
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                // prevent cors error
-                mode: 'no-cors',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    action: 'getUserProfile',
-                    data: { nationalId: nationalId }
-                })
-            });
-            
-            // Due to no-cors, we can't directly read the response. 
-            // We assume if no network error, the request was sent. 
-            // The checkSession function will handle the UI update after a successful login simulation.
-            // A more robust solution would involve proper CORS handling on the server if possible
-            // or a different deployment method for the Apps Script.
-            // For now, we simulate success and rely on checkSession for restoration.
-            const result = await response.json();
-
-            if (!result.success) {
-                throw new Error(result.error || 'خطای ناشناخته از سرور');
-            }
-
-            if (result.data.found) {
-                // با موفقیت از سرور پاسخ دریافت شد
-                setTimeout(() => displayDashboard(result.data), 300);
-            } else {
-                setLoadingState(false);
-                showMessage('کد ملی وارد شده در سامانه یافت نشد.');
-            }
-
-        } catch (error) {
+        // ساخت تگ اسکریپت برای درخواست JSONP
+        const script = document.createElement('script');
+        const dataPayload = encodeURIComponent(JSON.stringify({ nationalId: nationalId }));
+        
+        script.src = `${API_URL}?action=getUserProfile&data=${dataPayload}&callback=handleApiResponse`;
+        
+        // مدیریت خطا در صورت عدم بارگذاری اسکریپت (مثلا مشکل شبکه)
+        script.onerror = () => {
             setLoadingState(false);
-            showMessage('خطا در ارتباط با سرور. لطفاً دوباره تلاش کنید.');
-            console.error('Login Error:', error);
-        }
+            showMessage('خطا در ارتباط با سرور. اتصال اینترنت را بررسی کنید.');
+            document.body.removeChild(script);
+        };
+        
+        // اضافه کردن اسکریپت به صفحه برای ارسال درخواست
+        document.body.appendChild(script);
+
+        // حذف تگ اسکریپت پس از اجرا برای تمیز ماندن DOM
+        script.onload = () => {
+            document.body.removeChild(script);
+        };
     };
 
     const displayDashboard = (profile) => {
-        // **ویرایش ۵: استفاده از آبجکت profile که از سرور آمده**
         const originalNationalId = profile.nationalId;
         document.getElementById('student-name').textContent = profile.name || 'نامشخص';
         document.getElementById('national-id').textContent = `کد ملی: ${originalNationalId}`;
         
         const startDate = profile.startDate;
-        // محاسبه تاریخ پایان با moment.js مثل قبل
         const calculatedEndDate = startDate ? moment(startDate, 'jYYYY/jMM/jDD').add(84, 'days').format('jYYYY/jMM/jDD') : profile.endDate;
         
         const details = {
@@ -479,13 +445,9 @@
         try {
             const sessionData = localStorage.getItem('loggedInUser');
             if (!sessionData) return;
-
             const session = JSON.parse(sessionData);
             if (new Date().getTime() - session.loginTime < SESSION_DURATION) {
                 input.value = session.nationalId;
-                // برای جلوگیری از حلقه بی‌پایان، به جای کلیک مستقیم،
-                // فقط در صورتی لاگین می‌کنیم که صفحه تازه بارگذاری شده باشد
-                // و داشبورد هنوز نمایش داده نشده باشد.
                 if (dashboardView.classList.contains('hidden')) {
                     handleLogin();
                 }
@@ -493,18 +455,15 @@
                 localStorage.removeItem('loggedInUser');
             }
         } catch(e) {
-            // اگر داده localStorage خراب بود، آن را پاک می‌کنیم
             localStorage.removeItem('loggedInUser');
         }
     };
 
     const handleLogout = () => {
         localStorage.removeItem('loggedInUser');
-        
         mainContainer.dataset.view = 'login';
         loginView.classList.remove('hidden');
         dashboardView.classList.add('hidden');
-        
         setTimeout(() => {
             input.value = '';
             msgBox.style.display = 'none';
