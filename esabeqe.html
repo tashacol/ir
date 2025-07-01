@@ -308,7 +308,7 @@
             const cachedData = getCache();
             // اگر داده‌ای برای همین کد ملی در کش موجود و معتبر بود، از کش برگردان
             if (cachedData && cachedData.nationalId === nationalId) {
-                console.log('Data retrieved from cache for Activity History Inquiry.');
+                console.log('Data retrieved from cache for Activity History.');
                 return cachedData.result; // 'result' حاوی شیء کامل پاسخ API است
             }
 
@@ -344,21 +344,20 @@
         btn.addEventListener('click', async () => {
             resultsContainer.innerHTML = '';
             errorMsg.style.display = 'none';
-            const nationalIdInput = input.value.trim(); // نام بهتر برای ورودی کاربر
+            const nationalId = input.value.trim();
 
-            if (!/^\d{10}$/.test(nationalIdInput)) {
+            if (!/^\d{10}$/.test(nationalId)) {
                 showError('کد ملی باید 10 رقم و فقط شامل عدد باشد.');
                 return;
             }
 
             toggleLoading(true);
 
-            // فراخوانی تابع جدید که از API و کش استفاده می‌کند
-            const apiResult = await fetchActivityHistoryData(nationalIdInput);
+            const apiResult = await fetchActivityHistoryData(nationalId);
 
             toggleLoading(false);
 
-            if (!apiResult || !apiResult.found || apiResult.activities.length === 0) {
+            if (!apiResult || !apiResult.found) {
                 // اگر پیام خطایی از قبل نمایش داده نشده باشد (مثلاً از fetchActivityHistoryData)
                 if (errorMsg.style.display !== 'block') {
                     showError('سوابقی با این کد ملی یافت نشد. لطفا مجددا تلاش کنید.');
@@ -366,7 +365,6 @@
                 return;
             }
 
-            // اگر نتیجه یافت شد، آن را نمایش بده
             displayResults(apiResult); // ارسال مستقیم شیء result به تابع نمایش
         });
         
@@ -386,17 +384,13 @@
             const fullName = userInfo.name || 'کاربر گرامی';
             const nationalId = userInfo.nationalId || 'ثبت نشده';
 
-            // تولید ردیف‌های جدول از تمام رکوردهای فعالیت
+            // تولید ردیف‌های جدول از تمام رکوردهای تطابق یافته
             const tableRows = activities.map(activity => {
-                // تاریخ‌ها و فعالیت از پراپرتی‌های شیء 'activity'
-                const activityType = activity.activity || '-';
-                const startDate = activity.startDate || '-';
-                const endDate = activity.endDate || 'تاکنون'; // 'تا هم اکنون' در Apps Script تنظیم شده بود
                 return `
                     <tr>
-                        <td>${activityType}</td>
-                        <td>${startDate}</td>
-                        <td>${endDate}</td>
+                        <td>${activity.activity || '-'}</td>
+                        <td>${activity.startDate || '-'}</td>
+                        <td>${activity.endDate || 'تاکنون'}</td>
                     </tr>
                 `;
             }).join('');
