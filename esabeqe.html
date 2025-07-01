@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>استعلام سوابق</title>
-    <!-- Excel Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Excel Library (حذف شد - دیگر نیازی به آن نیست) -->
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script> -->
     <style>
         /* ========== Fonts ========== */
         @font-face {
@@ -257,13 +257,24 @@
     </div>
 
     <script>
-        const url = 'https://docs.google.com/spreadsheets/d/19tVWLwHOMO1zqAId5mY7zYceF1uJUrS67Y_A-nuiT9w/export?format=xlsx';
+        // ==========================================================
+        // هسته اصلی جاوا اسکریپت - بازنویسی شده برای ارتباط با API و کشینگ
+        // ==========================================================
+
+        // آدرس وب اپلیکیشن مرکزی شما (مطابق با لینک جدید شما)
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwJiG_VxW0WYeFaTVAMXakHQ48ppoavTCB0GLrdXSXIasE9L-pOUoEscsc40C78NKOO9A/exec';
         
+        // دسترسی به عناصر DOM (بدون تغییر)
         const input = document.getElementById('searchInput');
         const btn = document.getElementById('searchButton');
         const errorMsg = document.getElementById('errorMsg');
         const resultsContainer = document.getElementById('resultsContainer');
 
+        // === متغیرهای کش داده‌ها ===
+        const CACHE_KEY = 'activityHistoryDataCache'; // کلید کش منحصر به فرد برای این سامانه
+        const CACHE_EXPIRATION = 6 * 60 * 60 * 1000; // 6 ساعت
+
+        // توابع کمکی (بدون تغییر)
         const toggleLoading = (isLoading) => {
             btn.classList.toggle('loading', isLoading);
             btn.disabled = isLoading;
@@ -274,58 +285,92 @@
             errorMsg.style.display = 'block';
         };
 
-        const searchAndDisplay = (data) => {
-            resultsContainer.innerHTML = '';
-            errorMsg.style.display = 'none';
+        // === توابع مدیریت حافظه کش سمت کلاینت ===
+        function setCache(data) {
+            const cachePayload = { timestamp: new Date().getTime(), data: data };
+            localStorage.setItem(CACHE_KEY, JSON.stringify(cachePayload));
+        }
+        function getCache() {
+            const cachedData = localStorage.getItem(CACHE_KEY);
+            if (!cachedData) return null;
+            const cache = JSON.parse(cachedData);
+            const isExpired = (new Date().getTime() - cache.timestamp) > CACHE_EXPIRATION;
+            if (isExpired) {
+                localStorage.removeItem(CACHE_KEY);
+                return null;
+            }
+            return cache.data;
+        }
+        // در این سامانه نیازی به clearCache نیست چون logout ندارد
 
-            const nationalId = input.value.trim();
-
-            if (!/^\d{10}$/.test(nationalId)) {
-                showError('کد ملی باید 10 رقم و به صورت عددی وارد شود.');
-                return;
+        // === تابع جدید برای بارگذاری داده‌ها از API با استفاده از کش ===
+        async function fetchActivityHistoryData(nationalId) {
+            const cachedData = getCache();
+            // اگر داده‌ای برای همین کد ملی در کش موجود و معتبر بود، از کش برگردان
+            if (cachedData && cachedData.nationalId === nationalId) {
+                console.log('Data retrieved from cache for Activity History Inquiry.');
+                return cachedData.result; // 'result' حاوی شیء کامل پاسخ API است
             }
 
-            // In this sheet, National ID is in Column C (index 2)
-            const matches = data.filter(row => row[2]?.toString().trim() === nationalId);
+            const url = `${SCRIPT_URL}?action=getActivityHistory&id=${nationalId}`;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`Network response was not ok: ${response.status} ${response.statusText}`);
+                }
+                const result = await response.json();
 
-            if (matches.length > 0) {
-                displayResults(matches);
-            } else {
-                showError('سوابقی با این کد ملی یافت نشد. لطفا مجددا تلاش کنید.');
+                if (result.error) {
+                    console.error('API Error:', result.message);
+                    showError(result.message);
+                    return null;
+                }
+
+                if (result.found) {
+                    // ذخیره کل شیء نتیجه API در کش
+                    setCache({ nationalId: nationalId, result: result });
+                    return result;
+                } else {
+                    return null; // کاربر یافت نشد
+                }
+            } catch (err) {
+                console.error('Fetch Error:', err);
+                showError('خطا در بارگذاری اطلاعات. اتصال اینترنت را بررسی کنید.');
+                return null;
             }
-        };
+        }
 
-        btn.addEventListener('click', () => {
+        // === تابع اصلی برای جستجو (به روز شده برای استفاده از API) ===
+        btn.addEventListener('click', async () => {
             resultsContainer.innerHTML = '';
             errorMsg.style.display = 'none';
+            const nationalIdInput = input.value.trim(); // نام بهتر برای ورودی کاربر
 
-            if (!/^\d{10}$/.test(input.value.trim())) {
-                showError('کد ملی باید 10 رقم و به صورت عددی وارد شود.');
+            if (!/^\d{10}$/.test(nationalIdInput)) {
+                showError('کد ملی باید 10 رقم و فقط شامل عدد باشد.');
                 return;
             }
 
             toggleLoading(true);
 
-            fetch(url)
-                .then(res => {
-                    if (!res.ok) throw new Error('Network response was not ok');
-                    return res.arrayBuffer();
-                })
-                .then(buf => {
-                    const wb = XLSX.read(buf, { type: 'array' });
-                    const ws = wb.Sheets[wb.SheetNames[0]];
-                    const data = XLSX.utils.sheet_to_json(ws, { header: 1 }).slice(1);
-                    searchAndDisplay(data);
-                })
-                .catch(err => {
-                    console.error("Error fetching or parsing Excel data:", err);
-                    showError("خطا در بارگذاری اطلاعات. لطفاً اتصال اینترنت خود را بررسی کرده و مجدداً تلاش کنید.");
-                })
-                .finally(() => {
-                    toggleLoading(false);
-                });
+            // فراخوانی تابع جدید که از API و کش استفاده می‌کند
+            const apiResult = await fetchActivityHistoryData(nationalIdInput);
+
+            toggleLoading(false);
+
+            if (!apiResult || !apiResult.found || apiResult.activities.length === 0) {
+                // اگر پیام خطایی از قبل نمایش داده نشده باشد (مثلاً از fetchActivityHistoryData)
+                if (errorMsg.style.display !== 'block') {
+                    showError('سوابقی با این کد ملی یافت نشد. لطفا مجددا تلاش کنید.');
+                }
+                return;
+            }
+
+            // اگر نتیجه یافت شد، آن را نمایش بده
+            displayResults(apiResult); // ارسال مستقیم شیء result به تابع نمایش
         });
         
+        // رویداد Enter برای فیلد جستجو (بدون تغییر)
         input.addEventListener('keypress', (event) => {
             if (event.key === 'Enter') {
                 event.preventDefault();
@@ -333,20 +378,23 @@
             }
         });
 
-        function displayResults(matches) {
-            // Name from column B (index 1), National ID from column C (index 2)
-            const fullName = matches[0][1] || 'کاربر گرامی';
-            const nationalId = matches[0][2] || 'ثبت نشده';
+        // تابع نمایش نتایج (ویرایش شده برای استفاده از نام پراپرتی‌ها)
+        function displayResults(data) { // 'data' حالا شیء JSON دریافتی از API است
+            const userInfo = data.user;
+            const activities = data.activities;
 
-            // Generate table rows from all matched records
-            const tableRows = matches.map(row => {
-                // Activity=D(3), StartDate=E(4), EndDate=F(5)
-                const activity = row[3] || '-';
-                const startDate = row[4] || '-';
-                const endDate = row[5] || 'تاکنون';
+            const fullName = userInfo.name || 'کاربر گرامی';
+            const nationalId = userInfo.nationalId || 'ثبت نشده';
+
+            // تولید ردیف‌های جدول از تمام رکوردهای فعالیت
+            const tableRows = activities.map(activity => {
+                // تاریخ‌ها و فعالیت از پراپرتی‌های شیء 'activity'
+                const activityType = activity.activity || '-';
+                const startDate = activity.startDate || '-';
+                const endDate = activity.endDate || 'تاکنون'; // 'تا هم اکنون' در Apps Script تنظیم شده بود
                 return `
                     <tr>
-                        <td>${activity}</td>
+                        <td>${activityType}</td>
                         <td>${startDate}</td>
                         <td>${endDate}</td>
                     </tr>
