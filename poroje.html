@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>پیگیری وضعیت دوره</title>
 
-  <!-- کتابخانه برای خواندن فایل اکسل -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+  <!-- کتابخانه xlsx.full.min.js حذف شد (دیگر به آن نیازی نیست) -->
+  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script> -->
 
-  <!-- کتابخانه‌های لازم برای کار با تاریخ شمسی -->
+  <!-- کتابخانه‌های لازم برای کار با تاریخ شمسی (همچنان مورد نیاز هستند) -->
   <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jalali-moment/dist/jalali-moment.browser.js"></script>
 
@@ -330,19 +330,21 @@
   </div>
 
   <script>
-    // === آدرس فایل‌های اکسل و لینک ثابت ===
-    const url1 = 'https://docs.google.com/spreadsheets/d/1c0g7deSI0y-QP4nQNux-l07_cumu3A6Gy0OolnhZWdU/export?format=xlsx';
-    const url2 = 'https://docs.google.com/spreadsheets/d/1QSRAGajWtCWHJHsU-u4dRW85nq2hCGySKqtZQL0iTjY/export?format=xlsx';
-    const driveFolderLink = 'https://drive.google.com/drive/folders/1-pUvCoHflHaLVIcSZJ3nR471I-HEEbn-';
+    // ==========================================================
+    // هسته اصلی جاوا اسکریپت - بازنویسی شده برای ارتباط با API و کشینگ
+    // ==========================================================
 
-    // === آیکون‌ها ===
+    // آدرس وب اپلیکیشن مرکزی شما (مطابق با لینک جدید شما)
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwJiG_VxW0WYeFaTVAMXakHQ48ppoavTCB0GLrdXSXIasE9L-pOUoEscsc40C78NKOO9A/exec';
+
+    // === آیکون‌ها === (بدون تغییر)
     const checkIconSVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="#28a745"/></svg>`;
     const crossIconSVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z" fill="#dc3545"/></svg>`;
     
-    // === دسترسی به عناصر DOM ===
+    // === دسترسی به عناصر DOM === (بدون تغییر)
     const mainContainer = document.getElementById('mainContainer');
-    const mainTitle = document.getElementById('mainTitle'); // دریافت عنوان اصلی
-    const loginForm = document.getElementById('loginForm'); // دریافت فرم ورود
+    const mainTitle = document.getElementById('mainTitle');
+    const loginForm = document.getElementById('loginForm');
     const errorMsg = document.getElementById('errorMsg');
     const resultsContainer = document.getElementById('resultsContainer');
     const courseInfo = document.getElementById('courseInfo');
@@ -352,55 +354,79 @@
     const btn = document.getElementById('searchBtn');
 
     // === متغیرهای کش داده‌ها ===
-    let allData = [], sheet2Data = [];
-    let isDataLoaded = false;
+    const CACHE_KEY = 'courseStatusDataCache'; // کلید کش منحصر به فرد برای این سامانه
+    const CACHE_EXPIRATION = 6 * 60 * 60 * 1000; // 6 ساعت
 
-    // === تابع برای مدیریت وضعیت لودینگ دکمه ===
+    // === تابع برای مدیریت وضعیت لودینگ دکمه === (بدون تغییر)
     const setButtonLoading = (isLoading) => {
         btn.disabled = isLoading;
         btn.classList.toggle('loading', isLoading);
     };
 
-    // === تابع برای نمایش پیام خطا ===
+    // === تابع برای نمایش پیام خطا === (بدون تغییر)
     const showMessage = (message) => {
         errorMsg.textContent = message;
         errorMsg.style.display = 'block';
     };
 
-    // === تابع برای بارگذاری داده‌ها فقط در صورت نیاز ===
-    const loadDataIfNeeded = async () => {
-        if (isDataLoaded) return true; 
-
-        try {
-            const [res1, res2] = await Promise.all([
-                fetch(url1),
-                fetch(url2)
-            ]);
-
-            if (!res1.ok || !res2.ok) throw new Error('Network response was not ok.');
-
-            const [buffer1, buffer2] = await Promise.all([
-                res1.arrayBuffer(),
-                res2.arrayBuffer()
-            ]);
-
-            const workbook1 = XLSX.read(buffer1, { type: 'array' });
-            allData = XLSX.utils.sheet_to_json(workbook1.Sheets[workbook1.SheetNames[0]], { header: 1 }).slice(1);
-            
-            const workbook2 = XLSX.read(buffer2, { type: 'array' });
-            sheet2Data = XLSX.utils.sheet_to_json(workbook2.Sheets[workbook2.SheetNames[0]], { header: 1 }).slice(1);
-            
-            isDataLoaded = true;
-            console.log("Data loaded and cached successfully.");
-            return true;
-        } catch (err) {
-            console.error("خطا در بارگذاری پایگاه داده:", err);
-            showMessage("خطا در ارتباط با سرور. لطفاً اتصال اینترنت را بررسی و مجدداً تلاش کنید.");
-            return false;
+    // === توابع مدیریت حافظه کش سمت کلاینت ===
+    function setCache(data) {
+        const cachePayload = { timestamp: new Date().getTime(), data: data };
+        localStorage.setItem(CACHE_KEY, JSON.stringify(cachePayload));
+    }
+    function getCache() {
+        const cachedData = localStorage.getItem(CACHE_KEY);
+        if (!cachedData) return null;
+        const cache = JSON.parse(cachedData);
+        const isExpired = (new Date().getTime() - cache.timestamp) > CACHE_EXPIRATION;
+        if (isExpired) {
+            localStorage.removeItem(CACHE_KEY);
+            return null;
         }
-    };
+        return cache.data;
+    }
+    function clearCache() {
+        localStorage.removeItem(CACHE_KEY);
+    }
 
-    // === تابع اصلی برای جستجو ===
+    // === تابع جدید برای بارگذاری داده‌ها از API با استفاده از کش ===
+    async function fetchCourseStatusData(nationalId) {
+        const cachedData = getCache();
+        // اگر داده‌ای برای همین کد ملی در کش موجود و معتبر بود، از کش برگردان
+        if (cachedData && cachedData.nationalId === nationalId) {
+            console.log('Data retrieved from cache for Course Status.');
+            return cachedData.result; // 'result' حاوی شیء کامل پاسخ API است
+        }
+
+        const url = `${SCRIPT_URL}?action=getCourseStatus&id=${nationalId}`;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Network response was not ok: ${response.status} ${response.statusText}`);
+            }
+            const result = await response.json();
+
+            if (result.error) {
+                console.error('API Error:', result.message);
+                showMessage(result.message);
+                return null;
+            }
+
+            if (result.found) {
+                // ذخیره کل شیء نتیجه API در کش
+                setCache({ nationalId: nationalId, result: result });
+                return result;
+            } else {
+                return null; // کاربر یافت نشد
+            }
+        } catch (err) {
+            console.error('Fetch Error:', err);
+            showMessage('خطا در بارگذاری اطلاعات. اتصال اینترنت را بررسی کنید.');
+            return null;
+        }
+    }
+
+    // === تابع اصلی برای جستجو (به روز شده برای استفاده از API) ===
     async function performSearch() {
         const userInput = input.value.trim();
         
@@ -416,20 +442,15 @@
 
         setButtonLoading(true);
 
-        const isDataReady = await loadDataIfNeeded();
-        if (!isDataReady) {
-            setButtonLoading(false);
-            return;
-        }
-        
-        const searchTerm = userInput.replace(/^0+/, '');
-        const projectRecord = allData.find(row => (row[4]?.toString().replace(/^0+/, '') || '') === searchTerm);
-        const registrationInfo = sheet2Data.find(row => (row[1]?.toString().replace(/^0+/, '') || '') === searchTerm);
+        const apiResult = await fetchCourseStatusData(userInput);
 
         setButtonLoading(false);
 
-        if (!projectRecord && !registrationInfo) {
-            showMessage("کد ملی وارد شده در سامانه یافت نشد.");
+        if (!apiResult || !apiResult.found) {
+            // اگر پیام خطایی از قبل نمایش داده نشده باشد (مثلاً از fetchCourseStatusData)
+            if (errorMsg.style.display !== 'block') {
+                showMessage("کد ملی وارد شده در سامانه یافت نشد.");
+            }
             return;
         }
         
@@ -438,26 +459,38 @@
         loginForm.style.display = 'none';
 
         // --- نمایش نتایج ---
-        const studentName = projectRecord?.[2] || registrationInfo?.[0] || 'دانشجوی گرامی';
-        const courseName = projectRecord?.[6] || registrationInfo?.[2] || 'نامشخص';
-        const courseId = registrationInfo?.[3];
-        const startDate = registrationInfo?.[4];
+        const regInfo = apiResult.registrationInfo; // اطلاعات از شیت ثبت نام
+        const projInfo = apiResult.projectInfo;     // اطلاعات از شیت گواهی و پروژه
+
+        // استفاده از عملگر Nullish Coalescing (??) یا OR (||) برای fallback ها
+        // Nullish Coalescing (??) فقط برای null یا undefined کار می‌کند، در حالی که || برای هر مقدار falsy.
+        // در اینجا چون داده‌ها ممکن است خالی (string '') باشند، || مناسب‌تر است.
+        const studentName = regInfo?.name || projInfo?.name || 'دانشجوی گرامی';
+        const courseName = regInfo?.courseName || projInfo?.courseName || 'نامشخص';
+        const courseId = regInfo?.courseId;
+        const startDate = regInfo?.startDate; // این یک رشته شمسی jYYYY/jMM/jDD از Apps Script است
         
         let calculatedEndDate = null;
         let isAfter85Days = false;
+        const driveFolderLink = 'https://drive.google.com/drive/folders/1-pUvCoHflHaLVIcSZJ3nR471I-HEEbn-'; // لینک ثابت
+
         if (startDate) {
             const startMoment = moment(startDate, 'jYYYY/jMM/jDD');
             if(startMoment.isValid()){
                 calculatedEndDate = startMoment.clone().add(85, 'days').format('jYYYY/jMM/jDD');
                 const daysPassed = moment().diff(startMoment, 'days');
                 isAfter85Days = daysPassed >= 85;
+            } else {
+                console.warn('Invalid startDate string from API:', startDate);
+                // اگر تاریخ شروع نامعتبر بود، فرض می‌کنیم هنوز دوره شروع نشده یا مشکلی دارد
+                // این باعث می‌شود که دکمه‌ها غیرفعال بمانند تا تاریخ شروع صحیح شود
             }
         }
 
-        const projectLink = projectRecord?.[9];
-        const certNumber = projectRecord?.[11];
-        const certDate = projectRecord?.[13];
-        const certLink = projectRecord?.[15];
+        const projectLink = projInfo?.projectLink;
+        const certNumber = projInfo?.certificateNumber;
+        const certDate = projInfo?.certificateDate; // این یک رشته شمسی jYYYY/jMM/jDD از Apps Script است
+        const certLink = projInfo?.certificateLink;
 
         courseInfo.innerHTML = `
             <h2>${courseName}</h2>
@@ -466,8 +499,10 @@
         `;
 
         let buttonsHTML = '';
-        if (isAfter85Days || !startDate) { 
-            if (registrationInfo) {
+        // دکمه‌ها فقط در صورتی نمایش داده می‌شوند که 85 روز گذشته باشد یا startDate نامعتبر باشد (برای جلوگیری از دسترسی زودهنگام)
+        // اگر startDate نامعتبر باشد، isAfter85Days نیز false خواهد بود.
+        if (isAfter85Days) { 
+            if (regInfo) { // اگر اطلاعات ثبت نامی بود، لینک جزوات را نمایش بده
                 buttonsHTML += `<a href="${driveFolderLink}" target="_blank" class="lessons-link">مشاهده دروس و جزوات</a>`;
             }
             if (projectLink && projectLink.trim() !== '') {
@@ -477,13 +512,19 @@
                 buttonsHTML += `<a href="${certLink}" target="_blank" class="cert-link">دانلود گواهی</a>`;
             }
         } else {
-            if(calculatedEndDate){
+            // اگر هنوز 85 روز نگذشته بود یا تاریخ شروع نامعتبر بود
+            if(calculatedEndDate && moment(startDate, 'jYYYY/jMM/jDD').isValid()){ // اگر calculatedEndDate معتبر بود
                 buttonsHTML = `<p class="access-message">دانشجوی گرامی، دسترسی به گواهینامه، پروژه و جزوات پس از تاریخ <strong>${calculatedEndDate}</strong> امکان‌پذیر خواهد بود.</p>`;
+            } else if (startDate) { // اگر startDate وجود داشت ولی نامعتبر بود
+                buttonsHTML = `<p class="access-message">تاریخ شروع دوره شما نامعتبر است. لطفا با پشتیبانی تماس بگیرید.</p>`;
+            } else { // اگر اصلا startDate نبود
+                buttonsHTML = `<p class="access-message">دسترسی به اطلاعات دوره در حال حاضر امکان‌پذیر نیست. لطفا با پشتیبانی تماس بگیرید.</p>`;
             }
         }
         actionButtons.innerHTML = buttonsHTML;
 
-        const hasRegistered = !!registrationInfo || !!projectRecord;
+        // تعیین وضعیت‌ها با استفاده از اطلاعات دریافتی
+        const hasRegistered = !!regInfo; // اگر regInfo وجود داشته باشد (یعنی کاربر در شیت ثبت نام هست)
         const hasFinishedCourse = isAfter85Days;
         const hasSentProject = projectLink && projectLink.trim() !== '';
         const hasCertificate = certLink && certLink.trim() !== '';
@@ -498,7 +539,7 @@
             ${certNumber ? `<li><span class="status-label">شماره گواهی</span> <span class="status-value status-info">${certNumber}</span></li>` : ''}
         `;
         
-        // تغییر استایل کانتینر برای نمایش بهتر نتایج
+        // تغییر استایل کانتینر برای نمایش بهتر نتایج (بدون تغییر)
         resultsContainer.style.display = 'block';
         resultsContainer.style.marginTop = '0'; // حذف فاصله اضافی بالا
         resultsContainer.style.paddingTop = '0';
@@ -513,7 +554,7 @@
 
         if (nationalId) {
             input.value = nationalId;
-            performSearch();
+            performSearch(); // این تابع اکنون از API و کش استفاده می‌کند
         }
     });
 
