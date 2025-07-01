@@ -9,7 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-    <!-- فونت وزیرمتن از گوگل -->
+    <!-- فونت وزیرمتن از گوگل برای رابط کاربری -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700&display=swap');
 
@@ -219,11 +219,11 @@
             z-index: 2;
             height: 100%;
         }
-        #letterContent * {
-            font-size: clamp(8px, 2.2vw, 14px);
-            margin: 0;
-            font-family: 'Times New Roman', serif;
+        /* کلاس برای اعمال فونت نستعلیق پس از بارگذاری */
+        .nastaliq-font, .nastaliq-font * {
+            font-family: 'IranNastaliq', 'Times New Roman', serif !important;
         }
+
         .header-right p, .header-left p {
              font-weight: 700;
              line-height: 1.4;
@@ -240,9 +240,8 @@
         }
         .content p { margin-bottom: 4%; line-height: 1.4; }
         .basmala {
-            font-family: 'Vazirmatn', 'Times New Roman', serif !important;
             font-weight: 500 !important;
-            font-size: 1.2em !important;
+            font-size: 1.4em !important; /* کمی بزرگتر برای جلوه بهتر نستعلیق */
         }
         .content .salam-spacing { margin-bottom: 6%; }
         .signature { text-align: center; margin-top: 10%; }
@@ -258,8 +257,7 @@
         }
         .main-text-block p {
             margin-bottom: 0;
-            /* تغییر درخواستی: تنظیم سایز فونت به 15px */
-            font-size: 15px; 
+            font-size: 15px !important; /* اطمینان از اعمال سایز 15 */
         }
 
 
@@ -354,7 +352,6 @@
 
         <div id="previewContainer">
             <div id="letterContent">
-                <!-- واترمارک حذف شد -->
                 <div class="letter-body">
                     <div class="header-right">
                         <p>گروه جهادی طلاب و روحانیون جنوب، تاسیس ۱۳۹۸</p>
@@ -407,6 +404,7 @@
         const downloadBtn = document.getElementById('downloadBtn');
         const statusMessage = document.getElementById('statusMessage');
         const previewContainer = document.getElementById('previewContainer');
+        const letterContentDiv = document.getElementById('letterContent');
         const downloadControls = document.getElementById('downloadControls');
         const downloadComplete = document.getElementById('downloadComplete');
         const viewFileLink = document.getElementById('viewFileLink');
@@ -414,6 +412,7 @@
         const shareFileLink = document.getElementById('shareFileLink');
 
         let generatedPdfBlob = null; 
+        let isNastaliqLoaded = false; // فلگ برای جلوگیری از بارگذاری مجدد فونت
 
         const setButtonLoading = (btn, isLoading) => {
             btn.disabled = isLoading;
@@ -435,21 +434,15 @@
             const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
             return String(str).replace(/\d/g, d => persianDigits[d]);
         }
-        
-        const generatePreview = () => {
+
+        // تابع برای پر کردن اطلاعات نامه
+        function populateLetterData() {
             const fullName = document.getElementById('fullName').value.trim();
             const nationalID = document.getElementById('nationalID').value.trim();
             const startYear = document.getElementById('startYear').value.trim();
             const duration = document.getElementById('duration').value;
             const department = document.getElementById('department').value.trim();
-
-            if (!fullName || !nationalID || !startYear || !duration || !department) {
-                showMessage('لطفاً تمام فیلدها را تکمیل کنید.');
-                return false;
-            }
             
-            hideMessage();
-
             const now = new Date();
             const currentDate = now.toLocaleDateString('fa-IR', { year: 'numeric', month: '2-digit', day: '2-digit' });
             const letterNumber = `${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}/ب`;
@@ -461,24 +454,60 @@
             document.getElementById('nid').innerText = convertToPersianDigits(nationalID);
             document.getElementById('start').innerText = convertToPersianDigits(startYear);
             document.getElementById('dur').innerText = convertToPersianDigits(duration);
+        }
 
-            previewContainer.style.display = 'block';
-            downloadBtn.style.display = 'block';
-            downloadComplete.style.display = 'none';
+        // تابع اصلی برای تولید نامه (شامل بارگذاری فونت)
+        async function generateLetter() {
+            // 1. اعتبار سنجی فرم
+            const fullName = document.getElementById('fullName').value.trim();
+            const nationalID = document.getElementById('nationalID').value.trim();
+            const startYear = document.getElementById('startYear').value.trim();
+            const duration = document.getElementById('duration').value;
+            const department = document.getElementById('department').value.trim();
+            if (!fullName || !nationalID || !startYear || !duration || !department) {
+                showMessage('لطفاً تمام فیلدها را تکمیل کنید.');
+                return;
+            }
+            hideMessage();
 
-            return true;
-        };
-
-        const createAndHandlePdf = async () => {
-            if (!generatePreview()) return;
-
-            setButtonLoading(downloadBtn, true);
-            downloadBtn.style.display = 'block';
-            downloadComplete.style.display = 'none';
+            // 2. نمایش حالت لودینگ
+            setButtonLoading(generateBtn, true);
 
             try {
+                // 3. بارگذاری فونت نستعلیق فقط در صورتی که قبلا بارگذاری نشده باشد
+                if (!isNastaliqLoaded) {
+                    const nastaliqFont = new FontFace('IranNastaliq', "url('https://tashacol.github.io/ir/IranNastaliq.ttf')");
+                    await nastaliqFont.load();
+                    document.fonts.add(nastaliqFont);
+                    isNastaliqLoaded = true;
+                }
+
+                // 4. اعمال فونت، پر کردن اطلاعات و نمایش نامه
+                letterContentDiv.classList.add('nastaliq-font');
+                populateLetterData();
+                
+                letterForm.style.display = 'none';
+                generateBtn.style.display = 'none';
+                previewContainer.style.display = 'block';
+                downloadBtn.style.display = 'block';
+                downloadComplete.style.display = 'none';
+
+            } catch (error) {
+                console.error("خطا در بارگذاری فونت:", error);
+                showMessage("خطا در بارگذاری فونت نستعلیق. لطفا اتصال اینترنت را بررسی و مجددا تلاش کنید.");
+            } finally {
+                // 5. توقف حالت لودینگ در هر صورت
+                setButtonLoading(generateBtn, false);
+            }
+        }
+        
+        // تابع برای دانلود PDF
+        const createAndHandlePdf = async () => {
+            setButtonLoading(downloadBtn, true);
+            
+            try {
                 const { jsPDF } = window.jspdf;
-                const canvas = await html2canvas(document.getElementById('letterContent'), {
+                const canvas = await html2canvas(letterContentDiv, {
                     scale: 5,
                     useCORS: true,
                     backgroundColor: null,
@@ -522,13 +551,7 @@
         };
 
         // === رویدادها ===
-        generateBtn.addEventListener('click', () => {
-            if (generatePreview()) {
-                letterForm.style.display = 'none';
-                generateBtn.style.display = 'none';
-            }
-        });
-
+        generateBtn.addEventListener('click', generateLetter);
         downloadBtn.addEventListener('click', createAndHandlePdf);
 
         downloadAgainLink.addEventListener('click', (e) => {
