@@ -1,233 +1,851 @@
 <!DOCTYPE html>
-<html lang="fa">
+<html lang="fa" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>کاربری مدیر عامل</title>
-     <style>
-        body {
-            font-family: Arial, sans-serif;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>پنل مدیریت عامل - موسسه تعالی اندیشه و رشد</title>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <!-- Chart.js برای نمودارها -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* ========== Fonts ========== */
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700&display=swap');
+
+        /* ========== Variables ========== */
+        :root {
+            --primary-color: #0d6efd;
+            --primary-light: #e7f3ff;
+            --primary-dark: #0a58ca;
+            --secondary-color: #6c757d;
+            --bg-color: #f4f7fc;
+            --sidebar-bg: #ffffff;
+            --sidebar-width: 260px;
+            --header-height: 70px;
+            --card-bg: #ffffff;
+            --text-dark: #212529;
+            --text-muted: #6c757d;
+            --border-color: #dee2e6;
+            --success-color: #198754;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #0dcaf0;
+            --shadow: 0 4px 25px rgba(0, 0, 0, 0.08);
+            --border-radius: 12px;
+            --transition-speed: 0.3s ease;
+        }
+
+        /* ========== Global Styles ========== */
+        * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
         }
 
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.7); /* پس‌زمینه تار */
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ========== Login View ========== */
+        #login-view {
             display: flex;
-            justify-content: center;
             align-items: center;
-            z-index: 1000; /* بالاتر از سایر عناصر */
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
         }
 
-        .loader {
-            border: 8px solid #f3f3f3; /* رنگ لودینگ */
-            border-top: 8px solid #3498db; /* رنگ قسمت متحرک */
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            background-color: var(--card-bg);
+            padding: 40px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+        .login-card h1 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+        .login-card p {
+            color: var(--text-muted);
+            margin-bottom: 30px;
+        }
+        .form-group {
+            position: relative;
+            margin-bottom: 25px;
+        }
+        .form-icon {
+            position: absolute;
+            top: 50%;
+            right: 18px;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+        .form-input {
+            width: 100%;
+            padding: 15px 50px 15px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            font-size: 1.1rem;
+            outline: none;
+            transition: var(--transition-speed);
+        }
+        .form-input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.2);
+        }
+        .btn-login {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.1rem;
+            font-weight: 500;
+            background-color: var(--primary-color);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: var(--transition-speed);
+            position: relative;
+            min-height: 54px;
+        }
+        .btn-login:hover {
+            background-color: var(--primary-dark);
+        }
+        .btn-login:disabled {
+            background-color: #a9aeb4;
+            cursor: not-allowed;
+        }
+        .btn-loader {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 24px; height: 24px; border: 3px solid rgba(255, 255, 255, 0.4);
+            border-top-color: #fff; border-radius: 50%; display: none;
+            animation: spin 0.8s linear infinite;
+        }
+        .btn-login.loading .btn-text { opacity: 0; }
+        .btn-login.loading .btn-loader { display: block; }
+        #login-message {
+            color: var(--danger-color); margin-top: 15px; min-height: 20px;
+        }
+
+        /* ========== Dashboard View ========== */
+        #dashboard-view {
+            display: none; /* Hidden by default */
+            transition: opacity 0.5s;
+        }
+        .dashboard-container {
+            display: flex;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--sidebar-bg);
+            height: 100vh;
+            position: fixed;
+            top: 0; right: 0;
+            box-shadow: -5px 0 15px rgba(0,0,0,0.05);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.4s ease-in-out;
+            z-index: 1000;
+        }
+        .sidebar-header { text-align: center; margin-bottom: 30px; }
+        .sidebar-header .logo-icon { font-size: 2.5rem; color: var(--primary-color); }
+        .sidebar-header h2 { font-size: 1.5rem; margin-top: 10px; }
+        .sidebar-nav { flex-grow: 1; }
+        .nav-list { list-style: none; }
+        .nav-item .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            color: var(--text-muted);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: var(--transition-speed);
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        .nav-item .nav-link:hover, .nav-item .nav-link.active {
+            background-color: var(--primary-light);
+            color: var(--primary-dark);
+        }
+        .nav-link .nav-icon { font-size: 1.2rem; min-width: 30px; text-align: center; margin-left: 15px; }
+        .nav-link .arrow-icon { margin-right: auto; transition: transform 0.2s; }
+        .nav-link.open .arrow-icon { transform: rotate(90deg); }
+        .submenu {
+            list-style: none;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-in-out;
+            margin-right: 25px;
+        }
+        .submenu .nav-link {
+            padding: 10px 15px;
+            font-size: 0.95rem;
+        }
+
+        .sidebar-footer {
+            border-top: 1px solid var(--border-color);
+            padding-top: 15px;
+            margin-top: 15px;
+        }
+        .user-profile {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .user-profile .avatar {
+            width: 40px; height: 40px;
+            background-color: var(--primary-color);
+            color: #fff;
             border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite; /* انیمیشن چرخش */
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem;
+            margin-left: 10px;
+        }
+        .user-info h4 { font-size: 1rem; margin: 0; }
+        .user-info p { font-size: 0.8rem; color: var(--text-muted); margin: 0; }
+        .btn-logout {
+            width: 100%;
+            margin-top: 15px;
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            border: none;
+            font-weight: 500;
+        }
+        .btn-logout:hover {
+            background: #d8e6fa;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        /* Main Content */
+        .main-content {
+            margin-right: var(--sidebar-width);
+            width: calc(100% - var(--sidebar-width));
+            padding: 30px;
+            transition: margin-right 0.4s ease-in-out;
+        }
+        .content-view {
+            display: none;
+        }
+        .content-view.active {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+        .page-header h1 {
+            font-size: 2rem;
+            margin-bottom: 25px;
+        }
+
+        /* Stat Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background-color: var(--card-bg);
+            padding: 25px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+        }
+        .stat-card .icon-wrapper {
+            width: 50px; height: 50px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem;
+            margin-left: 20px;
+            color: #fff;
+        }
+        .stat-card.income .icon-wrapper { background-color: var(--success-color); }
+        .stat-card.expense .icon-wrapper { background-color: var(--danger-color); }
+        .stat-card.profit .icon-wrapper { background-color: var(--info-color); }
+        .stat-card.loss .icon-wrapper { background-color: var(--warning-color); }
+
+        .stat-card .stat-info h3 {
+            font-size: 1rem;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+        }
+        .stat-card .stat-info p {
+            font-size: 1.75rem;
+            font-weight: 700;
+        }
+        
+        /* Data Table */
+        .card {
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .card-header h3 {
+            font-size: 1.2rem;
+            margin: 0;
+        }
+        .search-wrapper { position: relative; }
+        .search-wrapper input {
+            padding: 8px 15px 8px 35px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            width: 250px;
+        }
+        .search-wrapper .fa-search {
+            position: absolute;
+            top: 50%; left: 12px;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+        .table-responsive { overflow-x: auto; }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: right;
+        }
+        .data-table th, .data-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .data-table th {
+            font-weight: 500;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+        .data-table tbody tr:hover {
+            background-color: var(--primary-light);
+        }
+        .data-table tbody tr:last-child td { border-bottom: none; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Responsive */
+        .sidebar-toggle {
+            display: none;
+            position: fixed;
+            top: 15px; right: 15px;
+            z-index: 1001;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            width: 40px; height: 40px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+
+        @media (max-width: 992px) {
+            .sidebar {
+                transform: translateX(var(--sidebar-width));
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .main-content {
+                width: 100%;
+                margin-right: 0;
+            }
+            .sidebar-toggle {
+                display: block;
+            }
+            .dashboard-container.sidebar-open .main-content {
+                transform: translateX(calc(-1 * var(--sidebar-width)));
+            }
+        }
+        @media (max-width: 576px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .login-card { padding: 30px 20px; }
+            .main-content { padding: 20px; }
         }
     </style>
 </head>
 <body>
-    <div class="loading-overlay">
-        <div class="loader"></div>
+
+    <!-- صفحه ورود -->
+    <div id="login-view">
+        <div class="login-card">
+            <i class="fas fa-shield-halved" style="font-size: 3rem; color: var(--primary-color); margin-bottom: 20px;"></i>
+            <h1>ورود مدیر عامل</h1>
+            <p>برای دسترسی به پنل، اطلاعات خود را وارد نمایید.</p>
+            <form onsubmit="event.preventDefault(); handleLogin();">
+                <div class="form-group">
+                    <i class="fas fa-user form-icon"></i>
+                    <input type="number" id="username" class="form-input" placeholder="نام کاربری" required>
+                </div>
+                <div class="form-group">
+                    <i class="fas fa-lock form-icon"></i>
+                    <input type="password" id="password" class="form-input" placeholder="رمز عبور" required>
+                </div>
+                <button class="btn-login" id="loginButton">
+                    <span class="btn-text">ورود</span>
+                    <div class="btn-loader"></div>
+                </button>
+            </form>
+            <p id="login-message"></p>
+        </div>
+    </div>
+
+    <!-- پنل مدیریت -->
+    <div id="dashboard-view">
+        <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+        <div class="dashboard-container">
+            <!-- منوی کناری -->
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <i class="fas fa-building-columns logo-icon"></i>
+                    <h2>موسسه تعالی</h2>
+                </div>
+                <nav class="sidebar-nav">
+                    <ul class="nav-list">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link active" data-target="home-view">
+                                <i class="fas fa-home nav-icon"></i>
+                                <span>داشبورد اصلی</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-target="financials-view">
+                                <i class="fas fa-chart-line nav-icon"></i>
+                                <span>نمای کلی مالی</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-target="staff-view">
+                                <i class="fas fa-users-cog nav-icon"></i>
+                                <span>کادر اجرایی</span>
+                            </a>
+                        </li>
+                        <li class="nav-item has-submenu">
+                            <a href="#" class="nav-link">
+                                <i class="fas fa-file-signature nav-icon"></i>
+                                <span>صدور نامه</span>
+                                <i class="fas fa-chevron-left arrow-icon"></i>
+                            </a>
+                            <ul class="submenu">
+                                <li><a href="#" class="nav-link" target="_blank">تائید سوابق مؤسسه</a></li>
+                                <li><a href="#" class="nav-link" target="_blank">تائید سوابق جهادی</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item has-submenu">
+                            <a href="#" class="nav-link">
+                                <i class="fas fa-database nav-icon"></i>
+                                <span>داده های مؤسسه</span>
+                                <i class="fas fa-chevron-left arrow-icon"></i>
+                            </a>
+                            <ul class="submenu">
+                                <li><a href="#" class="nav-link" target="_blank">لیست دانشجویان</a></li>
+                                <li><a href="#" class="nav-link" target="_blank">لیست ثبت نام کنندگان</a></li>
+                                <li><a href="#" class="nav-link" target="_blank">لیست اعضای موسسه</a></li>
+                                <li><a href="#" class="nav-link" target="_blank">نظرات دانش پذیران</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </nav>
+                <div class="sidebar-footer">
+                    <div class="user-profile">
+                        <div class="avatar"><i class="fas fa-user-tie"></i></div>
+                        <div class="user-info">
+                            <h4 id="ceoName">...</h4>
+                            <p>مدیر عامل</p>
+                        </div>
+                    </div>
+                    <button class="btn-login btn-logout" id="logoutButton">
+                        <i class="fas fa-sign-out-alt"></i>
+                        خروج از حساب
+                    </button>
+                </div>
+            </aside>
+
+            <!-- محتوای اصلی -->
+            <main class="main-content">
+                <!-- نمای داشبورد اصلی -->
+                <div id="home-view" class="content-view active">
+                    <div class="page-header">
+                        <h1>داشبورد اصلی</h1>
+                    </div>
+                    <div class="stats-grid" id="home-stats">
+                        <!-- کارت‌های آمار اینجا توسط JS بارگذاری می‌شوند -->
+                    </div>
+                     <div class="card">
+                        <div class="card-header">
+                            <h3>نمودار جریان مالی</h3>
+                        </div>
+                        <canvas id="financialChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- نمای مالی -->
+                <div id="financials-view" class="content-view">
+                    <div class="page-header">
+                        <h1>گزارش کامل مالی</h1>
+                    </div>
+                    <div class="stats-grid" id="financials-stats">
+                        <!-- کارت‌های آمار اینجا توسط JS بارگذاری می‌شوند -->
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>ریز تراکنش‌ها</h3>
+                            <div class="search-wrapper">
+                                <input type="text" id="financialsSearch" placeholder="جستجو در تراکنش‌ها...">
+                                <i class="fas fa-search"></i>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>تاریخ</th>
+                                        <th>حسابدار</th>
+                                        <th>درآمد (تومان)</th>
+                                        <th>مخارج (تومان)</th>
+                                        <th>سود (تومان)</th>
+                                        <th>ضرر (تومان)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="financialsTableBody">
+                                    <!-- ردیف‌های جدول اینجا توسط JS بارگذاری می‌شوند -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- نمای کادر اجرایی -->
+                <div id="staff-view" class="content-view">
+                     <div class="page-header">
+                        <h1>کادر اجرایی</h1>
+                    </div>
+                     <div class="card">
+                        <div class="card-header">
+                            <h3>لیست اعضا</h3>
+                             <div class="search-wrapper">
+                                <input type="text" id="staffSearch" placeholder="جستجو در اعضا...">
+                                <i class="fas fa-search"></i>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>نام کادر اجرایی</th>
+                                        <th>کد ملی</th>
+                                        <th>تاریخ شروع فعالیت</th>
+                                        <th>شماره تلفن</th>
+                                        <th>سمت</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="staffTableBody">
+                                    <!-- ردیف‌های جدول اینجا توسط JS بارگذاری می‌شوند -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
     </div>
 
     <script>
-        // شبیه‌سازی بارگذاری
-        window.onload = function() {
-            document.querySelector('.loading-overlay').style.display = 'none';
-        };
+        document.addEventListener('DOMContentLoaded', () => {
+            // ==========================================================
+            // متغیرهای سراسری و انتخاب عناصر DOM
+            // ==========================================================
+            const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbza0qqFw_sY1zoRPfiz-pieEDSBi0xdBivGg-SPvRM-IRRpflUM1mncb7vaQlUnAA2eaw/exec";
+
+            const loginView = document.getElementById('login-view');
+            const dashboardView = document.getElementById('dashboard-view');
+            const loginButton = document.getElementById('loginButton');
+            const logoutButton = document.getElementById('logoutButton');
+            const ceoNameElement = document.getElementById('ceoName');
+            const navLinks = document.querySelectorAll('.sidebar-nav .nav-link');
+            const contentViews = document.querySelectorAll('.content-view');
+            
+            // داده‌های کش شده
+            let financialsData = null;
+            let staffData = null;
+            let financialChartInstance = null;
+
+            // ==========================================================
+            // منطق ورود و خروج
+            // ==========================================================
+            window.handleLogin = async () => {
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                const loginMessage = document.getElementById('login-message');
+                
+                loginMessage.textContent = '';
+                loginButton.classList.add('loading');
+                loginButton.disabled = true;
+
+                // TODO: در آینده این بخش با fetch به Apps Script جایگزین می‌شود
+                try {
+                    const url = `${SCRIPT_URL}?action=ceoLogin&username=${username}&password=${password}`;
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error("خطای شبکه");
+                    
+                    const result = await response.json();
+
+                    if (result.found) {
+                        sessionStorage.setItem('ceoInfo', JSON.stringify(result.data));
+                        ceoNameElement.textContent = result.data.name;
+                        loginView.style.display = 'none';
+                        dashboardView.style.display = 'block';
+                        // بارگذاری داده‌های اولیه برای داشبورد
+                        loadInitialDashboardData();
+                    } else {
+                        loginMessage.textContent = result.message || 'نام کاربری یا رمز عبور نامعتبر است.';
+                    }
+                } catch (error) {
+                    loginMessage.textContent = 'خطا در ارتباط با سرور. لطفاً اتصال خود را بررسی کنید.';
+                } finally {
+                    loginButton.classList.remove('loading');
+                    loginButton.disabled = false;
+                }
+            };
+
+            logoutButton.addEventListener('click', () => {
+                sessionStorage.removeItem('ceoInfo');
+                location.reload(); // ساده‌ترین راه برای ریست کردن کامل پنل
+            });
+            
+            // ==========================================================
+            // منطق ناوبری و نمایش صفحات
+            // ==========================================================
+            function showView(targetId) {
+                contentViews.forEach(view => view.classList.remove('active'));
+                navLinks.forEach(link => link.classList.remove('active'));
+
+                const targetView = document.getElementById(targetId);
+                const activeLink = document.querySelector(`.nav-link[data-target="${targetId}"]`);
+                
+                if (targetView) targetView.classList.add('active');
+                if (activeLink) activeLink.classList.add('active');
+
+                // بارگذاری داده‌ها فقط زمانی که به آن صفحه می‌رویم
+                if (targetId === 'financials-view' && !financialsData) loadFinancialsData();
+                if (targetId === 'staff-view' && !staffData) loadStaffData();
+            }
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    if (!link.classList.contains('has-submenu')) e.preventDefault();
+                    
+                    const target = link.dataset.target;
+                    if (target) {
+                        showView(target);
+                        // برای موبایل، پس از کلیک منو را ببند
+                        if(window.innerWidth <= 992) {
+                            document.getElementById('sidebar').classList.remove('open');
+                            document.querySelector('.dashboard-container').classList.remove('sidebar-open');
+                        }
+                    }
+
+                    if (link.parentElement.classList.contains('has-submenu')) {
+                        const submenu = link.nextElementSibling;
+                        if(submenu) {
+                           link.classList.toggle('open');
+                           submenu.style.maxHeight = link.classList.contains('open') ? submenu.scrollHeight + "px" : "0";
+                        }
+                    }
+                });
+            });
+
+            // ==========================================================
+            // توابع واکشی و رندر داده‌ها
+            // ==========================================================
+            function loadInitialDashboardData() {
+                if (!financialsData) loadFinancialsData('home');
+            }
+
+            async function loadFinancialsData(view = 'financials') {
+                if (financialsData) {
+                    renderFinancials(financialsData, view);
+                    return;
+                }
+
+                try {
+                    // TODO: واکشی داده‌های مالی
+                    const url = `${SCRIPT_URL}?action=getFinancials`;
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error("خطای شبکه");
+                    const result = await response.json();
+                    
+                    if (result.error) throw new Error(result.message);
+                    
+                    financialsData = result;
+                    renderFinancials(financialsData, view);
+                    if(view === 'home') renderFinancialChart(financialsData);
+
+                } catch (error) {
+                    console.error("Error loading financials:", error);
+                }
+            }
+
+            async function loadStaffData() {
+                 if (staffData) {
+                    renderStaff(staffData);
+                    return;
+                }
+                try {
+                    // TODO: واکشی داده‌های کادر اجرایی
+                    const url = `${SCRIPT_URL}?action=getStaff`;
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error("خطای شبکه");
+                    const result = await response.json();
+                    
+                    if (result.error) throw new Error(result.message);
+
+                    staffData = result.data;
+                    renderStaff(staffData);
+
+                } catch (error) {
+                    console.error("Error loading staff:", error);
+                }
+            }
+            
+            // --- توابع رندر ---
+            function renderFinancials(data, view) {
+                const statsContainerId = view === 'home' ? 'home-stats' : 'financials-stats';
+                const statsContainer = document.getElementById(statsContainerId);
+                const tableBody = document.getElementById('financialsTableBody');
+                
+                statsContainer.innerHTML = `
+                    <div class="stat-card income">
+                        <div class="icon-wrapper"><i class="fas fa-arrow-up"></i></div>
+                        <div class="stat-info"><h3>مجموع درآمد</h3><p>${data.summary.totalIncome.toLocaleString()} تومان</p></div>
+                    </div>
+                    <div class="stat-card expense">
+                        <div class="icon-wrapper"><i class="fas fa-arrow-down"></i></div>
+                        <div class="stat-info"><h3>مجموع مخارج</h3><p>${data.summary.totalExpenses.toLocaleString()} تومان</p></div>
+                    </div>
+                     <div class="stat-card profit">
+                        <div class="icon-wrapper"><i class="fas fa-plus"></i></div>
+                        <div class="stat-info"><h3>مجموع سود</h3><p>${data.summary.totalProfit.toLocaleString()} تومان</p></div>
+                    </div>
+                    <div class="stat-card loss">
+                        <div class="icon-wrapper"><i class="fas fa-minus"></i></div>
+                        <div class="stat-info"><h3>مجموع ضرر</h3><p>${data.summary.totalLoss.toLocaleString()} تومان</p></div>
+                    </div>`;
+
+                if (view === 'financials') {
+                    tableBody.innerHTML = data.transactions.map(row => `
+                        <tr>
+                            <td>${row.date}</td>
+                            <td>${row.accountant}</td>
+                            <td>${row.income.toLocaleString()}</td>
+                            <td>${row.expenses.toLocaleString()}</td>
+                            <td>${row.profit.toLocaleString()}</td>
+                            <td>${row.loss.toLocaleString()}</td>
+                        </tr>
+                    `).join('');
+                }
+            }
+            
+             function renderStaff(data) {
+                const tableBody = document.getElementById('staffTableBody');
+                tableBody.innerHTML = data.map(staff => `
+                    <tr>
+                        <td>${staff.name}</td>
+                        <td>${staff.nationalId}</td>
+                        <td>${staff.startDate}</td>
+                        <td>${staff.phone}</td>
+                        <td>${staff.role}</td>
+                    </tr>
+                `).join('');
+            }
+            
+            function renderFinancialChart(data) {
+                const ctx = document.getElementById('financialChart').getContext('2d');
+                if (financialChartInstance) {
+                    financialChartInstance.destroy();
+                }
+                const labels = data.transactions.map(t => t.date).slice(-12); // حداکثر ۱۲ مورد آخر
+                const incomeData = data.transactions.map(t => t.income).slice(-12);
+                const expenseData = data.transactions.map(t => t.expenses).slice(-12);
+                
+                financialChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'درآمد',
+                            data: incomeData,
+                            borderColor: 'rgba(25, 135, 84, 0.8)',
+                            backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        }, {
+                            label: 'مخارج',
+                            data: expenseData,
+                            borderColor: 'rgba(220, 53, 69, 0.8)',
+                            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { y: { beginAtZero: true, ticks: { callback: value => value.toLocaleString() + ' ت' } } }
+                    }
+                });
+            }
+
+            // ==========================================================
+            // منطق جستجو و سایر تعاملات UI
+            // ==========================================================
+            function setupSearch(inputId, tableBodyId) {
+                document.getElementById(inputId).addEventListener('keyup', (e) => {
+                    const searchTerm = e.target.value.toLowerCase();
+                    const rows = document.getElementById(tableBodyId).getElementsByTagName('tr');
+                    Array.from(rows).forEach(row => {
+                        row.style.display = row.textContent.toLowerCase().includes(searchTerm) ? '' : 'none';
+                    });
+                });
+            }
+            setupSearch('financialsSearch', 'financialsTableBody');
+            setupSearch('staffSearch', 'staffTableBody');
+
+            // Toggle sidebar for mobile
+            document.getElementById('sidebarToggle').addEventListener('click', () => {
+                document.getElementById('sidebar').classList.toggle('open');
+                document.querySelector('.dashboard-container').classList.toggle('sidebar-open');
+            });
+            
+            // ==========================================================
+            // بررسی اولیه برای ورود خودکار
+            // ==========================================================
+            const savedCeoInfo = sessionStorage.getItem('ceoInfo');
+            if (savedCeoInfo) {
+                const ceoInfo = JSON.parse(savedCeoInfo);
+                ceoNameElement.textContent = ceoInfo.name;
+                loginView.style.display = 'none';
+                dashboardView.style.display = 'block';
+                loadInitialDashboardData();
+            } else {
+                loginView.style.display = 'flex';
+                dashboardView.style.display = 'none';
+            }
+        });
     </script>
- <style>
-    @font-face {
-      font-family: 'IranNastaliq';
-      src: url('https://tashacol.github.io/ir/B%20Titr%20Bold_0.ttf') format('truetype');
-      font-weight: normal;
-      font-style: normal;
-    }
-
-    /* تنظیمات کلی صفحه */
-    body {
-      background: linear-gradient(135deg, #1e3c72, #2a5298);
-      font-family: 'IranNastaliq', Tahoma, Geneva, Verdana, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-      padding: 20px;
-    }
-    .container {
-      background: #ffffff;
-      padding: 40px;
-      border-radius: 20px;
-      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
-      text-align: center;
-      width: 400px;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-    .container:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-    }
-    h1, input, button, a {
-      font-family: 'IranNastaliq', Tahoma, Geneva, Verdana, sans-serif;
-    }
-    input[type=number] {
-      padding: 12px;
-      margin-top: 15px;
-      border-radius: 10px;
-      border: 1px solid #ccc;
-      width: calc(100% - 24px);
-      box-sizing: border-box;
-      font-size: 1rem;
-      text-align: center;
-      transition: all 0.3s ease;
-    }
-    input[type=number]:focus {
-      border-color: #007BFF;
-      box-shadow: 0 0 10px rgba(0, 123, 255, 0.3);
-      outline: none;
-    }
-
-    /* استایل دکمه ورود (بخش فرم ورود مدیر عامل) */
-    .button {
-      display: block;
-      margin: 15px auto;
-      padding: 12px 25px;
-      background: #28a745; /* رنگ دکمه ورود */
-      color: white;
-      text-decoration: none;
-      border: none;
-      border-radius: 30px;
-      transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease;
-      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
-      font-size: 1.1rem;
-      font-weight: bold;
-      cursor: pointer;
-      width: 100%;
-    }
-    .button:hover {
-      background: #218838;
-      transform: translateY(-4px);
-      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
-    }
-    .button:active {
-      transform: translateY(2px);
-      box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
-    }
-    .hidden {
-      display: none;
-    }
-
-    /* استایل دکمه‌های بخش کاربری مدیر عامل */
-    #content .button {
-      width: auto;
-      display: inline-block;
-      margin: 15px 10px;
-      padding: 12px 30px;
-      border-radius: 30px;
-      box-shadow: 0 8px 15px rgba(0,0,0,0.1);
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-      position: relative;
-    }
-    #content .button:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 15px 20px rgba(0,0,0,0.2);
-    }
-    #content .button:active {
-      transform: translateY(2px);
-      box-shadow: 0 5px 10px rgba(0,0,0,0.2);
-    }
-
-    /* استایل دکمه‌های رنگی */
-    .btn-blue {
-      background: linear-gradient(145deg, #3498db, #2980b9);
-      border: 2px solid #2980b9;
-      color: #fff;
-    }
-    .btn-blue:hover {
-      background: linear-gradient(145deg, #2980b9, #3498db);
-    }
-    .btn-red {
-      background: linear-gradient(145deg, #e74c3c, #c0392b);
-      border: 2px solid #c0392b;
-      color: #fff;
-    }
-    .btn-red:hover {
-      background: linear-gradient(145deg, #c0392b, #e74c3c);
-    }
-    .btn-purple {
-      background: linear-gradient(145deg, #9b59b6, #8e44ad);
-      border: 2px solid #8e44ad;
-      color: #fff;
-    }
-    .btn-purple:hover {
-      background: linear-gradient(145deg, #8e44ad, #9b59b6);
-    }
-    .btn-orange {
-      background: linear-gradient(145deg, #f39c12, #e67e22);
-      border: 2px solid #e67e22;
-      color: #fff;
-    }
-    .btn-orange:hover {
-      background: linear-gradient(145deg, #e67e22, #f39c12);
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div id="loginForm">
-      <h1>کاربری مدیر عامل</h1>
-      <input type="number" id="password" placeholder="رمز عبور" required>
-      <br><br>
-      <button class="button" onclick="validatePassword()">ورود</button>
-    </div>
-    <div id="content" class="hidden"> 
-      <a href="https://tashacol.github.io/ir/crte.html" class="button btn-blue">صدور گواهی فعالیت </a>
-      <a href="https://tashacol.github.io/ir/jahadi.html" class="button btn-red">صدور نامه فعالیت جهادی</a>
-      <a href="https://tashacol.github.io/ir/etelaat.html" class="button btn-purple">داده‌های موسسه</a>
-      <br><br>
-      <button class="button btn-orange" onclick="logout()">خروج</button>
-    </div>
-  </div>
-
-  <script>
-    document.addEventListener('DOMContentLoaded', (event) => {
-      if (localStorage.getItem('isLoggedIn') === 'true') {
-        document.getElementById('loginForm').style.display = 'none';
-        document.getElementById('content').classList.remove('hidden');
-      }
-    });
-
-    function validatePassword() {
-      var password = document.getElementById('password').value;
-      if (password === '3020366763') {
-        localStorage.setItem('isLoggedIn', 'true');
-        document.getElementById('loginForm').style.display = 'none';
-        document.getElementById('content').classList.remove('hidden');
-      } else {
-        alert('رمز اشتباه است. لطفاً دوباره تلاش کنید.');
-      }
-    }
-
-    function logout() {
-      localStorage.removeItem('isLoggedIn');
-      document.getElementById('content').classList.add('hidden');
-      document.getElementById('loginForm').style.display = 'block';
-    }
-  </script>
 </body>
 </html>
