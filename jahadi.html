@@ -219,9 +219,18 @@
             z-index: 2;
             height: 100%;
         }
-        /* کلاس برای اعمال فونت نستعلیق پس از بارگذاری */
-        .nastaliq-font, .nastaliq-font * {
+        
+        /* اعمال فونت نستعلیق فقط به بخش محتوای اصلی نامه */
+        #letterBodyContent.nastaliq-font,
+        #letterBodyContent.nastaliq-font * {
             font-family: 'IranNastaliq', 'Times New Roman', serif !important;
+        }
+
+        /* فونت پیش فرض برای تمام بخش های نامه */
+        #letterContent * {
+            font-size: clamp(8px, 2.2vw, 14px);
+            margin: 0;
+            font-family: 'Times New Roman', serif;
         }
 
         .header-right p, .header-left p {
@@ -241,7 +250,7 @@
         .content p { margin-bottom: 4%; line-height: 1.4; }
         .basmala {
             font-weight: 500 !important;
-            font-size: 1.4em !important; /* کمی بزرگتر برای جلوه بهتر نستعلیق */
+            font-size: 1.4em !important;
         }
         .content .salam-spacing { margin-bottom: 6%; }
         .signature { text-align: center; margin-top: 10%; }
@@ -249,6 +258,7 @@
         .signature .signature-title {
              font-size: 0.9em;
              margin-top: 2px;
+             font-family: 'Times New Roman', serif !important; /* اطمینان از عدم تغییر فونت عنوان امضا */
         }
         
         .main-text-block {
@@ -257,9 +267,8 @@
         }
         .main-text-block p {
             margin-bottom: 0;
-            font-size: 15px !important; /* اطمینان از اعمال سایز 15 */
+            font-size: 15px !important;
         }
-
 
         #downloadControls {
             margin-top: 20px;
@@ -363,7 +372,7 @@
                         <p id="currentDate">تاریخ: </p>
                     </div>
                     <div class="line"></div>
-                    <div class="content">
+                    <div class="content" id="letterBodyContent"> <!-- افزودن ID برای هدف گیری دقیق -->
                         <p class="basmala" style="text-align: center;">بسمه تعالی</p>
                         <p><b>ریاست محترم</b> <span id="departmentName"></span></p>
                         <p><b>موضوع:</b> مشارکت در فعالیت‌های جهادی</p>
@@ -404,7 +413,7 @@
         const downloadBtn = document.getElementById('downloadBtn');
         const statusMessage = document.getElementById('statusMessage');
         const previewContainer = document.getElementById('previewContainer');
-        const letterContentDiv = document.getElementById('letterContent');
+        const letterBodyContent = document.getElementById('letterBodyContent'); // انتخاب بخش محتوای اصلی
         const downloadControls = document.getElementById('downloadControls');
         const downloadComplete = document.getElementById('downloadComplete');
         const viewFileLink = document.getElementById('viewFileLink');
@@ -412,7 +421,7 @@
         const shareFileLink = document.getElementById('shareFileLink');
 
         let generatedPdfBlob = null; 
-        let isNastaliqLoaded = false; // فلگ برای جلوگیری از بارگذاری مجدد فونت
+        let isNastaliqLoaded = false;
 
         const setButtonLoading = (btn, isLoading) => {
             btn.disabled = isLoading;
@@ -435,7 +444,6 @@
             return String(str).replace(/\d/g, d => persianDigits[d]);
         }
 
-        // تابع برای پر کردن اطلاعات نامه
         function populateLetterData() {
             const fullName = document.getElementById('fullName').value.trim();
             const nationalID = document.getElementById('nationalID').value.trim();
@@ -456,9 +464,7 @@
             document.getElementById('dur').innerText = convertToPersianDigits(duration);
         }
 
-        // تابع اصلی برای تولید نامه (شامل بارگذاری فونت)
         async function generateLetter() {
-            // 1. اعتبار سنجی فرم
             const fullName = document.getElementById('fullName').value.trim();
             const nationalID = document.getElementById('nationalID').value.trim();
             const startYear = document.getElementById('startYear').value.trim();
@@ -470,11 +476,9 @@
             }
             hideMessage();
 
-            // 2. نمایش حالت لودینگ
             setButtonLoading(generateBtn, true);
 
             try {
-                // 3. بارگذاری فونت نستعلیق فقط در صورتی که قبلا بارگذاری نشده باشد
                 if (!isNastaliqLoaded) {
                     const nastaliqFont = new FontFace('IranNastaliq', "url('https://tashacol.github.io/ir/IranNastaliq.ttf')");
                     await nastaliqFont.load();
@@ -482,8 +486,8 @@
                     isNastaliqLoaded = true;
                 }
 
-                // 4. اعمال فونت، پر کردن اطلاعات و نمایش نامه
-                letterContentDiv.classList.add('nastaliq-font');
+                // اعمال فونت فقط به بخش محتوای اصلی
+                letterBodyContent.classList.add('nastaliq-font');
                 populateLetterData();
                 
                 letterForm.style.display = 'none';
@@ -496,18 +500,16 @@
                 console.error("خطا در بارگذاری فونت:", error);
                 showMessage("خطا در بارگذاری فونت نستعلیق. لطفا اتصال اینترنت را بررسی و مجددا تلاش کنید.");
             } finally {
-                // 5. توقف حالت لودینگ در هر صورت
                 setButtonLoading(generateBtn, false);
             }
         }
         
-        // تابع برای دانلود PDF
         const createAndHandlePdf = async () => {
             setButtonLoading(downloadBtn, true);
             
             try {
                 const { jsPDF } = window.jspdf;
-                const canvas = await html2canvas(letterContentDiv, {
+                const canvas = await html2canvas(document.getElementById('letterContent'), {
                     scale: 5,
                     useCORS: true,
                     backgroundColor: null,
@@ -569,7 +571,7 @@
 
         shareFileLink.addEventListener('click', async (e) => {
             e.preventDefault();
-            if (generatedPdfBlob) {
+            if (generatedBlob) {
                 const file = new File([generatedPdfBlob], 'نامه-جهادی.pdf', { type: 'application/pdf' });
                 const shareData = {
                     files: [file],
