@@ -53,6 +53,50 @@
         .header-logo, .user-profile-trigger { cursor: pointer; }
         .header-logo { display: flex; align-items: center; color: var(--text-dark); font-weight: 700; font-size: 1.2rem; }
         .header-logo i { margin-left: 10px; color: var(--primary); }
+        .dashboard-controls {
+            display: flex;
+            align-items: center;
+            gap: 20px; /* Space between refresh button and user dropdown */
+        }
+        .refresh-button {
+            background: none;
+            border: none;
+            font-size: 1.4rem; /* Adjust size */
+            color: var(--text-light); /* Slightly lighter than text-dark */
+            cursor: pointer;
+            transition: var(--transition);
+            padding: 5px; /* For better click area */
+            border-radius: 50%; /* Make it circular */
+            display: flex; /* To align spinner */
+            align-items: center;
+            justify-content: center;
+            width: 40px; /* Make it a square for circular radius */
+            height: 40px;
+        }
+        .refresh-button:hover:not(:disabled) {
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+        .refresh-button:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .refresh-button .spinner {
+            width: 20px; 
+            height: 20px;
+            border: 3px solid rgba(0,0,0,0.1); /* Light border */
+            border-top-color: var(--primary); 
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+        .refresh-button.loading i.fas { /* Hide the refresh icon when spinner is active */
+            display: none;
+        }
+        .refresh-button.loading .spinner {
+            display: block;
+        }
+
         .user-profile-trigger { display: flex; align-items: center; }
         .user-profile-trigger .avatar { width: 40px; height: 40px; background: var(--primary-light); color: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
         
@@ -176,14 +220,20 @@
     <div id="dashboard-view">
         <header class="dashboard-header">
             <div class="header-logo" id="info-modal-trigger" title="اطلاعات موسسه"><i class="fas fa-landmark-dome"></i><span>داشبورد مدیریت</span></div>
-            <div class="dropdown">
-                <div class="user-profile-trigger" id="user-dropdown-trigger">
-                    <div class="avatar"><i class="fas fa-user-tie"></i></div>
-                </div>
-                <div id="user-dropdown" class="dropdown-menu">
-                    <div class="dropdown-header"><h4 id="ceo-name-dropdown"></h4><p>مدیرعامل موسسه</p></div>
-                    <ul class="dropdown-list"><li><i class="fas fa-id-card-clip"></i> کد ملی: <span id="ceo-nid-dropdown"></span></li></ul>
-                    <button id="logoutButton" class="dropdown-logout-btn"><i class="fas fa-sign-out-alt"></i><span>خروج از حساب</span></button>
+            <div class="dashboard-controls">
+                <button id="refresh-dashboard-btn" class="refresh-button" title="به‌روزرسانی داده‌ها">
+                    <i class="fas fa-sync-alt"></i>
+                    <div class="spinner"></div>
+                </button>
+                <div class="dropdown">
+                    <div class="user-profile-trigger" id="user-dropdown-trigger">
+                        <div class="avatar"><i class="fas fa-user-tie"></i></div>
+                    </div>
+                    <div id="user-dropdown" class="dropdown-menu">
+                        <div class="dropdown-header"><h4 id="ceo-name-dropdown"></h4><p>مدیرعامل موسسه</p></div>
+                        <ul class="dropdown-list"><li><i class="fas fa-id-card-clip"></i> کد ملی: <span id="ceo-nid-dropdown"></span></li></ul>
+                        <button id="logoutButton" class="dropdown-logout-btn"><i class="fas fa-sign-out-alt"></i><span>خروج از حساب</span></button>
+                    </div>
                 </div>
             </div>
         </header>
@@ -259,6 +309,7 @@
             const staffListContainer = document.getElementById('staff-list-container'), dataLinksList = document.getElementById('data-links-list');
             const infoModal = document.getElementById('info-modal'), infoModalTrigger = document.getElementById('info-modal-trigger'), infoModalCloseBtn = infoModal.querySelector('.modal-close-btn');
             const userDropdown = document.getElementById('user-dropdown'), userDropdownTrigger = document.getElementById('user-dropdown-trigger');
+            const refreshDashboardBtn = document.getElementById('refresh-dashboard-btn'); // New: Refresh Button
 
             // --- Transactions Elements ---
             const transactionsTableBody = document.getElementById('transactions-table-body');
@@ -419,6 +470,38 @@
                     <a href="${links.feedback}" target="_blank" class="action-card"><div class="icon"><i class="fas fa-comments"></i></div><span>نظرات</span></a>`;
             };
 
+            // New: Function to refresh all dashboard data
+            const refreshDashboard = async () => {
+                refreshDashboardBtn.classList.add('loading');
+                refreshDashboardBtn.disabled = true;
+
+                // Clear caches for data that needs refreshing
+                localStorage.removeItem('financialSummaryData');
+                localStorage.removeItem('staffData');
+                localStorage.removeItem('dashboardLinks');
+                // For paginated data, `fetchPaginatedData` will automatically re-fetch from page 1,
+                // so no need to clear their cache explicitly unless you want to wipe filtered states.
+
+                try {
+                    // Re-fetch all non-paginated data
+                    await fetchNonPaginatedData('getFinancialSummary', 'financialSummaryData', renderFinancialSummary, financialStatsContainer);
+                    await fetchNonPaginatedData('getStaff', 'staffData', renderStaff, staffListContainer);
+                    await fetchNonPaginatedData('getDashboardLinks', 'dashboardLinks', renderDataLinks, dataLinksList);
+                    
+                    // Re-fetch paginated data from page 1, respecting current filters
+                    await fetchTransactions(1); 
+                    await fetchCourses(1);
+                    
+                } catch (error) {
+                    console.error("خطا در بروزرسانی داشبورد:", error);
+                    alert("خطا در بروزرسانی داده‌های داشبورد. لطفاً دوباره تلاش کنید.");
+                } finally {
+                    refreshDashboardBtn.classList.remove('loading');
+                    refreshDashboardBtn.disabled = false;
+                }
+            };
+
+
             const initDashboard = (ceoInfo) => {
                 ceoNameDropdown.textContent = ceoInfo.name;
                 ceoNidDropdown.textContent = ceoInfo.nationalId;
@@ -427,16 +510,13 @@
                 pageLoader.classList.add('hidden');
                 
                 // Initial data load for all sections
-                fetchNonPaginatedData('getFinancialSummary', 'financialSummaryData', renderFinancialSummary, financialStatsContainer);
-                fetchTransactions(1); // Call for transactions (paginated)
-                fetchCourses(1);     // Call for courses (paginated)
-                fetchNonPaginatedData('getStaff', 'staffData', renderStaff, staffListContainer);
-                fetchNonPaginatedData('getDashboardLinks', 'dashboardLinks', renderDataLinks, dataLinksList);
+                refreshDashboard(); // Use the new refresh function for initial load
             };
 
             // Event Listeners
             transactionsFilterBtn.addEventListener('click', () => fetchTransactions(1));
             coursesFilterBtn.addEventListener('click', () => fetchCourses(1));
+            refreshDashboardBtn.addEventListener('click', refreshDashboard); // New: Refresh button event listener
 
             window.handleLogin = async () => {
                 loginErrorMsg.textContent = '';
@@ -460,7 +540,7 @@
             infoModalCloseBtn.addEventListener('click', () => closeModal(infoModal));
             userDropdownTrigger.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
             document.addEventListener('click', (e) => {
-                if (e.target.closest('.dropdown')) return;
+                if (e.target.closest('.dropdown') || e.target.closest('#refresh-dashboard-btn')) return; // Ignore clicks on refresh button as well
                 userDropdown.classList.remove('show');
                 if (e.target === infoModal) closeModal(infoModal);
             });
