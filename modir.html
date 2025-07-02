@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     
     <!-- 
-      Viewport Meta Tag REMOVED
-      حذف متا تگ viewport باعث می‌شود مرورگرهای موبایل به حالت پیش‌فرض "overview mode" بروند
-      و کل صفحه را با کوچک‌نمایی نمایش دهند تا از زوم شدن اولیه جلوگیری شود.
-      این دقیقاً همان چیزی است که شما برای نمایش نسخه دسکتاپ روی موبایل نیاز دارید.
+      تغییر کلیدی و نهایی برای حل مشکل زوم در موبایل
+      - width=1400: به مرورگر می‌گوید که عرض صفحه را 1400 پیکسل در نظر بگیرد.
+      - initial-scale=1.0: این بخش حذف شده و به مرورگر اجازه می‌دهیم مقیاس اولیه را خودکار تنظیم کند تا کل عرض 1400 در صفحه موبایل جا شود.
+        این کار باعث "Zoom Out" شدن خودکار و نمایش کامل صفحه می‌شود.
     -->
-    <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0"> -->
+    <meta name="viewport" content="width=1400">
 
     <title>پنل مدیریت جامع - موسسه تعالی</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
@@ -29,7 +29,7 @@
             font-family: 'Vazirmatn', sans-serif; 
             background-color: var(--bg-main); 
             color: var(--text-dark); 
-            /* عرض حداقلی برای اطمینان از حفظ ساختار در تمام شرایط */
+            /* این عرض ثابت تضمین می‌کند که طرح در دسکتاپ‌های بزرگ هم به هم نریزد */
             min-width: 1400px;
         }
         html.modal-open, body.modal-open { overflow: hidden; }
@@ -170,9 +170,7 @@
 
     <div id="dashboard-view">
         <header class="dashboard-header">
-            <div class="dropdown">
-                <div class="header-logo" id="info-modal-trigger" title="اطلاعات موسسه"><i class="fas fa-landmark-dome"></i><span>داشبورد مدیریت</span></div>
-            </div>
+            <div class="header-logo" id="info-modal-trigger" title="اطلاعات موسسه"><i class="fas fa-landmark-dome"></i><span>داشبورد مدیریت</span></div>
             <div class="dropdown">
                 <div class="user-profile-trigger" id="user-dropdown-trigger">
                     <div class="avatar"><i class="fas fa-user-tie"></i></div>
@@ -207,7 +205,7 @@
             const CACHE_DURATION = 3600 * 1000;
 
             const pageLoader = document.getElementById('pageLoader'), loginView = document.getElementById('login-view'), dashboardView = document.getElementById('dashboard-view');
-            const loginButton = document.getElementById('loginButton'), logoutButton = document.getElementById('logoutButton'), loadMoreBtn = document.getElementById('load-more-btn');
+            const loginButton = document.getElementById('loginButton'), logoutButton = document.querySelector('.dropdown-logout-btn'), loadMoreBtn = document.getElementById('load-more-btn');
             const loginErrorMsg = document.getElementById('login-error-msg');
             const ceoNameDropdown = document.getElementById('ceo-name-dropdown'), ceoNidDropdown = document.getElementById('ceo-nid-dropdown');
             const financialStatsContainer = document.getElementById('financial-stats-container'), transactionsTableBody = document.getElementById('transactions-table-body');
@@ -249,7 +247,9 @@
 
             const loadMoreTransactions = () => {
                 const newTransactions = allTransactions.slice(displayedTransactionsCount, displayedTransactionsCount + TRANSACTIONS_PER_PAGE);
-                transactionsTableBody.innerHTML += newTransactions.map(t => `<tr><td>${t.date}</td><td>${t.accountant}</td><td class="amount positive">${t.income}</td><td class="amount negative">${t.expenses}</td><td class="amount positive">${t.profit}</td><td class="amount negative">${t.loss}</td></tr>`).join('');
+                transactionsTableBody.innerHTML += newTransactions.map(t => `
+                    <tr><td>${t.date}</td><td>${t.accountant}</td><td class="amount positive">${t.income}</td><td class="amount negative">${t.expenses}</td><td class="amount positive">${t.profit}</td><td class="amount negative">${t.loss}</td></tr>
+                `).join('');
                 displayedTransactionsCount += newTransactions.length;
                 loadMoreBtn.style.display = displayedTransactionsCount < allTransactions.length ? 'block' : 'none';
             };
@@ -332,14 +332,16 @@
             logoutButton.addEventListener('click', () => { localStorage.clear(); location.reload(); });
             loadMoreBtn.addEventListener('click', loadMoreTransactions);
 
-            infoModalTrigger.addEventListener('click', () => { infoModal.classList.add('show'); document.documentElement.classList.add('modal-open'); });
-            infoModalCloseBtn.addEventListener('click', () => { infoModal.classList.remove('show'); document.documentElement.classList.remove('modal-open'); });
+            // Modal & Dropdown Handlers
+            const closeModal = (modal) => { modal.classList.remove('show'); document.documentElement.classList.remove('modal-open'); };
+            const openModal = (modal) => { modal.classList.add('show'); document.documentElement.classList.add('modal-open'); };
             
+            infoModalTrigger.addEventListener('click', () => openModal(infoModal));
+            infoModalCloseBtn.addEventListener('click', () => closeModal(infoModal));
+            infoModal.addEventListener('click', (e) => { if (e.target === infoModal) closeModal(infoModal); });
+
             userDropdownTrigger.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
-            document.addEventListener('click', (e) => {
-                if (!e.target.closest('.dropdown')) userDropdown.classList.remove('show');
-                if (e.target === infoModal) { infoModal.classList.remove('show'); document.documentElement.classList.remove('modal-open'); }
-            });
+            document.addEventListener('click', (e) => { if (!e.target.closest('.dropdown')) { userDropdown.classList.remove('show'); }});
             
             const cachedCeoInfo = getCache('ceoInfo');
             if (cachedCeoInfo) initDashboard(cachedCeoInfo);
