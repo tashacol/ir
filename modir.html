@@ -1,16 +1,14 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    
     <!-- 
-      تغییر کلیدی و نهایی برای حل مشکل زوم در موبایل
-      - width=1400: به مرورگر می‌گوید که عرض صفحه را 1400 پیکسل در نظر بگیرد.
-      - initial-scale=1.0: این بخش حذف شده و به مرورگر اجازه می‌دهیم مقیاس اولیه را خودکار تنظیم کند تا کل عرض 1400 در صفحه موبایل جا شود.
-        این کار باعث "Zoom Out" شدن خودکار و نمایش کامل صفحه می‌شود.
+        *** تغییر کلیدی ۱: اصلاح تگ Viewport ***
+        تگ viewport به حالت استاندارد جهانی تغییر کرد. 
+        این به مرورگر دستور می‌دهد که عرض صفحه را برابر با عرض دستگاه در نظر بگیرد و آن را با زوم ۱۰۰٪ نمایش دهد.
+        این کار مشکل زوم‌شدن اولیه در موبایل را به طور کامل حل می‌کند.
     -->
-    <meta name="viewport" content="width=1400">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>پنل مدیریت جامع - موسسه تعالی</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
@@ -28,9 +26,12 @@
         body { 
             font-family: 'Vazirmatn', sans-serif; 
             background-color: var(--bg-main); 
-            color: var(--text-dark); 
-            /* این عرض ثابت تضمین می‌کند که طرح در دسکتاپ‌های بزرگ هم به هم نریزد */
-            min-width: 1400px;
+            color: var(--text-dark);
+            /* 
+                *** تغییر کلیدی ۲: حذف عرض ثابت ***
+                ویژگی min-width: 1400px از اینجا حذف شد. 
+                این ویژگی باعث ایجاد اسکرول افقی و مشکل زوم در دستگاه‌های با عرض کم می‌شد.
+            */
         }
         html.modal-open, body.modal-open { overflow: hidden; }
 
@@ -186,7 +187,9 @@
         <main class="main-container">
             <div class="full-width-section"><div class="card"><div class="card-header"><i class="fas fa-wallet icon"></i><h2>خلاصه وضعیت مالی</h2></div><div class="financial-stats-grid" id="financial-stats-container"></div></div></div>
             <div class="section-grid">
-                <div class="main-column"><div class="card" style="height:100%;"><div class="card-header"><i class="fas fa-tasks icon"></i><h2>وضعیت دوره‌ها</h2></div><div class="table-responsive" style="flex-grow:1;"><table class="data-table"><thead><tr><th>نام دوره</th><th>کد دوره</th><th>تاریخ شروع</th><th>وضعیت</th></tr></thead><tbody id="courses-table-body"></tbody></table></div></div></div>
+                <div class="main-column">
+                    <div class="card" style="height:100%;"><div class="card-header"><i class="fas fa-tasks icon"></i><h2>وضعیت دوره‌ها</h2></div><div class="table-responsive" style="flex-grow:1;"><table class="data-table"><thead><tr><th>نام دوره</th><th>کد دوره</th><th>تاریخ شروع</th><th>وضعیت</th></tr></thead><tbody id="courses-table-body"></tbody></table></div></div>
+                </div>
                 <div class="sidebar-column" style="display:flex; flex-direction:column; gap:30px;">
                     <div class="card"><div class="card-header"><i class="fas fa-file-signature icon"></i><h2>اقدامات سریع</h2></div><div class="action-card-grid"><a href="https://tashacol.github.io/ir/crte.html" target="_blank" class="action-card"><div class="icon"><i class="fas fa-building-user"></i></div><span>تائید سوابق مؤسسه</span></a><a href="https://tashacol.github.io/ir/jahadi.html" target="_blank" class="action-card"><div class="icon"><i class="fas fa-people-carry-box"></i></div><span>تائید سوابق جهادی</span></a></div></div>
                     <div class="card"><div class="card-header"><i class="fas fa-database icon"></i><h2>داده‌های موسسه</h2></div><div class="action-card-grid" id="data-links-list"></div></div>
@@ -203,9 +206,8 @@
         document.addEventListener('DOMContentLoaded', () => {
             const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxNpQV0zkPw75Sq1FtpC_s9xagErm6BNuu4xHBOgvvp7fSABT0k7-dUTgOmv_mMGzpwBA/exec";
             const CACHE_DURATION = 3600 * 1000;
-
             const pageLoader = document.getElementById('pageLoader'), loginView = document.getElementById('login-view'), dashboardView = document.getElementById('dashboard-view');
-            const loginButton = document.getElementById('loginButton'), logoutButton = document.querySelector('.dropdown-logout-btn'), loadMoreBtn = document.getElementById('load-more-btn');
+            const loginButton = document.getElementById('loginButton'), logoutButton = document.getElementById('logoutButton'), loadMoreBtn = document.getElementById('load-more-btn');
             const loginErrorMsg = document.getElementById('login-error-msg');
             const ceoNameDropdown = document.getElementById('ceo-name-dropdown'), ceoNidDropdown = document.getElementById('ceo-nid-dropdown');
             const financialStatsContainer = document.getElementById('financial-stats-container'), transactionsTableBody = document.getElementById('transactions-table-body');
@@ -247,9 +249,7 @@
 
             const loadMoreTransactions = () => {
                 const newTransactions = allTransactions.slice(displayedTransactionsCount, displayedTransactionsCount + TRANSACTIONS_PER_PAGE);
-                transactionsTableBody.innerHTML += newTransactions.map(t => `
-                    <tr><td>${t.date}</td><td>${t.accountant}</td><td class="amount positive">${t.income}</td><td class="amount negative">${t.expenses}</td><td class="amount positive">${t.profit}</td><td class="amount negative">${t.loss}</td></tr>
-                `).join('');
+                transactionsTableBody.innerHTML += newTransactions.map(t => `<tr><td>${t.date}</td><td>${t.accountant}</td><td class="amount positive">${t.income}</td><td class="amount negative">${t.expenses}</td><td class="amount positive">${t.profit}</td><td class="amount negative">${t.loss}</td></tr>`).join('');
                 displayedTransactionsCount += newTransactions.length;
                 loadMoreBtn.style.display = displayedTransactionsCount < allTransactions.length ? 'block' : 'none';
             };
@@ -333,15 +333,14 @@
             loadMoreBtn.addEventListener('click', loadMoreTransactions);
 
             // Modal & Dropdown Handlers
-            const closeModal = (modal) => { modal.classList.remove('show'); document.documentElement.classList.remove('modal-open'); };
-            const openModal = (modal) => { modal.classList.add('show'); document.documentElement.classList.add('modal-open'); };
-            
-            infoModalTrigger.addEventListener('click', () => openModal(infoModal));
-            infoModalCloseBtn.addEventListener('click', () => closeModal(infoModal));
-            infoModal.addEventListener('click', (e) => { if (e.target === infoModal) closeModal(infoModal); });
-
+            const closeModalOnClickOutside = (modal) => modal.classList.remove('show');
+            infoModalTrigger.addEventListener('click', () => infoModal.classList.add('show'));
+            infoModalCloseBtn.addEventListener('click', () => infoModal.classList.remove('show'));
             userDropdownTrigger.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
-            document.addEventListener('click', (e) => { if (!e.target.closest('.dropdown')) { userDropdown.classList.remove('show'); }});
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.dropdown')) userDropdown.classList.remove('show');
+                if (e.target === infoModal) infoModal.classList.remove('show');
+            });
             
             const cachedCeoInfo = getCache('ceoInfo');
             if (cachedCeoInfo) initDashboard(cachedCeoInfo);
