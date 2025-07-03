@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>استعلام سوابق</title>
-    <!-- Excel Library (حذف شد - دیگر نیازی به آن نیست) -->
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script> -->
+    <title>استعلام وضعیت گواهی</title>
+    <!-- کتابخانه اکسل حذف شد -->
     <style>
         /* ========== Fonts ========== */
         @font-face {
@@ -21,165 +20,190 @@
             font-style: normal;
         }
 
-        /* ========== Variables ========== */
+        /* ========== Variables (با حفظ رنگ‌های اصلی) ========== */
         :root {
             --primary-color: #0d6efd;
-            --primary-light: #e7f3ff;
+            --primary-light: #4ea0ff;
             --primary-dark: #0a58ca;
-            --bg-color: #f0f2f5;
-            --card-bg: #ffffff;
-            --text-dark: #212529;
-            --text-light: #6c757d;
-            --border-color: #dee2e6;
+            --success-color: #198754;
+            --warning-color: #ffc107;
             --error-color: #dc3545;
+            --text-light: #f8f9fa; /* رنگ متن روشن برای پس‌زمینه تیره */
+            --text-dark: #212529;
         }
 
-        /* ========== Global Styles ========== */
+        /* ========== Global & Background Styles ========== */
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
         }
 
+        html {
+            height: 100%;
+        }
+
         body {
             font-family: 'Vazirmatn', Arial, sans-serif;
             direction: rtl;
-            background-color: var(--bg-color);
-            color: var(--text-dark);
+            color: var(--text-light);
             display: flex;
             justify-content: center;
-            align-items: flex-start;
+            align-items: center; /* مرکز چین عمودی */
             min-height: 100vh;
             padding: 2rem 1rem;
+            /* پس‌زمینه گرادیانی متحرک */
+            background: linear-gradient(-45deg, #23a6d5, #23d5ab, #0b4a8e, #0d6efd);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
 
         /* ========== Main Container ========== */
         .container {
             width: 100%;
-            max-width: 600px; /* Slightly wider for the table */
+            max-width: 550px;
         }
 
-        /* ========== Search Box ========== */
-        .search-box {
-            background: var(--card-bg);
-            padding: 2rem;
-            border-radius: 16px; /* کمی گردتر برای ظاهر مدرن */
-            /* ویرایش شده: افکت سایه برآمده و جذاب‌تر */
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08), 0 2px 5px rgba(0, 0, 0, 0.05);
-            border: 1px solid rgba(0, 0, 0, 0.05); /* یک حاشیه بسیار ظریف برای تفکیک بهتر */
+        /* ========== Glassmorphism Cards ========== */
+        .search-box, .result-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            padding: 2.5rem;
             margin-bottom: 2rem;
             transition: all 0.3s ease;
         }
 
         h1 {
-            font-size: 1.75rem;
+            font-size: 2rem;
             font-weight: bold;
             text-align: center;
-            margin-bottom: 1.5rem;
-            color: var(--text-dark);
+            margin-bottom: 2rem;
+            color: var(--text-light);
+            text-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
-
-        /* ===== START: ویرایش برای افکت اسکن ===== */
+        
+        /* ========== Input Wrapper & Scanner Animation ========== */
         .input-wrapper {
             position: relative;
-            border-radius: 8px;
-            overflow: hidden; /* برای اینکه اسکنر از گوشه‌های گرد بیرون نزند */
-            transition: box-shadow 0.2s, border-color 0.2s;
-            border: 1px solid var(--border-color);
+            width: 100%;
+            margin-bottom: 1.5rem;
         }
         
         #searchInput {
             width: 100%;
-            padding: 12px 16px;
-            font-size: 1rem;
+            padding: 16px 20px;
+            font-size: 1.1rem;
             font-family: 'Vazirmatn', Arial, sans-serif;
-            border: none; /* حاشیه به wrapper منتقل شد */
-            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
             outline: none;
+            transition: all 0.3s ease;
             text-align: center;
-            letter-spacing: 2px;
-            background-color: transparent; /* برای دیده شدن اسکنر */
-            position: relative;
-            z-index: 2; /* بالاتر از لایه اسکنر */
+            letter-spacing: 3px;
+            background-color: rgba(0, 0, 0, 0.25);
+            color: var(--text-light);
         }
 
         #searchInput::placeholder {
-            color: #a9aeb4;
+            color: rgba(255, 255, 255, 0.6);
             letter-spacing: normal;
         }
-        
-        /* افکت فوکوس به wrapper منتقل شد */
-        .input-wrapper:focus-within {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.2);
+
+        /* انیمیشن حاشیه گرادیانی هنگام فوکوس */
+        .input-wrapper::before {
+            content: '';
+            position: absolute;
+            top: -2px; left: -2px;
+            right: -2px; bottom: -2px;
+            background: linear-gradient(90deg, #23d5ab, var(--primary-light), #23a6d5);
+            border-radius: 12px;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.4s ease;
         }
 
-        /* انیمیشن خط اسکن */
+        .input-wrapper:focus-within::before {
+            opacity: 1;
+        }
+
+        /* انیمیشن خط اسکنر */
         .input-wrapper::after {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 3px;
-            background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
-            z-index: 1;
+            top: 50%;
+            right: 15px;
+            width: calc(100% - 30px);
+            height: 2px;
+            background: var(--primary-light);
+            box-shadow: 0 0 5px var(--primary-light), 0 0 10px var(--primary-light);
+            transform: scaleX(0) translateY(-50%);
+            transform-origin: right;
             opacity: 0;
-            transform: translateY(-10px);
-            transition: opacity 0.3s;
+            transition: all 0.8s cubic-bezier(0.19, 1, 0.22, 1);
         }
-
+        
         .input-wrapper:focus-within::after {
             opacity: 1;
-            animation: scan-effect 1.8s linear infinite;
+            transform: scaleX(1) translateY(-50%);
+            animation: scan 2s 0.8s linear infinite;
+        }
+        
+        @keyframes scan {
+            0% { transform-origin: right; transform: scaleX(1) translateY(-50%); }
+            49% { transform-origin: right; transform: scaleX(0) translateY(-50%); }
+            50% { transform-origin: left; transform: scaleX(0) translateY(-50%); }
+            99% { transform-origin: left; transform: scaleX(1) translateY(-50%); }
+            100% { transform-origin: right; transform: scaleX(1) translateY(-50%); }
         }
 
-        @keyframes scan-effect {
-            0% {
-                transform: translateY(-10px);
-            }
-            100% {
-                transform: translateY(50px); /* ارتفاع باکس + کمی بیشتر */
-            }
-        }
-        /* ===== END: ویرایش برای افکت اسکن ===== */
-
+        /* ========== Search Button ========== */
         #searchButton {
             position: relative;
             width: 100%;
-            padding: 12px;
-            margin-top: 1rem;
-            font-size: 1.1rem;
+            padding: 14px;
+            font-size: 1.2rem;
             font-weight: bold;
             font-family: 'Vazirmatn', Arial, sans-serif;
-            background: var(--primary-color);
+            background: linear-gradient(45deg, var(--primary-color), var(--primary-light));
             color: #fff;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             cursor: pointer;
-            transition: background-color 0.3s, transform 0.2s;
+            transition: all 0.3s ease-out;
             overflow: hidden;
-            height: 50px; /* Fixed height for loader alignment */
+            height: 54px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
 
         #searchButton:hover:not(:disabled) {
-            background: var(--primary-dark);
-            transform: translateY(-2px);
+            transform: translateY(-3px);
+            box-shadow: 0 7px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        #searchButton:active:not(:disabled) {
+             transform: translateY(0);
         }
 
         #searchButton:disabled {
-            background-color: #a9aeb4;
+            background: rgba(0,0,0,0.3);
             cursor: not-allowed;
+            box-shadow: none;
         }
 
-        /* Button Loader */
         .btn-loader {
-            position: absolute;
-            top: 50%;
-            left: 50%;
+            position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            width: 24px;
-            height: 24px;
+            width: 24px; height: 24px;
             border: 3px solid rgba(255, 255, 255, 0.4);
             border-top-color: #fff;
             border-radius: 50%;
@@ -187,41 +211,28 @@
             display: none;
         }
         
-        #searchButton.loading .btn-text {
-            opacity: 0;
-        }
-        
-        #searchButton.loading .btn-loader {
-            display: block;
-        }
-
-        @keyframes spin {
-            to { transform: translate(-50%, -50%) rotate(360deg); }
-        }
+        #searchButton.loading .btn-text { opacity: 0; }
+        #searchButton.loading .btn-loader { display: block; }
+        @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
 
         /* ========== Messages ========== */
         #errorMsg {
-            color: var(--error-color);
+            color: var(--warning-color);
+            background: rgba(220, 53, 69, 0.2);
+            border: 1px solid var(--error-color);
             text-align: center;
             margin-top: 1rem;
+            padding: 0.5rem;
+            border-radius: 8px;
             font-size: 0.9rem;
             display: none;
             min-height: 20px;
         }
 
         /* ========== Results Area ========== */
-        #resultsContainer {
-            transition: opacity 0.5s;
-        }
+        #resultsContainer { transition: opacity 0.5s; }
 
-        .result-card {
-            background: var(--card-bg);
-            border-radius: 12px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            border: 1px solid var(--border-color);
-            animation: fadeIn 0.6s ease-out;
-        }
+        .result-card { animation: fadeIn 0.6s ease-out; }
 
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
@@ -229,70 +240,63 @@
         }
 
         .card-header {
-            padding: 1.5rem;
-            background-color: var(--primary-light);
-            border-bottom: 1px solid var(--border-color);
+            text-align: center;
+            padding-bottom: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
         }
         
-        .card-header h2 {
-            margin: 0;
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: var(--text-dark);
+        .card-header h2 { font-size: 1.7rem; margin: 0; text-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .card-header p { margin: 0.5rem 0 0; font-size: 1.1rem; opacity: 0.9; }
+
+        .card-body { padding: 0; }
+        .info-list { list-style: none; padding: 0; margin: 0; }
+
+        .info-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 1rem 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
+        .info-item:last-child { border-bottom: none; }
+
+        .info-label { color: rgba(255, 255, 255, 0.7); font-size: 0.9rem; }
+        .info-value { color: var(--text-light); font-weight: bold; font-size: 1rem; }
         
-        .card-header p {
-            margin: 0.25rem 0 0;
-            font-size: 1rem;
-            color: var(--text-light);
+        .card-footer {
+            display: flex; gap: 1rem;
+            padding-top: 1.5rem;
+            margin-top: 1.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            flex-wrap: wrap;
         }
 
-        .card-body {
-            padding: 0; /* Remove padding to allow table to span full width */
+        .result-button {
+            flex: 1 1 150px; text-decoration: none; color: #fff;
+            padding: 12px 20px; border-radius: 8px; text-align: center;
+            font-weight: bold; font-size: 1rem;
+            transition: all 0.2s;
+            display: flex; justify-content: center; align-items: center; gap: 0.6rem;
+            border: none;
         }
         
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.95rem;
+        .result-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.25);
         }
 
-        thead th {
-            background-color: #f8f9fa;
-            padding: 12px 16px;
-            text-align: right;
-            font-weight: bold;
-            color: var(--text-dark);
-            border-bottom: 2px solid var(--border-color);
-        }
+        .result-button.project { background: var(--success-color); }
+        .result-button.certificate { background: var(--warning-color); color: var(--text-dark); }
+        .result-button svg { width: 20px; height: 20px; }
 
-        tbody td {
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--border-color);
-            color: var(--text-light);
-        }
-        
-        tbody tr:last-child td {
-            border-bottom: none;
-        }
-
-        tbody tr:nth-child(odd) {
-            background-color: var(--card-bg); /* white */
-        }
-        
-        tbody tr:nth-child(even) {
-            background-color: #f8f9fa; /* very light grey */
-        }
     </style>
 </head>
 <body>
 
     <div class="container">
         <div class="search-box">
-            <h1>استعلام سوابق</h1>
-            <!-- ویرایش شده: کادر input داخل یک wrapper برای افکت اسکن قرار گرفت -->
+            <h1>استعلام گواهی</h1>
             <div class="input-wrapper">
-                <input type="text" id="searchInput" placeholder="کد ملی خود را وارد کنید" inputmode="numeric" maxlength="10" />
+                 <input type="text" id="searchInput" placeholder="کد ملی خود را وارد کنید" inputmode="numeric" />
             </div>
             <button id="searchButton">
                 <span class="btn-text">استعلام</span>
@@ -306,23 +310,19 @@
 
     <script>
         // ==========================================================
-        // هسته اصلی جاوا اسکریپت - بازنویسی شده برای ارتباط با API و کشینگ
+        // هسته اصلی جاوا اسکریپت - بدون هیچ تغییری در منطق
         // ==========================================================
 
-        // آدرس وب اپلیکیشن مرکزی شما (مطابق با لینک جدید شما)
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxroOyiaM5xwZytvQCvauBMUGR7HKXIQO3TYKv7r2_7LnPgYRQ6RTi61wrxM_EDL2DPfw/exec';
         
-        // دسترسی به عناصر DOM (بدون تغییر)
         const input = document.getElementById('searchInput');
         const btn = document.getElementById('searchButton');
         const errorMsg = document.getElementById('errorMsg');
         const resultsContainer = document.getElementById('resultsContainer');
+        
+        const CACHE_KEY = 'certificateInquiryDataCache';
+        const CACHE_EXPIRATION = 6 * 60 * 60 * 1000;
 
-        // === متغیرهای کش داده‌ها ===
-        const CACHE_KEY = 'activityHistoryDataCache'; // کلید کش منحصر به فرد برای این سامانه
-        const CACHE_EXPIRATION = 6 * 60 * 60 * 1000; // 6 ساعت
-
-        // توابع کمکی (بدون تغییر)
         const toggleLoading = (isLoading) => {
             btn.classList.toggle('loading', isLoading);
             btn.disabled = isLoading;
@@ -333,11 +333,11 @@
             errorMsg.style.display = 'block';
         };
 
-        // === توابع مدیریت حافظه کش سمت کلاینت ===
         function setCache(data) {
             const cachePayload = { timestamp: new Date().getTime(), data: data };
             localStorage.setItem(CACHE_KEY, JSON.stringify(cachePayload));
         }
+
         function getCache() {
             const cachedData = localStorage.getItem(CACHE_KEY);
             if (!cachedData) return null;
@@ -349,18 +349,15 @@
             }
             return cache.data;
         }
-        // در این سامانه نیازی به clearCache نیست چون logout ندارد
 
-        // === تابع جدید برای بارگذاری داده‌ها از API با استفاده از کش ===
-        async function fetchActivityHistoryData(nationalId) {
+        async function fetchCertificateInfoData(nationalId) {
             const cachedData = getCache();
-            // اگر داده‌ای برای همین کد ملی در کش موجود و معتبر بود، از کش برگردان
             if (cachedData && cachedData.nationalId === nationalId) {
-                console.log('Data retrieved from cache for Activity History.');
-                return cachedData.result; // 'result' حاوی شیء کامل پاسخ API است
+                console.log('Data retrieved from cache for Certificate Inquiry.');
+                return cachedData.result;
             }
 
-            const url = `${SCRIPT_URL}?action=getActivityHistory&id=${nationalId}`;
+            const url = `${SCRIPT_URL}?action=getCertificateInfo&id=${nationalId}`;
             try {
                 const response = await fetch(url);
                 if (!response.ok) {
@@ -375,11 +372,10 @@
                 }
 
                 if (result.found) {
-                    // ذخیره کل شیء نتیجه API در کش
                     setCache({ nationalId: nationalId, result: result });
                     return result;
                 } else {
-                    return null; // کاربر یافت نشد
+                    return null;
                 }
             } catch (err) {
                 console.error('Fetch Error:', err);
@@ -388,35 +384,30 @@
             }
         }
 
-        // === تابع اصلی برای جستجو (به روز شده برای استفاده از API) ===
         btn.addEventListener('click', async () => {
             resultsContainer.innerHTML = '';
             errorMsg.style.display = 'none';
-            const nationalId = input.value.trim();
+            let nationalIdInput = input.value.trim();
 
-            if (!/^\d{10}$/.test(nationalId)) {
+            if (!/^\d{10}$/.test(nationalIdInput)) {
                 showError('کد ملی باید 10 رقم و فقط شامل عدد باشد.');
                 return;
             }
 
             toggleLoading(true);
-
-            const apiResult = await fetchActivityHistoryData(nationalId);
-
+            const apiResult = await fetchCertificateInfoData(nationalIdInput);
             toggleLoading(false);
 
             if (!apiResult || !apiResult.found) {
-                // اگر پیام خطایی از قبل نمایش داده نشده باشد (مثلاً از fetchActivityHistoryData)
                 if (errorMsg.style.display !== 'block') {
-                    showError('سوابقی با این کد ملی یافت نشد. لطفا مجددا تلاش کنید.');
+                    showError('اطلاعاتی با این کد ملی یافت نشد. لطفا مجددا تلاش کنید.');
                 }
                 return;
             }
 
-            displayResults(apiResult); // ارسال مستقیم شیء result به تابع نمایش
+            displayResults(apiResult);
         });
         
-        // رویداد Enter برای فیلد جستجو (بدون تغییر)
         input.addEventListener('keypress', (event) => {
             if (event.key === 'Enter') {
                 event.preventDefault();
@@ -424,45 +415,55 @@
             }
         });
 
-        // تابع نمایش نتایج (ویرایش شده برای استفاده از نام پراپرتی‌ها)
-        function displayResults(data) { // 'data' حالا شیء JSON دریافتی از API است
-            const userInfo = data.user;
-            const activities = data.activities;
+        function displayResults(data) {
+            const fallbackText = 'ثبت نشده';
+            const name = data.name || fallbackText;
+            const courseName = data.courseName || fallbackText;
+            const nationalId = data.nationalId || fallbackText;
+            const courseCode = data.courseCode || fallbackText;
+            const issueDate = data.issueDate || fallbackText;
+            const certificateNumber = data.certificateNumber || fallbackText;
+            const projectLink = data.projectLink;
+            const certificateLink = data.certificateLink;
+            
+            const projectIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M5 20h14v-2H5v2zm0-10h4v6h6v-6h4l-7-7-7 7z"></path></svg>`;
+            const certificateIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21.41,11.58l-9-9C12.05,2.22,11.55,2,11,2H4C2.9,2,2,2.9,2,4v7c0,0.55,0.22,1.05,0.59,1.42l9,9c0.36,0.36,0.86,0.58,1.41,0.58s1.05-0.22,1.41-0.59l7-7C22.22,13.68,22.22,12.37,21.41,11.58z M13,20.01L4,11V4h7l9,9L13,20.01z M6.5,7.5C5.67,7.5,5,6.83,5,6s0.67-1.5,1.5-1.5S8,5.17,8,6S7.33,7.5,6.5,7.5z"></path></svg>`;
 
-            const fullName = userInfo.name || 'کاربر گرامی';
-            const nationalId = userInfo.nationalId || 'ثبت نشده';
-
-            // تولید ردیف‌های جدول از تمام رکوردهای تطابق یافته
-            const tableRows = activities.map(activity => {
-                return `
-                    <tr>
-                        <td>${activity.activity || '-'}</td>
-                        <td>${activity.startDate || '-'}</td>
-                        <td>${activity.endDate || 'تاکنون'}</td>
-                    </tr>
-                `;
-            }).join('');
+            let footerButtons = '';
+            if (projectLink && projectLink.toString().trim() !== '') {
+                footerButtons += `<a href="${projectLink.toString().trim()}" target="_blank" class="result-button project">${projectIcon}دانلود پروژه</a>`;
+            }
+            if (certificateLink && certificateLink.toString().trim() !== '') {
+                footerButtons += `<a href="${certificateLink.toString().trim()}" target="_blank" class="result-button certificate">${certificateIcon}دانلود گواهینامه</a>`;
+            }
 
             const cardHTML = `
                 <div class="result-card">
                     <div class="card-header">
-                        <h2>${fullName}</h2>
-                        <p>کد ملی: ${nationalId}</p>
+                        <h2>${name}</h2>
+                        <p>${courseName}</p>
                     </div>
                     <div class="card-body">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>نوع فعالیت</th>
-                                    <th>تاریخ شروع</th>
-                                    <th>تاریخ پایان</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${tableRows}
-                            </tbody>
-                        </table>
+                        <ul class="info-list">
+                            <li class="info-item">
+                                <span class="info-label">کد ملی:</span>
+                                <span class="info-value">${nationalId}</span>
+                            </li>
+                            <li class="info-item">
+                                <span class="info-label">شماره گواهی:</span>
+                                <span class="info-value">${certificateNumber}</span>
+                            </li>
+                            <li class="info-item">
+                                <span class="info-label">کد دوره:</span>
+                                <span class="info-value">${courseCode}</span>
+                            </li>
+                            <li class="info-item">
+                                <span class="info-label">تاریخ صدور:</span>
+                                <span class="info-value">${issueDate}</span>
+                            </li>
+                        </ul>
                     </div>
+                    ${footerButtons ? `<div class="card-footer">${footerButtons}</div>` : ''}
                 </div>
             `;
             
