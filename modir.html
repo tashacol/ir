@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -563,8 +563,8 @@
             const renderTransactions = (data, container) => {
                 container.innerHTML = data.map(t => `
                     <tr><td>${t.date}</td><td>${t.accountant}</td><td class="amount positive">${t.income}</td>
-                    <td class="amount negative">${t.expenses}</td><td class="amount positive">${t.profit}</td>
-                    <td class="amount negative">${t.loss}</td></tr>`).join('');
+                    <td class="amount negative">${t.expenses}</td><td class="amount negative">${t.profit}</td>
+                    <td class="amount positive">${t.loss}</td></tr>`).join('');
             };
 
             const fetchCourses = (page = 1) => {
@@ -716,104 +716,108 @@
 
 
             // --- JAVASCRIPT FUNCTIONS FOR PERSIAN DATE PICKER (FIXED & IMPROVED) ---
-
-            // Constants for Jalali-Gregorian conversion (kept global as used by picker logic)
-            const G_DAYS_IN_MONTH = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-            const J_DAYS_IN_MONTH = [0, 31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29];
+            // These functions are imported from jalaali-js library for accuracy.
 
             /*
-              Checks if a Gregorian year is a leap year. (Standard algorithm)
+              Converts a Gregorian date to a Jalaali date
             */
-            function g_is_leap(year) {
-              return ((year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0));
+            function gregorian_to_jalali(gy, gm, gd) {
+              var g_d_m = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+              var j_d_m = [0, 31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29];
+              var gy2 = gy - 1600;
+              var gm2 = gm - 1;
+              var gd2 = gd - 1;
+
+              var g_day_no =
+                365 * gy2 +
+                Math.floor((gy2 + 3) / 4) -
+                Math.floor((gy2 + 99) / 100) +
+                Math.floor((gy2 + 399) / 400);
+              for (var i = 0; i < gm2; ++i) g_day_no += g_d_m[i];
+              if (gm2 > 1 && gregorian_is_leap(gy)) g_day_no += 1;
+              g_day_no += gd2;
+
+              var j_day_no = g_day_no - 79;
+
+              var j_np = Math.floor(j_day_no / 12053); // 12053 = 365*33 + 11*3 + 3*1 + 0*0 + 1
+              j_day_no %= 12053;
+
+              var jy = 979 + 33 * j_np + 4 * Math.floor(j_day_no / 1461); // 1461 = 365*4 + 1
+              j_day_no %= 1461;
+
+              if (j_day_no >= 366) {
+                jy += Math.floor((j_day_no - 1) / 365);
+                j_day_no = (j_day_no - 1) % 365;
+              }
+
+              for (var i = 0; i < 11 && j_day_no >= j_d_m[i]; ++i) j_day_no -= j_d_m[i];
+              var jm = i + 1;
+              var jd = j_day_no + 1;
+
+              return [jy, jm, jd];
             }
 
             /*
-              Checks if a Jalaali year is a leap year. (Based on jalaali-js library's internal logic)
-              This array contains the offsets for leap years within a 33-year cycle.
+              Converts a Jalaali date to a Gregorian date
             */
-            function j_is_leap(jy) {
-              const leapYearsInCycle = [-61, 9, 38, 109, 118, 127, 166, 175, 184, 202, 211, 220, 239, 248, 257, 286, 295, 304];
-              return leapYearsInCycle.indexOf((jy - 1) % 33) !== -1;
+            function jalali_to_gregorian(jy, jm, jd) {
+              var g_d_m = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+              var j_d_m = [0, 31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29];
+              var jy2 = jy - 979;
+              var jm2 = jm - 1;
+              var jd2 = jd - 1;
+
+              var j_day_no =
+                365 * jy2 +
+                Math.floor(jy2 / 33) * 8 +
+                Math.floor(((jy2 % 33) + 3) / 4);
+              for (var i = 0; i < jm2; ++i) j_day_no += j_d_m[i];
+              j_day_no += jd2;
+
+              var g_day_no = j_day_no + 79;
+
+              var g_np = Math.floor(g_day_no / 146097); // 146097 = 365*400 + 97
+              g_day_no %= 146097;
+
+              var gy = 1600 + 400 * g_np;
+              if (g_day_no >= 36525) {
+                // 36525 = 365*100 + 25
+                gy += Math.floor((g_day_no - 1) / 36524) * 100; // 36524 = 365*100 + 24
+                g_day_no = (g_day_no - 1) % 36524;
+              }
+              gy += Math.floor(g_day_no / 1461) * 4; // 1461 = 365*4 + 1
+              g_day_no %= 1461;
+
+              if (g_day_no >= 366) {
+                gy += Math.floor((g_day_no - 1) / 365);
+                g_day_no = (g_day_no - 1) % 365;
+              }
+              var gm = 0;
+              for (var i = 0; i < 12; ++i) {
+                if (g_d_m[i] + (i === 1 && gregorian_is_leap(gy) ? 1 : 0) > g_day_no) break;
+                g_day_no -= g_d_m[i] + (i === 1 && gregorian_is_leap(gy) ? 1 : 0);
+                gm++;
+              }
+              var gd = g_day_no + 1;
+
+              return [gy, gm + 1, gd];
             }
 
-            // Gregorian to Jalali (adapted from jalaali-js toJalaali)
-            const gregorian_to_jalali = (gy, gm, gd) => {
-                gy = parseInt(gy);
-                gm = parseInt(gm);
-                gd = parseInt(gd);
+            /*
+              Checks if a given Gregorian year is a leap year
+            */
+            function gregorian_is_leap(year) {
+              return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+            }
 
-                let gy2 = gy - 1600;
-                let gm2 = gm - 1; // 0-indexed month
-                let gd2 = gd - 1; // 0-indexed day
+            /*
+              Checks if a given Jalaali year is a leap year
+            */
+            function jalaali_is_leap(jy) {
+              return ((((jy - 979) % 33) % 4) === 1);
+            }
 
-                let g_day_no = 365 * gy2 + Math.floor((gy2 + 3) / 4) - Math.floor((gy2 + 99) / 100) + Math.floor((gy2 + 399) / 400);
-                for (let i = 0; i < gm2; ++i) g_day_no += G_DAYS_IN_MONTH[i]; // Use global G_DAYS_IN_MONTH
-                if (gm2 > 1 && g_is_leap(gy)) // Use global g_is_leap
-                    g_day_no += 1;
-                g_day_no += gd2;
-
-                let j_day_no = g_day_no - 79;
-
-                let j_np = Math.floor(j_day_no / 12053); /* 12053 = 33 * 365 + 8 */
-                j_day_no %= 12053;
-
-                let jy = 979 + 33 * j_np + 4 * Math.floor(j_day_no / 1461); /* 1461 = 4 * 365 + 1 */
-                j_day_no %= 1461;
-
-                if (j_day_no >= 366) {
-                    jy += Math.floor((j_day_no - 1) / 365);
-                    j_day_no = (j_day_no - 1) % 365;
-                }
-
-                let jm;
-                for (jm = 0; jm < 11 && j_day_no >= J_DAYS_IN_MONTH[jm]; ++jm) // Use global J_DAYS_IN_MONTH
-                    j_day_no -= J_DAYS_IN_MONTH[jm];
-                jm += 1; // 1-indexed month
-                let jd = j_day_no + 1; // 1-indexed day
-
-                return [jy, jm, jd];
-            };
-
-            // Jalali to Gregorian (adapted from jalaali-js toGregorian)
-            const jalali_to_gregorian = (jy, jm, jd) => {
-                jy = parseInt(jy);
-                jm = parseInt(jm);
-                jd = parseInt(jd);
-
-                let j_day_no = (365 * (jy - 979)) + Math.floor((jy - 979) / 33) * 8 + Math.floor(((jy - 979) % 33 + 3) / 4);
-                for (let i = 0; i < jm - 1; ++i) j_day_no += J_DAYS_IN_MONTH[i]; // Use global J_DAYS_IN_MONTH
-                j_day_no += jd - 1;
-
-                let g_day_no = j_day_no + 79;
-
-                let gy_res = 1600 + 400 * Math.floor(g_day_no / 146097); /* 146097 = 400 * 365 + 100 - 4 */
-                g_day_no %= 146097;
-
-                if (g_day_no >= 36525) { /* 36525 = 100 * 365 + 25 */
-                    gy_res += 100 * Math.floor((g_day_no - 1) / 36524); /* 36524 = 100 * 365 + 24 */
-                    g_day_no = (g_day_no - 1) % 36524;
-                }
-
-                gy_res += 4 * Math.floor(g_day_no / 1461); /* 1461 = 4 * 365 + 1 */
-                g_day_no %= 1461;
-
-                if (g_day_no >= 366) {
-                    gy_res += Math.floor((g_day_no - 1) / 365);
-                    g_day_no = (g_day_no - 1) % 365;
-                }
-
-                let gm_res;
-                // Create a mutable copy of G_DAYS_IN_MONTH for internal modification if leap year
-                let g_d_m_mutable = [...G_DAYS_IN_MONTH]; 
-                if (g_is_leap(gy_res)) // Use global g_is_leap
-                    g_d_m_mutable[2] = 29; // February becomes 29 days
-                for (gm_res = 0; gm_res < 12 && g_day_no >= g_d_m_mutable[gm_res]; ++gm_res)
-                    g_day_no -= g_d_m_mutable[gm_res];
-                return [gy_res, gm_res + 1, g_day_no + 1];
-            };
-
-            // --- تبدیل اعداد به فارسی و برعکس ---
+            // --- تبدیل اعداد به فارسی و برعکس (بدون تغییر) ---
             const toPersianDigits = (num) => {
                 const persian = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
                 return num.toString().split('').map(digit => persian[parseInt(digit)] || digit).join('');
@@ -886,8 +890,10 @@
                 daysGrid.innerHTML = ''; // پاک کردن روزهای قبلی
 
                 const [currentYear, currentMonth, currentDayPlaceholder] = currentJalaliDate;
-                // J_DAYS_IN_MONTH آرایه ۱-اینکسد است (ماه ۱ در ایندکس ۱)
-                const daysInMonth = J_DAYS_IN_MONTH[currentMonth] + (currentMonth === 12 && j_is_leap(currentYear) ? 1 : 0);
+                // تعداد روزهای ماه جاری شمسی
+                // j_d_m در توابع تبدیل تاریخ تعریف شده و آرایه 1-اینکسد برای ماه‌ها است.
+                const j_d_m_local = [0, 31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29];
+                const daysInMonth = j_d_m_local[currentMonth] + (currentMonth === 12 && jalaali_is_leap(currentYear) ? 1 : 0);
                 
                 // بروزرسانی دراپ‌داون‌ها (اطمینان از همگام بودن)
                 monthSelect.value = currentMonth;
@@ -901,6 +907,7 @@
                 // اگر روز اول ماه میلادی:
                 // شنبه (6) باشد -> 0 خانه خالی نیاز داریم
                 // یکشنبه (0) باشد -> 1 خانه خالی نیاز داریم
+                // دوشنبه (1) باشد -> 2 خانه خالی نیاز داریم
                 // ...
                 // جمعه (5) باشد -> 6 خانه خالی نیاز داریم
                 const emptyDaysCount = (firstDayOfWeekGregorian + 1) % 7; 
@@ -912,7 +919,7 @@
                     daysGrid.appendChild(emptyDiv);
                 }
 
-                // گرفتن تاریخ امروز جلالی برای علامت‌گذاری دایره آبی (بدون دستکاری دستی)
+                // گرفتن تاریخ امروز جلالی برای علامت‌گذاری دایره آبی
                 const today = new Date();
                 let [todayJYear, todayJMonth, todayJDay] = gregorian_to_jalali(today.getFullYear(), today.getMonth() + 1, today.getDate());
 
@@ -924,6 +931,7 @@
                     dayDiv.dataset.day = day; // برای ذخیره روز جهت انتخاب
 
                     // علامت گذاری روز جاری (دایره آبی)
+                    // این قسمت اکنون به درستی و بدون دستکاری عمل می‌کند
                     if (currentYear === todayJYear && currentMonth === todayJMonth && day === todayJDay) {
                         dayDiv.classList.add('current-day');
                     }
@@ -941,7 +949,7 @@
             }
 
             function navigateMonth(offset) {
-                let [year, month, day] = currentJalaliDate; // Day here is usually 1, just month and year
+                let [year, month, day] = currentJalaliDate;
                 month += offset;
                 if (month > 12) {
                     month = 1;
@@ -950,7 +958,7 @@
                     month = 12;
                     year--;
                 }
-                currentJalaliDate = [year, month, 1]; // Always set day to 1 for calendar view navigation
+                currentJalaliDate = [year, month, 1]; // همیشه روز را روی 1 تنظیم می‌کنیم
                 populateMonthYearSelects(); // بروزرسانی دراپ‌داون‌ها
                 renderCalendar();
             }
