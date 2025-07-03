@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -334,9 +334,10 @@
 
 <script>
     // ==========================================================
-    // هسته اصلی جاوا اسکریپت - ویرایش شده برای ذخیره کامل اطلاعات
+    // هسته اصلی جاوا اسکریپت - بازنویسی شده برای ارتباط با API
     // ==========================================================
 
+    // آدرس وب اپلیکیشن مرکزی شما
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxEKyxPQmP3KMivBHK3cX8eC_cdi6AaHtzbzHNXQX6uGa3hZNsQ8ArtX3tcnD8ZdP8QRA/exec';
 
     // دسترسی به عناصر DOM (بدون تغییر)
@@ -348,7 +349,7 @@
     const msgBox = document.getElementById('message-box');
     const logoutBtn = document.getElementById('logout-btn');
 
-    // **تغییر:** متغیر SESSION_DURATION حذف شد چون دیگر کاربر تا زمان خروج دستی، لاگین می‌ماند.
+    const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 ساعت
 
     // توابع کمکی برای نمایش پیام و لودینگ (بدون تغییر)
     const showMessage = (text, type = 'error') => {
@@ -362,7 +363,7 @@
         loginBtn.classList.toggle('loading', isLoading);
     };
 
-    // تابع جستجوی کاربر از طریق API (بدون تغییر)
+    // تابع جدید برای جستجوی کاربر از طریق API (بدون تغییر)
     const findStudentByAPI = async (nationalId) => {
         const url = `${SCRIPT_URL}?action=getUserPanelData&id=${nationalId}`;
         try {
@@ -376,7 +377,11 @@
                 showMessage(result.message);
                 return null;
             }
-            return result.found ? result : null;
+            if (result.found) {
+                return result;
+            } else {
+                return null;
+            }
         } catch (error) {
             console.error('Fetch Error:', error);
             showMessage('خطا در بارگذاری اطلاعات. اتصال اینترنت را بررسی کنید.');
@@ -384,7 +389,7 @@
         }
     };
 
-    // تابع لاگین (بدون تغییر)
+    // تابع لاگین بازنویسی شده (بدون تغییر)
     const handleLogin = async () => {
         const nationalId = input.value.trim();
         msgBox.style.display = 'none';
@@ -406,8 +411,10 @@
         }
     };
 
-    // **تغییر:** تابع نمایش داشبورد، اکنون کل اطلاعات کاربر را در localStorage ذخیره می‌کند.
+    // =====  ویرایش اصلی در اینجا اعمال شده است =====
+    // تابع نمایش داشبورد، ویرایش شده برای ذخیره کل اطلاعات کاربر
     const displayDashboard = (record, originalNationalId) => {
+        // پر کردن اطلاعات داشبورد از روی آبجکت رکورد
         document.getElementById('student-name').textContent = record.name || 'نامشخص';
         document.getElementById('national-id').textContent = `کد ملی: ${originalNationalId}`;
 
@@ -439,34 +446,52 @@
             link.href = `${baseUrl}?id=${originalNationalId}`;
         });
 
-        // **تغییر اصلی:** ذخیره کردن کل اطلاعات کاربر در حافظه مرورگر
-        const dataToStore = {
-            record: record, // شیء کامل اطلاعات کاربر
-            nationalId: originalNationalId // کد ملی برای نمایش و استفاده‌های بعدی
-        };
-        localStorage.setItem('userPanelData', JSON.stringify(dataToStore));
+        // ===== تغییر کلیدی ۱: ذخیره کل اطلاعات کاربر در حافظه =====
+        // به جای ذخیره فقط کد ملی، کل آبجکت اطلاعات کاربر (record) را ذخیره می‌کنیم.
+        localStorage.setItem('loggedInUserData', JSON.stringify({
+            record: record, // آبجکت کامل اطلاعات
+            nationalId: originalNationalId,
+            loginTime: new Date().getTime()
+        }));
 
+        // تغییر نمایش از صفحه ورود به داشبورد
         mainContainer.dataset.view = 'dashboard';
         dashboardView.classList.remove('hidden');
         loginView.classList.add('hidden');
     };
 
-    // **تغییر:** تابع بررسی نشست، اکنون مستقیماً داشبورد را با اطلاعات ذخیره شده نمایش می‌دهد.
+    // =====  ویرایش اصلی در اینجا اعمال شده است =====
+    // تابع بررسی نشست، بازنویسی شده برای استفاده از اطلاعات ذخیره شده
     const checkSession = () => {
-        const savedDataString = localStorage.getItem('userPanelData');
-        if (savedDataString) {
-            // اگر اطلاعات کامل کاربر در حافظه مرورگر ذخیره شده بود
-            const savedData = JSON.parse(savedDataString);
-            
-            // مستقیماً داشبورد را با داده‌های ذخیره شده نمایش می‌دهیم (بدون نیاز به ورود مجدد)
-            displayDashboard(savedData.record, savedData.nationalId);
+        const sessionDataString = localStorage.getItem('loggedInUserData');
+        if (!sessionDataString) {
+            // اگر هیچ داده‌ای ذخیره نشده بود، تابع خاتمه یافته و فرم ورود نمایش داده می‌شود.
+            return;
         }
-        // اگر داده‌ای در حافظه نبود، هیچ کاری انجام نمی‌شود و صفحه به طور پیش‌فرض فرم ورود را نشان می‌دهد.
+
+        const session = JSON.parse(sessionDataString);
+        
+        // بررسی اینکه آیا داده‌های ذخیره شده معتبر هستند و زمان نشست منقضی نشده است.
+        const isSessionValid = session && session.record && session.nationalId && (new Date().getTime() - session.loginTime < SESSION_DURATION);
+
+        if (isSessionValid) {
+            // ===== تغییر کلیدی ۲: نمایش مستقیم داشبورد =====
+            // اگر نشست معتبر بود، دیگر نیازی به API و فرم ورود نیست.
+            // مستقیماً داشبورد را با اطلاعات ذخیره شده نمایش می‌دهیم.
+            console.log('نشست معتبر یافت شد. نمایش داشبورد از حافظه محلی.');
+            displayDashboard(session.record, session.nationalId);
+        } else {
+            // اگر نشست منقضی شده یا داده‌ها ناقص بودند، آن را پاک می‌کنیم.
+            localStorage.removeItem('loggedInUserData');
+        }
     };
 
-    // **تغییر:** تابع خروج، کلید جدید را از حافظه پاک می‌کند.
+    // تابع خروج، ویرایش شده برای پاک کردن داده‌های جدید
     const handleLogout = () => {
-        localStorage.removeItem('userPanelData'); // پاک کردن اطلاعات کامل کاربر
+        // ===== تغییر کلیدی ۳: پاک کردن اطلاعات کامل کاربر =====
+        localStorage.removeItem('loggedInUserData'); // کلید جدید را پاک می‌کند
+        
+        // بازگشت به صفحه ورود
         mainContainer.dataset.view = 'login';
         loginView.classList.remove('hidden');
         dashboardView.classList.add('hidden');
@@ -478,8 +503,8 @@
 
     // ثبت رویدادها (بدون تغییر)
     logoutBtn.addEventListener('click', handleLogout);
-    // هنگام بارگذاری کامل صفحه، تابع بررسی نشست اجرا می‌شود
     document.addEventListener('DOMContentLoaded', checkSession);
+
 </script>
 
 </body>
