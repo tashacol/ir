@@ -563,7 +563,7 @@
             const renderTransactions = (data, container) => {
                 container.innerHTML = data.map(t => `
                     <tr><td>${t.date}</td><td>${t.accountant}</td><td class="amount positive">${t.income}</td>
-                    <td class="amount negative">${t.expenses}</td><td class="amount positive">${t.profit}</td>
+                    <td class="amount negative">${t.expenses}</td><td class="amount negative">${t.profit}</td>
                     <td class="amount negative">${t.loss}</td></tr>`).join('');
             };
 
@@ -816,8 +816,7 @@
             /*
               Checks if a given Jalaali year is a leap year
             */
-            // JALAALI_LEAP_CYCLES is defined here to be inside the function scope or global as per original jalaali.js structure.
-            // For simplicity and self-containment, placing it globally or within its usage scope.
+            // JALAALI_LEAP_CYCLES array from jalaali-js for accurate leap year calculation
             const JALAALI_LEAP_CYCLES = [
                 -61, 9, 38, 109, 118, 127, 166, 175, 184, 202, 211, 220, 239, 248, 257, 286, 295, 304, 322,
                 331, 340, 349, 358, 367, 376, 385, 394, 403, 416, 429, 442, 455, 468, 481, 494, 507, 520,
@@ -878,7 +877,7 @@
                 10972, 10985, 10998, 11011, 11024, 11037, 11050, 11063, 11076, 11089, 11102, 11115, 11128,
                 11141, 11154, 11167, 11180, 11193, 11206, 11219, 11232, 11245, 11258, 11271, 11284, 11297,
                 11310, 11323, 11336, 11349, 11362, 11375, 11388, 11401, 11414, 11427, 11440, 11453, 11466,
-                11479, 11492, 11505, 11518, 11531, 11544, 11557, 11570, 11583, 1196, 11609, 11622, 11635,
+                11479, 11492, 11505, 11518, 11531, 11544, 11557, 11570, 11583, 11596, 11609, 11622, 11635,
                 11648, 11661, 11674, 11687, 11700, 11713, 11726, 11739, 11752, 11765, 11778, 11791, 11804,
                 11817, 11830, 11843, 11856, 11869, 11882, 11895, 11908, 11921, 11934, 11947, 11960, 11973,
                 11986, 11999, 12012, 12025, 12038
@@ -963,23 +962,26 @@
 
                 const [currentYear, currentMonth, currentDayPlaceholder] = currentJalaliDate;
                 // تعداد روزهای ماه جاری شمسی
-                const j_d_m_local = [0, 31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29];
+                const j_d_m_local = [0, 31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29]; // روزهای هر ماه شمسی
                 const daysInMonth = j_d_m_local[currentMonth] + (currentMonth === 12 && jalaali_is_leap(currentYear) ? 1 : 0);
                 
                 // بروزرسانی دراپ‌داون‌ها (اطمینان از همگام بودن)
                 monthSelect.value = currentMonth;
                 yearSelect.value = currentYear;
 
-                // گرفتن اولین روز هفته میلادی (0=یکشنبه, ..., 6=شنبه) برای روز اول ماه شمسی جاری
+                // 1. اولین روز ماه شمسی جاری را به میلادی تبدیل می‌کنیم.
                 const [gYear, gMonth, gDay] = jalali_to_gregorian(currentYear, currentMonth, 1);
-                const firstDayOfWeekGregorian = new Date(gYear, gMonth - 1, gDay).getDay(); // 0 = یکشنبه, 1 = دوشنبه, ... 6 = شنبه
+                // 2. روز هفته (Gregorian Day of Week) را برای این تاریخ میلادی بدست می‌آوریم.
+                // Date.getDay() یکشنبه را 0, دوشنبه را 1, ..., شنبه را 6 برمی‌گرداند.
+                const firstDayOfWeekGregorian = new Date(gYear, gMonth - 1, gDay).getDay(); 
                 
-                // در تقویم شمسی، شنبه اولین روز هفته است.
-                // پس تعداد خانه‌های خالی قبل از شروع ماه به این صورت محاسبه می‌شود:
-                // اگر روز اول شنبه باشد (getDay() = 6)، 0 خانه خالی.
-                // اگر روز اول یکشنبه باشد (getDay() = 0)، 1 خانه خالی.
-                // ...
-                // اگر روز اول جمعه باشد (getDay() = 5)، 6 خانه خالی.
+                // 3. محاسبه تعداد خانه‌های خالی (Empty Days) قبل از روز اول ماه در تقویم شمسی.
+                // در تقویم شمسی، هفته با شنبه شروع می‌شود.
+                // ما باید ببینیم روز اول ماه میلادی (که 0=یکشنبه تا 6=شنبه است) چند روز با شنبه فاصله دارد.
+                // مثال:
+                // اگر روز اول شنبه (Gregorian getDay() = 6) باشد، 0 خانه خالی نیاز داریم. (6 + 1) % 7 = 0
+                // اگر روز اول یکشنبه (Gregorian getDay() = 0) باشد، 1 خانه خالی (برای شنبه) نیاز داریم. (0 + 1) % 7 = 1
+                // اگر روز اول پنجشنبه (Gregorian getDay() = 4) باشد، 5 خانه خالی نیاز داریم. (4 + 1) % 7 = 5
                 const emptyDaysCount = (firstDayOfWeekGregorian + 1) % 7; 
 
                 // اضافه کردن خانه های خالی قبل از شروع ماه
@@ -1035,7 +1037,8 @@
             function selectDate(day) {
                 const [year, month] = currentJalaliDate;
                 selectedJalaliDate = [year, month, day];
-                const formattedDate = `${toPersianDigits(year)}/${toPersianDigits(month).padStart(2, '۰')}/${toPersianDigits(day).padStart(2, '۰')}`; // Add padding for single digits
+                // افزودن پدینگ صفر به ماه و روز برای فرمت صحیح (مثلاً ۰۱ به جای ۱)
+                const formattedDate = `${toPersianDigits(year)}/${toPersianDigits(month).padStart(2, '۰')}/${toPersianDigits(day).padStart(2, '۰')}`; 
                 if (selectedInput) {
                     selectedInput.value = formattedDate;
                     hideCalendar();
@@ -1050,6 +1053,7 @@
                 const pickerWidth = datePicker.offsetWidth;
                 const pickerHeight = datePicker.offsetHeight;
 
+                // Positioning logic to keep picker on screen
                 let topPosition = inputRect.bottom + 10;
                 if (topPosition + pickerHeight > window.innerHeight) {
                     topPosition = inputRect.top - pickerHeight - 10;
@@ -1063,18 +1067,19 @@
                 let desiredRightFromViewport = window.innerWidth - inputRect.right;
                 let potentialPickerLeftEdge = inputRect.right - pickerWidth;
 
-                if (potentialPickerLeftEdge < 0) {
+                if (potentialPickerLeftEdge < 0) { // If it goes off screen to the left
                     datePicker.style.right = 'auto';
                     let leftPosition = inputRect.left;
-                    if (leftPosition + pickerWidth > window.innerWidth) {
+                    if (leftPosition + pickerWidth > window.innerWidth) { // If it still goes off screen to the right
                         leftPosition = window.innerWidth - pickerWidth - 10;
-                        if (leftPosition < 0) leftPosition = 10;
+                        if (leftPosition < 0) leftPosition = 10; // Fallback to near left edge
                     }
                     datePicker.style.left = `${leftPosition}px`;
-                } else {
+                } else { // Position normally relative to right edge of input
                     datePicker.style.left = 'auto';
                     datePicker.style.right = `${desiredRightFromViewport}px`;
                 }
+
 
                 // Try to read existing date from input and set calendar
                 const inputValue = selectedInput.value;
@@ -1082,6 +1087,7 @@
                     const englishValue = toEnglishDigits(inputValue);
                     const parts = englishValue.split('/').map(Number);
 
+                    // Check if the parsed date is valid
                     if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
                         selectedJalaliDate = parts;
                         currentJalaliDate = [parts[0], parts[1], 1]; // Display the month of the selected date
