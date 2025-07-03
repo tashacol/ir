@@ -385,6 +385,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const cachePayload = { timestamp: new Date().getTime(), data: data };
         localStorage.setItem(CACHE_KEY, JSON.stringify(cachePayload));
     }
+    // getCache دیگر مستقیما استفاده نمی‌شود، منطق آن در initializePage قرار دارد
     function clearCache() { localStorage.removeItem(CACHE_KEY); }
 
     // توابع تبدیل تاریخ (همان منطق قبلی شما)
@@ -563,7 +564,7 @@ document.addEventListener('DOMContentLoaded', function() {
         DOM.dashboard.style.display = 'block';
     }
 
-    // [ویرایش شده] تابع خروج برای پاک کردن کامل اطلاعات کاربر
+    // تابع خروج (بدون تغییر)
     function logout() {
         if (confirm("آیا برای خروج از سیستم مطمئن هستید؟")) {
             localStorage.removeItem(LOGGED_IN_USER_KEY); // حذف کد ملی ذخیره شده
@@ -627,10 +628,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (result.error) {
                 alert(result.message);
-                // در صورت خطا در ورود خودکار، صفحه را رفرش میکنیم تا به حالت ورود دستی برگردد
-                if (new URLSearchParams(window.location.search).get('id')) {
-                    window.location.href = window.location.pathname;
-                }
                 return;
             }
 
@@ -649,9 +646,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 initDashboard();
             } else {
                 alert("کد ملی وارد شده در این دوره ثبت نام نشده است.");
-                 if (new URLSearchParams(window.location.search).get('id')) {
-                    window.location.href = window.location.pathname;
-                }
             }
         } catch (err) {
             console.error("Data Fetching Error:", err);
@@ -662,24 +656,26 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // [بازنویسی کامل] تابع اصلی برای شروع و مدیریت وضعیت ورود با منطق جدید
+    // [<<< ویرایش اصلی در اینجا اعمال شده است >>>]
+    // تابع اصلی برای شروع و مدیریت وضعیت ورود
     function initializePage() {
         const loggedInUserNationalId = localStorage.getItem(LOGGED_IN_USER_KEY);
         const urlParams = new URLSearchParams(window.location.search);
         const nationalIdFromUrl = urlParams.get('id');
 
-        // [ویرایش اصلی] اگر کاربری از طریق URL وارد می‌شود و این کاربر با کاربر قبلی متفاوت است،
-        // جلسه قبلی را به طور کامل پاک کن.
-        if (nationalIdFromUrl && loggedInUserNationalId && nationalIdFromUrl !== loggedInUserNationalId) {
-            console.warn(`ورود جدید از طریق URL (${nationalIdFromUrl}) شناسایی شد. در حال پاک کردن جلسه قبلی کاربر (${loggedInUserNationalId}).`);
-            localStorage.removeItem(LOGGED_IN_USER_KEY);
-            clearCache();
-            // حالا `loggedInUserNationalId` در حافظه وجود ندارد و منطق زیر به درستی عمل خواهد کرد.
-        }
-        
-        // اولویت اول: ورود از طریق URL
+        // اولویت اول: بررسی وجود کد ملی در آدرس URL
         if (nationalIdFromUrl) {
-            // این بخش هم برای ورود بار اول از طریق لینک و هم برای حالتی که کاربر قبلی پاک شده عمل می‌کند.
+            // اگر کاربری از قبل وارد شده بود و کد ملی جدید با کد ملی قبلی متفاوت بود
+            if (loggedInUserNationalId && loggedInUserNationalId !== nationalIdFromUrl) {
+                console.log(`کد ملی جدید (${nationalIdFromUrl}) شناسایی شد. در حال پاک کردن جلسه قبلی کاربر (${loggedInUserNationalId}).`);
+                
+                // **این بخش اصلی ویرایش درخواستی شماست**
+                // پاک کردن کامل اطلاعات کاربر قبلی از حافظه مرورگر
+                localStorage.removeItem(LOGGED_IN_USER_KEY);
+                clearCache();
+            }
+
+            // چه کاربر قبلی وجود داشته باشد (و پاک شده باشد) و چه نه، با کد ملی جدید وارد شو
             showOverlay(DOM.loginContainer, true);
             DOM.loginBox.innerHTML = `
                 <h2><i class="fas fa-user-check"></i><br>ورود خودکار</h2>
@@ -687,27 +683,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 <p class="auto-login-status">در حال ورود...</p>
                 <div class="loader" style="margin: 20px auto 0;"></div>
             `;
-            // برای اطمینان، کد ملی موجود در اینپوت را هم بروز می‌کنیم
-            if (DOM.nationalCodeInput) DOM.nationalCodeInput.value = nationalIdFromUrl; 
+            // فرآیند ورود با کد ملی جدید را آغاز کن
             handleLoginAttempt(nationalIdFromUrl);
+            return; // پایان عملیات، چون ورود از طریق URL در حال انجام است
+        }
 
-        // اولویت دوم: کاربری از قبل وارد شده و ورودی از طریق URL وجود ندارد.
-        } else if (localStorage.getItem(LOGGED_IN_USER_KEY)) {
-            const currentUserId = localStorage.getItem(LOGGED_IN_USER_KEY);
+        // اگر کدی در URL نبود، حالا وضعیت ورود قبلی را بررسی می‌کنیم
+        if (loggedInUserNationalId) {
+            // کاربر قبلا وارد شده و حالا بدون کد ملی در URL به صفحه برگشته است
             showOverlay(DOM.loginContainer, false);
             DOM.dashboard.style.display = 'block';
 
             const cachedItem = localStorage.getItem(CACHE_KEY);
             if (!cachedItem) {
                 console.warn("کد ملی کاربر وجود دارد اما داده‌ای در حافظه پنهان نیست. بارگیری مجدد...");
-                refreshData(currentUserId);
+                refreshData(loggedInUserNationalId);
                 return;
             }
 
             const cache = JSON.parse(cachedItem);
             const isExpired = (new Date().getTime() - cache.timestamp) > CACHE_EXPIRATION;
 
-            // نمایش فوری داشبورد با داده‌های موجود
+            // نمایش فوری داشبورد با داده‌های موجود (حتی اگر منقضی شده باشد)
             currentUser = cache.data.currentUser;
             courseData.name = cache.data.courseName;
             courseData.startDate = cache.data.startDate;
@@ -715,14 +712,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (isExpired) {
                 console.log("حافظه پنهان منقضی شده. در حال بارگیری مجدد داده‌ها در پس‌زمینه...");
-                refreshData(currentUserId);
+                refreshData(loggedInUserNationalId);
             }
 
-        // اولویت سوم: هیچ کاربری وارد نشده و لینکی هم وجود ندارد.
         } else {
+            // نه در URL کدی هست و نه کاربری از قبل وارد شده. صفحه ورود عادی را نشان بده.
             showOverlay(DOM.loginContainer, true);
         }
     }
+
 
     // ثبت رویدادها (بدون تغییر)
     DOM.verifyButton.addEventListener('click', () => handleLoginAttempt(DOM.nationalCodeInput.value.trim()));
