@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>استعلام وضعیت گواهی</title>
-    <!-- Excel Library (حذف شد - دیگر نیازی به آن نیست) -->
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script> -->
+    <!-- کتابخانه اکسل حذف شد، چون در کد شما استفاده نمی‌شد -->
     <style>
         /* ========== Fonts ========== */
         @font-face {
@@ -21,19 +20,23 @@
             font-style: normal;
         }
 
-        /* ========== Variables ========== */
+        /* ========== Variables (رنگ‌ها بدون تغییر) ========== */
         :root {
             --primary-color: #0d6efd;
             --primary-light: #e7f3ff;
             --primary-dark: #0a58ca;
             --bg-color: #f0f2f5;
-            --card-bg: #ffffff;
+            --card-bg: #f0f2f5; /* تغییر برای هماهنگی با افکت برجستگی */
             --text-dark: #212529;
             --text-light: #6c757d;
             --border-color: #dee2e6;
             --success-color: #198754;
             --warning-color: #ffc107;
             --error-color: #dc3545;
+
+            /* رنگ‌های سایه برای افکت برجستگی */
+            --shadow-light: rgba(255, 255, 255, 0.9);
+            --shadow-dark: rgba(174, 174, 192, 0.4);
         }
 
         /* ========== Global Styles ========== */
@@ -61,34 +64,47 @@
             max-width: 550px;
         }
 
-        /* ========== Search Box ========== */
+        /* ========== Search Box (با ظاهر برجسته) ========== */
         .search-box {
             background: var(--card-bg);
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            padding: 2.5rem; /* کمی پدینگ بیشتر برای ظاهر بهتر */
+            border-radius: 20px; /* گوشه‌های گردتر */
+            box-shadow: 8px 8px 16px var(--shadow-dark), -8px -8px 16px var(--shadow-light);
             margin-bottom: 2rem;
+            transition: box-shadow 0.3s ease;
         }
 
         h1 {
             font-size: 1.75rem;
             font-weight: bold;
             text-align: center;
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem; /* فاصله بیشتر */
             color: var(--text-dark);
         }
-
+        
+        /* ========== Input Wrapper & Scanner Animation ========== */
+        .input-wrapper {
+            position: relative;
+            width: 100%;
+            margin-bottom: 1.5rem; /* فاصله از دکمه */
+            overflow: hidden; /* برای مخفی کردن اسکنر */
+            border-radius: 12px; /* هماهنگ با اینپوت */
+        }
+        
         #searchInput {
             width: 100%;
-            padding: 12px 16px;
-            font-size: 1rem;
+            padding: 16px 20px;
+            font-size: 1.1rem; /* کمی بزرگتر */
             font-family: 'Vazirmatn', Arial, sans-serif;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
+            border: none; /* حذف بردر برای ظاهر برجسته */
+            border-radius: 12px;
             outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
+            transition: all 0.3s ease;
             text-align: center;
-            letter-spacing: 2px;
+            letter-spacing: 3px;
+            background-color: var(--bg-color);
+            /* افکت فرورفتگی (inset) */
+            box-shadow: inset 4px 4px 8px var(--shadow-dark), inset -4px -4px 8px var(--shadow-light);
         }
 
         #searchInput::placeholder {
@@ -96,40 +112,70 @@
             letter-spacing: normal;
         }
 
-        #searchInput:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.2);
+        /* انیمیشن خط اسکنر */
+        .input-wrapper::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+            opacity: 0;
+            transform: translateX(-100%);
+            transition: opacity 0.4s;
+        }
+        
+        /* فعال‌سازی انیمیشن هنگام فوکوس */
+        .input-wrapper:focus-within::after {
+            opacity: 0.8;
+            transform: translateX(100%);
+            animation: scan 2s linear infinite;
+        }
+        
+        @keyframes scan {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
         }
 
+        /* ========== Search Button (با ظاهر برجسته) ========== */
         #searchButton {
             position: relative;
             width: 100%;
-            padding: 12px;
-            margin-top: 1rem;
+            padding: 14px;
             font-size: 1.1rem;
             font-weight: bold;
             font-family: 'Vazirmatn', Arial, sans-serif;
-            background: var(--primary-color);
-            color: #fff;
+            background: var(--card-bg); /* تغییر پس‌زمینه برای هماهنگی */
+            color: var(--primary-color);
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             cursor: pointer;
-            transition: background-color 0.3s, transform 0.2s;
+            transition: all 0.3s ease-out;
             overflow: hidden;
-            height: 50px; /* Fixed height for loader alignment */
+            height: 54px; /* ارتفاع ثابت برای لودر */
+            /* افکت برجستگی */
+            box-shadow: 5px 5px 10px var(--shadow-dark), -5px -5px 10px var(--shadow-light);
         }
 
         #searchButton:hover:not(:disabled) {
-            background: var(--primary-dark);
-            transform: translateY(-2px);
+            color: var(--primary-dark);
+            box-shadow: 7px 7px 12px var(--shadow-dark), -7px -7px 12px var(--shadow-light);
+        }
+
+        /* افکت فشرده شدن دکمه هنگام کلیک */
+        #searchButton:active:not(:disabled) {
+             box-shadow: inset 3px 3px 7px var(--shadow-dark), inset -3px -3px 7px var(--shadow-light);
+             transform: translateY(1px);
         }
 
         #searchButton:disabled {
-            background-color: #a9aeb4;
+            color: #a9aeb4;
             cursor: not-allowed;
+            box-shadow: inset 3px 3px 7px var(--shadow-dark), inset -3px -3px 7px var(--shadow-light);
         }
 
-        /* Button Loader */
+        /* Button Loader (با رنگ جدید) */
         .btn-loader {
             position: absolute;
             top: 50%;
@@ -137,8 +183,8 @@
             transform: translate(-50%, -50%);
             width: 24px;
             height: 24px;
-            border: 3px solid rgba(255, 255, 255, 0.4);
-            border-top-color: #fff;
+            border: 3px solid var(--primary-light);
+            border-top-color: var(--primary-color);
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
             display: none;
@@ -173,10 +219,10 @@
 
         .result-card {
             background: var(--card-bg);
-            border-radius: 12px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            border-radius: 20px; /* هماهنگ با کادر جستجو */
+            box-shadow: 8px 8px 16px var(--shadow-dark), -8px -8px 16px var(--shadow-light);
             overflow: hidden;
-            border: 1px solid var(--border-color);
+            border: none; /* حذف بردر */
             animation: fadeIn 0.6s ease-out;
         }
 
@@ -191,15 +237,7 @@
             background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
             color: white;
             position: relative;
-        }
-
-        .card-header::before {
-            content: '✓';
-            position: absolute;
-            top: 10px;
-            right: 15px;
-            font-size: 1.5rem;
-            opacity: 0.2;
+            border-bottom: 3px solid var(--primary-light); /* جداکننده زیبا */
         }
         
         .card-header h2 {
@@ -228,8 +266,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0.8rem 0;
-            border-bottom: 1px solid #f0f2f5;
+            padding: 1rem 0; /* پدینگ بیشتر */
+            border-bottom: 1px solid #e0e5ec;
         }
         .info-item:last-child {
             border-bottom: none;
@@ -250,8 +288,8 @@
             display: flex;
             gap: 1rem;
             padding: 0 1.5rem 1.5rem;
-            background-color: #f8f9fa;
-            border-top: 1px solid var(--border-color);
+            background-color: transparent; /* حذف پس‌زمینه اضافی */
+            border-top: 1px solid #e0e5ec;
             padding-top: 1.5rem;
             flex-wrap: wrap;
         }
@@ -269,12 +307,18 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.6rem; /* فاصله بین آیکون و متن */
+            box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.15);
         }
         
         .result-button:hover {
             transform: translateY(-3px);
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        .result-button svg {
+            width: 20px;
+            height: 20px;
         }
 
         .result-button.project {
@@ -292,7 +336,10 @@
     <div class="container">
         <div class="search-box">
             <h1>استعلام گواهی</h1>
-            <input type="text" id="searchInput" placeholder="کد ملی خود را وارد کنید" inputmode="numeric" />
+            <!-- کادر ورود کد ملی داخل یک div قرار گرفت تا انیمیشن اسکنر کار کند -->
+            <div class="input-wrapper">
+                 <input type="text" id="searchInput" placeholder="کد ملی خود را وارد کنید" inputmode="numeric" />
+            </div>
             <button id="searchButton">
                 <span class="btn-text">استعلام</span>
                 <div class="btn-loader"></div>
@@ -305,7 +352,7 @@
 
     <script>
         // ==========================================================
-        // هسته اصلی جاوا اسکریپت - بازنویسی شده برای ارتباط با API و کشینگ
+        // هسته اصلی جاوا اسکریپت - بدون هیچ تغییری در منطق
         // ==========================================================
 
         // آدرس وب اپلیکیشن مرکزی شما (مطابق با لینک جدید شما)
@@ -423,7 +470,7 @@
             }
         });
 
-        // تابع نمایش نتایج (ویرایش شده برای استفاده از نام پراپرتی‌ها)
+        // تابع نمایش نتایج (ویرایش شده برای افزودن آیکون‌ها)
         function displayResults(data) { // 'data' حالا شیء JSON دریافتی از API است
             const fallbackText = 'ثبت نشده';
             // استخراج داده‌ها از شیء دریافتی از API
@@ -436,13 +483,17 @@
             const projectLink = data.projectLink;
             const certificateLink = data.certificateLink;
             
+            // آیکون‌ها به صورت SVG برای کیفیت بهتر
+            const projectIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M5 20h14v-2H5v2zm0-10h4v6h6v-6h4l-7-7-7 7z"></path></svg>`;
+            const certificateIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15-5-5 1.41-1.41L11 14.17l7.59-7.59L20 8l-9 9z"></path></svg>`;
+
             let footerButtons = '';
             // بررسی وجود و خالی نبودن لینک‌ها قبل از افزودن دکمه
             if (projectLink && projectLink.toString().trim() !== '') {
-                footerButtons += `<a href="${projectLink.toString().trim()}" target="_blank" class="result-button project">دانلود پروژه</a>`;
+                footerButtons += `<a href="${projectLink.toString().trim()}" target="_blank" class="result-button project">${projectIcon}دانلود پروژه</a>`;
             }
             if (certificateLink && certificateLink.toString().trim() !== '') {
-                footerButtons += `<a href="${certificateLink.toString().trim()}" target="_blank" class="result-button certificate">دانلود گواهینامه</a>`;
+                footerButtons += `<a href="${certificateLink.toString().trim()}" target="_blank" class="result-button certificate">${certificateIcon}دانلود گواهینامه</a>`;
             }
 
             const cardHTML = `
