@@ -2,683 +2,485 @@
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=1400">
-    <title>پنل مدیریت جامع - موسسه تعالی</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>پنل کاربری - موسسه تعالی اندیشه و رشد</title>
+
+    <!-- کتابخانه xlsx.full.min.js حذف شد (دیگر به آن نیازی نیست) -->
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script> -->
+
+    <!-- کتابخانه‌های moment.js و jalali-moment.js باقی می‌مانند (برای پردازش تاریخ) -->
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jalali-moment/dist/jalali-moment.browser.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css">
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap');
-        
-        /* Light Mode Variables (Default) */
+        /* ================================
+        متغیرها و تم جدید (روشن و رسمی)
+        =================================== */
         :root {
-            --primary: #0d6efd;
-            --primary-light: #e7f3ff;
-            --primary-dark: #0056b3;
-            --text-dark: #212529;
-            --text-light: #6c757d;
-            --text-on-dark: #ffffff;
-            --bg-main: #f8f9fa;
-            --bg-card: #ffffff;
-            --border-color: #e9ecef;
-            --success: #198754;
-            --danger: #dc3545;
-            --warning: #ffc107;
-            --info: #0dcaf0;
-            --shadow: 0 4px 25px rgba(0,0,0,0.08);
-            --radius-lg: 16px;
-            --radius-md: 12px;
-            --transition: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            --bg-gradient-start: #f4f7fa; --bg-gradient-end: #e9eff5;
+            --primary-blue: #0052cc; --accent-blue: #0065ff;
+            --text-dark: #172b4d; --text-muted: #6b778c;
+            --card-bg: rgba(255, 255, 255, 0.85); --card-border: rgba(223, 225, 229, 0.7);
+            --input-bg: rgba(250, 251, 252, 0.8);
+            --danger-color: #de350b; --success-color: #00875a;
         }
 
-        /* Dark Mode Variables */
-        html.dark-mode {
-            --primary: #5b90f7; /* Slightly lighter primary for dark mode contrast */
-            --primary-light: #1e3a8a; /* Darker primary for light backgrounds */
-            --primary-dark: #004085;
-            --text-dark: #e0e0e0; /* Light text for dark backgrounds */
-            --text-light: #a0a0a0; /* Lighter secondary text */
-            --text-on-dark: #ffffff;
-            --bg-main: #1a202c; /* Dark background */
-            --bg-card: #2d3748; /* Darker card background */
-            --border-color: #4a5568; /* Darker borders */
-            --shadow: 0 4px 25px rgba(0,0,0,0.4); /* Darker shadow for visibility */
+        @font-face {
+            font-family: 'Vazir';
+            src: url('https://cdn.fontcdn.ir/Font/Persian/Vazir/Vazir-Regular.woff2') format('woff2');
+            font-weight: normal; font-display: swap;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html { scroll-behavior: smooth; }
-        body { 
-            font-family: 'Vazirmatn', sans-serif; 
-            background-color: var(--bg-main); 
-            color: var(--text-dark);
-            min-width: 1400px;
-            /* Added transition for smoother theme change */
-            transition: background-color var(--transition), color var(--transition);
-        }
-        html.modal-open, body.modal-open { overflow: hidden; }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes modal-pop-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-
-        .page-loader { position: fixed; inset: 0; background: var(--bg-main); display: flex; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.5s, visibility 0.5s; }
-        .page-loader.hidden { opacity: 0; visibility: hidden; }
-        .page-loader .spinner { width: 40px; height: 40px; border: 4px solid var(--primary-light); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
-        
-        #login-view { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; animation: fadeIn 0.5s; }
-        .login-container { width: 100%; max-width: 420px; background: var(--bg-card); padding: 40px; border-radius: var(--radius-lg); box-shadow: var(--shadow); text-align: center; }
-        .login-container .logo { color: var(--primary); font-size: 3rem; margin-bottom: 20px; }
-        .login-container h1 { font-size: 1.8rem; margin-bottom: 8px; }
-        .login-container p { color: var(--text-light); margin-bottom: 30px; }
-        .input-wrapper { position: relative; margin-bottom: 20px; }
-        .input-icon { position: absolute; top: 50%; right: 15px; transform: translateY(-50%); color: var(--text-light); }
-        .form-input {
-            width: 100%;
-            padding: 14px 50px 14px 15px;
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-md);
-            font-size: 1rem;
-            outline: none;
-            transition: var(--transition);
-            background: var(--bg-main);
-            color: var(--text-dark); /* Changed to var for theme support and readability */
-        }
-        .form-input:focus {
-            border-color: var(--primary);
-            background: var(--bg-card);
-            box-shadow: 0 0 0 3px var(--primary-light);
-        }
-        .btn-login { width: 100%; padding: 14px; font-size: 1.1rem; font-weight: 500; background: var(--primary); color: var(--text-on-dark); border: none; border-radius: var(--radius-md); cursor: pointer; transition: var(--transition); position: relative; min-height: 52px; display: flex; align-items: center; justify-content: center; }
-        .btn-login:hover:not(:disabled) { background: var(--primary-dark); }
-        .btn-login.loading .spinner { opacity: 1; }
-        .btn-login .spinner { width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.3); border-top-color: var(--text-on-dark); border-radius: 50%; animation: spin 0.8s linear infinite; position: absolute; opacity: 0; transition: var(--transition); }
-        #login-error-msg { margin-top: 15px; color: var(--danger); min-height: 20px; font-weight: 500; }
-        
-        #dashboard-view { display: none; padding-top: 70px; }
-        .dashboard-header { background: var(--bg-card); padding: 0 30px; height: 70px; display: flex; align-items: center; justify-content: space-between; box-shadow: var(--shadow); position: fixed; top: 0; right: 0; left: 0; z-index: 100; transition: background-color var(--transition), box-shadow var(--transition); }
-        .header-logo, .user-profile-trigger { cursor: pointer; }
-        .header-logo { display: flex; align-items: center; color: var(--text-dark); font-weight: 700; font-size: 1.2rem; }
-        .header-logo i { margin-left: 10px; color: var(--primary); }
-
-        .header-controls {
-            display: flex;
-            align-items: center;
-        }
-        .icon-button {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            color: var(--text-light);
-            cursor: pointer;
-            margin-right: 15px;
-            transition: var(--transition);
+        body {
+            font-family: 'Vazir', 'Tahoma', sans-serif; color: var(--text-dark);
+            min-height: 100vh;
+            overflow-x: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 5px;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+            background-attachment: fixed;
+        }
+
+        /* ================================
+        کانتینر اصلی (طراحی شیشه‌ای جدید)
+        =================================== */
+        .main-container {
+            width: 100%;
+            max-width: 400px; /* کمی کاهش عرض برای ظاهر بهتر فرم ورود */
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            z-index: 1;
+            overflow: hidden;
+            transition: max-width 0.6s ease-in-out, padding 0.6s ease-in-out;
+        }
+        .main-container[data-view="dashboard"] {
+            max-width: 800px;
+        }
+
+        /* ================================
+        مدیریت نمایش بخش‌ها (ورود و داشبورد)
+        =================================== */
+        .view {
+            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+        }
+        .view.hidden {
+            position: absolute;
+            top: 40px; right: 40px; left: 40px;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(20px);
+        }
+        .main-container[data-view="dashboard"] #login-view {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-20px);
+        }
+
+        /* ================================
+        بخش ورود (فرم جدید و مدرن - بدون تغییر)
+        =================================== */
+        .login-header {
+            text-align: center;
+            margin-bottom: 35px;
+        }
+
+        .login-icon-wrapper {
+            width: 70px;
+            height: 70px;
             border-radius: 50%;
+            background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+            border: 1px solid var(--card-border);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.07);
         }
-        .icon-button:hover {
-            color: var(--primary);
-            background-color: var(--primary-light);
-        }
-        .icon-button.loading i {
-            animation: spin 1s linear infinite;
+        .login-icon-wrapper i {
+            font-size: 2.2rem;
+            color: var(--primary-blue);
         }
 
-        .user-profile-trigger { display: flex; align-items: center; }
-        .user-profile-trigger .avatar { width: 40px; height: 40px; background: var(--primary-light); color: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
-        
-        .dropdown { position: relative; }
-        .dropdown-menu { display: none; position: absolute; background-color: var(--bg-card); min-width: 300px; box-shadow: var(--shadow); border-radius: var(--radius-md); z-index: 101; margin-top: 15px; border: 1px solid var(--border-color); animation: fadeIn 0.2s; transition: background-color var(--transition), border-color var(--transition), box-shadow var(--transition); }
-        .dropdown-menu.show { display: block; }
-        .user-profile-trigger + .dropdown-menu { left: 0; }
-        .header-logo + .dropdown-menu { right: 0; }
-        .dropdown-header { padding: 15px 20px; border-bottom: 1px solid var(--border-color); text-align: center; }
-        .dropdown-header h4 { margin: 0; font-size: 1.1rem; }
-        .dropdown-header p { margin: 5px 0 0; color: var(--text-light); font-size: 0.9rem; }
-        .dropdown-list { list-style: none; padding: 10px; }
-        .dropdown-list li { padding: 10px 15px; font-size: 0.95rem; color: var(--text-light); display: flex; align-items: center; }
-        .dropdown-list li i { width: 24px; text-align: center; margin-left: 10px; color: var(--primary); }
-        .dropdown-logout-btn { width: calc(100% - 20px); margin: 10px; background: var(--danger); color: #fff; border:none; padding: 10px; border-radius: 8px; cursor:pointer; font-family: inherit; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 8px; }
-
-        .main-container { max-width: 1400px; margin: 30px auto; padding: 0 30px; animation: fadeIn 0.5s; }
-        .section-grid { 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 30px; 
-            margin-bottom: 30px; /* Added spacing below this grid */
+        #login-view h1 {
+            font-size: 2rem; font-weight: bold;
+            color: var(--text-dark);
+            margin: 0;
         }
-        .full-width-section { margin-bottom: 30px; }
-        
-        .card { 
-            background: var(--bg-card); 
-            border-radius: var(--radius-lg); 
-            box-shadow: var(--shadow); 
-            padding: 25px; 
-            display: flex; 
-            flex-direction: column;
-            transition: background-color var(--transition), box-shadow var(--transition), border-color var(--transition);
+
+        /* مخفی کردن پاراگراف توضیحات */
+        #login-view p { display: none; }
+
+        .form-group { position: relative; margin-bottom: 25px; }
+
+        .form-icon {
+            position: absolute;
+            top: 50%;
+            right: 18px;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            transition: color 0.3s;
+            z-index: 2; /* برای قرار گرفتن روی لیبل */
         }
-        .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--border-color); }
-        .card-header .title-part { display: flex; align-items: center;}
-        .card-header .icon { color: var(--primary); font-size: 1.5rem; margin-left: 15px; }
-        .card-header h2 { font-size: 1.3rem; margin: 0; }
-        
-        .financial-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
-        .stat-item { padding: 20px; border-radius: var(--radius-md); background: var(--bg-main); transition: background-color var(--transition); }
-        .stat-item .label { display: flex; align-items: center; color: var(--text-light); margin-bottom: 8px; }
-        .stat-item .label i { margin-left: 8px; font-size: 1.1rem; }
-        .stat-item .value { font-size: 1.7rem; font-weight: 700; }
-        .stat-item .value small { font-size: 1rem; font-weight: 400; color: var(--text-light); }
-        .stat-item.income .value { color: var(--success); }
-        .stat-item.expense .value { color: var(--danger); }
-        
-        .table-responsive { overflow-x: auto; min-height: 250px; }
-        .data-table { width: 100%; border-collapse: collapse; text-align: right; }
-        .data-table th, .data-table td { padding: 15px 10px; border-bottom: 1px solid var(--border-color); white-space: nowrap; transition: border-color var(--transition); }
-        .data-table th { font-weight: 500; color: var(--text-light); font-size: 0.9rem; }
-        .data-table tbody tr:last-child td { border-bottom: none; }
-        .data-table .amount { font-weight: 500; }
-        .data-table .amount.positive { color: var(--success); }
-        .data-table .amount.negative { color: var(--danger); }
-        .data-table .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 500; color: #fff; text-align: center; display: inline-block; min-width: 80px; }
-        .status-badge.active { background-color: var(--success); }
-        .status-badge.finished { background-color: var(--border-color); color: var(--text-light); }
-        .status-badge.upcoming { background-color: var(--primary); }
 
-        .filter-controls { display: flex; gap: 10px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
-        .filter-controls label { font-size: 0.9rem; color: var(--text-light); white-space: nowrap; }
-        .filter-controls .form-input { padding: 8px 12px; height: 40px; width: 150px; background-color: var(--bg-main); }
-        .filter-controls button { padding: 8px 20px; height: 40px; background: var(--primary-light); color: var(--primary); font-weight: 500; border: none; border-radius: var(--radius-md); cursor: pointer; transition: var(--transition); display: flex; align-items: center; gap: 8px;}
-        .filter-controls button:hover { background: var(--primary); color: #fff; }
-        .filter-controls button .spinner { width: 16px; height: 16px; border: 2px solid; border-radius: 50%; border-right-color: transparent; animation: spin 0.8s linear infinite; display: none; }
-        .filter-controls button.loading .spinner { display: block; }
-        .filter-controls button.loading .btn-text { display: none; }
+        .form-input {
+            width: 100%; padding: 15px 50px 15px 15px; /* پدینگ راست برای آیکون */
+            background: var(--input-bg);
+            border: 1px solid var(--card-border); border-radius: 12px; /* گردتر شدن گوشه‌ها */
+            color: var(--text-dark); font-size: 1.1rem; outline: none;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            text-align: right; /* تراز راست متن داخل اینپوت */
+        }
 
+        .form-label {
+            position: absolute; top: 16px; right: 50px; /* هماهنگ با پدینگ اینپوت */
+            color: var(--text-muted);
+            pointer-events: none; transition: all 0.3s ease;
+            background: var(--input-bg); /* همرنگ کردن با پس‌زمینه اینپوت */
+            padding: 0 5px;
+        }
 
-        .pagination-controls { margin-top: 20px; display: flex; justify-content: space-between; align-items: center; }
-        .pagination-controls button { padding: 8px 20px; background: var(--primary-light); color: var(--primary); font-weight: 500; border: none; border-radius: 8px; cursor: pointer; transition: var(--transition); }
-        .pagination-controls button:hover:not(:disabled) { background: var(--primary); color: #fff; }
-        .pagination-controls button:disabled { background: var(--border-color); color: var(--text-light); cursor: not-allowed; }
-        .pagination-info { font-size: 0.9rem; color: var(--text-light); font-weight: 500; }
+        .form-input:focus ~ .form-label,
+        .form-input:not(:placeholder-shown) ~ .form-label {
+            top: -10px; font-size: 0.8rem; color: var(--accent-blue);
+            background: var(--card-bg); /* تغییر پس‌زمینه لیبل برای نمایش روی بردر */
+        }
 
-        .staff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
-        .staff-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; display: flex; flex-direction: column; transition: var(--transition); }
-        .staff-card:hover { transform: translateY(-5px); box-shadow: var(--shadow); }
-        .staff-header { display: flex; align-items: center; margin-bottom: 15px; }
-        .staff-avatar { width: 50px; height: 50px; border-radius: 50%; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.5rem; margin-left: 15px; flex-shrink: 0; }
-        .staff-title .name { font-weight: 700; font-size: 1.1rem; }
-        .staff-title .role { font-size: 0.9rem; color: var(--primary); }
-        .staff-info { list-style: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color); font-size: 0.95rem; color: var(--text-light); flex-grow: 1; }
-        .staff-info li { display: flex; align-items: center; margin-bottom: 10px; }
-        .staff-info li i { margin-left: 10px; width: 18px; text-align: center; }
-        .staff-card .btn-login { margin-top: auto; padding: 10px; }
+        .form-input:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(0, 101, 255, 0.15);
+        }
 
-        .action-card-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-        .action-card { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-decoration: none; color: var(--text-dark); background: var(--bg-main); border-radius: var(--radius-md); transition: var(--transition); }
-        .action-card:hover { transform: translateY(-5px); background: var(--primary-light); color: var(--primary); }
-        .action-card .icon { font-size: 2.5rem; margin-bottom: 10px; color: var(--primary); }
-        .action-card span { font-weight: 500; text-align: center; font-size: 1rem; }
+        .form-input:focus ~ .form-icon {
+            color: var(--accent-blue);
+        }
 
-        .skeleton { animation: skeleton-loading 1.5s linear infinite alternate; background-color: var(--border-color); }
-        @keyframes skeleton-loading { from { background-color: var(--border-color); } to { background-color: var(--primary-light); } }
-        .skeleton-text { width: 100%; height: 1em; border-radius: 4px; }
-        .skeleton-avatar { width: 50px; height: 50px; border-radius: 50%; }
+        .form-button {
+            width: 100%; padding: 15px; font-size: 1.1rem; font-weight: bold;
+            background: var(--accent-blue); color: #fff; border: none;
+            border-radius: 12px; cursor: pointer;
+            transition: box-shadow 0.3s, background-color 0.3s;
+            position: relative; overflow: hidden; min-height: 54px;
+        }
+        .form-button:hover:not(:disabled) {
+            box-shadow: 0 8px 20px rgba(0, 82, 204, 0.25);
+            background-color: var(--primary-blue);
+        }
+        .form-button:disabled { cursor: wait; background-color: #0052cc; }
 
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); animation: fadeIn 0.3s; }
-        .modal-overlay.show { display: flex; }
-        .modal-box { background: var(--bg-card); padding: 30px; border-radius: var(--radius-lg); width: 90%; max-width: 500px; box-shadow: var(--shadow); position: relative; transition: background-color var(--transition), box-shadow var(--transition); }
-        .modal-overlay.show .modal-box { animation: modal-pop-in 0.3s ease-out; }
-        .modal-close-btn { position: absolute; top: 15px; left: 15px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-light); }
-        .modal-list { list-style: none; padding: 10px 0; }
-        .modal-list li { padding: 12px 0; font-size: 0.95rem; color: var(--text-light); display: flex; align-items: center; border-bottom: 1px solid var(--border-color); }
-        .modal-list li:last-child { border-bottom: none; }
-        .modal-list li i { width: 24px; text-align: center; margin-left: 10px; color: var(--primary); }
-        .modal-header { text-align: center; margin-bottom: 20px; }
-        .modal-header .avatar { width: 60px; height: 60px; border-radius: 50%; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 15px; }
-        .modal-header h4 { font-size: 1.2rem; }
-        .modal-header p { color: var(--text-light); }
+        /* اصلاحیه اصلی برای لودر (بدون تغییر) */
+        .form-button .btn-text, .form-button .spinner {
+            position: absolute;
+            top: 50%; left: 50%;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        .form-button .btn-text { transform: translate(-50%, -50%); }
+        .form-button .spinner {
+            width: 24px; height: 24px; border: 3px solid rgba(255, 255, 255, 0.4);
+            border-top-color: #fff; border-radius: 50%;
+            opacity: 0;
+        }
+        .form-button.loading .btn-text {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0);
+        }
+        .form-button.loading .spinner {
+            opacity: 1;
+            transform: translate(-50%, -50%);
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .message {
+            text-align: center; padding: 12px; border-radius: 8px;
+            margin-top: 20px; font-weight: 500; display: none;
+            animation: fadeIn 0.3s;
+        }
+        .message.error { background-color: rgba(222, 53, 11, 0.1); color: var(--danger-color); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ================================
+        بخش داشبورد (بدون تغییر)
+        =================================== */
+        .dashboard-header {
+            display: flex; align-items: center; padding-bottom: 25px;
+            margin-bottom: 25px; border-bottom: 1px solid var(--card-border);
+        }
+        .dashboard-header .avatar {
+            width: 65px; height: 65px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-blue), var(--accent-blue));
+            display: flex; align-items: center; justify-content: center;
+            margin-left: 20px; font-size: 2.2rem; color: #fff; flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(0, 82, 204, 0.3);
+        }
+        .dashboard-header .user-info h2 { font-size: 1.6rem; margin-bottom: 5px; color: var(--text-dark); font-weight: 600; }
+        .dashboard-header .user-info p { font-size: 0.9rem; color: var(--text-muted); }
+
+        .info-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px; margin-bottom: 30px;
+        }
+        .info-item {
+            background: rgba(244, 247, 250, 0.8); padding: 15px;
+            border-radius: 10px; display: flex; align-items: center;
+            font-size: 0.9rem; border: 1px solid var(--card-border);
+        }
+        .info-item i {
+            color: var(--primary-blue); font-size: 1.2rem;
+            margin-left: 12px; width: 22px; text-align: center;
+        }
+
+        .action-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        .action-card {
+            background: #fff; border: 1px solid var(--card-border); border-radius: 12px;
+            padding: 20px 15px; text-align: center; text-decoration: none;
+            color: var(--text-dark); transition: all 0.3s ease;
+        }
+        .action-card:hover {
+            transform: translateY(-5px); border-color: var(--accent-blue);
+            box-shadow: 0 10px 30px rgba(0, 82, 204, 0.1); color: var(--accent-blue);
+        }
+        .action-card i {
+            font-size: 2.2rem; margin-bottom: 12px; display: block;
+            color: var(--primary-blue); transition: transform 0.3s, color 0.3s;
+        }
+        .action-card:hover i { transform: scale(1.1); color: var(--accent-blue); }
+        .action-card span { font-size: 0.95rem; font-weight: 600; }
+
+        #logout-btn {
+            background: transparent; border: 1px solid rgba(179, 186, 197, 0.7);
+            color: var(--text-muted); padding: 10px 20px; border-radius: 8px;
+            cursor: pointer; font-family: inherit; font-size: 0.9rem; font-weight: 500;
+            transition: all 0.3s; margin: 30px auto 0; display: flex;
+            align-items: center; justify-content: center; min-width: 120px;
+        }
+        #logout-btn:hover {
+            background-color: rgba(222, 53, 11, 0.08);
+            color: var(--danger-color); border-color: rgba(222, 53, 11, 0.5);
+        }
+        #logout-btn i { margin-left: 8px; }
+
+        /* واکنش‌گرایی (بدون تغییر) */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .main-container[data-view] { padding: 30px 20px; max-width: 100%; }
+            #login-view h1 { font-size: 1.8rem; }
+            .dashboard-header { flex-direction: column; text-align: center; }
+            .dashboard-header .avatar { margin-left: 0; margin-bottom: 15px; }
+            .action-grid { grid-template-columns: 1fr 1fr; }
+        }
     </style>
 </head>
 <body>
 
-    <div class="page-loader" id="pageLoader"><div class="spinner"></div></div>
-
-    <div id="login-view">
-        <div class="login-container">
-            <i class="fas fa-shield-alt logo"></i>
-            <h1>پنل مدیریت موسسه</h1>
-            <p>لطفاً با کد ملی مدیرعامل وارد شوید.</p>
-            <form id="loginForm" onsubmit="event.preventDefault(); handleLogin();">
-                <!-- تغییر: فیلد نام کاربری به کد ملی تغییر یافت و فیلد رمز عبور حذف شد -->
-                <div class="input-wrapper"><i class="fas fa-id-card-clip input-icon"></i><input type="number" id="ceoNID" class="form-input" placeholder="کد ملی مدیرعامل" required></div>
-                <button class="btn-login" id="loginButton"><span class="btn-text">ورود</span><div class="spinner"></div></button>
-            </form>
-            <p id="login-error-msg"></p>
+<div class="main-container" data-view="login">
+    <!-- بخش ورود (ساختار HTML بدون تغییر) -->
+    <div id="login-view" class="view">
+        <div class="login-header">
+            <div class="login-icon-wrapper">
+                <i class="fas fa-lock"></i>
+            </div>
+            <h1>ورود</h1>
         </div>
+        <p>برای ورود به داشبورد، کد ملی خود را وارد نمایید.</p>
+        <form onsubmit="event.preventDefault(); handleLogin();">
+            <div class="form-group">
+                <i class="fas fa-id-card form-icon"></i>
+                <input type="tel" id="national-id-input" class="form-input" placeholder=" " maxlength="10" autocomplete="off" />
+                <label for="national-id-input" class="form-label">کد ملی</label>
+            </div>
+            <button type="submit" id="login-btn" class="form-button">
+                <span class="btn-text">ورود</span>
+                <div class="spinner"></div>
+            </button>
+        </form>
+        <div id="message-box" class="message"></div>
     </div>
 
-    <div id="dashboard-view">
-        <header class="dashboard-header">
-            <div class="header-logo" id="info-modal-trigger" title="اطلاعات موسسه"><i class="fas fa-landmark-dome"></i><span>داشبورد مدیریت</span></div>
-            
-            <div class="header-controls">
-                <!-- Theme Toggle Button -->
-                <button id="theme-toggle-btn" class="icon-button" title="تغییر حالت نمایش"><i class="fas fa-moon"></i></button>
-                
-                <button id="refresh-dashboard-btn" class="icon-button" title="به‌روزرسانی داده‌ها"><i class="fas fa-sync-alt"></i></button>
-                <div class="dropdown">
-                    <div class="user-profile-trigger" id="user-dropdown-trigger">
-                        <div class="avatar"><i class="fas fa-user-tie"></i></div>
-                    </div>
-                    <div id="user-dropdown" class="dropdown-menu">
-                        <div class="dropdown-header"><h4 id="ceo-name-dropdown"></h4><p>مدیرعامل موسسه</p></div>
-                        <ul class="dropdown-list"><li><i class="fas fa-id-card-clip"></i> کد ملی: <span id="ceo-nid-dropdown"></span></li></ul>
-                        <button id="logoutButton" class="dropdown-logout-btn"><i class="fas fa-sign-out-alt"></i><span>خروج از حساب</span></button>
-                    </div>
-                </div>
+    <!-- بخش داشبورد (ساختار HTML بدون تغییر) -->
+    <div id="dashboard-view" class="view hidden">
+        <div class="dashboard-header">
+            <div class="avatar"><i class="fas fa-user-graduate"></i></div>
+            <div class="user-info">
+                <h2 id="student-name"></h2>
+                <p id="national-id"></p>
             </div>
-        </header>
-
-        <main class="main-container">
-            <div class="full-width-section">
-                <div class="card">
-                    <div class="card-header"><div class="title-part"><i class="fas fa-wallet icon"></i><h2>خلاصه وضعیت مالی</h2></div></div>
-                    <div class="financial-stats-grid" id="financial-stats-container">
-                        <!-- Financial Stats will be loaded here -->
-                    </div>
-                </div>
-            </div>
-            <div class="section-grid">
-                <div class="main-column">
-                    <div class="card" style="height:100%;">
-                        <div class="card-header"><div class="title-part"><i class="fas fa-tasks icon"></i><h2>وضعیت دوره‌ها</h2></div></div>
-                        <div class="filter-controls">
-                            <label for="courses-start-date">از تاریخ:</label><input type="date" id="courses-start-date" class="form-input">
-                            <label for="courses-end-date">تا تاریخ:</label><input type="date" id="courses-end-date" class="form-input">
-                            <button id="courses-filter-btn"><span class="btn-text">اعمال فیلتر</span><div class="spinner"></div></button>
-                        </div>
-                        <div class="table-responsive" style="flex-grow:1;">
-                            <table class="data-table">
-                                <thead><tr><th>نام دوره</th><th>کد دوره</th><th>تاریخ شروع</th><th>وضعیت</th></tr></thead>
-                                <tbody id="courses-table-body"></tbody>
-                            </table>
-                        </div>
-                        <div class="pagination-controls" id="courses-pagination"></div>
-                    </div>
-                </div>
-                <div class="sidebar-column" style="display:flex; flex-direction:column; gap:30px;">
-                    <div class="card"><div class="card-header"><div class="title-part"><i class="fas fa-file-signature icon"></i><h2>اقدامات سریع</h2></div></div><div class="action-card-grid"><a href="https://tashacol.github.io/ir/crte.html" target="_blank" class="action-card"><div class="icon"><i class="fas fa-building-user"></i></div><span>تائید سوابق مؤسسه</span></a><a href="https://tashacol.github.io/ir/jahadi.html" target="_blank" class="action-card"><div class="icon"><i class="fas fa-people-carry-box"></i></div><span>تائید سوابق جهادی</span></a></div></div>
-                    <div class="card"><div class="card-header"><div class="title-part"><i class="fas fa-database icon"></i><h2>داده‌های موسسه</h2></div></div><div class="action-card-grid" id="data-links-list"></div></div>
-                </div>
-            </div>
-            <div class="full-width-section">
-                <div class="card">
-                    <div class="card-header"><div class="title-part"><i class="fas fa-receipt icon"></i><h2>ریز تراکنش‌ها</h2></div></div>
-                    <div class="filter-controls">
-                        <label for="transactions-start-date">از تاریخ:</label><input type="date" id="transactions-start-date" class="form-input">
-                        <label for="transactions-end-date">تا تاریخ:</label><input type="date" id="transactions-end-date" class="form-input">
-                        <button id="transactions-filter-btn"><span class="btn-text">اعمال فیلتر</span><div class="spinner"></div></button>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="data-table">
-                            <thead><tr><th>تاریخ</th><th>حسابدار</th><th>درآمد</th><th>مخارج</th><th>سود</th><th>ضرر</th></tr></thead>
-                            <tbody id="transactions-table-body"></tbody>
-                        </table>
-                    </div>
-                    <div class="pagination-controls" id="transactions-pagination"></div>
-                </div>
-            </div>
-            <div class="full-width-section"><div class="card"><div class="card-header"><div class="title-part"><i class="fas fa-users-cog icon"></i><h2>کادر اجرایی</h2></div></div><div class="staff-grid" id="staff-list-container"></div></div></div>
-        </main>
-    </div>
-
-    <div class="modal-overlay" id="info-modal">
-        <div class="modal-box">
-            <button class="modal-close-btn"><i class="fas fa-times"></i></button>
-            <div class="card-header" style="border:none;margin-bottom:10px;padding:0;justify-content:center;"><i class="fas fa-landmark-dome icon"></i><h2>اطلاعات موسسه تعالی</h2></div>
-            <ul class="modal-list">
-                <li><i class="fas fa-id-card"></i> شناسه ملی: 14013770611</li>
-                <li><i class="fas fa-barcode"></i> کد شناسایی: 31605007</li>
-                <li><i class="fas fa-file-contract"></i> شماره مجوز: 1403136/32273</li>
-                <li><i class="fas fa-hashtag"></i> شماره ثبت: 391</li>
-                <li><i class="fas fa-envelope"></i> ایمیل رسمی: irtashacol@gmail.com</li>
-                <li><i class="fas fa-envelope-open-text"></i> ایمیل دبیرخانه: Tashaccol@gmail.com</li>
-                <li><i class="fas fa-globe"></i> وبسایت: Tashacol.ir</li>
-                <li><i class="fab fa-telegram"></i> ایتا: @irtaali</li>
-            </ul>
-            <!-- NEW: Button to copy/download institution info -->
-            <button id="copy-info-btn" class="btn-login" style="margin-top: 20px; background-color: var(--info);"><i class="fas fa-download" style="margin-left: 8px;"></i><span>دانلود اطلاعات</span></button>
         </div>
+        <div class="info-grid" id="course-details-list"></div>
+        <div class="action-grid">
+            <a href="https://tashacol.github.io/ir/poroje.html" target="_blank" class="action-card" data-link-id="status"><i class="fas fa-tasks"></i><span>وضعیت تحصیلی</span></a>
+            <a href="https://tashacol.github.io/ir/login.html" target="_blank" class="action-card" data-link-id="courses"><i class="fas fa-book-open-reader"></i><span>پنل درسی</span></a>
+            <a href="https://tashacol.github.io/ir/emza.html" target="_blank" class="action-card" data-link-id="certificate"><i class="fas fa-award"></i><span>درخواست گواهی</span></a>
+            <a href="https://tashacol.github.io/ir/nazar.html" target="_blank" class="action-card" data-link-id="survey"><i class="fas fa-chart-pie"></i><span>نظرسنجی</span></a>
+        </div>
+        <button id="logout-btn"><i class="fas fa-sign-out-alt"></i>خروج از حساب</button>
     </div>
-    
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // ** مهم: SCRIPT_URL با URL جدیدی که پس از Deploy کردن اسکریپت Apps Script دریافت می‌کنید، جایگزین شده است. **
-            const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxEKyxPQmP3KMivBHK3cX8eC_cdi6AaHtzbzHNXQX6uGa3hZNsQ8ArtX3tcnD8ZdP8QRA/exec"; 
-            const CACHE_DURATION = 3600 * 1000;
-            const TRANSACTIONS_PAGE_SIZE = 5;
-            const COURSES_PAGE_SIZE = 7;
+</div>
 
-            // --- Element selectors ---
-            const pageLoader = document.getElementById('pageLoader'), loginView = document.getElementById('login-view'), dashboardView = document.getElementById('dashboard-view');
-            const loginButton = document.getElementById('loginButton'), logoutButton = document.getElementById('logoutButton'), loginErrorMsg = document.getElementById('login-error-msg');
-            const ceoNameDropdown = document.getElementById('ceo-name-dropdown'), ceoNidDropdown = document.getElementById('ceo-nid-dropdown');
-            const financialStatsContainer = document.getElementById('financial-stats-container');
-            const staffListContainer = document.getElementById('staff-list-container'), dataLinksList = document.getElementById('data-links-list');
-            const infoModal = document.getElementById('info-modal'), infoModalTrigger = document.getElementById('info-modal-trigger'), infoModalCloseBtn = infoModal.querySelector('.modal-close-btn');
-            const userDropdown = document.getElementById('user-dropdown'), userDropdownTrigger = document.getElementById('user-dropdown-trigger');
-            const refreshDashboardBtn = document.getElementById('refresh-dashboard-btn');
-            const themeToggleBtn = document.getElementById('theme-toggle-btn');
-            const htmlElement = document.documentElement;
-            const copyInfoBtn = document.getElementById('copy-info-btn'); // NEW: Copy info button
+<script>
+    // ==========================================================
+    // هسته اصلی جاوا اسکریپت - ویرایش شده برای ذخیره کامل اطلاعات
+    // ==========================================================
 
-            // --- Transactions Elements ---
-            const transactionsTableBody = document.getElementById('transactions-table-body');
-            const transactionsPagination = document.getElementById('transactions-pagination');
-            const transactionsFilterBtn = document.getElementById('transactions-filter-btn');
-            const transactionsStartDate = document.getElementById('transactions-start-date');
-            const transactionsEndDate = document.getElementById('transactions-end-date');
-            
-            // --- Courses Elements ---
-            const coursesTableBody = document.getElementById('courses-table-body');
-            const coursesPagination = document.getElementById('courses-pagination');
-            const coursesFilterBtn = document.getElementById('courses-filter-btn');
-            const coursesStartDate = document.getElementById('courses-start-date');
-            const coursesEndDate = document.getElementById('courses-end-date');
-            
-            // --- Helper Functions ---
-            const setCache = (key, data) => localStorage.setItem(key, JSON.stringify({ data, timestamp: new Date().getTime() }));
-            const getCache = (key) => {
-                const itemStr = localStorage.getItem(key); if (!itemStr) return null;
-                const item = JSON.parse(itemStr);
-                const isExpired = (new Date().getTime() - item.timestamp) > CACHE_DURATION;
-                if (isExpired) { localStorage.removeItem(key); return null; }
-                return item.data;
-            };
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxEKyxPQmP3KMivBHK3cX8eC_cdi6AaHtzbzHNXQX6uGa3hZNsQ8ArtX3tcnD8ZdP8QRA/exec';
 
-            const renderSkeleton = (rows, cols, container) => {
-                container.innerHTML = Array(rows).fill('').map(() => `<tr>${Array(cols).fill('<td><div class="skeleton skeleton-text"></div></td>').join('')}</tr>`).join('');
-            };
+    // دسترسی به عناصر DOM (بدون تغییر)
+    const mainContainer = document.querySelector('.main-container');
+    const loginView = document.getElementById('login-view');
+    const dashboardView = document.getElementById('dashboard-view');
+    const input = document.getElementById('national-id-input');
+    const loginBtn = document.getElementById('login-btn');
+    const msgBox = document.getElementById('message-box');
+    const logoutBtn = document.getElementById('logout-btn');
 
-            const renderPagination = (container, currentPage, totalPages, navHandler) => {
-                if (totalPages <= 0) {
-                    container.innerHTML = `<p class="pagination-info" style="text-align: center; width: 100%;">داده‌ای برای نمایش یافت نشد.</p>`;
-                    return;
-                }
-                container.innerHTML = `
-                    <button class="prev-btn" ${currentPage === 1 ? 'disabled' : ''}>قبلی</button>
-                    <span class="pagination-info">صفحه ${currentPage} از ${totalPages}</span>
-                    <button class="next-btn" ${currentPage === totalPages ? 'disabled' : ''}>بعدی</button>
-                `;
-                container.querySelector('.prev-btn').addEventListener('click', () => navHandler(currentPage - 1));
-                container.querySelector('.next-btn').addEventListener('click', () => navHandler(currentPage + 1));
-            };
-            
-            // --- Data Fetching and Rendering ---
-            const fetchPaginatedData = async (config) => {
-                const { action, page, pageSize, startDateEl, endDateEl, tableBody, paginationContainer, renderFunction, navHandler, filterBtn } = config;
-                
-                filterBtn.classList.add('loading');
-                filterBtn.disabled = true;
-                const cols = tableBody.previousElementSibling.rows[0].cells.length; // Get column count from header
-                renderSkeleton(pageSize, cols, tableBody);
-                paginationContainer.innerHTML = ''; // Clear pagination controls during load
+    // **تغییر:** متغیر SESSION_DURATION حذف شد چون دیگر کاربر تا زمان خروج دستی، لاگین می‌ماند.
 
-                let url = `${SCRIPT_URL}?action=${action}&page=${page}&pageSize=${pageSize}`;
-                if (startDateEl && startDateEl.value) url += `&startDate=${startDateEl.value}`;
-                if (endDateEl && endDateEl.value) url += `&endDate=${endDateEl.value}`;
-                
-                try {
-                    const response = await fetch(url);
-                    if (!response.ok) throw new Error('خطای شبکه در برقراری ارتباط با سرور.');
-                    const result = await response.json();
-                    if (result.error) throw new Error(result.message);
-                    
-                    if(result.data && result.data.length > 0) {
-                        renderFunction(result.data, tableBody);
-                    } else {
-                        tableBody.innerHTML = `<tr><td colspan="${cols}" style="text-align:center; padding: 40px 0; color: var(--text-light);">موردی برای نمایش در این بازه زمانی یافت نشد.</td></tr>`;
-                    }
-                    renderPagination(paginationContainer, result.currentPage, result.totalPages, navHandler);
+    // توابع کمکی برای نمایش پیام و لودینگ (بدون تغییر)
+    const showMessage = (text, type = 'error') => {
+        msgBox.textContent = text;
+        msgBox.className = `message ${type}`;
+        msgBox.style.display = 'block';
+    };
 
-                } catch (error) {
-                    tableBody.innerHTML = `<tr><td colspan="${cols}" style="text-align:center; padding: 40px 0; color:var(--danger);">${error.message}</td></tr>`;
-                    paginationContainer.innerHTML = ''; // Clear pagination on error
-                } finally {
-                    filterBtn.classList.remove('loading');
-                    filterBtn.disabled = false;
-                }
-            };
+    const setLoadingState = (isLoading) => {
+        loginBtn.disabled = isLoading;
+        loginBtn.classList.toggle('loading', isLoading);
+    };
 
-            const fetchTransactions = (page = 1) => {
-                fetchPaginatedData({
-                    action: 'getFinancials', page, pageSize: TRANSACTIONS_PAGE_SIZE,
-                    startDateEl: transactionsStartDate, endDateEl: transactionsEndDate,
-                    tableBody: transactionsTableBody, paginationContainer: transactionsPagination,
-                    renderFunction: renderTransactions, navHandler: fetchTransactions,
-                    filterBtn: transactionsFilterBtn
-                });
-            };
-            const renderTransactions = (data, container) => {
-                container.innerHTML = data.map(t => `
-                    <tr><td>${t.date}</td><td>${t.accountant}</td><td class="amount positive">${t.income}</td>
-                    <td class="amount negative">${t.expenses}</td><td class="amount positive">${t.profit}</td>
-                    <td class="amount negative">${t.loss}</td></tr>`).join('');
-            };
-
-            const fetchCourses = (page = 1) => {
-                fetchPaginatedData({
-                    action: 'getCourseStatuses', page, pageSize: COURSES_PAGE_SIZE,
-                    startDateEl: coursesStartDate, endDateEl: coursesEndDate,
-                    tableBody: coursesTableBody, paginationContainer: coursesPagination,
-                    renderFunction: renderCourses, navHandler: fetchCourses,
-                    filterBtn: coursesFilterBtn
-                });
-            };
-            const renderCourses = (data, container) => {
-                const statusClasses = { 'جاری': 'active', 'اتمام': 'finished', 'نام‌نویسی': 'upcoming' };
-                container.innerHTML = data.map(course => `
-                    <tr><td>${course.name}</td><td>${course.code}</td><td>${course.startDate}</td>
-                    <td><span class="status-badge ${statusClasses[course.status] || ''}">${course.status}</span></td></tr>`).join('');
-            };
-
-            // This function is for data that does NOT need pagination (e.g., summary, staff, links)
-            const fetchNonPaginatedData = async (action, cacheKey, renderFunc, container) => {
-                if(container) { // Add skeleton loading for these sections as well
-                    if (action === 'getFinancialSummary') {
-                        container.innerHTML = Array(4).fill('').map(() => `<div class="stat-item"><div class="skeleton skeleton-text" style="width: 60%; height: 1.2rem; margin-bottom: 10px;"></div><div class="skeleton skeleton-text" style="width: 80%; height: 2rem;"></div></div>`).join('');
-                    } else if (action === 'getStaff') {
-                         container.innerHTML = Array(3).fill('').map(() => `<div class="staff-card"><div class="staff-header"><div class="skeleton skeleton-avatar"></div><div class="staff-title" style="flex:1;"><div class="skeleton skeleton-text" style="width: 60%;"></div><div class="skeleton skeleton-text" style="width: 40%; margin-top:8px;"></div></div></div><ul class="staff-info">${Array(2).fill('<li><div class="skeleton skeleton-text"></div></li>').join('')}</ul></div>`).join('');
-                    } else if (action === 'getDashboardLinks') {
-                        container.innerHTML = Array(4).fill('').map(() => `<a href="#" class="action-card skeleton"><div class="skeleton skeleton-text" style="width:80%; height:1.5rem;"></div></a>`).join('');
-                    }
-                }
-                const cachedData = getCache(cacheKey); if (cachedData) { renderFunc(cachedData); return; }
-                try {
-                    const response = await fetch(`${SCRIPT_URL}?action=${action}`);
-                    const result = await response.json();
-                    if (result.error) throw new Error(result.message);
-                    const dataToRender = result.data || result; // Ensure 'data' field is always used
-                    setCache(cacheKey, dataToRender);
-                    renderFunc(dataToRender);
-                } catch (error) { if(container) container.innerHTML = `<p style="text-align:center; color:var(--danger);">${error.message}</p>`; }
-            };
-
-            // Render function for financial summary
-            const renderFinancialSummary = (data) => {
-                 financialStatsContainer.innerHTML = `
-                    <div class="stat-item income"><div class="label"><i class="fas fa-arrow-up"></i><span>درآمد کل</span></div><p class="value">${data.totalIncome || '0'}<small> تومان</small></p></div>
-                    <div class="stat-item expense"><div class="label"><i class="fas fa-arrow-down"></i><span>هزینه کل</span></div><p class="value">${data.totalExpenses || '0'}<small> تومان</small></p></div>
-                    <div class="stat-item"><div class="label"><i class="fas fa-chart-line"></i><span>سود کل</span></div><p class="value">${data.totalProfit || '0'}<small> تومان</small></p></div>
-                    <div class="stat-item"><div class="label"><i class="fas fa-balance-scale-left"></i><span>ضرر کل</span></div><p class="value">${data.totalLoss || '0'}<small> تومان</small></p></div>`;
-            };
-            const renderStaff = (data) => {
-                staffListContainer.innerHTML = data.map(staff => `
-                    <div class="staff-card">
-                        <div class="staff-header"><div class="staff-avatar">${staff.name.charAt(0)}</div><div class="staff-title"><div class="name">${staff.name}</div><div class="role">${staff.role}</div></div></div>
-                        <ul class="staff-info">
-                            <li><i class="fas fa-id-card"></i><span>${staff.nationalId}</span></li>
-                            <li><i class="fas fa-calendar-alt"></i><span>شروع: ${staff.startDate}</span></li>
-                        </ul>
-                        <a href="tel:${staff.phone}" class="btn-login"><i class="fas fa-phone" style="margin-left: 8px;"></i> تماس</a>
-                    </div>`).join('');
-            };
-            const renderDataLinks = (links) => {
-                dataLinksList.innerHTML = `
-                    <a href="${links.students}" target="_blank" class="action-card"><div class="icon"><i class="fas fa-graduation-cap"></i></div><span>لیست دانشجویان</span></a>
-                    <a href="${links.registrations}" target="_blank" class="action-card"><div class="icon"><i class="fas fa-user-plus"></i></div><span>ثبت نام کنندگان</span></a>
-                    <a href="${links.members}" target="_blank" class="action-card"><div class="icon"><i class="fas fa-users"></i></div><span>اعضای موسسه</span></a>
-                    <a href="${links.feedback}" target="_blank" class="action-card"><div class="icon"><i class="fas fa-comments"></i></div><span>نظرات</span></a>`;
-            };
-
-            // Function to refresh all dashboard data
-            const refreshDashboard = async () => {
-                refreshDashboardBtn.classList.add('loading');
-                refreshDashboardBtn.disabled = true;
-
-                // Clear relevant cache keys to force fresh data from server
-                localStorage.removeItem('financialSummaryData');
-                localStorage.removeItem('financialsData'); 
-                localStorage.removeItem('courseStatusesData');
-                localStorage.removeItem('staffData');
-                localStorage.removeItem('dashboardLinks');
-
-                try {
-                    // Re-fetch all data sections
-                    await Promise.all([
-                        fetchNonPaginatedData('getFinancialSummary', 'financialSummaryData', renderFinancialSummary, financialStatsContainer),
-                        fetchTransactions(1), // Reset transactions to page 1
-                        fetchCourses(1),     // Reset courses to page 1
-                        fetchNonPaginatedData('getStaff', 'staffData', renderStaff, staffListContainer),
-                        fetchNonPaginatedData('getDashboardLinks', 'dashboardLinks', renderDataLinks, dataLinksList)
-                    ]);
-                    console.log("Dashboard data refreshed successfully!");
-                } catch (error) {
-                    console.error("Error refreshing dashboard:", error);
-                    // You might want a more prominent error message for the user if a full refresh fails
-                } finally {
-                    refreshDashboardBtn.classList.remove('loading');
-                    refreshDashboardBtn.disabled = false;
-                }
-            };
-
-            const initDashboard = (ceoInfo) => {
-                ceoNameDropdown.textContent = ceoInfo.name;
-                ceoNidDropdown.textContent = ceoInfo.nationalId;
-                loginView.style.display = 'none';
-                dashboardView.style.display = 'block';
-                pageLoader.classList.add('hidden');
-                
-                // Initial data load for all sections
-                refreshDashboard(); // Use the refresh function for initial load too
-            };
-
-            // Theme Toggle Logic
-            const loadThemePreference = () => {
-                const preferredTheme = localStorage.getItem('theme');
-                if (preferredTheme === 'dark') {
-                    htmlElement.classList.add('dark-mode');
-                    themeToggleBtn.querySelector('i').classList.remove('fa-moon');
-                    themeToggleBtn.querySelector('i').classList.add('fa-sun');
-                } else {
-                    htmlElement.classList.remove('dark-mode');
-                    themeToggleBtn.querySelector('i').classList.remove('fa-sun');
-                    themeToggleBtn.querySelector('i').classList.add('fa-moon');
-                }
-            };
-
-            const toggleTheme = () => {
-                htmlElement.classList.toggle('dark-mode');
-                const isDarkMode = htmlElement.classList.contains('dark-mode');
-                localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
-                
-                themeToggleBtn.querySelector('i').classList.toggle('fa-moon', !isDarkMode);
-                themeToggleBtn.querySelector('i').classList.toggle('fa-sun', isDarkMode);
-            };
-
-            // Event Listeners
-            transactionsFilterBtn.addEventListener('click', () => fetchTransactions(1));
-            coursesFilterBtn.addEventListener('click', () => fetchCourses(1));
-            refreshDashboardBtn.addEventListener('click', refreshDashboard);
-            themeToggleBtn.addEventListener('click', toggleTheme);
-
-            // NEW: Copy/Download Info Button Logic
-            copyInfoBtn.addEventListener('click', () => {
-                const modalBox = document.querySelector('#info-modal .modal-box');
-                if (!modalBox) return;
-
-                let infoText = modalBox.querySelector('.card-header h2').textContent + '\n'; // Get modal title
-                const listItems = modalBox.querySelectorAll('.modal-list li');
-                
-                listItems.forEach(item => {
-                    // Clone the list item to remove the icon before extracting text
-                    const clonedItem = item.cloneNode(true);
-                    const iconElement = clonedItem.querySelector('i');
-                    if (iconElement) {
-                        iconElement.remove(); // Remove the icon element
-                    }
-                    infoText += clonedItem.textContent.trim() + '\n'; // Get clean text content
-                });
-
-                // Create a Blob from the text content
-                const blob = new Blob([infoText], { type: 'text/plain;charset=utf-8' });
-
-                // Create a temporary URL for the Blob
-                const url = URL.createObjectURL(blob);
-
-                // Create a temporary anchor element to trigger download
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'اطلاعات-موسسه.txt'; // Specify the desired filename
-
-                // Programmatically click the anchor to trigger the download
-                document.body.appendChild(a); // Required for some browsers (e.g., Firefox)
-                a.click();
-
-                // Clean up: revoke the object URL and remove the anchor from the DOM
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            });
-
-            window.handleLogin = async () => {
-                loginErrorMsg.textContent = '';
-                loginButton.classList.add('loading');
-                loginButton.disabled = true;
-                try {
-                    // تغییر: فقط کد ملی ارسال می‌شود
-                    const ceoNID = document.getElementById('ceoNID').value;
-                    // ** مهم: اکشن ceoLogin در Apps Script باید تغییر کند تا فقط nationalId را بپذیرد. **
-                    const response = await fetch(`${SCRIPT_URL}?action=ceoLogin&nationalId=${ceoNID}`);
-                    const result = await response.json();
-                    if (result.found) { setCache('ceoInfo', result.data); initDashboard(result.data); } 
-                    else { loginErrorMsg.textContent = result.message || 'کد ملی نامعتبر است یا مشکلی پیش آمده است.'; }
-                } catch (error) { loginErrorMsg.textContent = 'خطا در ارتباط با سرور.'; } 
-                finally { loginButton.classList.remove('loading'); loginButton.disabled = false; }
-            };
-            
-            logoutButton.addEventListener('click', () => { localStorage.clear(); location.reload(); });
-            
-            const closeModal = (modal) => modal.classList.remove('show');
-            infoModalTrigger.addEventListener('click', () => infoModal.classList.add('show'));
-            infoModalCloseBtn.addEventListener('click', () => closeModal(infoModal));
-            userDropdownTrigger.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
-            document.addEventListener('click', (e) => {
-                // Allow clicks on dropdown content or icon buttons to not close dropdown
-                if (e.target.closest('.dropdown') || e.target.closest('.icon-button')) return; 
-                userDropdown.classList.remove('show');
-                if (e.target === infoModal) closeModal(infoModal);
-            });
-            
-            // Initial load checks
-            const cachedCeoInfo = getCache('ceoInfo');
-            if (cachedCeoInfo) {
-                initDashboard(cachedCeoInfo);
-            } else {
-                pageLoader.classList.add('hidden');
-                loginView.style.display = 'flex';
+    // تابع جستجوی کاربر از طریق API (بدون تغییر)
+    const findStudentByAPI = async (nationalId) => {
+        const url = `${SCRIPT_URL}?action=getUserPanelData&id=${nationalId}`;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Network response was not ok: ${response.status} ${response.statusText}`);
             }
-            loadThemePreference(); // Load theme preference on page load
+            const result = await response.json();
+            if (result.error) {
+                console.error('API Error:', result.message);
+                showMessage(result.message);
+                return null;
+            }
+            return result.found ? result : null;
+        } catch (error) {
+            console.error('Fetch Error:', error);
+            showMessage('خطا در بارگذاری اطلاعات. اتصال اینترنت را بررسی کنید.');
+            return null;
+        }
+    };
+
+    // تابع لاگین (بدون تغییر)
+    const handleLogin = async () => {
+        const nationalId = input.value.trim();
+        msgBox.style.display = 'none';
+
+        if (!/^\d{10}$/.test(nationalId)) {
+            return showMessage('کد ملی باید ۱۰ رقم و فقط شامل عدد باشد.');
+        }
+
+        setLoadingState(true);
+        const studentRecord = await findStudentByAPI(nationalId);
+        setLoadingState(false);
+
+        if (studentRecord) {
+            setTimeout(() => displayDashboard(studentRecord, nationalId), 300);
+        } else {
+            if (msgBox.style.display !== 'block') {
+                showMessage('کد ملی وارد شده در سامانه یافت نشد.');
+            }
+        }
+    };
+
+    // **تغییر:** تابع نمایش داشبورد، اکنون کل اطلاعات کاربر را در localStorage ذخیره می‌کند.
+    const displayDashboard = (record, originalNationalId) => {
+        document.getElementById('student-name').textContent = record.name || 'نامشخص';
+        document.getElementById('national-id').textContent = `کد ملی: ${originalNationalId}`;
+
+        const startDate = record.startDate;
+        const calculatedEndDate = startDate
+            ? moment(startDate, 'jYYYY/jMM/jDD').add(84, 'days').format('jYYYY/jMM/jDD')
+            : (record.endDate || 'نامشخص');
+
+        const details = {
+            'نام دوره': { icon: 'fa-chalkboard-teacher', value: record.courseName },
+            'شناسه دوره': { icon: 'fa-hashtag', value: record.courseId },
+            'تاریخ شروع': { icon: 'fa-calendar-alt', value: startDate },
+            'تاریخ اتمام': { icon: 'fa-calendar-check', value: calculatedEndDate }
+        };
+
+        const detailsList = document.getElementById('course-details-list');
+        detailsList.innerHTML = '';
+        Object.entries(details).forEach(([key, item]) => {
+            if (item.value) {
+                const div = document.createElement('div');
+                div.className = 'info-item';
+                div.innerHTML = `<i class="fas ${item.icon}"></i> <strong>${key}:</strong> ${item.value}`;
+                detailsList.appendChild(div);
+            }
         });
-    </script>
+
+        document.querySelectorAll('.action-card').forEach(link => {
+            const baseUrl = link.href.split('?')[0];
+            link.href = `${baseUrl}?id=${originalNationalId}`;
+        });
+
+        // **تغییر اصلی:** ذخیره کردن کل اطلاعات کاربر در حافظه مرورگر
+        const dataToStore = {
+            record: record, // شیء کامل اطلاعات کاربر
+            nationalId: originalNationalId // کد ملی برای نمایش و استفاده‌های بعدی
+        };
+        localStorage.setItem('userPanelData', JSON.stringify(dataToStore));
+
+        mainContainer.dataset.view = 'dashboard';
+        dashboardView.classList.remove('hidden');
+        loginView.classList.add('hidden');
+    };
+
+    // **تغییر:** تابع بررسی نشست، اکنون مستقیماً داشبورد را با اطلاعات ذخیره شده نمایش می‌دهد.
+    const checkSession = () => {
+        const savedDataString = localStorage.getItem('userPanelData');
+        if (savedDataString) {
+            // اگر اطلاعات کامل کاربر در حافظه مرورگر ذخیره شده بود
+            const savedData = JSON.parse(savedDataString);
+            
+            // مستقیماً داشبورد را با داده‌های ذخیره شده نمایش می‌دهیم (بدون نیاز به ورود مجدد)
+            displayDashboard(savedData.record, savedData.nationalId);
+        }
+        // اگر داده‌ای در حافظه نبود، هیچ کاری انجام نمی‌شود و صفحه به طور پیش‌فرض فرم ورود را نشان می‌دهد.
+    };
+
+    // **تغییر:** تابع خروج، کلید جدید را از حافظه پاک می‌کند.
+    const handleLogout = () => {
+        localStorage.removeItem('userPanelData'); // پاک کردن اطلاعات کامل کاربر
+        mainContainer.dataset.view = 'login';
+        loginView.classList.remove('hidden');
+        dashboardView.classList.add('hidden');
+        setTimeout(() => {
+            input.value = '';
+            msgBox.style.display = 'none';
+        }, 500);
+    };
+
+    // ثبت رویدادها (بدون تغییر)
+    logoutBtn.addEventListener('click', handleLogout);
+    // هنگام بارگذاری کامل صفحه، تابع بررسی نشست اجرا می‌شود
+    document.addEventListener('DOMContentLoaded', checkSession);
+</script>
+
 </body>
 </html>
