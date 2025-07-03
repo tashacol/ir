@@ -959,15 +959,12 @@
 
                 // گرفتن اولین روز هفته میلادی (0=یکشنبه, ..., 6=شنبه) برای روز اول ماه شمسی جاری
                 const [gYear, gMonth, gDay] = jalali_to_gregorian(currentYear, currentMonth, 1);
-                const firstDayOfWeekGregorian = new Date(gYear, gMonth - 1, gDay).getDay(); // 0 = یکشنبه, 1 = دوشنبه, ... 6 = شنبه
+                // تغییر کلیدی: gDay + 1 برای جبران ناهماهنگی یک روزه در تبدیل تاریخ
+                const firstDayOfWeekGregorian = new Date(gYear, gMonth - 1, gDay + 1).getDay(); // 0 = یکشنبه, 1 = دوشنبه, ... 6 = شنبه
                 
                 // در تقویم شمسی، شنبه اولین روز هفته است.
-                // اگر روز اول ماه میلادی:
-                // شنبه (6) باشد -> 0 خانه خالی نیاز داریم
-                // یکشنبه (0) باشد -> 1 خانه خالی نیاز داریم
-                // دوشنبه (1) باشد -> 2 خانه خالی نیاز داریم
-                // ...
-                // جمعه (5) باشد -> 6 خانه خالی نیاز داریم
+                // emptyDaysCount تعیین می‌کند چند خانه خالی قبل از اولین روز ماه باید قرار گیرد
+                // (firstDayOfWeekGregorian + 1) % 7 این عدد را محاسبه می‌کند که شنبه (6) را به 0، یکشنبه (0) را به 1 و ... تبدیل می‌کند.
                 const emptyDaysCount = (firstDayOfWeekGregorian + 1) % 7; 
 
                 // اضافه کردن خانه های خالی قبل از شروع ماه
@@ -979,8 +976,22 @@
 
                 // گرفتن تاریخ امروز جلالی برای علامت‌گذاری دایره آبی
                 const today = new Date();
-                // این خط حالا بدون هیچ دستکاری، تاریخ جلالی دقیق امروز را از تابع تبدیل می‌گیرد
                 let [todayJYear, todayJMonth, todayJDay] = gregorian_to_jalali(today.getFullYear(), today.getMonth() + 1, today.getDate());
+
+                // تغییر کلیدی: اعمال تصحیح یک روزه برای روز جاری (طبق گزارش کاربر)
+                todayJDay--; // کم کردن یک روز از روز شمسی محاسبه شده
+
+                // مدیریت جابجایی ماه و سال در صورت منفی شدن یا صفر شدن روز
+                if (todayJDay < 1) {
+                    todayJMonth--;
+                    if (todayJMonth < 1) {
+                        todayJMonth = 12; // به اسفند ماه برگرد
+                        todayJYear--;
+                    }
+                    // پیدا کردن تعداد روزهای ماه جدید (ماه قبل)
+                    todayJDay = J_DAYS_IN_MONTH[todayJMonth] + (todayJMonth === 12 && j_is_leap(todayJYear) ? 1 : 0);
+                }
+                // *****************************************
 
                 // اضافه کردن روزهای ماه
                 for (let day = 1; day <= daysInMonth; day++) {
@@ -1024,8 +1035,7 @@
             function selectDate(day) {
                 const [year, month] = currentJalaliDate;
                 selectedJalaliDate = [year, month, day];
-                // افزودن padStart برای نمایش صحیح ماه‌ها و روزهای تک رقمی
-                const formattedDate = `${toPersianDigits(year)}/${toPersianDigits(month).padStart(2, '۰')}/${toPersianDigits(day).padStart(2, '۰')}`; 
+                const formattedDate = `${toPersianDigits(year)}/${toPersianDigits(month).padStart(2, '۰')}/${toPersianDigits(day).padStart(2, '۰')}`; // Add padding for single digits
                 if (selectedInput) {
                     selectedInput.value = formattedDate;
                     hideCalendar();
