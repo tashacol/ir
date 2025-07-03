@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+    <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -514,7 +514,6 @@
                     const persianDateStr = toEnglishDigits(startDateEl.value); // Convert string with Persian digits to English digits
                     const parts = persianDateStr.split('/').map(Number);
                     if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
-                        // استفاده از تابع جلالی به میلادی جدید
                         const [gy, gm, gd] = jalali_to_gregorian(parts[0], parts[1], parts[2]);
                         const formattedGregorian = `${gy}-${String(gm).padStart(2, '0')}-${String(gd).padStart(2, '0')}`;
                         url += `&startDate=${formattedGregorian}`;
@@ -524,7 +523,6 @@
                     const persianDateStr = toEnglishDigits(endDateEl.value); // Convert string with Persian digits to English digits
                     const parts = persianDateStr.split('/').map(Number);
                     if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
-                        // استفاده از تابع جلالی به میلادی جدید
                         const [gy, gm, gd] = jalali_to_gregorian(parts[0], parts[1], parts[2]);
                         const formattedGregorian = `${gy}-${String(gm).padStart(2, '0')}-${String(gd).padStart(2, '0')}`;
                         url += `&endDate=${formattedGregorian}`;
@@ -703,10 +701,8 @@
             infoModalCloseBtn.addEventListener('click', () => closeModal(infoModal));
             userDropdownTrigger.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
             document.addEventListener('click', (e) => {
-                if (!datePicker.contains(e.target) && !e.target.classList.contains('persian-date-picker') && !e.target.closest('.dropdown') && !e.target.closest('.icon-button')) {
-                    userDropdown.classList.remove('show');
-                    hideCalendar(); // Hide calendar if clicking outside
-                }
+                if (e.target.closest('.dropdown') || e.target.closest('.icon-button')) return;
+                userDropdown.classList.remove('show');
                 if (e.target === infoModal) closeModal(infoModal);
             });
             
@@ -719,157 +715,131 @@
             }
 
 
-            // --- JAVASCRIPT FUNCTIONS FOR PERSIAN DATE PICKER (FIXED) ---
+            // --- JAVASCRIPT FUNCTIONS FOR PERSIAN DATE PICKER ---
 
             // تابع کمکی برای عملیات باقیمانده (modulus) به شکل صحیح برای اعداد منفی
             function mod(a, b) {
                 return a - b * Math.floor(a / b);
             }
 
-            /**
-             * Converts a Gregorian date to Jalali date.
-             * @param {number} gy Gregorian year.
-             * @param {number} gm Gregorian month (1-12).
-             * @param {number} gd Gregorian day (1-31).
-             * @returns {Array<number>} [Jalali year, Jalali month, Jalali day].
-             */
-            const gregorian_to_jalali = (gy, gm, gd) => {
-                let g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
-                let jalali_year, jalali_month, jalali_day;
-                
-                let gy2 = (gm > 2) ? (gy + 1) : gy;
-                let days = (365 * gy) + mod(gy2 / 4) - mod(gy2 / 100) + mod(gy2 / 400) + gd + g_d_m[gm - 1];
-                
-                // Adjust for Julian calendar (before 1582) and then for Gregorian system
-                days -= (gy <= 1600) ? 79 : 1461001 / 400; // 79 for offset between Julian and Jalali epochs (before Gregorian reform), approx Gregorian reform days
-                
-                let jalali_day_no = days - 196; // Offset from a known start point (e.g. 1 Farvardin 1 Jalaali)
-                
-                // Re-calculate the Jalaali year and remaining days more accurately
-                jalali_year = 1;
-                while (jalali_day_no >= (is_jalali_leap(jalali_year) ? 366 : 365)) {
-                    jalali_day_no -= (is_jalali_leap(jalali_year) ? 366 : 365);
-                    jalali_year++;
-                }
-
-                // Now calculate month and day
-                let days_in_jalali_months = [0, 31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, is_jalali_leap(jalali_year) ? 30 : 29];
-                jalali_month = 1;
-                while (jalali_day_no >= days_in_jalali_months[jalali_month]) {
-                    jalali_day_no -= days_in_jalali_months[jalali_month];
-                    jalali_month++;
-                }
-                jalali_day = jalali_day_no + 1;
-
-                return [jalali_year, jalali_month, jalali_day];
+            // تعیین سال کبیسه شمسی بر اساس چرخه 33 ساله
+            const is_jalali_leap = (year) => {
+                const rem = (year - 1) % 33; // تنظیم شده برای سال‌های 1-indexed، چرخه از سال 1 شروع می‌شود.
+                return (rem === 0 || rem === 4 || rem === 8 || rem === 12 || rem === 16 || rem === 21 || rem === 25 || rem === 29);
             };
 
-
-            /**
-             * Converts a Jalali date to Gregorian date.
-             * @param {number} jy Jalali year.
-             * @param {number} jm Jalali month (1-12).
-             * @param {number} jd Jalali day (1-31).
-             * @returns {Array<number>} [Gregorian year, Gregorian month, Gregorian day].
-             */
-            const jalali_to_gregorian = (jy, jm, jd) => {
-                const G_DAYS_IN_MONTH = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-                let gregorian_year, gregorian_month, gregorian_day;
-
-                // Calculate total days from an epoch
-                let days = (jy - 1) * 365;
-                let leap_years_passed = Math.floor((jy - 1) / 33) * 8 + Math.floor(((jy - 1) % 33 + 3) / 4);
-                days += leap_years_passed;
-
-                for (let i = 1; i < jm; i++) {
-                    days += jalali_days_in_month(jy, i);
+            // تعداد روزهای هر ماه شمسی
+            const jalali_days_in_month = (jy, jm) => {
+                const J_DAYS_IN_MONTH = [0, 31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29];
+                if (jm === 12) { // اسفند
+                    return is_jalali_leap(jy) ? 30 : 29;
                 }
-                days += jd;
+                return J_DAYS_IN_MONTH[jm] || 0;
+            };
 
-                // Days from 1 Farvardin 1 (Jalaali) to 1 January 1 (Gregorian) is 79 days.
-                // Days from 1 Farvardin 1 (Jalaali) to 1 January 1900 (Gregorian) is more complex.
-                // Using Julian Day Numbers (JDN) for robust conversion:
-                // JDN for 1 Farvardin 1 SH (19 March 622 AD) is 1948321.
-                // We calculate total days passed from 1 Farvardin 1 SH for the given Jalali date.
-                let total_jalali_days_from_epoch = 0;
+            // تبدیل تاریخ میلادی به شمسی
+            const gregorian_to_jalali = (gy, gm, gd) => {
+                gy = parseInt(gy);
+                gm = parseInt(gm);
+                gd = parseInt(gd);
+
+                // Julian Day Number (JDN) for the given Gregorian date
+                let A = Math.floor((14 - gm) / 12);
+                let Y = gy + 4800 - A;
+                let M = gm + 12 * A - 3;
+                let julianDay = gd + Math.floor((153 * M + 2) / 5) + 365 * Y + Math.floor(Y / 4) - Math.floor(Y / 100) + Math.floor(Y / 400) - 32045;
+
+                // Convert Julian Day Number to Jalali Date
+                const JALAALI_EPOCH_JDN = 1948321; // JDN of 1 Farvardin 1 SH (Solar Hijri)
+                let totalJalaliDays = julianDay - JALAALI_EPOCH_JDN;
+
+                // Calculate Jalali year
+                let j_y = Math.floor(totalJalaliDays / 365.24219); // تخمین اولیه
+                
+                // اصلاح سال شمسی
+                let days_passed_in_jalali_years = 0;
+                for (let y = 1; y <= j_y; y++) {
+                    days_passed_in_jalali_years += jalali_days_in_month(y, 12) + 336; // 336 روز برای 11 ماه اول + اسفند
+                }
+                // اگر تخمین اولیه باعث شده از روزهای کل جلو بزنیم، سال را کم می‌کنیم
+                while (totalJalaliDays < days_passed_in_jalali_years) {
+                    days_passed_in_jalali_years -= (jalali_days_in_month(j_y, 12) + 336);
+                    j_y--;
+                }
+                // اگر هنوز از روزهای کل عقبیم، سال را اضافه می‌کنیم
+                while (totalJalaliDays >= days_passed_in_jalali_years + (jalali_days_in_month(j_y + 1, 12) + 336)) {
+                    days_passed_in_jalali_years += (jalali_days_in_month(j_y + 1, 12) + 336);
+                    j_y++;
+                }
+
+                let rem_days_in_year = totalJalaliDays - days_passed_in_jalali_years;
+                
+                // محاسبه ماه و روز شمسی
+                let j_m = 1;
+                // از 12 ماه استفاده می‌کنیم و برای هر ماه، تعداد روزهایش را کم می‌کنیم
+                for (let i = 1; i <= 12; i++) {
+                    const daysInCurrentJMonth = jalali_days_in_month(j_y + 1, i); // استفاده از سال صحیح
+                    if (rem_days_in_year < daysInCurrentJMonth) {
+                        j_m = i;
+                        break;
+                    }
+                    rem_days_in_year -= daysInCurrentJMonth;
+                }
+                let j_d = rem_days_in_year + 1; // +1 چون rem_days_in_year از 0 شروع می‌شود
+
+                return [j_y + 1, j_m, j_d]; // +1 برای سال چون j_y از 0 شروع می‌شود
+            };
+
+            // تبدیل تاریخ شمسی به میلادی
+            const jalali_to_gregorian = (jy, jm, jd) => {
+                jy = parseInt(jy);
+                jm = parseInt(jm);
+                jd = parseInt(jd);
+
+                const JALAALI_EPOCH_JDN = 1948321; // JDN of 1 Farvardin 1 SH (Solar Hijri)
+                
+                // محاسبه تعداد روزهای سپری شده از مبدا شمسی
+                let totalJalaliDays = 0;
                 for (let y = 1; y < jy; y++) {
-                    total_jalali_days_from_epoch += (is_jalali_leap(y) ? 366 : 365);
+                    totalJalaliDays += jalali_days_in_month(y, 12) + 336; // 336 روز برای 11 ماه اول + اسفند
                 }
                 for (let m = 1; m < jm; m++) {
-                    total_jalali_days_from_epoch += jalali_days_in_month(jy, m);
+                    totalJalaliDays += jalali_days_in_month(jy, m);
                 }
-                total_jalali_days_from_epoch += (jd - 1); // 0-indexed days
+                totalJalaliDays += jd - 1; // -1 چون jd از 1 شروع می‌شود
 
-                let jdn = total_jalali_days_from_epoch + 1948321; // JDN of the given Jalali date
+                let julianDay = JALAALI_EPOCH_JDN + totalJalaliDays;
 
-                let L = jdn + 68569;
+                // تبدیل Julian Day Number به تاریخ میلادی
+                let L = julianDay + 68569;
                 let N = Math.floor((4 * L) / 146097);
                 L = L - Math.floor((146097 * N + 3) / 4);
                 let I = Math.floor((4000 * (L + 1)) / 1461001);
                 L = L - Math.floor((1461 * I) / 4);
                 let J = Math.floor(mod(L, 1461) / 4);
                 let K = L - mod(L, 4);
+                let D = K + 1; // این روز سال میلادی است
                 
-                gregorian_year = N * 100 + I;
-                gregorian_month = 1;
-                gregorian_day = K + 1;
+                const G_DAYS_IN_MONTH_NON_LEAP = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+                
+                let gy_res = N * 100 + I;
+                let gm_res = 1;
+                let gd_res = D;
 
-                // Adjust for month and day
-                let days_in_this_gregorian_month;
-                while (true) {
-                    days_in_this_gregorian_month = G_DAYS_IN_MONTH[gregorian_month];
-                    if (gregorian_month === 2 && is_gregorian_leap(gregorian_year)) {
-                        days_in_this_gregorian_month = 29;
-                    }
-                    if (gregorian_day <= days_in_this_gregorian_month) {
-                        break;
-                    }
-                    gregorian_day -= days_in_this_gregorian_month;
-                    gregorian_month++;
+                // تنظیم برای سال کبیسه در فوریه
+                const is_gregorian_leap_calc = (year) => (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+                let g_days_in_month_temp = [...G_DAYS_IN_MONTH_NON_LEAP];
+                if (is_gregorian_leap_calc(gy_res)) {
+                    g_days_in_month_temp[2] = 29;
                 }
-                
-                return [gregorian_year, gregorian_month, gregorian_day];
-            };
 
-            /**
-             * Checks if a Gregorian year is a leap year.
-             * @param {number} year Gregorian year.
-             * @returns {boolean} True if leap year, false otherwise.
-             */
-            const is_gregorian_leap = (year) => {
-                return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-            };
+                while (gd_res > g_days_in_month_temp[gm_res]) {
+                    gd_res -= g_days_in_month_temp[gm_res];
+                    gm_res++;
+                }
 
-            /**
-             * Checks if a Jalali year is a leap year.
-             * Using the 33-year cycle algorithm.
-             * @param {number} jy Jalali year.
-             * @returns {boolean} True if leap year, false otherwise.
-             */
-            const is_jalali_leap = (jy) => {
-                // This is a common and accurate calculation for Jalali leap years based on the 33-year cycle.
-                // The 33-year cycle has 8 leap years (years 1, 5, 9, 13, 17, 22, 26, 30 in the cycle).
-                // Or simplified: it's a leap year if (year % 33) % 4 == 1, except for (year % 33 == 29) which is also a leap.
-                // A common implementation:
-                let base = jy - 475; // Adjust to a known cycle start point
-                let rem = mod(base, 128);
-                rem = mod(rem, 33);
-                return (rem === 0 || rem === 4 || rem === 8 || rem === 12 || rem === 16 || rem === 21 || rem === 25 || rem === 29);
+                return [gy_res, gm_res, gd_res];
             };
-
-            /**
-             * Returns the number of days in a given Jalali month.
-             * @param {number} jy Jalali year.
-             * @param {number} jm Jalali month (1-12).
-             * @returns {number} Number of days in the month.
-             */
-            const jalali_days_in_month = (jy, jm) => {
-                if (jm >= 1 && jm <= 6) return 31;
-                if (jm >= 7 && jm <= 11) return 30;
-                if (jm === 12) return is_jalali_leap(jy) ? 30 : 29;
-                return 0; // Invalid month
-            };
-
 
             // --- تبدیل اعداد به فارسی و برعکس ---
             const toPersianDigits = (num) => {
@@ -1027,6 +997,10 @@
                 datePicker.classList.add('show');
 
                 // Get dimensions after it's made visible to calculate accurate width/height
+                // The element must be displayed to get accurate offsetWidth/offsetHeight
+                // Using a small timeout to ensure repaint for calculation if display change is slow
+                // Or ensure the 'show' class truly makes it visible before this calculation.
+                // Assuming `offsetWidth` and `offsetHeight` are correct at this point.
                 const inputRect = inputElement.getBoundingClientRect();
                 const pickerWidth = datePicker.offsetWidth;
                 const pickerHeight = datePicker.offsetHeight;
@@ -1092,7 +1066,6 @@
 
             function setCalendarToToday() {
                 const today = new Date();
-                // استفاده از تابع gregorian_to_jalali اصلاح شده
                 currentJalaliDate = gregorian_to_jalali(today.getFullYear(), today.getMonth() + 1, today.getDate());
                 currentJalaliDate[2] = 1; // برای نمایش ماه جاری، روز را روی 1 تنظیم کنید.
                 selectedJalaliDate = []; // هیچ روزی در ابتدا انتخاب نشده است تا کاربر کلیک کند.
@@ -1131,24 +1104,15 @@
             });
 
             // بستن تقویم با کلیک بیرون از آن
-            // این شنونده رویداد قبلاً هم برای بستن دراپ‌داون‌های دیگر استفاده می‌شد، حالا تقویم را هم پوشش می‌دهد.
-            // به روزرسانی شد تا از تداخل با بستن دراپ داون کاربر و دکمه رفرش جلوگیری کند.
             document.addEventListener('click', (event) => {
-                // اگر کلیک روی خود تقویم یا فیلد ورودی تقویم نبود
                 if (!datePicker.contains(event.target) && !event.target.classList.contains('persian-date-picker')) {
                     hideCalendar();
                 }
-                // این بخش مربوط به بستن دراپ‌داون کاربر و مودال اطلاعات موسسه است
-                if (!event.target.closest('.dropdown') && !event.target.closest('.icon-button')) {
-                    userDropdown.classList.remove('show');
-                }
-                if (event.target === infoModal) closeModal(infoModal);
             });
 
-
-            // مقداردهی اولیه تقویم با تاریخ امروز
-            setCalendarToToday(); // این تابع یک بار در هنگام بارگذاری DOM اجرا می‌شود
-            populateMonthYearSelects(); // دراپ‌داون‌ها را برای اولین بار مقداردهی می‌کند
+            // مقداردهی اولیه تقویم با تاریخ امروز میلادی (برای زمانی که هیچ تاریخی انتخاب نشده)
+            setCalendarToToday(); // This call is made once during DOMContentLoaded
+            populateMonthYearSelects(); // Populate dropdowns for the first time
         });
     </script>
 </body>
