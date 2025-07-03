@@ -564,7 +564,7 @@ document.addEventListener('DOMContentLoaded', function() {
         DOM.dashboard.style.display = 'block';
     }
 
-    // تابع خروج (بدون تغییر)
+    // [ویرایش شده] تابع خروج
     function logout() {
         if (confirm("آیا برای خروج از سیستم مطمئن هستید؟")) {
             localStorage.removeItem(LOGGED_IN_USER_KEY); // حذف کد ملی ذخیره شده
@@ -573,7 +573,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // تابع برای بارگیری مجدد داده‌ها در پس‌زمینه (بدون تغییر)
+    // [جدید] تابع برای بارگیری مجدد داده‌ها در پس‌زمینه
     async function refreshData(nationalId) {
         if (DOM.contentLoader) DOM.contentLoader.style.display = 'block';
 
@@ -610,7 +610,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // تابع ورود (بدون تغییر)
+    // [ویرایش شده] تابع ورود فقط برای اولین بار استفاده می‌شود
     async function handleLoginAttempt(nationalId) {
         if (!nationalId || !/^\d{10}$/.test(nationalId)) {
             alert("کد ملی نامعتبر است.");
@@ -656,26 +656,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // [<<< ویرایش اصلی در اینجا اعمال شده است >>>]
-    // تابع اصلی برای شروع و مدیریت وضعیت ورود
+    // [بازنویسی کامل و اعمال ویرایش اصلی] تابع اصلی برای شروع و مدیریت وضعیت ورود
     function initializePage() {
         const loggedInUserNationalId = localStorage.getItem(LOGGED_IN_USER_KEY);
         const urlParams = new URLSearchParams(window.location.search);
         const nationalIdFromUrl = urlParams.get('id');
 
-        // اولویت اول: بررسی وجود کد ملی در آدرس URL
-        if (nationalIdFromUrl) {
-            // اگر کاربری از قبل وارد شده بود و کد ملی جدید با کد ملی قبلی متفاوت بود
-            if (loggedInUserNationalId && loggedInUserNationalId !== nationalIdFromUrl) {
-                console.log(`کد ملی جدید (${nationalIdFromUrl}) شناسایی شد. در حال پاک کردن جلسه قبلی کاربر (${loggedInUserNationalId}).`);
-                
-                // **این بخش اصلی ویرایش درخواستی شماست**
-                // پاک کردن کامل اطلاعات کاربر قبلی از حافظه مرورگر
-                localStorage.removeItem(LOGGED_IN_USER_KEY);
-                clearCache();
-            }
-
-            // چه کاربر قبلی وجود داشته باشد (و پاک شده باشد) و چه نه، با کد ملی جدید وارد شو
+        // [ویرایش اصلی] بررسی ورود کاربر جدید از طریق لینک در حالی که کاربر دیگری لاگین است
+        if (nationalIdFromUrl && loggedInUserNationalId && nationalIdFromUrl !== loggedInUserNationalId) {
+            console.log(`کاربر جدید (${nationalIdFromUrl}) در حال ورود است. خروج کاربر قبلی (${loggedInUserNationalId}) و پاک کردن حافظه پنهان.`);
+            
+            // پاک کردن کامل اطلاعات کاربر قبلی
+            localStorage.removeItem(LOGGED_IN_USER_KEY);
+            clearCache(); 
+            
+            // نمایش صفحه ورود خودکار برای کاربر جدید و شروع فرآیند ورود
             showOverlay(DOM.loginContainer, true);
             DOM.loginBox.innerHTML = `
                 <h2><i class="fas fa-user-check"></i><br>ورود خودکار</h2>
@@ -683,18 +678,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 <p class="auto-login-status">در حال ورود...</p>
                 <div class="loader" style="margin: 20px auto 0;"></div>
             `;
-            // فرآیند ورود با کد ملی جدید را آغاز کن
             handleLoginAttempt(nationalIdFromUrl);
-            return; // پایان عملیات، چون ورود از طریق URL در حال انجام است
+            return; // توقف اجرای بیشتر تابع برای جلوگیری از اجرای کدهای بعدی
         }
 
-        // اگر کدی در URL نبود، حالا وضعیت ورود قبلی را بررسی می‌کنیم
+        // اگر منطق بالا اجرا نشود، روال عادی ادامه پیدا می‌کند
+
+        // حالت اول: کاربری در سیستم لاگین است (و با لینک کاربر جدیدی وارد نشده)
         if (loggedInUserNationalId) {
-            // کاربر قبلا وارد شده و حالا بدون کد ملی در URL به صفحه برگشته است
             showOverlay(DOM.loginContainer, false);
             DOM.dashboard.style.display = 'block';
 
             const cachedItem = localStorage.getItem(CACHE_KEY);
+            // اگر به هر دلیلی کش پاک شده بود، اطلاعات را مجدد از سرور بگیر
             if (!cachedItem) {
                 console.warn("کد ملی کاربر وجود دارد اما داده‌ای در حافظه پنهان نیست. بارگیری مجدد...");
                 refreshData(loggedInUserNationalId);
@@ -710,13 +706,25 @@ document.addEventListener('DOMContentLoaded', function() {
             courseData.startDate = cache.data.startDate;
             populateDashboard();
 
+            // اگر کش منقضی شده، در پس‌زمینه اطلاعات را تازه کن
             if (isExpired) {
                 console.log("حافظه پنهان منقضی شده. در حال بارگیری مجدد داده‌ها در پس‌زمینه...");
                 refreshData(loggedInUserNationalId);
             }
-
+        
+        // حالت دوم: هیچ کاربری لاگین نکرده ولی از طریق لینک وارد می‌شود
+        } else if (nationalIdFromUrl) {
+            showOverlay(DOM.loginContainer, true);
+            DOM.loginBox.innerHTML = `
+                <h2><i class="fas fa-user-check"></i><br>ورود خودکار</h2>
+                <p style="font-size: 1.2rem; font-weight: bold; margin-bottom: 15px;">${nationalIdFromUrl}</p>
+                <p class="auto-login-status">در حال ورود...</p>
+                <div class="loader" style="margin: 20px auto 0;"></div>
+            `;
+            handleLoginAttempt(nationalIdFromUrl);
+        
+        // حالت سوم: هیچ کاربری لاگین نکرده و لینکی هم وجود ندارد (نمایش فرم ورود)
         } else {
-            // نه در URL کدی هست و نه کاربری از قبل وارد شده. صفحه ورود عادی را نشان بده.
             showOverlay(DOM.loginContainer, true);
         }
     }
