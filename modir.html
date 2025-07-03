@@ -79,7 +79,7 @@
             outline: none;
             transition: var(--transition);
             background: var(--bg-main);
-            color: var(--text-dark); /* <--- تغییر اعمال شده برای رنگ متن ورودی */
+            color: var(--text-dark); /* Changed to var for theme support and readability */
         }
         .form-input:focus {
             border-color: var(--primary);
@@ -332,7 +332,24 @@
         </main>
     </div>
 
-    <div class="modal-overlay" id="info-modal"><div class="modal-box"><button class="modal-close-btn"><i class="fas fa-times"></i></button><div class="card-header" style="border:none;margin-bottom:10px;padding:0;justify-content:center;"><i class="fas fa-landmark-dome icon"></i><h2>اطلاعات موسسه تعالی</h2></div><ul class="modal-list"><li><i class="fas fa-id-card"></i> شناسه ملی: 14013770611</li><li><i class="fas fa-barcode"></i> کد شناسایی: 31605007</li><li><i class="fas fa-file-contract"></i> شماره مجوز: 1403136/32273</li><li><i class="fas fa-hashtag"></i> شماره ثبت: 391</li><li><i class="fas fa-envelope"></i> ایمیل رسمی: irtashacol@gmail.com</li><li><i class="fas fa-envelope-open-text"></i> ایمیل دبیرخانه: Tashaccol@gmail.com</li><li><i class="fas fa-globe"></i> وبسایت: Tashacol.ir</li><li><i class="fab fa-telegram"></i> ایتا: @irtaali</li></ul></div></div>
+    <div class="modal-overlay" id="info-modal">
+        <div class="modal-box">
+            <button class="modal-close-btn"><i class="fas fa-times"></i></button>
+            <div class="card-header" style="border:none;margin-bottom:10px;padding:0;justify-content:center;"><i class="fas fa-landmark-dome icon"></i><h2>اطلاعات موسسه تعالی</h2></div>
+            <ul class="modal-list">
+                <li><i class="fas fa-id-card"></i> شناسه ملی: 14013770611</li>
+                <li><i class="fas fa-barcode"></i> کد شناسایی: 31605007</li>
+                <li><i class="fas fa-file-contract"></i> شماره مجوز: 1403136/32273</li>
+                <li><i class="fas fa-hashtag"></i> شماره ثبت: 391</li>
+                <li><i class="fas fa-envelope"></i> ایمیل رسمی: irtashacol@gmail.com</li>
+                <li><i class="fas fa-envelope-open-text"></i> ایمیل دبیرخانه: Tashaccol@gmail.com</li>
+                <li><i class="fas fa-globe"></i> وبسایت: Tashacol.ir</li>
+                <li><i class="fab fa-telegram"></i> ایتا: @irtaali</li>
+            </ul>
+            <!-- NEW: Button to copy/download institution info -->
+            <button id="copy-info-btn" class="btn-login" style="margin-top: 20px; background-color: var(--info);"><i class="fas fa-download" style="margin-left: 8px;"></i><span>دانلود اطلاعات</span></button>
+        </div>
+    </div>
     
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -351,8 +368,9 @@
             const infoModal = document.getElementById('info-modal'), infoModalTrigger = document.getElementById('info-modal-trigger'), infoModalCloseBtn = infoModal.querySelector('.modal-close-btn');
             const userDropdown = document.getElementById('user-dropdown'), userDropdownTrigger = document.getElementById('user-dropdown-trigger');
             const refreshDashboardBtn = document.getElementById('refresh-dashboard-btn');
-            const themeToggleBtn = document.getElementById('theme-toggle-btn'); // NEW: Theme toggle button
-            const htmlElement = document.documentElement; // HTML element for theme class
+            const themeToggleBtn = document.getElementById('theme-toggle-btn');
+            const htmlElement = document.documentElement;
+            const copyInfoBtn = document.getElementById('copy-info-btn'); // NEW: Copy info button
 
             // --- Transactions Elements ---
             const transactionsTableBody = document.getElementById('transactions-table-body');
@@ -555,7 +573,7 @@
                 refreshDashboard(); // Use the refresh function for initial load too
             };
 
-            // NEW: Theme Toggle Logic
+            // Theme Toggle Logic
             const loadThemePreference = () => {
                 const preferredTheme = localStorage.getItem('theme');
                 if (preferredTheme === 'dark') {
@@ -582,7 +600,45 @@
             transactionsFilterBtn.addEventListener('click', () => fetchTransactions(1));
             coursesFilterBtn.addEventListener('click', () => fetchCourses(1));
             refreshDashboardBtn.addEventListener('click', refreshDashboard);
-            themeToggleBtn.addEventListener('click', toggleTheme); // NEW: Theme toggle click listener
+            themeToggleBtn.addEventListener('click', toggleTheme);
+
+            // NEW: Copy/Download Info Button Logic
+            copyInfoBtn.addEventListener('click', () => {
+                const modalBox = document.querySelector('#info-modal .modal-box');
+                if (!modalBox) return;
+
+                let infoText = modalBox.querySelector('.card-header h2').textContent + '\n'; // Get modal title
+                const listItems = modalBox.querySelectorAll('.modal-list li');
+                
+                listItems.forEach(item => {
+                    // Clone the list item to remove the icon before extracting text
+                    const clonedItem = item.cloneNode(true);
+                    const iconElement = clonedItem.querySelector('i');
+                    if (iconElement) {
+                        iconElement.remove(); // Remove the icon element
+                    }
+                    infoText += clonedItem.textContent.trim() + '\n'; // Get clean text content
+                });
+
+                // Create a Blob from the text content
+                const blob = new Blob([infoText], { type: 'text/plain;charset=utf-8' });
+
+                // Create a temporary URL for the Blob
+                const url = URL.createObjectURL(blob);
+
+                // Create a temporary anchor element to trigger download
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'اطلاعات-موسسه.txt'; // Specify the desired filename
+
+                // Programmatically click the anchor to trigger the download
+                document.body.appendChild(a); // Required for some browsers (e.g., Firefox)
+                a.click();
+
+                // Clean up: revoke the object URL and remove the anchor from the DOM
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
 
             window.handleLogin = async () => {
                 loginErrorMsg.textContent = '';
