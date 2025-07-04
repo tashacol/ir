@@ -5,15 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>داشبورد نظرات دوره</title>
 
-    <!-- کتابخانه برای خواندن فایل اکسل -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- کتابخانه برای خواندن فایل اکسل حذف شد -->
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script> -->
     
-    <!-- لینک به Font Awesome برای آیکن‌ها -->
+    <!-- لینک به Font Awesome برای آیکن‌ها (بدون تغییر) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
     <style>
         /* ================================
-           متغیرها و استایل‌های پایه
+           متغیرها و استایل‌های پایه (بدون تغییر)
         =================================== */
         :root {
             --primary-color: #0f2027;
@@ -79,7 +79,7 @@
         }
 
         /* ================================
-           بخش آمار کلی
+           بخش آمار کلی (بدون تغییر)
         =================================== */
         .stats-container {
             display: flex;
@@ -144,7 +144,7 @@
         }
 
         /* ================================
-           لیست نظرات
+           لیست نظرات (بدون تغییر)
         =================================== */
         .comments-list {
             display: grid;
@@ -172,6 +172,8 @@
             align-items: center;
             border-bottom: 1px solid var(--card-border);
             padding-bottom: 15px;
+            flex-wrap: wrap; /* برای نمایش بهتر در موبایل */
+            gap: 10px;
         }
 
         .card-header .name {
@@ -195,6 +197,17 @@
             border-radius: 20px;
         }
         .card-header .score i { color: #ffdd57; }
+        
+        /* تاریخ نظر (استایل جدید) */
+        .card-date {
+            font-size: 0.85rem;
+            color: var(--text-color);
+            opacity: 0.7;
+            width: 100%;
+            text-align: left;
+            margin-top: -10px; /* کمی بالاتر برود */
+            padding-bottom: 10px;
+        }
 
         .card-details {
             display: grid;
@@ -237,11 +250,11 @@
             border-radius: 10px;
             line-height: 1.8;
             font-size: 0.95rem;
-            white-space: pre-wrap; /* برای حفظ فاصله‌ها و خطوط جدید */
+            white-space: pre-wrap;
         }
         
         /* ================================
-           لودینگ و پیام خطا
+           لودینگ و دکمه "نمایش بیشتر"
         =================================== */
         #loader { text-align: center; padding: 50px 0; font-size: 1.2rem; }
         .spinner {
@@ -254,7 +267,33 @@
             margin: 0 auto 20px;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-
+        
+        #loadMoreContainer {
+            text-align: center;
+            margin-top: 30px;
+            display: none; /* در ابتدا مخفی */
+        }
+        #loadMoreBtn {
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: bold;
+            padding: 12px 30px;
+            border-radius: 50px;
+            border: 2px solid var(--highlight-color);
+            background-color: transparent;
+            color: var(--highlight-color);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        #loadMoreBtn:hover:not(:disabled) {
+            background-color: var(--highlight-color);
+            color: var(--primary-color);
+            box-shadow: 0 5px 15px rgba(0, 198, 255, 0.3);
+        }
+        #loadMoreBtn:disabled {
+            opacity: 0.5;
+            cursor: wait;
+        }
     </style>
 </head>
 <body>
@@ -285,12 +324,22 @@
             <div class="spinner"></div>
             <p>در حال بارگذاری و تحلیل نظرات...</p>
         </div>
+        
+        <div id="loadMoreContainer">
+            <button id="loadMoreBtn">نمایش بیشتر</button>
+        </div>
 
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            const excelUrl = "https://docs.google.com/spreadsheets/d/1GCbyVT2l2TvLsvIchWVNWoM2IwuxRWwwS41qIOu6owk/export?format=xlsx";
+        // ==========================================================
+        // هسته اصلی جاوا اسکریپت - بازنویسی شده برای ارتباط با API
+        // ==========================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzlpFOj7pQX5n0GZHVdJnesEgxjJm2RHwbdGSHpvV8Jze_bPOMetOHCoOPyO6TaDcWazw/exec';
+            let currentPage = 1;
+            let isLoading = false;
 
             const loader = document.getElementById('loader');
             const statsSection = document.getElementById('stats-section');
@@ -298,105 +347,124 @@
             const averageScoreEl = document.getElementById('average-score');
             const totalCommentsEl = document.getElementById('total-comments');
             const progressCircle = document.getElementById('progress-circle');
+            const loadMoreContainer = document.getElementById('loadMoreContainer');
+            const loadMoreBtn = document.getElementById('loadMoreBtn');
 
-            try {
-                // 1. دریافت و خواندن فایل اکسل
-                const response = await fetch(excelUrl);
-                if (!response.ok) throw new Error('Network response was not ok.');
-
-                const arrayBuffer = await response.arrayBuffer();
-                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-                const sheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-                // 2. پردازش داده‌ها
-                // حذف ردیف هدر (اولین ردیف)
-                const commentsData = data.slice(1);
-                
-                const validComments = commentsData
-                    .map(row => ({
-                        name: row[0],
-                        satisfaction: row[4],
-                        recommendation: row[8],
-                        score: parseFloat(row[9]) || 0,
-                        suggestion: row[10] || "پیشنهادی ثبت نشده است."
-                    }))
-                    .filter(comment => comment.name && comment.score > 0); // فقط نظراتی که نام و نمره معتبر دارند
-
-                if (validComments.length === 0) {
-                    loader.innerHTML = '<p>هنوز نظری برای نمایش وجود ندارد.</p>';
-                    return;
+            // تابع برای بارگذاری نظرات از API
+            async function fetchComments(page) {
+                if (isLoading) return;
+                isLoading = true;
+                if (page > 1) { // اگر در حال بارگذاری صفحات بعدی هستیم
+                    loadMoreBtn.disabled = true;
+                    loadMoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> در حال بارگذاری...';
                 }
+
+                try {
+                    const url = `${SCRIPT_URL}?action=getComments&page=${page}`;
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error('خطا در ارتباط با سرور.');
+
+                    const data = await response.json();
+                    if (data.error) throw new Error(data.message);
+                    
+                    // فقط در بارگذاری اولیه (صفحه ۱)، آمار کلی را به‌روزرسانی کن
+                    if (page === 1) {
+                        updateStats(data.stats);
+                    }
+                    
+                    // نمایش نظرات
+                    appendComments(data.comments);
+
+                    // مدیریت دکمه "نمایش بیشتر"
+                    if (data.pagination.hasMore) {
+                        loadMoreContainer.style.display = 'block';
+                        currentPage++;
+                    } else {
+                        loadMoreContainer.style.display = 'none';
+                    }
+                    
+                    // اگر هیچ نظری وجود نداشت، پیام مناسب نمایش داده شود
+                    if (page === 1 && data.comments.length === 0) {
+                        loader.innerHTML = '<p>هنوز نظری برای نمایش وجود ندارد.</p>';
+                    } else {
+                        loader.style.display = 'none';
+                    }
+
+                } catch (error) {
+                    console.error("خطا در بارگذاری یا پردازش داده‌ها:", error);
+                    loader.innerHTML = `<p style="color: #ff6b6b;">${error.message}</p>`;
+                } finally {
+                    isLoading = false;
+                    loadMoreBtn.disabled = false;
+                    loadMoreBtn.innerHTML = 'نمایش بیشتر';
+                }
+            }
+
+            // تابع برای به‌روزرسانی بخش آمار
+            function updateStats(stats) {
+                averageScoreEl.textContent = stats.averageScore || '0.0';
+                totalCommentsEl.textContent = stats.totalComments || '0';
                 
-                // 3. محاسبه آمار کلی
-                const totalScore = validComments.reduce((sum, comment) => sum + comment.score, 0);
-                const averageScore = totalScore / validComments.length;
-                const totalComments = validComments.length;
-
-                // 4. نمایش آمار کلی در هدر
-                averageScoreEl.textContent = averageScore.toFixed(1);
-                totalCommentsEl.textContent = totalComments;
-                // محاسبه درصد برای نمودار دایره‌ای (نمره از 20)
-                const progressPercentage = (averageScore / 20) * 100;
-                progressCircle.style.setProperty('--value', progressPercentage);
-
-                // 5. نمایش نظرات (از آخر به اول)
-                commentsList.innerHTML = ''; // پاک کردن محتوای قبلی
-                validComments.reverse().forEach((comment, index) => {
+                const progressPercentage = (parseFloat(stats.averageScore) / 20) * 100;
+                progressCircle.style.setProperty('--value', `${progressPercentage}%`);
+                
+                statsSection.style.display = 'flex';
+            }
+            
+            // تابع برای افزودن کارت‌های نظرات به DOM
+            function appendComments(comments) {
+                comments.forEach((comment, index) => {
                     const card = createCommentCard(comment);
-                    card.style.animationDelay = `${index * 100}ms`; // ایجاد افکت انیمیشن پله‌ای
+                    card.style.animationDelay = `${index * 100}ms`;
                     commentsList.appendChild(card);
                 });
-
-                // 6. نمایش محتوا و پنهان کردن لودر
-                loader.style.display = 'none';
-                statsSection.style.display = 'flex';
-
-            } catch (error) {
-                console.error("خطا در بارگذاری یا پردازش داده‌ها:", error);
-                loader.innerHTML = `<p style="color: #ff6b6b;">خطا در ارتباط با سرور. لطفاً صفحه را دوباره بارگذاری کنید.</p>`;
             }
+
+            // تابع برای ساخت HTML هر کارت نظر
+            function createCommentCard(comment) {
+                const cardElement = document.createElement('div');
+                cardElement.className = 'comment-card';
+
+                const satisfactionMap = {
+                    "خیلی راضی": { icon: "fa-laugh-beam", color: "#2ecc71" }, "عالی": { icon: "fa-laugh-beam", color: "#2ecc71" },
+                    "راضی": { icon: "fa-smile", color: "#27ae60" }, "خوب": { icon: "fa-smile", color: "#27ae60" },
+                    "متوسط": { icon: "fa-meh", color: "#f1c40f" },
+                    "ناراضی": { icon: "fa-frown", color: "#e74c3c" }, "ضعیف": { icon: "fa-frown", color: "#e74c3c" },
+                };
+                
+                const satisfactionInfo = satisfactionMap[comment.satisfaction] || { icon: "fa-question-circle", color: "#95a5a6" };
+                const qualityInfo = satisfactionMap[comment.teachingQuality] || { icon: "fa-question-circle", color: "#95a5a6" };
+
+                cardElement.innerHTML = `
+                    <div class="card-header">
+                        <div class="name"><i class="fas fa-user-circle"></i>${comment.name}</div>
+                        <div class="score"><i class="fas fa-star"></i> ${comment.score} / 20</div>
+                    </div>
+                    <div class="card-date">${comment.submissionDate}</div>
+                    <div class="card-details">
+                        <div class="detail-item">
+                            <i class="fas ${satisfactionInfo.icon}" style="color: ${satisfactionInfo.color};"></i>
+                            <span>رضایت از دوره: <strong>${comment.satisfaction || 'ثبت نشده'}</strong></span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas ${qualityInfo.icon}" style="color: ${qualityInfo.color};"></i>
+                            <span>کیفیت تدریس: <strong>${comment.teachingQuality || 'ثبت نشده'}</strong></span>
+                        </div>
+                    </div>
+                    <div class="card-suggestion">
+                        <h4><i class="fas fa-comment-dots"></i> پیشنهاد کاربر</h4>
+                        <p>${comment.suggestion}</p>
+                    </div>
+                `;
+                return cardElement;
+            }
+
+            // رویداد کلیک برای دکمه "نمایش بیشتر"
+            loadMoreBtn.addEventListener('click', () => fetchComments(currentPage));
+
+            // شروع بارگذاری اولیه
+            fetchComments(currentPage);
         });
-
-        function createCommentCard(comment) {
-            const cardElement = document.createElement('div');
-            cardElement.className = 'comment-card';
-
-            // مپ کردن مقادیر رضایت به آیکن و متن رنگی
-            const satisfactionMap = {
-                "خیلی راضی": { icon: "fa-laugh-beam", color: "#2ecc71" },
-                "راضی": { icon: "fa-smile", color: "#27ae60" },
-                "متوسط": { icon: "fa-meh", color: "#f1c40f" },
-                "ناراضی": { icon: "fa-frown", color: "#e74c3c" },
-            };
-            const satisfactionInfo = satisfactionMap[comment.satisfaction] || { icon: "fa-question-circle", color: "#95a5a6" };
-
-            cardElement.innerHTML = `
-                <div class="card-header">
-                    <div class="name"><i class="fas fa-user-circle"></i>${comment.name}</div>
-                    <div class="score"><i class="fas fa-star"></i> ${comment.score} / 20</div>
-                </div>
-
-                <div class="card-details">
-                    <div class="detail-item">
-                        <i class="fas ${satisfactionInfo.icon}" style="color: ${satisfactionInfo.color};"></i>
-                        <span>رضایت از دوره: <strong>${comment.satisfaction || 'ثبت نشده'}</strong></span>
-                    </div>
-                    <div class="detail-item">
-                        <i class="fas fa-bullhorn"></i>
-                        <span>توصیه به دیگران: <strong>${comment.recommendation || 'ثبت نشده'}</strong></span>
-                    </div>
-                </div>
-
-                <div class="card-suggestion">
-                    <h4><i class="fas fa-comment-dots"></i> پیشنهاد کاربر</h4>
-                    <p>${comment.suggestion}</p>
-                </div>
-            `;
-            return cardElement;
-        }
-
     </script>
 </body>
 </html>
