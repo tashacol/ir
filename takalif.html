@@ -59,6 +59,9 @@
     .status-badge i { font-size: 1.5rem; }
     .status-approved { color: var(--success-color); } .status-rejected { color: var(--danger-color); }
     .status-pending { color: #fd7e14; } .status-locked { color: var(--gray-color); }
+    /* ویرایش شده: استایل جدید برای تاریخ باز شدن */
+    .unlock-date { font-size: 0.9rem; color: var(--gray-color); }
+    .unlock-date i { margin-left: 5px; }
     .term-footer { padding: 20px; background-color: #fcfcfc; border-top: 1px solid #e9ecef; }
     .term-btn {
       width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;
@@ -72,26 +75,13 @@
     .loader { border: 5px solid #f3f3f3; border-top: 5px solid var(--primary-color); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 40px auto; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     
-    /* ویرایش شده: استایل لودر خطی جدید */
     .linear-loader {
-        height: 8px;
-        width: 100%;
-        max-width: 450px;
-        margin: 0 auto 2.5rem auto;
-        background-color: #e9ecef;
-        border-radius: 4px;
-        overflow: hidden;
+        height: 8px; width: 100%; max-width: 450px;
+        margin: 0 auto 2.5rem auto; background-color: #e9ecef;
+        border-radius: 4px; overflow: hidden;
     }
-    .linear-loader-bar {
-        height: 100%;
-        width: 0;
-        background-color: var(--primary-color);
-        animation: fill-bar 2.5s ease-out forwards;
-    }
-    @keyframes fill-bar {
-        from { width: 0%; }
-        to { width: 100%; }
-    }
+    .linear-loader-bar { height: 100%; width: 0; background-color: var(--primary-color); animation: fill-bar 2.5s ease-out forwards; }
+    @keyframes fill-bar { from { width: 0%; } to { width: 100%; } }
 
     .overlay { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(4px); animation: fadeIn 0.3s ease; }
     .overlay.active { display: flex; }
@@ -124,7 +114,6 @@
     <h2 class="main-header"><i class="fas fa-tasks"></i>سیستم ارسال تکالیف</h2>
     <div class="ai-warning"><i class="fas fa-exclamation-triangle"></i> هرگونه تقلب شرعا حرام بوده و این سیستم مجهز به هوش مصنوعی است و در صورتیکه جواب از هوش مصنوعی اخذ شده باشد توسط سیستم تشخیص داده شده و رد می‌شود.</div>
     
-    <!-- ویرایش شده: یک ID به این بخش اضافه شده است -->
     <div id="nationalCodeSection">
       <div class="input-group">
         <input type="text" id="nationalCodeInput" placeholder="کد ملی خود را وارد کنید..." />
@@ -132,7 +121,6 @@
       </div>
     </div>
     
-    <!-- ویرایش شده: لودر خطی جدید اضافه شده و مخفی است -->
     <div id="linearLoader" class="linear-loader" style="display: none;">
       <div class="linear-loader-bar"></div>
     </div>
@@ -192,23 +180,17 @@
     const submissionModalOverlay = document.getElementById('submissionModalOverlay');
     const reasonModalOverlay = document.getElementById('reasonModalOverlay');
     const messageModalOverlay = document.getElementById('messageModalOverlay');
-    
-    // ویرایش شده: دسترسی به عناصر جدید
     const nationalCodeSection = document.getElementById('nationalCodeSection');
     const linearLoader = document.getElementById('linearLoader');
-    
     let userData = {};
 
-    // ویرایش شده: تابع جدید برای اجرا شدن در ابتدای بارگذاری صفحه
     document.addEventListener('DOMContentLoaded', () => {
         const params = new URLSearchParams(window.location.search);
         const nationalCodeFromId = params.get('id');
-        
         if (nationalCodeFromId && /^\d{10}$/.test(nationalCodeFromId)) {
-            // اگر ID معتبر در URL بود
-            nationalCodeSection.style.display = 'none'; // مخفی کردن فیلد ورودی
-            linearLoader.style.display = 'block'; // نمایش لودر خطی
-            fetchData(nationalCodeFromId); // شروع خودکار بررسی
+            nationalCodeSection.style.display = 'none';
+            linearLoader.style.display = 'block';
+            fetchData(nationalCodeFromId);
         }
     });
 
@@ -220,16 +202,19 @@
     });
 
     function showSubmissionModal(term) {
+      const termData = userData.terms.find(t => t.termNumber == term);
+      if(!termData) return;
+
       document.getElementById('termNumber').value = term;
       document.getElementById('submissionModalHeader').innerHTML = `<i class="fas fa-upload"></i> ارسال تکلیف ترم ${term}`;
-      document.getElementById('submissionModalQuestion').textContent = userData.questions[term] || 'سوالی برای این ترم تعریف نشده است.';
-      answerTextarea.value = userData.submissions[term]?.answer || '';
+      document.getElementById('submissionModalQuestion').textContent = termData.question;
+      answerTextarea.value = termData.submission?.answer || '';
       answerTextarea.dispatchEvent(new Event('input'));
       submissionModalOverlay.classList.add('active');
     }
     function closeSubmissionModal() { submissionModalOverlay.classList.remove('active'); }
     function showReasonModal(term) {
-      const reason = userData.submissions[term]?.reason || 'دلیلی ثبت نشده است.';
+      const reason = userData.terms.find(t => t.termNumber == term)?.submission?.reason || 'دلیلی ثبت نشده است.';
       document.getElementById('reasonModalContent').innerHTML = renderMarkdown(reason);
       reasonModalOverlay.classList.add('active');
     }
@@ -241,15 +226,13 @@
     }
     function closeMessageModal() { messageModalOverlay.classList.remove('active'); }
 
-    // ویرایش شده: تابع fetchData اکنون کد ملی را به عنوان پارامتر می‌پذیرد
     async function fetchData(nationalCodeFromUrl = null) {
-      const nationalCode = nationalCodeFromUrl || nationalCodeInput.value.trim();
+      let nationalCode = nationalCodeFromUrl || nationalCodeInput.value.trim();
       
       if (!/^\d{10}$/.test(nationalCode)) {
         return showMessageModal("خطا", "کد ملی ارائه شده معتبر نیست.");
       }
       
-      // فقط لودر دایره‌ای را برای جستجوی دستی نمایش بده
       if (!nationalCodeFromUrl) {
           loader.style.display = 'block';
           termsGrid.style.display = 'none';
@@ -266,62 +249,68 @@
         });
         if (!response.ok) throw new Error(`خطای شبکه (کد: ${response.status})`);
         const data = await response.json();
+        // ویرایش شده: ذخیره کد ملی معتبر
+        if(data && !data.error){
+            data.nationalCode = nationalCode;
+        }
         displayData(data);
       } catch (error) { handleError(error); }
     }
 
     function displayData(data) {
-      // مخفی کردن هر دو لودر
       loader.style.display = 'none';
       linearLoader.style.display = 'none';
 
       if (data.error) {
-        // اگر خطا بود و کاربر با ID وارد شده بود، فیلد را نمایش بده تا بتواند دستی امتحان کند
         nationalCodeSection.style.display = 'flex';
         return showMessageModal("خطا", data.error);
       }
       
-      // ویرایش شده: مخفی کردن دائمی فیلد ورودی پس از موفقیت
       nationalCodeSection.style.display = 'none';
-
       userData = data;
       userNameEl.innerHTML = `<i class="fas fa-user-check"></i> خوش آمدید، ${data.name}!`;
       userInfo.style.display = 'block';
       termsGrid.innerHTML = '';
-      const lastApprovedTerm = Math.max(0, ...Object.keys(data.submissions).filter(t => data.submissions[t].status == 5).map(Number));
+      
+      data.terms.forEach(termInfo => {
+        let statusIcon, statusText, statusClass, buttonsHTML = '', bodyContent = '';
+        const submission = termInfo.submission;
 
-      for (let term = 1; term <= 8; term++) {
-        const submission = data.submissions[term];
-        const canSubmit = (term === 1 || lastApprovedTerm >= term - 1);
-        let statusIcon, statusText, statusClass, buttonsHTML = '';
-
-        if (submission) {
-          if (submission.status == 5) {
-            statusIcon = 'fa-check-circle'; statusText = 'تأیید شده'; statusClass = 'status-approved';
-            buttonsHTML = `<button class="term-btn" disabled><i class="fas fa-check"></i> تأیید شده</button>`;
-          } else if (submission.status == 0) {
-            statusIcon = 'fa-times-circle'; statusText = 'تأیید نشده'; statusClass = 'status-rejected';
-            buttonsHTML = `<button class="term-btn btn-edit" onclick="showSubmissionModal(${term})"><i class="fas fa-pencil-alt"></i> ویرایش تکلیف</button>`;
-            if (submission.reason) { buttonsHTML += `<button class="term-btn btn-reason" style="margin-top: 10px;" onclick="showReasonModal(${term})"><i class="fas fa-eye"></i> مشاهده دلیل</button>`; }
-          } else {
-            statusIcon = 'fa-hourglass-half'; statusText = 'در حال بررسی'; statusClass = 'status-pending';
-            buttonsHTML = `<button class="term-btn" disabled><i class="fas fa-spinner fa-spin"></i> در حال بررسی</button>`;
-          }
+        if (termInfo.isTimeLocked) {
+            statusIcon = 'fa-lock'; statusText = 'قفل شده'; statusClass = 'status-locked';
+            // ویرایش شده: نمایش تاریخ باز شدن
+            bodyContent = `<div class="unlock-date"><i class="fas fa-calendar-alt"></i> باز شدن در: ${termInfo.unlockDate}</div>`;
+            buttonsHTML = `<button class="term-btn" disabled><i class="fas fa-lock"></i> قفل شده</button>`;
         } else {
-          statusIcon = canSubmit ? 'fa-clock' : 'fa-lock';
-          statusText = canSubmit ? 'آماده ارسال' : 'قفل شده';
-          statusClass = canSubmit ? 'status-pending' : 'status-locked';
-          buttonsHTML = `<button class="term-btn ${canSubmit ? 'btn-submit' : ''}" ${canSubmit ? `onclick="showSubmissionModal(${term})"` : 'disabled'}>${canSubmit ? '<i class="fas fa-paper-plane"></i> ارسال تکلیف' : '<i class="fas fa-lock"></i> قفل شده'}</button>`;
+            if (submission) {
+                if (submission.status == 5) {
+                    statusIcon = 'fa-check-circle'; statusText = 'تأیید شده'; statusClass = 'status-approved';
+                    buttonsHTML = `<button class="term-btn" disabled><i class="fas fa-check"></i> تأیید شده</button>`;
+                } else if (submission.status == 0) {
+                    statusIcon = 'fa-times-circle'; statusText = 'تأیید نشده'; statusClass = 'status-rejected';
+                    buttonsHTML = `<button class="term-btn btn-edit" onclick="showSubmissionModal(${termInfo.termNumber})"><i class="fas fa-pencil-alt"></i> ویرایش تکلیف</button>`;
+                    if (submission.reason) { buttonsHTML += `<button class="term-btn btn-reason" style="margin-top: 10px;" onclick="showReasonModal(${termInfo.termNumber})"><i class="fas fa-eye"></i> مشاهده دلیل</button>`; }
+                } else {
+                    statusIcon = 'fa-hourglass-half'; statusText = 'در حال بررسی'; statusClass = 'status-pending';
+                    buttonsHTML = `<button class="term-btn" disabled><i class="fas fa-spinner fa-spin"></i> در حال بررسی</button>`;
+                }
+            } else {
+                statusIcon = 'fa-clock'; statusText = 'آماده ارسال'; statusClass = 'status-pending';
+                buttonsHTML = `<button class="term-btn btn-submit" onclick="showSubmissionModal(${termInfo.termNumber})"><i class="fas fa-paper-plane"></i> ارسال تکلیف</button>`;
+            }
         }
         
         const termBox = document.createElement('div');
         termBox.className = 'term-box';
         termBox.innerHTML = `
-          <div class="term-header"><h3 class="term-title">ترم ${term}</h3></div>
-          <div class="term-body"><div class="status-badge ${statusClass}"><i class="fas ${statusIcon}"></i><span>${statusText}</span></div></div>
+          <div class="term-header"><h3 class="term-title">ترم ${termInfo.termNumber}</h3></div>
+          <div class="term-body">
+            <div class="status-badge ${statusClass}"><i class="fas ${statusIcon}"></i><span>${statusText}</span></div>
+            ${bodyContent}
+          </div>
           <div class="term-footer">${buttonsHTML}</div>`;
         termsGrid.appendChild(termBox);
-      }
+      });
       termsGrid.style.display = 'grid';
     }
     
@@ -337,7 +326,7 @@
       submitBtn.disabled = true;
       submitBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> در حال ارسال...`;
 
-      const formData = { name: userData.name, nationalCode: nationalCodeInput.value || new URLSearchParams(window.location.search).get('id'), term, answer };
+      const formData = { name: userData.name, nationalCode: userData.nationalCode, term, answer };
       try {
         const response = await fetch(WEB_APP_URL, {
           method: 'POST',
@@ -360,7 +349,7 @@
 
     function handleSubmitSuccess(response) {
       showMessageModal(response.success ? "موفقیت" : "توجه", response.message || "پاسخ نامشخص از سرور.");
-      fetchData(userData.nationalCode || new URLSearchParams(window.location.search).get('id'));
+      fetchData(userData.nationalCode);
     }
     function handleError(error) {
       linearLoader.style.display = 'none';
