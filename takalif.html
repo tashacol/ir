@@ -363,11 +363,14 @@
 
 
   <script>
-    // =======================================================================
-    // ▼▼▼ اینجا URL وب اپلیکیشن خود را قرار دهید (پس از Deploy کردن Code.gs) ▼▼▼
-    // =======================================================================
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx8MbWoPLBwhVjf5XiA2Eae2b4Y8h9OxLI2V9kByvKS5IqJdnyMps992WNTurIDaCNx/exec"; // مثال: https://script.google.com/macros/s/AKfycbz_YOUR_ID/exec
-    // =======================================================================
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ▼                                                                      ▼
+    // ▼   مهم: آدرس وب اپلیکیشن گوگل اسکریپت خود را در اینجا قرار دهید.       ▼
+    // ▼   پس از انتشار اسکریپت به عنوان وب اپلیکیشن، لینک را کپی کنید.          ▼
+    // ▼                                                                      ▼
+    const WEB_APP_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
+    // ▲                                                                      ▲
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     const nationalCodeInput = document.getElementById('nationalCodeInput');
     const checkBtn = document.getElementById('checkBtn');
@@ -389,34 +392,6 @@
 
     let userData = {}; // برای ذخیره داده‌های کاربر و تکالیفش
 
-    // تابع برای ارتباط با Google Apps Script از طریق Fetch API
-    async function callAppsScript(functionName, ...args) {
-        try {
-            const response = await fetch(WEB_APP_URL, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    function: functionName,
-                    arguments: args,
-                }),
-            });
-            const data = await response.json(); // فرض می‌کنیم پاسخ همیشه JSON است
-            if (data.error) {
-                // اگر اسکریپت گوگل خطا برگرداند (مثلاً "کد ملی یافت نشد")
-                throw new Error(data.error);
-            }
-            return data;
-        } catch (error) {
-            // خطاهای شبکه یا JSON نامعتبر
-            console.error("Error calling Apps Script:", error);
-            throw new Error("خطا در ارتباط با سرور: " + error.message);
-        }
-    }
-
-
-    // تابع برای شمارش کلمات و به‌روزرسانی نمایشگر
     function updateWordCount() {
       const text = answerTextarea.value.trim();
       const words = text.split(/\s+/).filter(word => word.length > 0);
@@ -431,22 +406,18 @@
     }
     answerTextarea.addEventListener('input', updateWordCount);
 
-
-    // توابع کنترل پاپ‌آپ‌ها
     function showSubmissionModal(term) {
       document.getElementById('termNumber').value = term;
       document.getElementById('submissionModalHeader').textContent = `ارسال تکلیف ترم ${term}`;
       document.getElementById('submissionModalQuestion').textContent = userData.questions[term] || 'سوالی برای این ترم تعریف نشده است.';
       const submission = userData.submissions[term];
       answerTextarea.value = submission ? submission.answer : '';
-      updateWordCount(); // به‌روزرسانی شمارش کلمات هنگام باز شدن
+      updateWordCount();
       submissionModalOverlay.classList.add('active');
-      submissionModal.classList.add('active');
     }
 
     function closeSubmissionModal() {
       submissionModalOverlay.classList.remove('active');
-      submissionModal.classList.remove('active');
       submissionForm.reset();
     }
 
@@ -454,49 +425,66 @@
       const reason = userData.submissions[term] ? userData.submissions[term].reason : 'دلیلی برای این تکلیف ثبت نشده است.';
       document.getElementById('reasonModalContent').innerHTML = renderMarkdown(reason);
       reasonModalOverlay.classList.add('active');
-      reasonModal.classList.add('active');
     }
 
     function closeReasonModal() {
       reasonModalOverlay.classList.remove('active');
-      reasonModal.classList.remove('active');
     }
 
     function showMessageModal(title, message) {
       document.getElementById('messageModalHeader').innerText = title;
       document.getElementById('messageModalContent').innerText = message;
       messageModalOverlay.classList.add('active');
-      messageModal.classList.add('active');
     }
 
     function closeMessageModal() {
       messageModalOverlay.classList.remove('active');
-      messageModal.classList.remove('active');
     }
 
-    // تابع اصلی دریافت داده و نمایش ترم‌ها
-    function fetchData() {
+    // تابع اصلی دریافت داده (بازنویسی شده با fetch)
+    async function fetchData() {
       const nationalCode = nationalCodeInput.value.trim();
-      if (!/^\d{10}$/.test(nationalCode)) { showMessageModal("خطا", "لطفاً یک کد ملی معتبر ۱۰ رقمی وارد کنید."); return; }
+      if (!/^\d{10}$/.test(nationalCode)) {
+        showMessageModal("خطا", "لطفاً یک کد ملی معتبر ۱۰ رقمی وارد کنید.");
+        return;
+      }
       loader.style.display = 'block';
       termsGrid.style.display = 'none';
       userInfo.style.display = 'none';
-      // جایگزینی google.script.run با callAppsScript
-      callAppsScript("getUserData", nationalCode)
-        .then(displayData)
-        .catch(handleError);
+
+      if (WEB_APP_URL === "https://script.google.com/macros/s/AKfycbzydudVqc-fN0-jwNVj0ZsKtu2qWc10DmsFIDNngiL_xS4fag1kAIlX-KcDygKJ34b2/exec") {
+          handleError({ message: "آدرس وب اپلیکیشن در کد HTML تنظیم نشده است."});
+          return;
+      }
+
+      const url = `${WEB_APP_URL}?action=getUserData&nationalCode=${nationalCode}`;
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`خطای شبکه: ${response.statusText}`);
+        const data = await response.json();
+        displayData(data);
+      } catch (error) {
+        handleError(error);
+      } finally {
+        loader.style.display = 'none';
+      }
     }
 
     function displayData(data) {
-      loader.style.display = 'none';
-      if (data.error) { showMessageModal("خطا", data.error); return; }
+      if (data.error) {
+        showMessageModal("خطا", data.error);
+        return;
+      }
       userData = data;
       userNameEl.textContent = `سلام، ${data.name}!`;
       userInfo.style.display = 'block';
       termsGrid.innerHTML = '';
       let lastApprovedTerm = 0;
       for (let i = 1; i <= 8; i++) {
-        if (data.submissions[i] && data.submissions[i].status == 5) { lastApprovedTerm = i; }
+        if (data.submissions[i] && data.submissions[i].status == 5) {
+          lastApprovedTerm = i;
+        }
       }
 
       for (let term = 1; term <= 8; term++) {
@@ -510,11 +498,9 @@
             buttonsHTML = `<button class="term-btn" disabled>تأیید شده</button>`;
           } else if (submission.status == 0) {
             statusText = 'تأیید نشده'; statusClass = 'status-rejected';
-            buttonsHTML = `
-              <button class="term-btn btn-edit" onclick="showSubmissionModal(${term})">ویرایش تکلیف</button>
-            `;
+            buttonsHTML = `<button class="term-btn btn-edit" onclick="showSubmissionModal(${term})">ویرایش تکلیف</button>`;
             if (submission.reason && submission.reason.trim() !== "") {
-                buttonsHTML += `<button class="term-btn btn-reason" onclick="showReasonModal(${term})">مشاهده دلیل رد</button>`;
+              buttonsHTML += `<button class="term-btn btn-reason" onclick="showReasonModal(${term})">مشاهده دلیل رد</button>`;
             }
           } else {
             statusText = 'در حال بررسی'; statusClass = 'status-pending';
@@ -543,38 +529,48 @@
       termsGrid.style.display = 'grid';
     }
     
-    // تابع ارسال فرم
-    submissionForm.addEventListener('submit', (e) => {
+    // تابع ارسال فرم (بازنویسی شده با fetch)
+    submissionForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const term = document.getElementById('termNumber').value;
       const answer = answerTextarea.value.trim();
 
-      // بررسی محدودیت کلمات در سمت کلاینت
       const words = answer.split(/\s+/).filter(word => word.length > 0);
       if (words.length < 200 || words.length > 1500) {
-          showMessageModal("خطا در ارسال", `تعداد کلمات پاسخ شما (${words.length}) باید بین ۲۰۰ تا ۱۵۰۰ کلمه باشد.`);
+          showMessageModal("خطا در ارسال", "تعداد کلمات پاسخ شما باید بین ۲۰۰ تا ۱۵۰۰ کلمه باشد.");
           return;
       }
-
+      
       loader.style.display = 'block';
-      closeSubmissionModal(); // بستن پاپ‌آپ ارسال قبل از نمایش لودر
+      closeSubmissionModal();
 
       const formData = { name: userData.name, nationalCode: nationalCodeInput.value.trim(), term: term, answer: answer };
-      // جایگزینی google.script.run با callAppsScript
-      callAppsScript("submitAssignment", formData)
-        .then(handleSubmitSuccess)
-        .catch(handleError);
+      const postPayload = { action: 'submitAssignment', formData: formData };
+
+      try {
+        const response = await fetch(WEB_APP_URL, {
+          method: 'POST',
+          mode: 'cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(postPayload)
+        });
+        if (!response.ok) throw new Error(`خطای شبکه: ${response.statusText}`);
+        const result = await response.json();
+        handleSubmitSuccess(result);
+      } catch (error) {
+        handleError(error);
+      } finally {
+        loader.style.display = 'none';
+      }
     });
 
     function handleSubmitSuccess(response) {
-      loader.style.display = 'none';
       if (response.success) {
         showMessageModal("موفقیت", response.message);
-        fetchData(); // به‌روزرسانی داده‌ها پس از موفقیت
       } else {
-        showMessageModal("توجه", response.message);
-        fetchData(); // به‌روزرسانی داده‌ها حتی در صورت رد شدن برای نمایش وضعیت جدید
+        showMessageModal("توجه", response.message || "خطایی رخ داد.");
       }
+      fetchData();
     }
 
     function handleError(error) {
@@ -582,41 +578,25 @@
       showMessageModal("خطا", 'خطا در ارتباط با سرور: ' + error.message);
     }
 
-    // تابع رندر Markdown ساده برای نمایش دلیل رد
     function renderMarkdown(text) {
-        let html = text;
-        // Bold: **text**
+        let html = text.replace(/</g, "<").replace(/>/g, ">");
         html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        // Simple list items: * item
         html = html.split('\n').map(line => {
             if (line.trim().startsWith('* ')) {
                 return '<li>' + line.trim().substring(2).trim() + '</li>';
             }
             return line;
-        }).join('\n');
-
-        // Wrap list items in <ul> if any were created
+        }).join('');
         if (html.includes('<li>')) {
-            html = '<ul>' + html + '</ul>';
-            // Remove empty lines that might become empty <li> if not careful
-            html = html.replace(/<ul>\s*<\/li>([\s\S]*?)<li>\s*<\/ul>/g, '<ul><li>$1</li></ul>');
-            html = html.replace(/<\/li>(\n|\r\n)<li>/g, '</li><li>'); // Fix line breaks between li
-            html = html.replace(/<p><\/p>/g, ''); // Remove empty paragraphs
+            html = '<ul>' + html.replace(/<\/li><li>/g, '</li><li>') + '</ul>';
         }
-
-        // Convert remaining double newlines to paragraph tags for better spacing, then single newlines to <br>
-        html = html.replace(/\n\s*\n/g, '</p><p>');
-        html = html.replace(/\n/g, '<br>');
-        html = `<p>${html}</p>`; // Wrap everything in a paragraph if not already in ul
-
-        return html;
+        return html.replace(/\n/g, '<br>');
     }
 
-    // بستن پاپ‌آپ‌ها با کلیک بیرون از آن‌ها
     window.onclick = function(event) {
-        if (event.target == submissionModalOverlay) { closeSubmissionModal(); }
-        if (event.target == reasonModalOverlay) { closeReasonModal(); }
-        if (event.target == messageModalOverlay) { closeMessageModal(); }
+        if (event.target == submissionModalOverlay) closeSubmissionModal();
+        if (event.target == reasonModalOverlay) closeReasonModal();
+        if (event.target == messageModalOverlay) closeMessageModal();
     }
   </script>
 </body>
