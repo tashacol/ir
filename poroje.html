@@ -5,10 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>پیگیری وضعیت دوره</title>
 
-  <!-- کتابخانه xlsx.full.min.js حذف شد (دیگر به آن نیازی نیست) -->
-  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script> -->
-
-  <!-- کتابخانه‌های لازم برای کار با تاریخ شمسی (همچنان مورد نیاز هستند) -->
+  <!-- کتابخانه‌های لازم برای کار با تاریخ شمسی -->
   <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jalali-moment/dist/jalali-moment.browser.js"></script>
 
@@ -144,7 +141,7 @@
       fill: var(--accent-blue);
     }
     
-    /* === دکمه جستجو با لودر داخلی === */
+    /* === دکمه جستجو === */
     #searchBtn {
       width: 100%;
       padding: 15px;
@@ -165,38 +162,30 @@
       box-shadow: 0 8px 20px rgba(0, 82, 204, 0.25);
       background-color: var(--primary-blue);
     }
-    #searchBtn:disabled {
-      cursor: wait;
-      background-color: var(--primary-blue);
+    /* استایل دکمه در حالت غیرفعال حذف شد چون کل دکمه مخفی می‌شود */
+    
+    /* 
+      ===================================================
+      *         CSS جدید: نوار پیشرفت خطی (لودر)         *
+      ===================================================
+    */
+    .progress-bar-container {
+        display: none; /* در حالت عادی مخفی است */
+        width: 100%;
+        height: 50px; /* ارتفاع متناسب با فیلد ورودی */
+        background-color: var(--input-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 25px; /* برای حفظ فاصله گذاری فرم */
     }
 
-    #searchBtn .btn-text, #searchBtn .spinner {
-        position: absolute;
-        top: 50%; left: 50%;
-        transition: opacity 0.2s, transform 0.2s;
-    }
-    #searchBtn .btn-text {
-        transform: translate(-50%, -50%);
-    }
-    #searchBtn .spinner {
-        width: 24px; height: 24px;
-        border: 3px solid rgba(255, 255, 255, 0.4);
-        border-top-color: #fff;
-        border-radius: 50%;
-        opacity: 0;
-    }
-    #searchBtn.loading .btn-text {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0);
-    }
-    #searchBtn.loading .spinner {
-        opacity: 1;
-        transform: translate(-50%, -50%);
-        animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin {
-        from { transform: translate(-50%, -50%) rotate(0deg); }
-        to   { transform: translate(-50%, -50%) rotate(360deg); }
+    .progress-bar-fill {
+        height: 100%;
+        width: 0%; /* نقطه شروع انیمیشن */
+        background: linear-gradient(90deg, #87bfff, var(--primary-blue)); /* گرادیانت آبی زیبا */
+        border-radius: 12px;
+        transition: width 2s ease-out; /* انیمیشن نرم و پیشرونده */
     }
     
     /* === پیام خطا === */
@@ -309,14 +298,17 @@
     <h1 id="mainTitle">پیگیری وضعیت تحصیلی</h1>
 
     <form id="loginForm" onsubmit="event.preventDefault(); performSearch();">
-        <div class="input-group">
+        <div class="input-group" id="nationalIdInputGroup">
           <input type="tel" id="searchInput" class="form-input" placeholder=" " maxlength="10" autocomplete="off" />
           <label for="searchInput" class="form-label">کد ملی</label>
           <svg class="form-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20,4H4A2,2,0,0,0,2,6V18a2,2,0,0,0,2,2H20a2,2,0,0,0,2-2V6A2,2,0,0,0,20,4Zm0,14H4V6H20ZM6,8H8v2H6Zm4,0h6v2H10ZM6,12H8v2H6Zm4,0h4v2H10Z"/></svg>
         </div>
+        <!-- عنصر جدید: نوار پیشرفت خطی -->
+        <div id="loadingProgressBar" class="progress-bar-container">
+            <div class="progress-bar-fill"></div>
+        </div>
         <button type="submit" id="searchBtn">
           <span class="btn-text">جستجو</span>
-          <div class="spinner"></div>
         </button>
     </form>
     
@@ -334,14 +326,14 @@
     // هسته اصلی جاوا اسکریپت - بازنویسی شده برای ارتباط با API و کشینگ
     // ==========================================================
 
-    // آدرس وب اپلیکیشن مرکزی شما (مطابق با لینک جدید شما)
+    // آدرس وب اپلیکیشن مرکزی شما
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxJ9B0UsCnPSIGK0VLGHpNIhtLzx8g9lNBddBQ_4iN8Hy3CztsRedXhZ3z86YAr1I-w9w/exec';
 
-    // === آیکون‌ها === (بدون تغییر)
+    // === آیکون‌ها ===
     const checkIconSVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="#28a745"/></svg>`;
     const crossIconSVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z" fill="#dc3545"/></svg>`;
     
-    // === دسترسی به عناصر DOM === (بدون تغییر)
+    // === دسترسی به عناصر DOM ===
     const mainContainer = document.getElementById('mainContainer');
     const mainTitle = document.getElementById('mainTitle');
     const loginForm = document.getElementById('loginForm');
@@ -352,18 +344,19 @@
     const statusChecklist = document.getElementById('statusChecklist');
     const input = document.getElementById('searchInput');
     const btn = document.getElementById('searchBtn');
+    
+    // عناصر جدید برای مدیریت لودینگ
+    const nationalIdInputGroup = document.getElementById('nationalIdInputGroup');
+    const loadingProgressBar = document.getElementById('loadingProgressBar');
+    const progressBarFill = loadingProgressBar.querySelector('.progress-bar-fill');
 
     // === متغیرهای کش داده‌ها ===
-    const CACHE_KEY = 'courseStatusDataCache'; // کلید کش منحصر به فرد برای این سامانه
+    const CACHE_KEY = 'courseStatusDataCache';
     const CACHE_EXPIRATION = 6 * 60 * 60 * 1000; // 6 ساعت
 
-    // === تابع برای مدیریت وضعیت لودینگ دکمه === (بدون تغییر)
-    const setButtonLoading = (isLoading) => {
-        btn.disabled = isLoading;
-        btn.classList.toggle('loading', isLoading);
-    };
-
-    // === تابع برای نمایش پیام خطا === (بدون تغییر)
+    // === تابع مدیریت وضعیت لودینگ حذف شد چون دیگر به آن نیازی نیست ===
+    
+    // === تابع برای نمایش پیام خطا ===
     const showMessage = (message) => {
         errorMsg.textContent = message;
         errorMsg.style.display = 'block';
@@ -392,10 +385,9 @@
     // === تابع جدید برای بارگذاری داده‌ها از API با استفاده از کش ===
     async function fetchCourseStatusData(nationalId) {
         const cachedData = getCache();
-        // اگر داده‌ای برای همین کد ملی در کش موجود و معتبر بود، از کش برگردان
         if (cachedData && cachedData.nationalId === nationalId) {
             console.log('Data retrieved from cache for Course Status.');
-            return cachedData.result; // 'result' حاوی شیء کامل پاسخ API است
+            return cachedData.result;
         }
 
         const url = `${SCRIPT_URL}?action=getCourseStatus&id=${nationalId}`;
@@ -413,7 +405,6 @@
             }
 
             if (result.found) {
-                // ذخیره کل شیء نتیجه API در کش
                 setCache({ nationalId: nationalId, result: result });
                 return result;
             } else {
@@ -426,7 +417,7 @@
         }
     }
 
-    // === تابع اصلی برای جستجو (به روز شده برای استفاده از API) ===
+    // === تابع اصلی برای جستجو (به روز شده با لودر جدید) ===
     async function performSearch() {
         const userInput = input.value.trim();
         
@@ -440,39 +431,55 @@
             return;
         }
 
-        setButtonLoading(true);
+        // --- شروع انیمیشن لودینگ ---
+        // 1. مخفی کردن فیلد ورودی و دکمه
+        nationalIdInputGroup.style.display = 'none';
+        btn.style.display = 'none';
+        
+        // 2. نمایش و شروع انیمیشن نوار پیشرفت
+        loadingProgressBar.style.display = 'block';
+        // ریست کردن انیمیشن برای جستجوهای مجدد
+        progressBarFill.style.transition = 'none';
+        progressBarFill.style.width = '0%';
+        // ترفندی برای اطمینان از اعمال ریست قبل از شروع انیمیشن
+        void progressBarFill.offsetWidth; 
+        // شروع انیمیشن پر شدن
+        progressBarFill.style.transition = 'width 2s ease-out';
+        progressBarFill.style.width = '100%';
 
+        // --- دریافت داده‌ها از سرور ---
         const apiResult = await fetchCourseStatusData(userInput);
 
-        setButtonLoading(false);
+        // --- پایان لودینگ ---
+        // نوار پیشرفت مخفی می‌شود چون یا خطا نمایش داده می‌شود یا نتایج
+        loadingProgressBar.style.display = 'none';
 
         if (!apiResult || !apiResult.found) {
-            // اگر پیام خطایی از قبل نمایش داده نشده باشد (مثلاً از fetchCourseStatusData)
             if (errorMsg.style.display !== 'block') {
                 showMessage("کد ملی وارد شده در سامانه یافت نشد.");
             }
+            // نمایش مجدد فرم برای تلاش دوباره
+            nationalIdInputGroup.style.display = 'block';
+            btn.style.display = 'block';
             return;
         }
         
-        // --- مخفی کردن فرم و عنوان پس از یافتن نتیجه ---
+        // --- مخفی کردن فرم و عنوان پس از یافتن نتیجه (این بخش تغییری نکرده) ---
         mainTitle.style.display = 'none';
         loginForm.style.display = 'none';
 
         // --- نمایش نتایج ---
-        const regInfo = apiResult.registrationInfo; // اطلاعات از شیت ثبت نام
-        const projInfo = apiResult.projectInfo;     // اطلاعات از شیت گواهی و پروژه
+        const regInfo = apiResult.registrationInfo;
+        const projInfo = apiResult.projectInfo;
 
-        // استفاده از عملگر Nullish Coalescing (??) یا OR (||) برای fallback ها
-        // Nullish Coalescing (??) فقط برای null یا undefined کار می‌کند، در حالی که || برای هر مقدار falsy.
-        // در اینجا چون داده‌ها ممکن است خالی (string '') باشند، || مناسب‌تر است.
         const studentName = regInfo?.name || projInfo?.name || 'دانشجوی گرامی';
         const courseName = regInfo?.courseName || projInfo?.courseName || 'نامشخص';
         const courseId = regInfo?.courseId;
-        const startDate = regInfo?.startDate; // این یک رشته شمسی jYYYY/jMM/jDD از Apps Script است
+        const startDate = regInfo?.startDate;
         
         let calculatedEndDate = null;
         let isAfter85Days = false;
-        const driveFolderLink = 'https://drive.google.com/drive/folders/1-pUvCoHflHaLVIcSZJ3nR471I-HEEbn-'; // لینک ثابت
+        const driveFolderLink = 'https://drive.google.com/drive/folders/1-pUvCoHflHaLVIcSZJ3nR471I-HEEbn-';
 
         if (startDate) {
             const startMoment = moment(startDate, 'jYYYY/jMM/jDD');
@@ -482,14 +489,12 @@
                 isAfter85Days = daysPassed >= 85;
             } else {
                 console.warn('Invalid startDate string from API:', startDate);
-                // اگر تاریخ شروع نامعتبر بود، فرض می‌کنیم هنوز دوره شروع نشده یا مشکلی دارد
-                // این باعث می‌شود که دکمه‌ها غیرفعال بمانند تا تاریخ شروع صحیح شود
             }
         }
 
         const projectLink = projInfo?.projectLink;
         const certNumber = projInfo?.certificateNumber;
-        const certDate = projInfo?.certificateDate; // این یک رشته شمسی jYYYY/jMM/jDD از Apps Script است
+        const certDate = projInfo?.certificateDate;
         const certLink = projInfo?.certificateLink;
 
         courseInfo.innerHTML = `
@@ -499,10 +504,8 @@
         `;
 
         let buttonsHTML = '';
-        // دکمه‌ها فقط در صورتی نمایش داده می‌شوند که 85 روز گذشته باشد یا startDate نامعتبر باشد (برای جلوگیری از دسترسی زودهنگام)
-        // اگر startDate نامعتبر باشد، isAfter85Days نیز false خواهد بود.
         if (isAfter85Days) { 
-            if (regInfo) { // اگر اطلاعات ثبت نامی بود، لینک جزوات را نمایش بده
+            if (regInfo) {
                 buttonsHTML += `<a href="${driveFolderLink}" target="_blank" class="lessons-link">مشاهده دروس و جزوات</a>`;
             }
             if (projectLink && projectLink.trim() !== '') {
@@ -512,19 +515,17 @@
                 buttonsHTML += `<a href="${certLink}" target="_blank" class="cert-link">دانلود گواهی</a>`;
             }
         } else {
-            // اگر هنوز 85 روز نگذشته بود یا تاریخ شروع نامعتبر بود
-            if(calculatedEndDate && moment(startDate, 'jYYYY/jMM/jDD').isValid()){ // اگر calculatedEndDate معتبر بود
+            if(calculatedEndDate && moment(startDate, 'jYYYY/jMM/jDD').isValid()){
                 buttonsHTML = `<p class="access-message">دانشجوی گرامی، دسترسی به گواهینامه، پروژه و جزوات پس از تاریخ <strong>${calculatedEndDate}</strong> امکان‌پذیر خواهد بود.</p>`;
-            } else if (startDate) { // اگر startDate وجود داشت ولی نامعتبر بود
+            } else if (startDate) {
                 buttonsHTML = `<p class="access-message">تاریخ شروع دوره شما نامعتبر است. لطفا با پشتیبانی تماس بگیرید.</p>`;
-            } else { // اگر اصلا startDate نبود
+            } else {
                 buttonsHTML = `<p class="access-message">دسترسی به اطلاعات دوره در حال حاضر امکان‌پذیر نیست. لطفا با پشتیبانی تماس بگیرید.</p>`;
             }
         }
         actionButtons.innerHTML = buttonsHTML;
 
-        // تعیین وضعیت‌ها با استفاده از اطلاعات دریافتی
-        const hasRegistered = !!regInfo; // اگر regInfo وجود داشته باشد (یعنی کاربر در شیت ثبت نام هست)
+        const hasRegistered = !!regInfo;
         const hasFinishedCourse = isAfter85Days;
         const hasSentProject = projectLink && projectLink.trim() !== '';
         const hasCertificate = certLink && certLink.trim() !== '';
@@ -539,9 +540,8 @@
             ${certNumber ? `<li><span class="status-label">شماره گواهی</span> <span class="status-value status-info">${certNumber}</span></li>` : ''}
         `;
         
-        // تغییر استایل کانتینر برای نمایش بهتر نتایج (بدون تغییر)
         resultsContainer.style.display = 'block';
-        resultsContainer.style.marginTop = '0'; // حذف فاصله اضافی بالا
+        resultsContainer.style.marginTop = '0';
         resultsContainer.style.paddingTop = '0';
         resultsContainer.style.borderTop = 'none';
         mainContainer.classList.add('results-active');
@@ -554,7 +554,8 @@
 
         if (nationalId) {
             input.value = nationalId;
-            performSearch(); // این تابع اکنون از API و کش استفاده می‌کند
+            // فراخوانی تابع جستجو که اکنون لودر جدید را بلافاصله فعال می‌کند
+            performSearch(); 
         }
     });
 
