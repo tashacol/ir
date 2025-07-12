@@ -28,7 +28,7 @@
     }
     h1 { 
       margin-bottom: 25px; font-size: 1.8rem; text-align: center; color: var(--primary-color); 
-      transition: margin-bottom 0.4s ease; /* انیمیشن برای فاصله */
+      transition: margin-bottom 0.4s ease;
     }
     .step { display: none; }
     .step.active { display: flex; flex-direction: column; gap: 20px; animation: fadeIn 0.5s ease-out; }
@@ -60,14 +60,13 @@
        opacity: 1;
        margin-bottom: 25px;
     }
-    /* مخفی کردن فرم در حالت لودینگ */
     .main-container.loading #step1 > .form-group,
     .main-container.loading #step1 > #checkButton {
         opacity: 0;
         pointer-events: none;
     }
     #step1 > .form-group, #step1 > #checkButton {
-        transition: opacity 0.4s ease; /* انیمیشن نرم برای محو شدن فرم */
+        transition: opacity 0.4s ease;
     }
     /* =================================================== */
 
@@ -92,11 +91,9 @@
     .btn-success { background-color: var(--success-color); color: white; }
     .btn-success:hover:not(:disabled) { background-color: #218838; }
     
-    /* استایل دکمه در حالت غیرفعال برای لودر جدید */
     .btn:disabled { cursor: not-allowed; opacity: 0.7; }
-    #checkButton:disabled { cursor: wait; } /* حالت انتظار برای دکمه بررسی */
+    #checkButton:disabled { cursor: wait; }
     
-    /* لودر قدیمی برای دکمه‌های دیگر حفظ می‌شود */
     .btn .spinner { display: none; }
     .btn.loading .spinner { display: flex; gap: 4px; }
     .btn.loading .btn-text { display: none; }
@@ -123,19 +120,19 @@
 <body>
 
   <div class="main-container" id="mainContainer">
-    <!-- عنصر نوار پیشرفت جدید -->
-    <div class="inline-progress-bar" id="loadingProgressBar"></div>
-
     <!-- مرحله ۱: ورود -->
     <div id="step1" class="step active">
       <h1>درخواست گواهی</h1>
+      
+      <!-- ▼▼▼ ویرایش کلیدی: جایگاه جدید لودر ▼▼▼ -->
+      <div class="inline-progress-bar" id="loadingProgressBar"></div>
+
       <div class="form-group">
         <i class="fas fa-id-card form-icon"></i>
         <input type="tel" id="idcode" class="form-input" placeholder="کد ملی خود را وارد کنید" maxlength="10">
       </div>
       <button class="btn btn-primary" id="checkButton">
         <span class="btn-text">بررسی وضعیت</span>
-        <!-- لودر قدیمی از اینجا حذف شد و با نوار پیشرفت جایگزین گردید -->
       </button>
       <div id="message-box" style="display: none;"></div>
     </div>
@@ -208,13 +205,11 @@
       messageBox.textContent = text;
       messageBox.style.display = 'block';
     }
-    // این تابع برای دکمه‌های دیگر حفظ می‌شود
     function setButtonLoading(isLoading, button) {
       button.disabled = isLoading;
       button.classList.toggle('loading', isLoading);
     }
     
-    // تابع اصلی برای بررسی کد ملی با لودر هوشمند
     async function performCheck(nationalId) {
         messageBox.style.display = 'none';
 
@@ -223,7 +218,6 @@
         }
 
         checkButton.disabled = true;
-        
         loadingProgressBar.style.transition = 'none';
         loadingProgressBar.style.width = '0%';
         void loadingProgressBar.offsetWidth;
@@ -232,42 +226,42 @@
         
         loadingProgressBar.style.transition = 'width 1.5s cubic-bezier(0.22, 0.61, 0.36, 1)';
         loadingProgressBar.style.width = '90%';
-
+        
+        let result;
         try {
             const response = await fetch(SCRIPT_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain' },
                 body: JSON.stringify({ action: 'checkEligibility', nationalId: nationalId })
             });
-            const result = await response.json();
-
-            loadingProgressBar.style.transition = 'width 0.4s ease-out';
-            loadingProgressBar.style.width = '100%';
-
-            setTimeout(() => {
-                mainContainer.classList.remove('loading');
-                if (result.success) {
-                    currentUserData = result.userData; 
-                    if (result.pdfExists) {
-                        setupFinalStep(result.pdfUrl);
-                    } else if (result.eligible) {
-                        infoName.textContent = currentUserData.name;
-                        infoCourse.textContent = currentUserData.courseName;
-                        showStep('step2');
-                    }
-                } else {
-                    throw new Error(result.error || 'خطای نامشخصی رخ داد.');
-                }
-            }, 500); // تاخیر برای نمایش کامل شدن لودر
-
+            result = await response.json();
         } catch (error) {
-            loadingProgressBar.style.width = '100%'; // در صورت خطا هم لودر کامل شود
-            setTimeout(() => {
-                showMessage(error.message);
-                mainContainer.classList.remove('loading');
-                checkButton.disabled = false;
-            }, 500);
+            result = { success: false, error: 'خطا در ارتباط با سرور. لطفا اتصال اینترنت خود را بررسی کنید.' };
         }
+
+        loadingProgressBar.style.transition = 'width 0.4s ease-out';
+        loadingProgressBar.style.width = '100%';
+
+        setTimeout(() => {
+            mainContainer.classList.remove('loading');
+
+            // ▼▼▼ ویرایش کلیدی: منطق جدید برای مدیریت پاسخ ▼▼▼
+            if (result.success) {
+                currentUserData = result.userData; 
+                if (result.pdfExists) {
+                    setupFinalStep(result.pdfUrl);
+                } else if (result.eligible) {
+                    infoName.textContent = currentUserData.name;
+                    infoCourse.textContent = currentUserData.courseName;
+                    showStep('step2');
+                }
+                // اگر success باشد ولی هیچکدام از شروط بالا نباشد، اتفاقی نمی‌افتد (این حالت نباید رخ دهد)
+            } else {
+                // در هر حالتی که success نباشد (شامل خطاهای سرور و واجد شرایط نبودن)
+                showMessage(result.error || 'خطای نامشخصی رخ داد.');
+                checkButton.disabled = false; // فعال کردن دکمه برای تلاش مجدد
+            }
+        }, 500);
     }
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -275,7 +269,6 @@
       const nationalId = urlParams.get('id');
       if (nationalId && /^\d{10}$/.test(nationalId)) {
           idcodeInput.value = nationalId;
-          // فراخوانی مستقیم تابع برای جلوگیری از نمایش فرم
           performCheck(nationalId);
       }
     });
