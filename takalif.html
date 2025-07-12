@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>سیستم ارسال تکالیف</title>
-  <!-- کتابخانه آیکون Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <style>
     :root {
@@ -48,7 +47,6 @@
     .terms-grid { display: none; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; }
     .term-box {
       background: var(--card-bg); border-radius: var(--border-radius); box-shadow: var(--shadow);
-      /* ویرایش شده: حاشیه واضح‌تر */
       border: 1px solid #dee2e6;
       display: flex; flex-direction: column; overflow: hidden;
       transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -73,6 +71,28 @@
     .term-btn:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.1); }
     .loader { border: 5px solid #f3f3f3; border-top: 5px solid var(--primary-color); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 40px auto; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    
+    /* ویرایش شده: استایل لودر خطی جدید */
+    .linear-loader {
+        height: 8px;
+        width: 100%;
+        max-width: 450px;
+        margin: 0 auto 2.5rem auto;
+        background-color: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .linear-loader-bar {
+        height: 100%;
+        width: 0;
+        background-color: var(--primary-color);
+        animation: fill-bar 2.5s ease-out forwards;
+    }
+    @keyframes fill-bar {
+        from { width: 0%; }
+        to { width: 100%; }
+    }
+
     .overlay { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(4px); animation: fadeIn 0.3s ease; }
     .overlay.active { display: flex; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -84,9 +104,7 @@
     #submissionModal textarea {
       width: 100%; min-height: 200px; padding: 15px; border: 1px solid #ced4da;
       border-radius: 8px; transition: all 0.3s; resize: vertical; font-size: 1rem;
-      font-family: var(--font-family);
-      /* ویرایش شده: جلوگیری از سرریز شدن */
-      box-sizing: border-box;
+      font-family: var(--font-family); box-sizing: border-box;
     }
     #submissionModal textarea:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.2); outline: none; }
     .word-count { font-size: 0.9rem; color: #6c757d; text-align: left; margin-top: 8px; }
@@ -105,10 +123,20 @@
   <div class="container">
     <h2 class="main-header"><i class="fas fa-tasks"></i>سیستم ارسال تکالیف</h2>
     <div class="ai-warning"><i class="fas fa-exclamation-triangle"></i> هرگونه تقلب شرعا حرام بوده و این سیستم مجهز به هوش مصنوعی است و در صورتیکه جواب از هوش مصنوعی اخذ شده باشد توسط سیستم تشخیص داده شده و رد می‌شود.</div>
-    <div class="input-group">
-      <input type="text" id="nationalCodeInput" placeholder="کد ملی خود را وارد کنید..." />
-      <button id="checkBtn" onclick="fetchData()"><i class="fas fa-search"></i></button>
+    
+    <!-- ویرایش شده: یک ID به این بخش اضافه شده است -->
+    <div id="nationalCodeSection">
+      <div class="input-group">
+        <input type="text" id="nationalCodeInput" placeholder="کد ملی خود را وارد کنید..." />
+        <button id="checkBtn" onclick="fetchData()"><i class="fas fa-search"></i></button>
+      </div>
     </div>
+    
+    <!-- ویرایش شده: لودر خطی جدید اضافه شده و مخفی است -->
+    <div id="linearLoader" class="linear-loader" style="display: none;">
+      <div class="linear-loader-bar"></div>
+    </div>
+    
     <div id="loader" class="loader" style="display: none;"></div>
     <div id="userInfo" style="display: none;"><h3 id="userName" class="user-welcome"></h3></div>
     <div id="termsGrid" class="terms-grid"></div>
@@ -129,7 +157,6 @@
       </div>
       <div class="popup-footer">
         <button type="button" class="cancel-btn" onclick="closeSubmissionModal()">انصراف</button>
-        <!-- ویرایش شده: یک آیدی برای دسترسی آسان به دکمه ارسال اضافه شده است -->
         <button type="submit" form="submissionForm" id="submitBtn" class="confirm-btn">ارسال تکلیف</button>
       </div>
     </div>
@@ -165,7 +192,25 @@
     const submissionModalOverlay = document.getElementById('submissionModalOverlay');
     const reasonModalOverlay = document.getElementById('reasonModalOverlay');
     const messageModalOverlay = document.getElementById('messageModalOverlay');
+    
+    // ویرایش شده: دسترسی به عناصر جدید
+    const nationalCodeSection = document.getElementById('nationalCodeSection');
+    const linearLoader = document.getElementById('linearLoader');
+    
     let userData = {};
+
+    // ویرایش شده: تابع جدید برای اجرا شدن در ابتدای بارگذاری صفحه
+    document.addEventListener('DOMContentLoaded', () => {
+        const params = new URLSearchParams(window.location.search);
+        const nationalCodeFromId = params.get('id');
+        
+        if (nationalCodeFromId && /^\d{10}$/.test(nationalCodeFromId)) {
+            // اگر ID معتبر در URL بود
+            nationalCodeSection.style.display = 'none'; // مخفی کردن فیلد ورودی
+            linearLoader.style.display = 'block'; // نمایش لودر خطی
+            fetchData(nationalCodeFromId); // شروع خودکار بررسی
+        }
+    });
 
     answerTextarea.addEventListener('input', () => {
       const text = answerTextarea.value.trim();
@@ -196,12 +241,20 @@
     }
     function closeMessageModal() { messageModalOverlay.classList.remove('active'); }
 
-    async function fetchData() {
-      const nationalCode = nationalCodeInput.value.trim();
-      if (!/^\d{10}$/.test(nationalCode)) { return showMessageModal("خطا", "لطفاً یک کد ملی معتبر ۱۰ رقمی وارد کنید."); }
-      loader.style.display = 'block';
-      termsGrid.style.display = 'none';
-      userInfo.style.display = 'none';
+    // ویرایش شده: تابع fetchData اکنون کد ملی را به عنوان پارامتر می‌پذیرد
+    async function fetchData(nationalCodeFromUrl = null) {
+      const nationalCode = nationalCodeFromUrl || nationalCodeInput.value.trim();
+      
+      if (!/^\d{10}$/.test(nationalCode)) {
+        return showMessageModal("خطا", "کد ملی ارائه شده معتبر نیست.");
+      }
+      
+      // فقط لودر دایره‌ای را برای جستجوی دستی نمایش بده
+      if (!nationalCodeFromUrl) {
+          loader.style.display = 'block';
+          termsGrid.style.display = 'none';
+          userInfo.style.display = 'none';
+      }
 
       if (WEB_APP_URL.includes("YOUR_NEW_GOOGLE")) { return handleError({ message: "آدرس وب اپلیکیشن در کد HTML تنظیم نشده است." }); }
 
@@ -218,8 +271,18 @@
     }
 
     function displayData(data) {
+      // مخفی کردن هر دو لودر
       loader.style.display = 'none';
-      if (data.error) { return showMessageModal("خطا", data.error); }
+      linearLoader.style.display = 'none';
+
+      if (data.error) {
+        // اگر خطا بود و کاربر با ID وارد شده بود، فیلد را نمایش بده تا بتواند دستی امتحان کند
+        nationalCodeSection.style.display = 'flex';
+        return showMessageModal("خطا", data.error);
+      }
+      
+      // ویرایش شده: مخفی کردن دائمی فیلد ورودی پس از موفقیت
+      nationalCodeSection.style.display = 'none';
 
       userData = data;
       userNameEl.innerHTML = `<i class="fas fa-user-check"></i> خوش آمدید، ${data.name}!`;
@@ -269,13 +332,12 @@
       const words = answer.split(/\s+/).filter(word => word.length > 0);
       if (words.length < 200 || words.length > 1500) { return showMessageModal("خطا", "تعداد کلمات پاسخ شما باید بین ۲۰۰ تا ۱۵۰۰ کلمه باشد."); }
       
-      // ویرایش شده: منطق لودینگ جدید روی دکمه
       const submitBtn = document.getElementById('submitBtn');
       const originalBtnHTML = submitBtn.innerHTML;
       submitBtn.disabled = true;
       submitBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> در حال ارسال...`;
 
-      const formData = { name: userData.name, nationalCode: nationalCodeInput.value, term, answer };
+      const formData = { name: userData.name, nationalCode: nationalCodeInput.value || new URLSearchParams(window.location.search).get('id'), term, answer };
       try {
         const response = await fetch(WEB_APP_URL, {
           method: 'POST',
@@ -285,14 +347,12 @@
         if (!response.ok) throw new Error(`خطای شبکه (کد: ${response.status})`);
         const result = await response.json();
         
-        // ویرایش شده: بستن مودال فقط پس از موفقیت
         closeSubmissionModal();
         handleSubmitSuccess(result);
 
       } catch (error) {
         handleError(error);
       } finally {
-        // ویرایش شده: بازگرداندن دکمه به حالت اولیه در هر صورت
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalBtnHTML;
       }
@@ -300,10 +360,11 @@
 
     function handleSubmitSuccess(response) {
       showMessageModal(response.success ? "موفقیت" : "توجه", response.message || "پاسخ نامشخص از سرور.");
-      fetchData();
+      fetchData(userData.nationalCode || new URLSearchParams(window.location.search).get('id'));
     }
     function handleError(error) {
-      // لودر عمومی دیگر اینجا نیست، چون لودینگ روی دکمه است
+      linearLoader.style.display = 'none';
+      loader.style.display = 'none';
       showMessageModal("خطای اتصال", 'خطا در ارتباط با سرور: ' + error.message);
     }
     function renderMarkdown(text) {
