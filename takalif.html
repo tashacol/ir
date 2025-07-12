@@ -88,6 +88,7 @@
     @keyframes slideIn { from { transform: translateY(-30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     .popup-header { font-size: 1.5rem; font-weight: 600; padding: 20px 25px; background-color: var(--light-color); border-bottom: 1px solid #dee2e6; }
     .popup-body { padding: 25px; max-height: 65vh; overflow-y: auto; }
+    .popup-body p, .popup-body div { white-space: pre-wrap; line-height: 1.8; }
     .popup-body strong { color: var(--primary-color); }
     #submissionModal textarea {
       width: 100%; min-height: 200px; padding: 15px; border: 1px solid #ced4da;
@@ -101,7 +102,6 @@
     .popup-footer button { padding: 10px 25px; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: all 0.2s; }
     .popup-footer .confirm-btn { background-color: var(--primary-color); color: white; border: none; }
     .popup-footer .cancel-btn { background-color: #e9ecef; color: var(--dark-color); border: 1px solid #dee2e6; }
-    #reasonModalContent { white-space: pre-wrap; line-height: 1.8; }
     #reasonModalContent strong { color: var(--danger-color); }
     #reasonModalContent ul { padding-right: 20px; }
   </style>
@@ -156,6 +156,19 @@
     </div>
   </div>
 
+  <!-- ▼▼▼ ویرایش کلیدی: مودال جدید برای نمایش تکلیف تایید شده ▼▼▼ -->
+  <div id="approvedSubmissionModalOverlay" class="overlay">
+    <div id="approvedSubmissionModal" class="popup-base">
+      <div class="popup-header"><i class="fas fa-check-circle"></i> متن تکلیف تایید شده</div>
+      <div class="popup-body">
+        <p id="approvedSubmissionContent"></p>
+      </div>
+      <div class="popup-footer">
+        <button type="button" class="confirm-btn" onclick="closeApprovedSubmissionModal()">بستن</button>
+      </div>
+    </div>
+  </div>
+
   <div id="messageModalOverlay" class="overlay">
     <div id="messageModal" class="popup-base">
       <div id="messageModalHeader" class="popup-header"></div>
@@ -180,6 +193,8 @@
     const messageModalOverlay = document.getElementById('messageModalOverlay');
     const nationalCodeSection = document.getElementById('nationalCodeSection');
     const linearLoader = document.getElementById('linearLoader');
+    // ▼▼▼ ویرایش کلیدی: دسترسی به مودال جدید ▼▼▼
+    const approvedSubmissionModalOverlay = document.getElementById('approvedSubmissionModalOverlay');
     
     let userData = {};
     let currentNationalCode = '';
@@ -223,6 +238,14 @@
       messageModalOverlay.classList.add('active');
     }
     function closeMessageModal() { messageModalOverlay.classList.remove('active'); }
+
+    // ▼▼▼ ویرایش کلیدی: تابع جدید برای نمایش و بستن مودال تکلیف تایید شده ▼▼▼
+    function showApprovedSubmissionModal(term) {
+      const answer = userData.submissions[term]?.answer || 'متن تکلیفی یافت نشد.';
+      document.getElementById('approvedSubmissionContent').textContent = answer;
+      approvedSubmissionModalOverlay.classList.add('active');
+    }
+    function closeApprovedSubmissionModal() { approvedSubmissionModalOverlay.classList.remove('active'); }
 
     async function fetchData(nationalCodeFromUrl = null) {
       const nationalCode = nationalCodeFromUrl || nationalCodeInput.value.trim();
@@ -284,9 +307,12 @@
             const canSubmit = prevTermApproved;
 
             if (submission) {
+                // ▼▼▼ ویرایش کلیدی: منطق نمایش دکمه‌ها برای وضعیت‌های مختلف ▼▼▼
                 if (submission.status == 5) {
                     statusIcon = 'fa-check-circle'; statusText = 'تأیید شده'; statusClass = 'status-approved';
+                    // دکمه غیرفعال تایید شده و دکمه جدید برای مشاهده
                     buttonsHTML = `<button class="term-btn" disabled><i class="fas fa-check"></i> تأیید شده</button>`;
+                    buttonsHTML += `<button class="term-btn btn-reason" style="margin-top: 10px;" onclick="showApprovedSubmissionModal(${term})"><i class="fas fa-eye"></i> مشاهده تکلیف</button>`;
                 } else if (submission.status == 0) {
                     statusIcon = 'fa-times-circle'; statusText = 'تأیید نشده'; statusClass = 'status-rejected';
                     buttonsHTML = `<button class="term-btn btn-edit" onclick="showSubmissionModal(${term})"><i class="fas fa-pencil-alt"></i> ویرایش تکلیف</button>`;
@@ -375,10 +401,13 @@
       if (html.includes('<li>')) { html = '<ul>' + html.replace(/<\/li>\s*<li>/g, '</li><li>') + '</ul>'; }
       return html.replace(/\n/g, '<br>');
     }
+
+    // ▼▼▼ ویرایش کلیدی: افزودن مودال جدید به کنترلر کلیک صفحه ▼▼▼
     window.onclick = (event) => {
       if (event.target == submissionModalOverlay) closeSubmissionModal();
       if (event.target == reasonModalOverlay) closeReasonModal();
       if (event.target == messageModalOverlay) closeMessageModal();
+      if (event.target == approvedSubmissionModalOverlay) closeApprovedSubmissionModal();
     }
     nationalCodeInput.addEventListener('keyup', (event) => { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('checkBtn').click(); } });
   </script>
