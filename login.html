@@ -214,7 +214,6 @@
         .btn-guidance i { margin-left: 5px; }
         .modal-loader { width: 30px; height: 30px; border: 3px solid var(--border-color); border-top-color: var(--primary-color); border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto; }
         .download-accordion-header { display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; margin-top: 20px; text-align: right; }
-        .download-accordion-header span { font-weight: 700; }
         .download-toggle-icon { transition: transform var(--transition-speed); }
         .download-accordion-content { background: #f9fafb; border-radius: 0 0 8px 8px; border: 1px solid var(--border-color); border-top: none; max-height: 0; overflow: hidden; transition: all 0.4s ease-out; padding-top: 0; padding-bottom: 0; }
         .download-accordion-content.open { max-height: 200px; padding-top: 20px; padding-bottom: 20px; }
@@ -412,7 +411,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // آدرس وب اپلیکیشن مرکزی شما (بدون تغییر)
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyJNMHOsoDG0YpYsxA28lBtHUrp0wSCEARbnd5qFneyMJy_9-570XKN64GCPd8EiPG1AA/exec';
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz3vh-To-mN5uESq-2E_S5_jrF2ap4XCseY_zJecJgJuAloPF9UNDZcYWDuaP9KP2LLNw/exec';
 
     let currentUser = null;
     let courseData = {};
@@ -426,17 +425,8 @@ document.addEventListener('DOMContentLoaded', function() {
         1: 'شناخت نوجوانی', 2: 'کلیات تربیت', 3: 'تربیت جنسی', 4: 'تربیت دینی',
         5: 'راهنمایی نوجوان', 6: 'مهارتهای زندگی ۱', 7: 'مهارت‌های زندگی ۲', 8: 'تکنیک‌ها'
     };
-    const videoLinks = {
-        1: 'https://uploadkon.ir/uploads/857529_25تست.mp4', 2: 'https://uploadkon.ir/uploads/857529_25تست.mp4',
-        3: 'https://uploadkon.ir/uploads/857529_25تست.mp4', 4: 'https://uploadkon.ir/uploads/857529_25تست.mp4',
-        5: 'https://uploadkon.ir/uploads/857529_25تست.mp4', 6: 'https://uploadkon.ir/uploads/857529_25تست.mp4',
-        7: 'https://uploadkon.ir/uploads/857529_25تست.mp4', 8: 'https://uploadkon.ir/uploads/857529_25تست.mp4'
-    };
-    const pdfLinks = {
-        1: 'https://uploadkon.ir/uploads/ce7929_25سوابق-موسسه.pdf', 2: 'https://drive.google.com/file/d/1jvGWk_6ZugxbclXJad9B39qgobWaY4B6',
-        3: 'https://drive.google.com/file/d/1joBvMQzV2qV3Sz-rsIGhjw1wY93xg8Yz', 4: 'https://drive.google.com/file/d/1k6_5QmpVPxb0FWDpOfUPxUHujBzn_ML5',
-        5: 'https://drive.google.com/file/d/1k0KFs3GEScdDsJ-EwipdhaIsV1peIgI4', 6: 'https://drive.google.com/file/d/1kAtuiyD7pbkYsMFkvaoguFPOiefQdEFr'
-    };
+
+    // [حذف شده] اشیاء videoLinks و pdfLinks از اینجا حذف شدند.
 
     const DOM = {
         loginContainer: document.getElementById('login-container'),
@@ -460,6 +450,7 @@ document.addEventListener('DOMContentLoaded', function() {
         homeworkModalTitle: document.getElementById('homework-modal-title'),
     };
 
+    // [ویرایش شده] داده‌های مربوط به لینک‌ها به حافظه پنهان اضافه می‌شود.
     function setCache(data) {
         const cachePayload = { timestamp: new Date().getTime(), data: data };
         localStorage.setItem(CACHE_KEY, JSON.stringify(cachePayload));
@@ -507,14 +498,32 @@ document.addEventListener('DOMContentLoaded', function() {
     window.closeModal = (id) => {
         document.getElementById(id).style.display = 'none';
         if (id === 'homeworkModal') { resetHomeworkModal(); }
-        if (id === 'videoModal') { DOM.termVideo.pause(); DOM.termVideo.currentTime = 0; }
+        if (id === 'videoModal') { DOM.termVideo.pause(); DOM.termVideo.currentTime = 0; DOM.termVideo.src = ''; }
     };
+    
+    // [ویرایش شده] این تابع اکنون لینک ویدیو را از courseData می‌خواند.
     window.openVideoModal = (term) => {
-        const url = videoLinks[term];
+        const url = courseData.contentLinks.videos[term - 1]; // آرایه‌ها از 0 شروع می‌شوند.
         const title = termTitles[term] || `ترم ${term}`;
-        if(url) { DOM.videoTitle.innerText = `ویدیوی آموزشی: ${title}`; DOM.termVideo.src = url; openModal('videoModal'); }
+        if(url) { 
+            DOM.videoTitle.innerText = `ویدیوی آموزشی: ${title}`; 
+            DOM.termVideo.src = url; 
+            openModal('videoModal'); 
+        } else {
+            alert('لینک ویدیوی این ترم هنوز بارگذاری نشده است.');
+        }
     };
-    window.openPdfModal = (term) => { if (pdfLinks[term]) window.open(pdfLinks[term], '_blank'); };
+    
+    // [ویرایش شده] این تابع اکنون لینک جزوه را از courseData می‌خواند.
+    window.openPdfModal = (term) => {
+        const url = courseData.contentLinks.pdfs[term - 1]; // آرایه‌ها از 0 شروع می‌شوند.
+        if (url) {
+            window.open(url, '_blank');
+        } else {
+            alert('لینک جزوه این ترم هنوز بارگذاری نشده است.');
+        }
+    };
+
     window.openCertificateModal = () => {
         const linkBtn = document.getElementById('certificateLinkBtn');
         if (linkBtn && currentUser && currentUser.nationalId) { linkBtn.href = `https://tashacol.github.io/ir/emza.html?id=${currentUser.nationalId}`; }
@@ -550,8 +559,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
-    window.tryOpenMeet = function () {
-        const meetLink = 'https://meet.google.com/mmk-bzmn-rsi';
+    // [ویرایش شده] این تابع اکنون لینک کلاس را به عنوان ورودی دریافت می‌کند.
+    window.tryOpenMeet = function (meetLink) {
+        if (!meetLink) {
+            alert('لینک کلاس آنلاین هنوز مشخص نشده است. لطفاً بعداً تلاش کنید.');
+            return;
+        }
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         if (isMobile) {
             window.open(meetLink, '_blank');
@@ -566,39 +579,43 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
+    // [ویرایش شده] این تابع برای ساخت تایم‌لاین، از لینک‌های دریافتی از سرور استفاده می‌کند.
     function renderCourseTimeline() {
         let timelineHTML = '';
         let termCounter = 1;
         const now = new Date();
         const onlineClasses = {
-            5: { title: 'چالش‌های نوجوان', guest: 'روانشناس بالینی متخصص در حوزه کودک و نوجوان', topic: 'چالش‌های رفتاری نوجوانان در دنیای امروز' },
-            8: { title: 'تربیت جنسی', guest: 'مشاور خانواده و متخصص روابط عاطفی', topic: 'تربیت جنسی و مدیریت روابط عاطفی نوجوان' },
-            11: { title: 'مهارت‌های زندگی', guest: 'مشاور تربیتی و متخصص مهارت‌های زندگی', topic: null }
+            5: { title: 'چالش‌های نوجوان', guest: 'روانشناس بالینی متخصص در حوزه کودک و نوجوان', topic: 'چالش‌های رفتاری نوجوانان در دنیای امروز', linkIndex: 0 },
+            8: { title: 'تربیت جنسی', guest: 'مشاور خانواده و متخصص روابط عاطفی', topic: 'تربیت جنسی و مدیریت روابط عاطفی نوجوان', linkIndex: 1 },
+            11: { title: 'مهارت‌های زندگی', guest: 'مشاور تربیتی و متخصص مهارت‌های زندگی', topic: null, linkIndex: 2 }
         };
         for (let i = 0; i < 12; i++) {
             const weekStart = new Date(courseData.startDate.getTime() + i * 7 * 24 * 60 * 60 * 1000);
             const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
             const isLocked = now < weekStart;
             const isCurrent = now >= weekStart && now < weekEnd;
-            const isOnlineClassWeek = onlineClasses.hasOwnProperty(i);
+            const isOnlineClassWeek = onlineClasses.hasOwnProperty(i + 1); // کلیدها از 1 شروع می شوند (هفته 5، 8، 11)
             const isRestWeek = !isOnlineClassWeek && ((i + 1) % 3 === 0);
             let statusClass = isLocked ? 'locked' : (isCurrent ? 'current' : 'completed');
             if (isOnlineClassWeek) statusClass += ' online-class';
             if (isRestWeek) statusClass += ' rest-week';
             let headerHTML = '', contentHTML = '';
+
             if (isOnlineClassWeek) {
-                const classInfo = onlineClasses[i];
+                const classInfo = onlineClasses[i + 1];
+                const meetLink = courseData.contentLinks.onlineClasses[classInfo.linkIndex] || '';
                 headerHTML = `<div class="accordion-icon"><i class="fas fa-chalkboard-teacher"></i></div><div class="accordion-title"><h3>کلاس آنلاین: ${classInfo.title}</h3><span>شروع از: ${formatDatePersian(weekStart)}</span></div>`;
                 let topicLine = classInfo.topic ? `<p style="margin-top:15px; text-align: right;"><strong>موضوع کلاس:</strong> ${classInfo.topic}</p>` : '';
-                contentHTML = `<div class="accordion-content-inner"><p style="color: var(--danger-color); font-weight: bold; display: flex; align-items: center; gap: 8px; text-align: right;"><i class="fas fa-exclamation-triangle fa-lg"></i><span>شرکت در تمام کلاس‌های آنلاین الزامی است و در صورت عدم شرکت، از دریافت گواهی محروم خواهید گشت.</span></p><p style="color: var(--success-color); font-weight: bold; display: flex; align-items: center; gap: 8px; text-align: right;"><i class="fas fa-info-circle fa-lg"></i><span>زمان و نحوه ورود به کلاس از طریق پیامک و کانال دوره اطلاع رسانی می‌شود</span></p><div style="padding-top: 15px; margin-top: 15px; border-top: 1px solid var(--border-color);"><p style="text-align: right;"><strong>استاد مدعو:</strong> ${classInfo.guest}</p>${topicLine}</div><button class="action-button homework" onclick="tryOpenMeet()"><i class="fas fa-laptop-house"></i> ورود به کلاس</button></div>`;
+                contentHTML = `<div class="accordion-content-inner"><p style="color: var(--danger-color); font-weight: bold; display: flex; align-items: center; gap: 8px; text-align: right;"><i class="fas fa-exclamation-triangle fa-lg"></i><span>شرکت در تمام کلاس‌های آنلاین الزامی است و در صورت عدم شرکت، از دریافت گواهی محروم خواهید گشت.</span></p><p style="color: var(--success-color); font-weight: bold; display: flex; align-items: center; gap: 8px; text-align: right;"><i class="fas fa-info-circle fa-lg"></i><span>زمان و نحوه ورود به کلاس از طریق پیامک و کانال دوره اطلاع رسانی می‌شود</span></p><div style="padding-top: 15px; margin-top: 15px; border-top: 1px solid var(--border-color);"><p style="text-align: right;"><strong>استاد مدعو:</strong> ${classInfo.guest}</p>${topicLine}</div><button class="action-button homework" onclick="tryOpenMeet('${meetLink}')"><i class="fas fa-laptop-house"></i> ورود به کلاس</button></div>`;
             } else if (isRestWeek) {
                 headerHTML = `<div class="accordion-icon"><i class="fas fa-mug-hot"></i></div><div class="accordion-title"><h3>هفته استراحت</h3><span>شروع از: ${formatDatePersian(weekStart)}</span></div>`;
                 contentHTML = `<div class="accordion-content-inner"><p>این هفته برای استراحت و مرور دروس گذشته در نظر گرفته شده است.</p></div>`;
             } else {
                 const termNumber = termCounter;
                 const termTitle = termTitles[termNumber] || '';
+                const pdfLink = courseData.contentLinks.pdfs[termNumber - 1];
                 headerHTML = `<div class="accordion-icon"><i class="fas ${isLocked ? 'fa-lock' : 'fa-book-open'}"></i></div><div class="accordion-title"><h3>ترم ${termNumber}: ${termTitle}</h3><span>شروع از: ${formatDatePersian(weekStart)}</span></div>`;
-                contentHTML = `<div class="accordion-content-inner"><button class="action-button" onclick="openVideoModal(${termNumber})"><i class="fas fa-video"></i> مشاهده ویدیو</button>${pdfLinks[termNumber] ? `<button class="action-button" onclick="openPdfModal(${termNumber})"><i class="fas fa-file-pdf"></i> مشاهده جزوه</button>` : ''}<button class="action-button homework" onclick="redirectToHomeworkSystem()"><i class="fas fa-paper-plane"></i> ارسال تکلیف</button></div>`;
+                contentHTML = `<div class="accordion-content-inner"><button class="action-button" onclick="openVideoModal(${termNumber})"><i class="fas fa-video"></i> مشاهده ویدیو</button>${pdfLink ? `<button class="action-button" onclick="openPdfModal(${termNumber})"><i class="fas fa-file-pdf"></i> مشاهده جزوه</button>` : ''}<button class="action-button homework" onclick="redirectToHomeworkSystem()"><i class="fas fa-paper-plane"></i> ارسال تکلیف</button></div>`;
                 termCounter++;
             }
             timelineHTML += `<div class="accordion-item ${statusClass}" data-week="${i + 1}"><div class="accordion-header" ${isLocked ? '' : 'onclick="toggleAccordion(this)"'}>${headerHTML}${!isLocked ? '<i class="fas fa-chevron-down accordion-toggle-icon"></i>' : ''}</div><div class="accordion-content">${contentHTML}</div></div>`;
@@ -704,7 +721,8 @@ document.addEventListener('DOMContentLoaded', function() {
     async function refreshData(nationalId) {
         if (DOM.contentLoader) DOM.contentLoader.style.display = 'block';
         try {
-            const url = `${SCRIPT_URL}?action=getCoursePanel&id=${nationalId}`;
+            // [ویرایش شده] پارامتر action دیگر نیاز نیست.
+            const url = `${SCRIPT_URL}?id=${nationalId}`;
             const response = await fetch(url);
             if (!response.ok) throw new Error('خطای شبکه در ارتباط با سرور.');
             const result = await response.json();
@@ -713,7 +731,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 currentUser = result;
                 courseData.name = result.courseName;
                 courseData.startDate = result.startDate;
-                setCache({ currentUser: currentUser, courseName: courseData.name, startDate: courseData.startDate });
+                courseData.contentLinks = result.contentLinks; // [جدید]
+                setCache({ currentUser, courseName: courseData.name, startDate: courseData.startDate, contentLinks: courseData.contentLinks }); // [ویرایش شده]
                 populateDashboard();
             } else {
                 alert("اطلاعات شما در سیستم یافت نشد. لطفاً مجدداً وارد شوید.");
@@ -734,7 +753,8 @@ document.addEventListener('DOMContentLoaded', function() {
         DOM.verifyButton.classList.add('loading');
         DOM.verifyButton.disabled = true;
         try {
-            const url = `${SCRIPT_URL}?action=getCoursePanel&id=${nationalId}`;
+            // [ویرایش شده] پارامتر action دیگر نیاز نیست.
+            const url = `${SCRIPT_URL}?id=${nationalId}`;
             const response = await fetch(url);
             if (!response.ok) throw new Error('خطای شبکه در ارتباط با سرور.');
             const result = await response.json();
@@ -746,8 +766,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 currentUser = result;
                 courseData.name = result.courseName;
                 courseData.startDate = result.startDate;
+                courseData.contentLinks = result.contentLinks; // [جدید]
                 localStorage.setItem(LOGGED_IN_USER_KEY, nationalId);
-                setCache({ currentUser: currentUser, courseName: courseData.name, startDate: courseData.startDate });
+                setCache({ currentUser, courseName: courseData.name, startDate: courseData.startDate, contentLinks: courseData.contentLinks }); // [ویرایش شده]
                 initDashboard();
             } else {
                 alert("کد ملی وارد شده در این دوره ثبت نام نشده است.");
@@ -790,6 +811,15 @@ document.addEventListener('DOMContentLoaded', function() {
             currentUser = cache.data.currentUser;
             courseData.name = cache.data.courseName;
             courseData.startDate = cache.data.startDate;
+            courseData.contentLinks = cache.data.contentLinks; // [جدید]
+            
+            // اطمینان از وجود لینک‌ها قبل از نمایش داشبورد
+            if (!courseData.contentLinks) {
+                console.warn("لینک های محتوا در حافظه پنهان نیست. بارگیری مجدد...");
+                refreshData(loggedInUserNationalId);
+                return;
+            }
+
             populateDashboard();
             if (isExpired) {
                 console.log("حافظه پنهان منقضی شده. در حال بارگیری مجدد داده‌ها در پس‌زمینه...");
