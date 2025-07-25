@@ -1,4 +1,4 @@
-<!DOCTYPE html>  
+ <!DOCTYPE html>  
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -411,7 +411,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // آدرس وب اپلیکیشن مرکزی شما (بدون تغییر)
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz3vh-To-mN5uESq-2E_S5_jrF2ap4XCseY_zJecJgJuAloPF9UNDZcYWDuaP9KP2LLNw/exec';
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyJNMHOsoDG0YpYsxA28lBtHUrp0wSCEARbnd5qFneyMJy_9-570XKN64GCPd8EiPG1AA/exec';
 
     let currentUser = null;
     let courseData = {};
@@ -425,8 +425,6 @@ document.addEventListener('DOMContentLoaded', function() {
         1: 'شناخت نوجوانی', 2: 'کلیات تربیت', 3: 'تربیت جنسی', 4: 'تربیت دینی',
         5: 'راهنمایی نوجوان', 6: 'مهارتهای زندگی ۱', 7: 'مهارت‌های زندگی ۲', 8: 'تکنیک‌ها'
     };
-
-    // [حذف شده] اشیاء videoLinks و pdfLinks از اینجا حذف شدند.
 
     const DOM = {
         loginContainer: document.getElementById('login-container'),
@@ -450,7 +448,6 @@ document.addEventListener('DOMContentLoaded', function() {
         homeworkModalTitle: document.getElementById('homework-modal-title'),
     };
 
-    // [ویرایش شده] داده‌های مربوط به لینک‌ها به حافظه پنهان اضافه می‌شود.
     function setCache(data) {
         const cachePayload = { timestamp: new Date().getTime(), data: data };
         localStorage.setItem(CACHE_KEY, JSON.stringify(cachePayload));
@@ -501,9 +498,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (id === 'videoModal') { DOM.termVideo.pause(); DOM.termVideo.currentTime = 0; DOM.termVideo.src = ''; }
     };
     
-    // [ویرایش شده] این تابع اکنون لینک ویدیو را از courseData می‌خواند.
     window.openVideoModal = (term) => {
-        const url = courseData.contentLinks.videos[term - 1]; // آرایه‌ها از 0 شروع می‌شوند.
+        const url = courseData.contentLinks.videos[term - 1]; 
         const title = termTitles[term] || `ترم ${term}`;
         if(url) { 
             DOM.videoTitle.innerText = `ویدیوی آموزشی: ${title}`; 
@@ -514,9 +510,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
-    // [ویرایش شده] این تابع اکنون لینک جزوه را از courseData می‌خواند.
     window.openPdfModal = (term) => {
-        const url = courseData.contentLinks.pdfs[term - 1]; // آرایه‌ها از 0 شروع می‌شوند.
+        const url = courseData.contentLinks.pdfs[term - 1]; 
         if (url) {
             window.open(url, '_blank');
         } else {
@@ -559,7 +554,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
-    // [ویرایش شده] این تابع اکنون لینک کلاس را به عنوان ورودی دریافت می‌کند.
     window.tryOpenMeet = function (meetLink) {
         if (!meetLink) {
             alert('لینک کلاس آنلاین هنوز مشخص نشده است. لطفاً بعداً تلاش کنید.');
@@ -579,62 +573,72 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // [ویرایش شده] این تابع برای ساخت تایم‌لاین، از لینک‌های دریافتی از سرور استفاده می‌کند.
+    // [تابع تصحیح شده] این تابع اکنون تایم‌لاین را به درستی با ۸ ترم و ۳ کلاس آنلاین ایجاد می‌کند.
     function renderCourseTimeline() {
         let timelineHTML = '';
         let termCounter = 1;
         const now = new Date();
-        const onlineClasses = {
+
+        // تعریف ساختار دوره: هفته‌هایی که کلاس آنلاین هستند
+        const onlineClassWeeks = {
             5: { title: 'چالش‌های نوجوان', guest: 'روانشناس بالینی متخصص در حوزه کودک و نوجوان', topic: 'چالش‌های رفتاری نوجوانان در دنیای امروز', linkIndex: 0 },
             8: { title: 'تربیت جنسی', guest: 'مشاور خانواده و متخصص روابط عاطفی', topic: 'تربیت جنسی و مدیریت روابط عاطفی نوجوان', linkIndex: 1 },
             11: { title: 'مهارت‌های زندگی', guest: 'مشاور تربیتی و متخصص مهارت‌های زندگی', topic: null, linkIndex: 2 }
         };
+        
+        // تعریف ساختار دوره: هفته‌هایی که استراحت هستند
+        const restWeeks = [3, 6, 9]; // هفته‌های ۳، ۶ و ۹ هفته استراحت هستند
+
         for (let i = 0; i < 12; i++) {
+            const weekNumber = i + 1;
             const weekStart = new Date(courseData.startDate.getTime() + i * 7 * 24 * 60 * 60 * 1000);
             const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+            
             const isLocked = now < weekStart;
             const isCurrent = now >= weekStart && now < weekEnd;
-            const isOnlineClassWeek = onlineClasses.hasOwnProperty(i + 1); // کلیدها از 1 شروع می شوند (هفته 5، 8، 11)
-            const isRestWeek = !isOnlineClassWeek && ((i + 1) % 3 === 0);
+            
+            // بررسی نوع هفته بر اساس ساختار تعریف شده
+            const isOnlineClassWeek = onlineClassWeeks.hasOwnProperty(weekNumber);
+            const isRestWeek = !isOnlineClassWeek && restWeeks.includes(weekNumber);
+            const isTermWeek = !isOnlineClassWeek && !isRestWeek;
+
             let statusClass = isLocked ? 'locked' : (isCurrent ? 'current' : 'completed');
             if (isOnlineClassWeek) statusClass += ' online-class';
             if (isRestWeek) statusClass += ' rest-week';
+            
             let headerHTML = '', contentHTML = '';
 
             if (isOnlineClassWeek) {
-                const classInfo = onlineClasses[i + 1];
+                const classInfo = onlineClassWeeks[weekNumber];
                 const meetLink = courseData.contentLinks.onlineClasses[classInfo.linkIndex] || '';
-                headerHTML = `<div class="accordion-icon"><i class="fas fa-chalkboard-teacher"></i></div><div class="accordion-title"><h3>کلاس آنلاین: ${classInfo.title}</h3><span>شروع از: ${formatDatePersian(weekStart)}</span></div>`;
+                headerHTML = `<div class="accordion-icon"><i class="fas fa-chalkboard-teacher"></i></div><div class="accordion-title"><h3>کلاس آنلاین: ${classInfo.title}</h3><span>هفته ${weekNumber} - شروع از: ${formatDatePersian(weekStart)}</span></div>`;
                 let topicLine = classInfo.topic ? `<p style="margin-top:15px; text-align: right;"><strong>موضوع کلاس:</strong> ${classInfo.topic}</p>` : '';
                 contentHTML = `<div class="accordion-content-inner"><p style="color: var(--danger-color); font-weight: bold; display: flex; align-items: center; gap: 8px; text-align: right;"><i class="fas fa-exclamation-triangle fa-lg"></i><span>شرکت در تمام کلاس‌های آنلاین الزامی است و در صورت عدم شرکت، از دریافت گواهی محروم خواهید گشت.</span></p><p style="color: var(--success-color); font-weight: bold; display: flex; align-items: center; gap: 8px; text-align: right;"><i class="fas fa-info-circle fa-lg"></i><span>زمان و نحوه ورود به کلاس از طریق پیامک و کانال دوره اطلاع رسانی می‌شود</span></p><div style="padding-top: 15px; margin-top: 15px; border-top: 1px solid var(--border-color);"><p style="text-align: right;"><strong>استاد مدعو:</strong> ${classInfo.guest}</p>${topicLine}</div><button class="action-button homework" onclick="tryOpenMeet('${meetLink}')"><i class="fas fa-laptop-house"></i> ورود به کلاس</button></div>`;
             } else if (isRestWeek) {
-                headerHTML = `<div class="accordion-icon"><i class="fas fa-mug-hot"></i></div><div class="accordion-title"><h3>هفته استراحت</h3><span>شروع از: ${formatDatePersian(weekStart)}</span></div>`;
+                headerHTML = `<div class="accordion-icon"><i class="fas fa-mug-hot"></i></div><div class="accordion-title"><h3>هفته استراحت</h3><span>هفته ${weekNumber} - شروع از: ${formatDatePersian(weekStart)}</span></div>`;
                 contentHTML = `<div class="accordion-content-inner"><p>این هفته برای استراحت و مرور دروس گذشته در نظر گرفته شده است.</p></div>`;
-            } else {
+            } else if (isTermWeek) {
                 const termNumber = termCounter;
                 const termTitle = termTitles[termNumber] || '';
                 const pdfLink = courseData.contentLinks.pdfs[termNumber - 1];
-                headerHTML = `<div class="accordion-icon"><i class="fas ${isLocked ? 'fa-lock' : 'fa-book-open'}"></i></div><div class="accordion-title"><h3>ترم ${termNumber}: ${termTitle}</h3><span>شروع از: ${formatDatePersian(weekStart)}</span></div>`;
+                headerHTML = `<div class="accordion-icon"><i class="fas ${isLocked ? 'fa-lock' : 'fa-book-open'}"></i></div><div class="accordion-title"><h3>ترم ${termNumber}: ${termTitle}</h3><span>هفته ${weekNumber} - شروع از: ${formatDatePersian(weekStart)}</span></div>`;
                 contentHTML = `<div class="accordion-content-inner"><button class="action-button" onclick="openVideoModal(${termNumber})"><i class="fas fa-video"></i> مشاهده ویدیو</button>${pdfLink ? `<button class="action-button" onclick="openPdfModal(${termNumber})"><i class="fas fa-file-pdf"></i> مشاهده جزوه</button>` : ''}<button class="action-button homework" onclick="redirectToHomeworkSystem()"><i class="fas fa-paper-plane"></i> ارسال تکلیف</button></div>`;
-                termCounter++;
+                termCounter++; // شمارنده ترم فقط برای هفته‌های درسی افزایش می‌یابد
             }
-            timelineHTML += `<div class="accordion-item ${statusClass}" data-week="${i + 1}"><div class="accordion-header" ${isLocked ? '' : 'onclick="toggleAccordion(this)"'}>${headerHTML}${!isLocked ? '<i class="fas fa-chevron-down accordion-toggle-icon"></i>' : ''}</div><div class="accordion-content">${contentHTML}</div></div>`;
+            
+            timelineHTML += `<div class="accordion-item ${statusClass}" data-week="${weekNumber}"><div class="accordion-header" ${isLocked ? '' : 'onclick="toggleAccordion(this)"'}>${headerHTML}${!isLocked ? '<i class="fas fa-chevron-down accordion-toggle-icon"></i>' : ''}</div><div class="accordion-content">${contentHTML}</div></div>`;
         }
         DOM.dynamicContent.innerHTML = `<div class="content-loader-bar" id="contentLoader" style="display: ${DOM.contentLoader.style.display};"></div>` + timelineHTML;
     }
 
-    // [کاملاً بهینه‌شده] تابع باز و بسته کردن آکاردئون
+
     window.toggleAccordion = (header) => {
         const item = header.parentElement;
         const isAlreadyActive = item.classList.contains('active');
-
-        // بستن هر آیتم دیگری که ممکن است باز باشد
         const currentlyActiveItem = document.querySelector('.accordion-item.active');
         if (currentlyActiveItem && currentlyActiveItem !== item) {
             currentlyActiveItem.classList.remove('active');
         }
-
-        // باز یا بسته کردن آیتم کلیک‌شده
         if (!isAlreadyActive) {
             item.classList.add('active');
         } else {
@@ -721,7 +725,6 @@ document.addEventListener('DOMContentLoaded', function() {
     async function refreshData(nationalId) {
         if (DOM.contentLoader) DOM.contentLoader.style.display = 'block';
         try {
-            // [ویرایش شده] پارامتر action دیگر نیاز نیست.
             const url = `${SCRIPT_URL}?id=${nationalId}`;
             const response = await fetch(url);
             if (!response.ok) throw new Error('خطای شبکه در ارتباط با سرور.');
@@ -731,8 +734,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 currentUser = result;
                 courseData.name = result.courseName;
                 courseData.startDate = result.startDate;
-                courseData.contentLinks = result.contentLinks; // [جدید]
-                setCache({ currentUser, courseName: courseData.name, startDate: courseData.startDate, contentLinks: courseData.contentLinks }); // [ویرایش شده]
+                courseData.contentLinks = result.contentLinks; 
+                setCache({ currentUser, courseName: courseData.name, startDate: courseData.startDate, contentLinks: courseData.contentLinks }); 
                 populateDashboard();
             } else {
                 alert("اطلاعات شما در سیستم یافت نشد. لطفاً مجدداً وارد شوید.");
@@ -753,7 +756,6 @@ document.addEventListener('DOMContentLoaded', function() {
         DOM.verifyButton.classList.add('loading');
         DOM.verifyButton.disabled = true;
         try {
-            // [ویرایش شده] پارامتر action دیگر نیاز نیست.
             const url = `${SCRIPT_URL}?id=${nationalId}`;
             const response = await fetch(url);
             if (!response.ok) throw new Error('خطای شبکه در ارتباط با سرور.');
@@ -766,9 +768,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 currentUser = result;
                 courseData.name = result.courseName;
                 courseData.startDate = result.startDate;
-                courseData.contentLinks = result.contentLinks; // [جدید]
+                courseData.contentLinks = result.contentLinks; 
                 localStorage.setItem(LOGGED_IN_USER_KEY, nationalId);
-                setCache({ currentUser, courseName: courseData.name, startDate: courseData.startDate, contentLinks: courseData.contentLinks }); // [ویرایش شده]
+                setCache({ currentUser, courseName: courseData.name, startDate: courseData.startDate, contentLinks: courseData.contentLinks }); 
                 initDashboard();
             } else {
                 alert("کد ملی وارد شده در این دوره ثبت نام نشده است.");
@@ -811,9 +813,8 @@ document.addEventListener('DOMContentLoaded', function() {
             currentUser = cache.data.currentUser;
             courseData.name = cache.data.courseName;
             courseData.startDate = cache.data.startDate;
-            courseData.contentLinks = cache.data.contentLinks; // [جدید]
+            courseData.contentLinks = cache.data.contentLinks; 
             
-            // اطمینان از وجود لینک‌ها قبل از نمایش داشبورد
             if (!courseData.contentLinks) {
                 console.warn("لینک های محتوا در حافظه پنهان نیست. بارگیری مجدد...");
                 refreshData(loggedInUserNationalId);
