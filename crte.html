@@ -61,13 +61,13 @@
         .action-btn { width: 100%; padding: 15px; font-size: 1.1rem; font-weight: bold; background-color: var(--primary-color); color: #fff; border: none; border-radius: 12px; cursor: pointer; transition: box-shadow 0.3s, background-color 0.3s; position: relative; overflow: hidden; min-height: 54px; margin-top: 10px; }
         .action-btn:hover:not(:disabled) { box-shadow: 0 8px 20px rgba(0, 123, 255, 0.25); background-color: var(--primary-hover); }
         .action-btn:disabled { cursor: wait; background-color: var(--primary-hover); opacity: 0.7; }
-        .action-btn .btn-text, .action-btn .spinner { position: absolute; top: 50%; left: 50%; transition: opacity 0.2s, transform 0.2s; }
-        .action-btn .btn-text { transform: translate(-50%, -50%); }
-        .action-btn .spinner { width: 24px; height: 24px; border: 3px solid rgba(255, 255, 255, 0.4); border-top-color: #fff; border-radius: 50%; opacity: 0; transform: translate(-50%, -50%) scale(0); }
-        .action-btn.loading .btn-text { opacity: 0; transform: translate(-50%, -50%) scale(0); }
-        .action-btn.loading .spinner { opacity: 1; transform: translate(-50%, -50%); animation: spin 0.8s linear infinite; }
-        @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+        .action-btn .btn-text, .action-btn .spinner { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); transition: opacity 0.2s; }
+        .action-btn .spinner { opacity: 0; animation: blink 1.5s linear infinite; font-size: 1.5rem; }
+        .action-btn.loading .btn-text { opacity: 0; }
+        .action-btn.loading .spinner { opacity: 1; }
+        @keyframes blink { 50% { opacity: 0; } }
         #statusMessage { text-align: center; padding: 12px; border-radius: 8px; font-weight: 500; display: none; margin-top: 15px; animation: fadeInMsg 0.3s; }
+        #statusMessage.success { background-color: rgba(40, 167, 69, 0.1); color: var(--success-color); }
         #statusMessage.error { background-color: rgba(220, 53, 69, 0.1); color: var(--danger-color); }
         #result { display: none; margin-top: 30px; border-top: 1px solid var(--card-border); padding-top: 30px; }
         #previewBox { width: 100%; padding: 10px; background-color: var(--input-bg); border-radius: 10px; border: 1px solid var(--card-border); }
@@ -96,7 +96,6 @@
         #certificateForPrint .cert-main-paragraph { line-height: 2 !important; }
         #certificateForPrint .cert-signature p, #certificateForPrint .cert-title, #certificateForPrint .cert-centered-text { font-size: 14px; }
         #certificateForPrint .cert-table { font-size: 12px; }
-
         #certificatePreview, #certificatePreview * { font-family: 'Amiri', serif; font-size: clamp(6px, 1.8vw, 12px); line-height: 1.5; }
         #certificatePreview .cert-main-paragraph { line-height: 2 !important; }
 
@@ -125,16 +124,20 @@
 <body>
 
 <div class="container">
-    <h2>تائید سوابق</h2>
-    <form id="loginForm" onsubmit="event.preventDefault(); validateUser();">
+    <h2>صدور گواهی سوابق</h2>
+    <form id="certificateForm">
         <div class="input-group">
             <input type="tel" id="nationalIdInput" class="form-input" placeholder=" " pattern="\d{10}" maxlength="10" required>
             <label for="nationalIdInput" class="form-label">کد ملی</label>
             <svg class="form-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20,4H4A2,2,0,0,0,2,6V18a2,2,0,0,0,2,2H20a2,2,0,0,0,2-2V6A2,2,0,0,0,20,4Zm0,14H4V6H20ZM6,8H8v2H6Zm4,0h6v2H10ZM6,12H8v2H6Zm4,0h4v2H10Z"/></svg>
         </div>
-        <button type="submit" id="loginButton" class="action-btn">
-            <span class="btn-text">ورود</span>
-            <div class="spinner"></div>
+        <div class="input-group">
+            <input type="password" id="verificationCode" class="form-input" inputmode="numeric" pattern="[0-9]*" placeholder=" " required>
+            <label for="verificationCode" class="form-label">کد تائید مدیرعامل</label>
+        </div>
+        <button type="submit" id="generateButton" class="action-btn">
+            <span class="btn-text">صدور و ذخیره گواهی</span>
+            <span class="spinner">...</span>
         </button>
     </form>
     <div id="statusMessage"></div>
@@ -145,8 +148,8 @@
         </div>
         <div id="downloadControls">
             <button id="downloadPdfBtn" class="action-btn">
-                <span class="btn-text">دانلود گواهی PDF</span>
-                <div class="spinner"></div>
+                <span class="btn-text">دانلود مجدد PDF</span>
+                <span class="spinner">...</span>
             </button>
         </div>
     </div>
@@ -166,84 +169,49 @@
 </div>
 
 <script>
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwnRgDE9szrCCmyzjb4IYAlLNAfNX-mnH8fmroye8ziE8Tm27qneou90HhT-QpSHwbl/exec';
+    // URL وب اپلیکیشن جدید خود را در اینجا قرار دهید
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyLEdyHzDL1ymhYk-xbDf3KImXLmIyBfCVhSTN_3qaMo2c7yH_4U4CiWGZVqHHrXi_zzw/exec'; 
     
-    let currentActivityData = null;
     let lastGeneratedPdfBlob = null;
 
-    const CACHE_KEY = 'activityHistoryDataCache';
-    const CACHE_EXPIRATION = 6 * 60 * 60 * 1000;
-
-    const nationalIdInput = document.getElementById("nationalIdInput");
-    const loginButton = document.getElementById("loginButton");
+    // عناصر DOM
+    const certificateForm = document.getElementById("certificateForm");
+    const generateButton = document.getElementById("generateButton");
     const downloadPdfBtn = document.getElementById("downloadPdfBtn");
     const statusMessage = document.getElementById("statusMessage");
     const successModal = document.getElementById("successModal");
     const modalCloseBtn = document.getElementById("modalCloseBtn");
     const resultDiv = document.getElementById("result");
 
+    // توابع کمکی
     const setButtonLoading = (btn, isLoading) => { btn.disabled = isLoading; btn.classList.toggle('loading', isLoading); };
-    const showMessage = (message, type = 'error') => { statusMessage.textContent = message; statusMessage.className = `message ${type}`; statusMessage.style.display = 'block'; };
+    const showMessage = (message, type = 'error') => {
+        statusMessage.textContent = message;
+        statusMessage.className = type;
+        statusMessage.style.display = 'block';
+    };
     const hideMessage = () => { statusMessage.style.display = 'none'; };
-    
-    function setCache(data) {
-        const cachePayload = { timestamp: new Date().getTime(), data: data };
-        localStorage.setItem(CACHE_KEY, JSON.stringify(cachePayload));
-    }
-    function getCache() {
-        const cachedData = localStorage.getItem(CACHE_KEY);
-        if (!cachedData) return null;
-        const cache = JSON.parse(cachedData);
-        const isExpired = (new Date().getTime() - cache.timestamp) > CACHE_EXPIRATION;
-        if (isExpired) {
-            localStorage.removeItem(CACHE_KEY);
-            return null;
-        }
-        return cache.data;
-    }
-
-    async function fetchActivityData(nationalId) {
-        const cachedData = getCache();
-        if (cachedData && cachedData.nationalId === nationalId) {
-            console.log('Activity data retrieved from cache.');
-            return cachedData.result;
-        }
-
-        const url = `${SCRIPT_URL}?action=getActivityHistory&id=${nationalId}`;
-        try {
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`Network response was not ok: ${response.status} ${response.statusText}`);
-            }
-            const result = await response.json();
-
-            if (result.error) {
-                console.error('API Error:', result.message);
-                showMessage(result.message);
-                return null;
-            }
-
-            if (result.found) {
-                setCache({ nationalId: nationalId, result: result });
-                return result;
-            } else {
-                return null;
-            }
-        } catch (err) {
-            console.error('Fetch Error:', err);
-            showMessage('خطا در بارگذاری اطلاعات. اتصال اینترنت را بررسی کنید.');
-            return null;
-        }
-    }
-
 
     function toPersianDigits(input) {
         if (input === null || input === undefined) return '';
         const persianDigits = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
-        return String(input).replace(/\d/g, m => persianDigits[parseInt(m)]);
+        return String(input).replace(/[0-9]/g, m => persianDigits[parseInt(m)]);
     }
 
-    function getCertificateHTML(data, nationalId) {
+    function toEnglishDigits(str) {
+        if (str === null || str === undefined) return '';
+        const persian = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+        const arabic = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+        const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+        let result = String(str);
+        for(let i=0; i<10; i++) {
+            result = result.replace(new RegExp(persian[i], "g"), english[i]).replace(new RegExp(arabic[i], "g"), english[i]);
+        }
+        return result;
+    }
+
+    // تابع ساخت HTML گواهی
+    function getCertificateHTML(data) {
         const userInfo = data.user;
         const activities = data.activities;
 
@@ -252,9 +220,7 @@
         let months = totalActivityMonths % 12;
 
         const now = new Date();
-        // --- این خط طبق دستور شما ویرایش شد ---
         const certificateNumber = `${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}5`;
-        // --- پایان ویرایش ---
         const date = toPersianDigits(now.toLocaleDateString("fa-IR", { year: 'numeric', month: '2-digit', day: '2-digit' }));
         
         let tableRows = '';
@@ -294,93 +260,105 @@
             </div>`;
     }
 
-    async function validateUser() {
+    // تابع اصلی برای اعتبارسنجی و تولید گواهی
+    certificateForm.addEventListener("submit", function(event) {
+        event.preventDefault();
         hideMessage();
-        setButtonLoading(loginButton, true);
+        setButtonLoading(generateButton, true);
 
-        const nationalId = nationalIdInput.value.trim();
-        if (!/^\d{10}$/.test(nationalId)) {
-            showMessage("کد ملی باید ۱۰ رقم و فقط شامل عدد باشد.");
-            setButtonLoading(loginButton, false);
+        const nationalId = document.getElementById("nationalIdInput").value;
+        const verificationCode = document.getElementById("verificationCode").value;
+
+        if (!nationalId || !verificationCode) {
+            showMessage("لطفاً کد ملی و کد تائید را وارد کنید.", 'error');
+            setButtonLoading(generateButton, false);
             return;
         }
 
-        const apiResult = await fetchActivityData(nationalId);
+        const now = new Date();
+        const jalaliDate = now.toLocaleDateString('fa-IR');
+        const certificateNumber = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}5`;
 
-        setTimeout(() => {
-            setButtonLoading(loginButton, false);
-            if (apiResult && apiResult.found && apiResult.activities.length > 0) {
-                currentActivityData = apiResult;
+        const payload = {
+            nationalId: toEnglishDigits(nationalId),
+            verificationCode: toEnglishDigits(verificationCode),
+            issueDate: toEnglishDigits(jalaliDate),
+            certificateNumber: certificateNumber
+        };
+
+        fetch(SCRIPT_URL, {
+            method: 'POST',
+            mode: 'cors',
+            body: JSON.stringify(payload)
+        })
+        .then(response => response.json())
+        .then(res => {
+            if (res.status === 'success') {
+                showMessage("اطلاعات با موفقیت تائید و ذخیره شد. در حال تولید PDF...", 'success');
+                const certificateHTML = getCertificateHTML(res.data);
                 
-                const certificateHTML = getCertificateHTML(currentActivityData, nationalId);
                 document.getElementById('certificatePreview').innerHTML = certificateHTML;
                 document.getElementById('certificateForPrint').innerHTML = certificateHTML;
         
-                document.getElementById("loginForm").style.display = "none";
+                certificateForm.style.display = "none";
                 resultDiv.style.display = "block";
-                lastGeneratedPdfBlob = null;
-                successModal.style.display = 'none';
                 
+                downloadPdf(); // تولید خودکار PDF
             } else {
-                if (statusMessage.style.display !== 'block') {
-                    showMessage("کاربری با این کد ملی یافت نشد یا سوابق فعالیتی ندارد.");
-                }
-                document.getElementById("loginForm").style.display = "block";
-                resultDiv.style.display = "none";
+                showMessage(res.message || 'خطای نامشخص از سرور.', 'error');
+                setButtonLoading(generateButton, false);
             }
-        }, 500);
-    }
-
-    window.addEventListener('DOMContentLoaded', () => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const nationalId = urlParams.get('id');
-        if (nationalId && /^\d{10}$/.test(nationalId)) {
-            nationalIdInput.value = nationalId;
-        }
+        })
+        .catch(error => {
+            showMessage('خطا در ارتباط با سرور. از اتصال اینترنت خود مطمئن شوید.', 'error');
+            console.error('Fetch Error:', error);
+            setButtonLoading(generateButton, false);
+        });
     });
 
-    downloadPdfBtn.addEventListener("click", async function() {
+    function downloadPdf() {
         setButtonLoading(downloadPdfBtn, true);
-
         try {
             const certificateToPrint = document.getElementById("certificateForPrint");
             const { jsPDF } = window.jspdf;
-            const canvas = await html2canvas(certificateToPrint, { scale: 2, useCORS: true });
-            const imgData = canvas.toDataURL("image/jpeg", 0.9);
             
-            const pdf = new jsPDF('portrait', 'mm', 'a4');
-            const pdfWidth = 210;
-            const imgWidth = pdfWidth;
-            const imgHeight = canvas.height * imgWidth / canvas.width;
-            pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
-            
-            lastGeneratedPdfBlob = pdf.output('blob');
-            pdf.save(`سوابق_موسسه_${nationalIdInput.value}.pdf`);
+            html2canvas(certificateToPrint, { scale: 2, useCORS: true }).then(canvas => {
+                const imgData = canvas.toDataURL("image/jpeg", 0.9);
+                const pdf = new jsPDF('portrait', 'mm', 'a4');
+                pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+                
+                lastGeneratedPdfBlob = pdf.output('blob');
+                const nationalId = document.getElementById("nationalIdInput").value;
+                pdf.save(`سوابق_موسسه_${nationalId}.pdf`);
 
-            successModal.style.display = 'flex';
+                successModal.style.display = 'flex';
+                setButtonLoading(downloadPdfBtn, false);
+                setButtonLoading(generateButton, false);
+            });
+
         } catch (error) {
             console.error("خطا در ایجاد گواهی PDF:", error);
-            showMessage("خطا در ایجاد گواهی PDF. لطفا دوباره تلاش کنید.", 'error');
-        } finally {
+            showMessage("خطا در ایجاد گواهی PDF.", 'error');
             setButtonLoading(downloadPdfBtn, false);
+            setButtonLoading(generateButton, false);
         }
-    });
-
-    document.getElementById("viewPdfBtn").addEventListener("click", function(e) { e.preventDefault(); if (lastGeneratedPdfBlob) { window.open(URL.createObjectURL(lastGeneratedPdfBlob), '_blank'); } });
+    }
     
-    document.getElementById("sharePdfBtn").addEventListener("click", async function(e) {
+    downloadPdfBtn.addEventListener("click", downloadPdf);
+
+    document.getElementById("viewPdfBtn").addEventListener("click", (e) => { e.preventDefault(); if (lastGeneratedPdfBlob) window.open(URL.createObjectURL(lastGeneratedPdfBlob)); });
+    
+    document.getElementById("sharePdfBtn").addEventListener("click", async (e) => {
         e.preventDefault();
         if (lastGeneratedPdfBlob) {
-            const file = new File([lastGeneratedPdfBlob], `سوابق_موسسه_${nationalIdInput.value}.pdf`, { type: 'application/pdf' });
+            const nationalId = document.getElementById("nationalIdInput").value;
+            const file = new File([lastGeneratedPdfBlob], `سوابق_موسسه_${nationalId}.pdf`, { type: 'application/pdf' });
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 try { 
                     await navigator.share({ files: [file], title: 'گواهی سوابق فعالیت' }); 
                 }
                 catch (err) { 
-                    if (err.name !== 'AbortError') { 
-                        console.error('Share failed', err); 
-                        alert('امکان اشتراک‌گذاری فایل وجود ندارد.'); 
-                    }
+                    if (err.name !== 'AbortError') console.error('Share failed', err);
                 }
             } else { 
                 alert("مرورگر شما از قابلیت اشتراک گذاری فایل پشتیبانی نمی کند."); 
@@ -389,8 +367,8 @@
     });
 
     modalCloseBtn.addEventListener('click', () => { successModal.style.display = 'none'; });
-    successModal.addEventListener('click', (e) => { if (e.target === successModal) { successModal.style.display = 'none'; } });
+    successModal.addEventListener('click', (e) => { if (e.target === successModal) successModal.style.display = 'none'; });
 
 </script>
 </body>
-</html>
+</html> 
