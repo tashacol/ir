@@ -6,20 +6,16 @@
     <meta name="robots" content="noindex, nofollow">
     <title>گواهی سوابق فعالیت</title>
 
-    <!-- کتابخانه xlsx.full.min.js حذف شد (دیگر نیازی به آن نیست) -->
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script> -->
-    <!-- کتابخانه‌های دیگر مورد نیاز باقی می‌مانند -->
+    <!-- کتابخانه‌های مورد نیاز -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700&display=swap');
-        @font-face {
-            font-family: 'IranNastaliq';
-            src: url('https://tashacol.github.io/ir/IranNastaliq.ttf') format('truetype');
-            font-weight: normal;
-            font-style: normal;
-        }
+        /* فونت Amiri برای نامه اضافه شد */
+        @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
+        
+        /* فونت IranNastaliq حذف شد */
 
         :root {
             --bg-gradient-start: #eef2f3;
@@ -95,19 +91,34 @@
         .cert-title { text-align: center; font-weight: bold; margin-top: 20px; }
         .cert-bold-text { font-weight: bold; }
         .cert-centered-text { margin-top: 10px; }
-        #certificateForPrint, #certificateForPrint * { font-family: 'IranNastaliq'; font-size: 16px; }
-        #certificateForPrint .cert-signature p, #certificateForPrint .cert-title, #certificateForPrint .cert-centered-text { font-size: 14px; }
-        #certificateForPrint .cert-table { font-size: 12px; }
-        #certificatePreview, #certificatePreview * { font-family: 'IranNastaliq'; font-size: clamp(6px, 1.8vw, 12px); }
+        
+        /* === ویرایش فونت نامه به Amiri === */
+        #certificateForPrint, #certificateForPrint * {
+            font-family: 'Amiri', serif; /* جایگزینی فونت */
+            font-size: 16px;
+            line-height: 1.5; /* تنظیم فاصله خطوط مناسب برای امیری */
+        }
+        #certificateForPrint .cert-signature p, #certificateForPrint .cert-title, #certificateForPrint .cert-centered-text {
+            font-size: 14px;
+        }
+        #certificateForPrint .cert-table {
+            font-size: 12px;
+        }
+        #certificatePreview, #certificatePreview * {
+            font-family: 'Amiri', serif; /* جایگزینی فونت */
+            font-size: clamp(6px, 1.8vw, 12px);
+            line-height: 1.5;
+        }
+        /* === پایان ویرایش === */
+
         #downloadControls { margin-top: 20px; text-align: center; }
         
-        /* استایل پاپ‌آپ (Modal) */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0;
             width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.6);
-            display: none; /* در ابتدا مخفی */
+            display: none;
             align-items: center;
             justify-content: center;
             z-index: 1000;
@@ -188,35 +199,26 @@
 </div>
 
 <script>
-    // ==========================================================
-    // هسته اصلی جاوا اسکریپت - بازنویسی شده برای ارتباط با API و کشینگ
-    // ==========================================================
-
-    // آدرس وب اپلیکیشن مرکزی شما (مطابق با لینک جدید شما)
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwnRgDE9szrCCmyzjb4IYAlLNAfNX-mnH8fmroye8ziE8Tm27qneou90HhT-QpSHwbl/exec';
     
-    let currentActivityData = null; // برای ذخیره داده‌های فعالیت کاربر فعلی از API
-    let lastGeneratedPdfBlob = null; // برای ذخیره فایل PDF تولید شده
+    let currentActivityData = null;
+    let lastGeneratedPdfBlob = null;
 
-    // === متغیرهای کش داده‌ها ===
-    const CACHE_KEY = 'activityHistoryDataCache'; // کلید کش منحصر به فرد برای این سامانه
-    const CACHE_EXPIRATION = 6 * 60 * 60 * 1000; // 6 ساعت
+    const CACHE_KEY = 'activityHistoryDataCache';
+    const CACHE_EXPIRATION = 6 * 60 * 60 * 1000;
 
-    // عناصر DOM
     const nationalIdInput = document.getElementById("nationalIdInput");
     const loginButton = document.getElementById("loginButton");
     const downloadPdfBtn = document.getElementById("downloadPdfBtn");
     const statusMessage = document.getElementById("statusMessage");
     const successModal = document.getElementById("successModal");
     const modalCloseBtn = document.getElementById("modalCloseBtn");
-    const resultDiv = document.getElementById("result"); // اضافه شده برای مدیریت نمایش بخش نتایج
+    const resultDiv = document.getElementById("result");
 
-    // توابع کمکی
     const setButtonLoading = (btn, isLoading) => { btn.disabled = isLoading; btn.classList.toggle('loading', isLoading); };
-    const showMessage = (message, type = 'error') => { statusMessage.textContent = message; statusMessage.className = `message ${type}`; statusMessage.style.display = 'block'; }; // اضافه شدن کلاس `message`
+    const showMessage = (message, type = 'error') => { statusMessage.textContent = message; statusMessage.className = `message ${type}`; statusMessage.style.display = 'block'; };
     const hideMessage = () => { statusMessage.style.display = 'none'; };
     
-    // === توابع مدیریت حافظه کش سمت کلاینت ===
     function setCache(data) {
         const cachePayload = { timestamp: new Date().getTime(), data: data };
         localStorage.setItem(CACHE_KEY, JSON.stringify(cachePayload));
@@ -232,15 +234,12 @@
         }
         return cache.data;
     }
-    // در این سامانه نیازی به clearCache نیست چون logout ندارد (همانند استعلام گواهی)
 
-    // تابع جدید برای بارگذاری داده‌ها از API با استفاده از کش
     async function fetchActivityData(nationalId) {
         const cachedData = getCache();
-        // اگر داده‌ای برای همین کد ملی در کش موجود و معتبر بود، از کش برگردان
         if (cachedData && cachedData.nationalId === nationalId) {
             console.log('Activity data retrieved from cache.');
-            return cachedData.result; // 'result' حاوی شیء کامل پاسخ API است
+            return cachedData.result;
         }
 
         const url = `${SCRIPT_URL}?action=getActivityHistory&id=${nationalId}`;
@@ -258,11 +257,10 @@
             }
 
             if (result.found) {
-                // ذخیره کل شیء نتیجه API در کش
                 setCache({ nationalId: nationalId, result: result });
                 return result;
             } else {
-                return null; // کاربر یافت نشد
+                return null;
             }
         } catch (err) {
             console.error('Fetch Error:', err);
@@ -278,19 +276,16 @@
         return String(input).replace(/\d/g, m => persianDigits[parseInt(m)]);
     }
 
-    // تابع ساخت HTML گواهی (ویرایش شده برای استفاده از داده‌های شیء)
     function getCertificateHTML(data, nationalId) {
         const userInfo = data.user;
         const activities = data.activities;
 
-        // محاسبه مجموع مدت فعالیت بر اساس داده‌های دریافتی از API
         let totalActivityMonths = activities.reduce((sum, activity) => sum + (Number(activity.durationMonths) || 0), 0);
         let years = Math.floor(totalActivityMonths / 12);
         let months = totalActivityMonths % 12;
 
         const now = new Date();
         const certificateNumber = `ب/${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}`;
-        // تاریخ حال حاضر به شمسی
         const date = toPersianDigits(now.toLocaleDateString("fa-IR", { year: 'numeric', month: '2-digit', day: '2-digit' }));
         
         let tableRows = '';
@@ -330,18 +325,11 @@
             </div>`;
     }
 
-    // تابع اعتبارسنجی کاربر (بازنویسی شده برای استفاده از API)
     async function validateUser() {
         hideMessage();
         setButtonLoading(loginButton, true);
 
         const nationalId = nationalIdInput.value.trim();
-        // در این سامانه رمز عبور به کد ملی دوم تغییر کرده بود، بنابراین فقط یک فیلد نیاز است
-        // if (!/^\d{10}$/.test(nationalId) || nationalId !== password) {
-        //     showMessage("کد ملی و رمز عبور باید یکسان باشند و ۱۰ رقم عددی.");
-        //     setButtonLoading(loginButton, false);
-        //     return;
-        // }
         if (!/^\d{10}$/.test(nationalId)) {
             showMessage("کد ملی باید ۱۰ رقم و فقط شامل عدد باشد.");
             setButtonLoading(loginButton, false);
@@ -350,51 +338,46 @@
 
         const apiResult = await fetchActivityData(nationalId);
 
-        // تأخیر کوتاه برای تجربه کاربری بهتر (اختیاری)
         setTimeout(() => {
-            setButtonLoading(loginButton, false); // پایان لودینگ دکمه
+            setButtonLoading(loginButton, false);
             if (apiResult && apiResult.found && apiResult.activities.length > 0) {
-                currentActivityData = apiResult; // ذخیره داده‌های کامل فعالیت کاربر
+                currentActivityData = apiResult;
                 
                 const certificateHTML = getCertificateHTML(currentActivityData, nationalId);
                 document.getElementById('certificatePreview').innerHTML = certificateHTML;
-                document.getElementById('certificateForPrint').innerHTML = certificateHTML; // برای چاپ
+                document.getElementById('certificateForPrint').innerHTML = certificateHTML;
         
                 document.getElementById("loginForm").style.display = "none";
-                resultDiv.style.display = "block"; // نمایش بخش نتایج
-                lastGeneratedPdfBlob = null; // ریست PDF قبلی
-                successModal.style.display = 'none'; // بستن پاپ آپ در صورت ورود جدید
+                resultDiv.style.display = "block";
+                lastGeneratedPdfBlob = null;
+                successModal.style.display = 'none';
                 
             } else {
-                // اگر پیام خطایی از fetchActivityData نیامده باشد
                 if (statusMessage.style.display !== 'block') {
                     showMessage("کاربری با این کد ملی یافت نشد یا سوابق فعالیتی ندارد.");
                 }
-                document.getElementById("loginForm").style.display = "block"; // اطمینان از نمایش فرم
-                resultDiv.style.display = "none"; // پنهان کردن بخش نتایج
+                document.getElementById("loginForm").style.display = "block";
+                resultDiv.style.display = "none";
             }
-        }, 500); // افزودن تأخیر 500 میلی‌ثانیه
+        }, 500);
     }
 
-    // رویداد DOMContentLoaded (اگر nationalId از URL بود، فیلد را پر کند)
     window.addEventListener('DOMContentLoaded', () => {
         const urlParams = new URLSearchParams(window.location.search);
         const nationalId = urlParams.get('id');
         if (nationalId && /^\d{10}$/.test(nationalId)) {
             nationalIdInput.value = nationalId;
-            // در این سامانه، اعتبارسنجی خودکار انجام نمی‌شود تا کاربر دکمه را بزند.
         }
     });
 
-    // رویداد دکمه دانلود PDF (بدون تغییر در منطق تولید PDF)
     downloadPdfBtn.addEventListener("click", async function() {
         setButtonLoading(downloadPdfBtn, true);
 
         try {
             const certificateToPrint = document.getElementById("certificateForPrint");
             const { jsPDF } = window.jspdf;
-            const canvas = await html2canvas(certificateToPrint, { scale: 2, useCORS: true }); // کاهش scale به 2
-            const imgData = canvas.toDataURL("image/jpeg", 0.9); // تغییر به JPEG با کیفیت بالا
+            const canvas = await html2canvas(certificateToPrint, { scale: 2, useCORS: true });
+            const imgData = canvas.toDataURL("image/jpeg", 0.9);
             
             const pdf = new jsPDF('portrait', 'mm', 'a4');
             const pdfWidth = 210;
@@ -403,9 +386,9 @@
             pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
             
             lastGeneratedPdfBlob = pdf.output('blob');
-            pdf.save(`سوابق_موسسه_${nationalIdInput.value}.pdf`); // نام فایل با کد ملی
+            pdf.save(`سوابق_موسسه_${nationalIdInput.value}.pdf`);
 
-            successModal.style.display = 'flex'; // نمایش پاپ آپ
+            successModal.style.display = 'flex';
         } catch (error) {
             console.error("خطا در ایجاد گواهی PDF:", error);
             showMessage("خطا در ایجاد گواهی PDF. لطفا دوباره تلاش کنید.", 'error');
@@ -414,7 +397,6 @@
         }
     });
 
-    // رویدادهای مشاهده و اشتراک‌گذاری PDF از پاپ‌آپ (بدون تغییر)
     document.getElementById("viewPdfBtn").addEventListener("click", function(e) { e.preventDefault(); if (lastGeneratedPdfBlob) { window.open(URL.createObjectURL(lastGeneratedPdfBlob), '_blank'); } });
     
     document.getElementById("sharePdfBtn").addEventListener("click", async function(e) {
@@ -437,7 +419,6 @@
         }
     });
 
-    // رویدادهای بستن پاپ آپ (بدون تغییر)
     modalCloseBtn.addEventListener('click', () => { successModal.style.display = 'none'; });
     successModal.addEventListener('click', (e) => { if (e.target === successModal) { successModal.style.display = 'none'; } });
 
