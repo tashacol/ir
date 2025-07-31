@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -64,12 +64,11 @@
         .action-btn { width: 100%; padding: 15px; font-size: 1.1rem; font-weight: bold; background-color: var(--primary-color); color: #fff; border: none; border-radius: 12px; cursor: pointer; transition: box-shadow 0.3s, background-color 0.3s; position: relative; overflow: hidden; min-height: 54px; }
         .action-btn:hover:not(:disabled) { box-shadow: 0 8px 20px rgba(0, 82, 204, 0.25); background-color: var(--primary-hover); }
         .action-btn:disabled { cursor: wait; background-color: var(--primary-hover); }
-        .action-btn .btn-text, .action-btn .spinner { position: absolute; top: 50%; left: 50%; transition: opacity 0.2s, transform 0.2s; }
-        .action-btn .btn-text { transform: translate(-50%, -50%); }
-        .action-btn .spinner { width: 24px; height: 24px; border: 3px solid rgba(255, 255, 255, 0.4); border-top-color: #fff; border-radius: 50%; opacity: 0; transform: translate(-50%, -50%) scale(0); }
-        .action-btn.loading .btn-text { opacity: 0; transform: translate(-50%, -50%) scale(0); }
-        .action-btn.loading .spinner { opacity: 1; transform: translate(-50%, -50%) scale(1); animation: spin 0.8s linear infinite; }
-        @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+        .action-btn .btn-text, .action-btn .spinner { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); transition: opacity 0.2s; }
+        .action-btn .spinner { opacity: 0; }
+        .action-btn.loading .btn-text { opacity: 0; }
+        .action-btn.loading .spinner { opacity: 1; animation: blink 1.5s linear infinite; font-size: 1.5rem; }
+        @keyframes blink { 50% { opacity: 0; } }
         #statusMessage { text-align: center; padding: 12px; border-radius: 8px; font-weight: 500; display: none; margin-top: 15px; animation: fadeInMsg 0.3s; }
         #statusMessage.success { background-color: rgba(0, 135, 90, 0.1); color: var(--success-color); }
         #statusMessage.error { background-color: rgba(222, 53, 11, 0.1); color: var(--danger-color); }
@@ -142,12 +141,12 @@
             <label for="department" class="form-label">نام اداره</label>
         </div>
         <div class="input-group">
-            <input type="password" id="verificationCode" class="form-input" placeholder=" " required>
-            <label for="verificationCode" class="form-label">کد تائید مدیرعامل</label>
+            <input type="tel" id="verificationCode" class="form-input" inputmode="numeric" pattern="[0-9]*" placeholder=" " required>
+            <label for="verificationCode" class="form-label">رمز عبور</label>
         </div>
         <button type="button" id="generateBtn" class="action-btn">
             <span class="btn-text">تولید و ذخیره نامه</span>
-            <div class="spinner"></div>
+            <span class="spinner">...</span>
         </button>
     </form>
     <div id="statusMessage"></div>
@@ -161,7 +160,7 @@
         <div id="downloadControls">
             <button id="downloadBtn" class="action-btn">
                 <span class="btn-text">دانلود مجدد PDF</span>
-                <div class="spinner"></div>
+                <span class="spinner">...</span>
             </button>
         </div>
     </div>
@@ -235,9 +234,6 @@
     }
 
     function getLetterHTML(data) {
-        const displayDate = toPersianDigits(data.issueDate);
-        const displayLetterNumber = toPersianDigits(data.letterNumber);
-
         return `
             <div class="header-right">
                 <p>گروه جهادی طلاب و روحانیون جنوب، تاسیس ۱۳۹۸</p>
@@ -245,8 +241,8 @@
                 <p>شماره تماس: ${toPersianDigits('09135076587')}</p>
             </div>
             <div class="header-left">
-                <p>شماره نامه: ${displayLetterNumber}</p>
-                <p>تاریخ: ${displayDate}</p>
+                <p>شماره نامه: ${toPersianDigits(data.letterNumber)}</p>
+                <p>تاریخ: ${toPersianDigits(data.issueDate)}</p>
             </div>
             <div class="line"></div>
             <div class="content">
@@ -282,12 +278,11 @@
         setButtonLoading(generateBtn, true, "در حال بررسی کد...");
         
         const now = new Date();
-        const issueDateForSheet = `${now.getFullYear()}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getDate().toString().padStart(2, '0')}`;
-        
+        const jalaliDate = now.toLocaleDateString('fa-IR');
         const letterNumberForSheet = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
 
         const payload = {
-            issueDate: issueDateForSheet,
+            issueDate: toEnglishDigits(jalaliDate),
             letterNumber: letterNumberForSheet,
             fullName: formData.fullName,
             nationalID: toEnglishDigits(formData.nationalID),
@@ -310,7 +305,8 @@
                 const durationSelect = document.getElementById('duration');
                 const durationText = durationSelect.options[durationSelect.selectedIndex].text;
                 
-                const displayData = { ...payload, durationText: durationText };
+                // داده‌ها را برای نمایش آماده می‌کنیم (تاریخ شمسی از متغیر بالا می‌آید)
+                const displayData = { ...payload, issueDate: jalaliDate, durationText: durationText };
                 
                 const letterHTML = getLetterHTML(displayData);
                 document.getElementById('letterPreview').innerHTML = letterHTML;
