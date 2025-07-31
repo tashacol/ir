@@ -78,44 +78,10 @@
         #statusMessage { text-align: center; padding: 12px; border-radius: 8px; font-weight: 500; display: none; margin-top: 15px; animation: fadeInMsg 0.3s; background-color: rgba(222, 53, 11, 0.1); color: var(--danger-color); }
         #result { display: none; margin-top: 30px; border-top: 1px solid var(--card-border); padding-top: 30px; }
 
-        /* === استایل پیش‌نمایش (اصلاح شده نهایی) === */
-        #previewBox {
-            width: 100%;
-            padding: 10px;
-            background-color: var(--input-bg);
-            border-radius: 10px;
-            border: 1px solid var(--card-border);
-        }
-
-        #previewWrapper {
-            width: 100%;
-            aspect-ratio: 148 / 210;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden; /* جلوگیری از هرگونه سرریز احتمالی */
-        }
-
-        #letterPreview {
-            width: 148mm;
-            height: 210mm;
-            padding: 10mm;
-            border: 1px solid #000;
-            box-sizing: border-box;
-            background-color: #fff;
-            position: relative; /* لازم برای چیدمان داخلی */
-            transform-origin: center center; /* برای کوچک شدن از مرکز */
-            flex-shrink: 0; /* جلوگیری از فشرده شدن توسط flexbox */
-        }
-
-        /* === استایل‌های مشترک برای محتوای نامه === */
-        #letterPreview *, #letterForPrint * {
-            font-family: 'IranNastaliq';
-            font-size: 14px;
-            line-height: 1.2;
-            margin: 0;
-            box-sizing: border-box;
-        }
+        #previewBox { width: 100%; padding: 10px; background-color: var(--input-bg); border-radius: 10px; border: 1px solid var(--card-border); }
+        #previewWrapper { width: 100%; aspect-ratio: 148 / 210; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        #letterPreview { width: 148mm; height: 210mm; padding: 10mm; border: 1px solid #000; box-sizing: border-box; background-color: #fff; position: relative; transform-origin: center center; flex-shrink: 0; }
+        #letterPreview *, #letterForPrint * { font-family: 'IranNastaliq'; font-size: 14px; line-height: 1.2; margin: 0; box-sizing: border-box; }
         #letterPreview .header-right, #letterForPrint .header-right { position: absolute; top: 10mm; right: 10mm; text-align: right; }
         #letterPreview .header-left, #letterForPrint .header-left { position: absolute; top: 10mm; left: 10mm; text-align: left; }
         #letterPreview .line, #letterForPrint .line { position: absolute; top: 35mm; left: 10mm; width: calc(100% - 20mm); height: 1px; background-color: #000; }
@@ -124,14 +90,7 @@
         #letterPreview .content p.spacing, #letterForPrint .content p.spacing { margin-bottom: 10px; }
         #letterPreview .signature, #letterForPrint .signature { text-align: center; }
 
-
-        /* === استایل نسخه مخفی برای چاپ (بدون تغییر) === */
-        #letterForPrint {
-            display: block;
-            position: absolute;
-            left: -9999px;
-            top: -9999px;
-        }
+        #letterForPrint { display: block; position: absolute; left: -9999px; top: -9999px; width: 148mm; height: 210mm; padding: 10mm; border: 1px solid #000; box-sizing: border-box; background-color: #fff; }
 
         #downloadControls { margin-top: 20px; text-align: center; }
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(5px); }
@@ -229,15 +188,12 @@
         return String(str).replace(/\d/g, d => persianDigits[d]);
     }
     
-    // === تابع جدید برای مقیاس‌دهی پویا ===
     function scalePreview() {
         const wrapper = document.getElementById('previewWrapper');
         const preview = document.getElementById('letterPreview');
         if (!wrapper || !preview) return;
-
         const wrapperWidth = wrapper.clientWidth;
-        const previewWidth = preview.offsetWidth; // عرض واقعی نامه با ابعاد mm
-
+        const previewWidth = preview.offsetWidth;
         if (previewWidth > 0) {
             const scale = wrapperWidth / previewWidth;
             preview.style.transform = `scale(${scale})`;
@@ -297,46 +253,63 @@
         document.getElementById('letterForm').style.display = 'none';
         document.getElementById('result').style.display = 'block';
 
-        // فراخوانی تابع مقیاس‌دهی بلافاصله پس از نمایش
-        // استفاده از requestAnimationFrame برای اطمینان از اینکه مرورگر صفحه را رندر کرده
         requestAnimationFrame(scalePreview);
     });
 
+    // === تابع اصلاح شده و قابل اطمینان برای تولید PDF ===
     downloadBtn.addEventListener('click', function () {
         setButtonLoading(downloadBtn, true);
+        hideMessage();
         const { jsPDF } = window.jspdf;
+        const printElement = document.getElementById('letterForPrint');
 
-        html2canvas(document.getElementById('letterForPrint'), {
-            scale: 2,
-            useCORS: true,
-        }).then(canvas => {
-            const imgData = canvas.toDataURL('image/jpeg', 0.9);
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'mm',
-                format: 'a5',
+        // مرحله ۱: عنصر را برای رندر صحیح، به طور موقت به DOM قابل مشاهده منتقل می‌کنیم
+        const originalStyle = { position: printElement.style.position, left: printElement.style.left, top: printElement.style.top, zIndex: printElement.style.zIndex };
+        printElement.style.position = 'fixed';
+        printElement.style.left = '0';
+        printElement.style.top = '0';
+        printElement.style.zIndex = '-1'; // پشت همه چیز قرار بگیرد
+
+        // با یک تأخیر کوتاه به مرورگر فرصت رندر می‌دهیم
+        setTimeout(() => {
+            html2canvas(printElement, {
+                scale: 2, // افزایش کیفیت تصویر
+                useCORS: true,
+                allowTaint: true,
+                logging: false,
+                width: printElement.offsetWidth,
+                height: printElement.offsetHeight
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a5',
+                });
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+
+                lastGeneratedPdfBlob = pdf.output('blob');
+                pdf.save('نامه-جهادی.pdf');
+                
+                successModal.style.display = 'flex';
+            }).catch(err => {
+                showMessage('خطایی در تولید PDF رخ داده است. لطفا دوباره تلاش کنید.');
+                console.error("html2canvas error: ", err);
+            }).finally(() => {
+                // مرحله نهایی: عنصر را به حالت مخفی اولیه برمی‌گردانیم
+                printElement.style.position = originalStyle.position;
+                printElement.style.left = originalStyle.left;
+                printElement.style.top = originalStyle.top;
+                printElement.style.zIndex = originalStyle.zIndex;
+                setButtonLoading(downloadBtn, false);
             });
-            const imgWidth = 148;
-            const imgHeight = canvas.height * imgWidth / canvas.width;
-            pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
-
-            lastGeneratedPdfBlob = pdf.output('blob');
-            pdf.save('نامه-جهادی.pdf');
-            
-            setButtonLoading(downloadBtn, false);
-            successModal.style.display = 'flex';
-        }).catch(err => {
-            setButtonLoading(downloadBtn, false);
-            showMessage('خطایی در تولید PDF رخ داده است.');
-            console.error(err);
-        });
+        }, 100); // 100 میلی ثانیه تاخیر برای اطمینان
     });
     
-    // === اجرای تابع مقیاس‌دهی در زمان تغییر سایز صفحه ===
     window.addEventListener('resize', scalePreview);
-
     document.getElementById("viewPdfBtn").addEventListener("click", (e) => { e.preventDefault(); if (lastGeneratedPdfBlob) window.open(URL.createObjectURL(lastGeneratedPdfBlob), '_blank'); });
-
     document.getElementById("sharePdfBtn").addEventListener("click", async (e) => {
         e.preventDefault();
         if (lastGeneratedPdfBlob) {
@@ -347,7 +320,6 @@
             } else { alert("مرورگر شما از قابلیت اشتراک گذاری فایل پشتیبانی نمی کند."); }
         }
     });
-
     modalCloseBtn.addEventListener('click', () => { successModal.style.display = 'none'; });
     successModal.addEventListener('click', (e) => { if (e.target === successModal) successModal.style.display = 'none'; });
 </script>
