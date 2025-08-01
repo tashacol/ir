@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 
 <html lang="fa" dir="rtl">
 <head>
@@ -219,7 +219,7 @@
     .staff-title .role { font-size: 0.9rem; color: var(--primary); }
     .staff-info { list-style: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color); font-size: 0.95rem; color: var(--text-light); flex-grow: 1; }
     .staff-info li { display: flex; align-items: center; margin-bottom: 10px; }
-    .staff-info li i { width: 24px; text-align: center; margin-left: 10px; }
+    .staff-info li i { margin-left: 10px; width: 18px; text-align: center; }
     .staff-card .btn-login { margin-top: auto; padding: 10px; }
 
     .action-card-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
@@ -317,11 +317,12 @@
     .modal-download-btn.icon-only {
         font-size: 1.5rem;
     }
+    /* END: Added styles for info modal buttons */
 
-    /* Styles for the small hamburger button for letter text */
+    /* START: NEW STYLES FOR LETTER BUTTON AND MODAL */
     .letter-text-btn {
-        background: var(--primary);
-        color: var(--text-on-dark);
+        background: var(--primary-light);
+        color: var(--primary);
         border: none;
         border-radius: var(--radius-md);
         padding: 6px 10px;
@@ -335,13 +336,29 @@
         white-space: nowrap;
     }
     .letter-text-btn:hover {
-        background: var(--primary-dark);
+        background: var(--primary);
+        color: var(--text-on-dark);
     }
-    .letter-text-btn i {
-        font-size: 1rem; /* Adjust icon size if needed */
-        margin-left: 0; /* Remove default margin from global li i */
+    /* Increase specificity to override other icon styles */
+    .data-table td .letter-text-btn i {
+        margin-left: 0;
+        margin-right: 5px; /* Add some space between icon and text */
     }
-    /* END: Added styles for info modal buttons */
+
+    /* Styles for the letter content modal */
+    .modal-content-text {
+        max-height: 400px;
+        overflow-y: auto;
+        text-align: justify;
+        padding: 10px;
+        line-height: 1.8;
+        color: var(--text-dark);
+        background-color: var(--bg-main);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        margin-top: 15px;
+    }
+    /* END: NEW STYLES */
 
 </style>
 
@@ -451,7 +468,7 @@
             </div>
         </div>
         
-        <!-- START: NEW SECTION FOR ISSUED LETTERS -->
+        <!-- START: NEW SECTION FOR ISSUED LETTERS (AS REQUESTED) -->
         <div class="full-width-section">
             <div class="card">
                 <div class="card-header">
@@ -472,18 +489,16 @@
                                 <th>موضوع نامه</th>
                                 <th>تاریخ صدور</th>
                                 <th>شماره نامه</th>
-                                <th>اداره مقصد</th>
+                                <th>نام اداره</th>
                                 <th>متن نامه</th>
                             </tr>
                         </thead>
                         <tbody id="letters-table-body">
-                            <!-- Letters data will be loaded here -->
+                            <!-- Letter data will be loaded here -->
                         </tbody>
                     </table>
                 </div>
-                <div class="pagination-controls" id="letters-pagination">
-                    <!-- Pagination controls will be loaded here -->
-                </div>
+                <div class="pagination-controls" id="letters-pagination"></div>
             </div>
         </div>
         <!-- END: NEW SECTION FOR ISSUED LETTERS -->
@@ -533,25 +548,19 @@
 </div>
 <!-- END: MODAL CONTENT EDITED -->
 
-<!-- START: NEW LETTER CONTENT MODAL -->
+<!-- START: NEW MODAL FOR LETTER CONTENT (AS REQUESTED) -->
 <div class="modal-overlay" id="letter-content-modal">
     <div class="modal-box" style="max-width: 700px;">
-        <button class="modal-close-btn" id="letter-modal-close-btn"><i class="fas fa-times"></i></button>
-        <div class="modal-header">
-            <h4>متن نامه: <span id="modal-letter-subject"></span></h4>
-            <p><small>تاریخ: <span id="modal-letter-date"></span> | شماره: <span id="modal-letter-number"></span></small></p>
+        <button class="modal-close-btn"><i class="fas fa-times"></i></button>
+        <div class="modal-header" style="text-align: right; padding-bottom: 0; margin-bottom: 0;">
+            <h4 style="font-size: 1.2rem;">متن نامه</h4>
         </div>
-        <div class="modal-content" style="max-height: 400px; overflow-y: auto; text-align: justify; padding: 0 10px; line-height: 1.8; color: var(--text-dark);">
-            <p id="modal-letter-text"></p>
-        </div>
-        <div class="modal-actions" style="margin-top: 25px;">
-            <button id="copy-letter-text-btn" class="modal-action-btn"><i class="fas fa-copy"></i> کپی متن نامه</button>
-            <!-- A simpler print approach for the whole document is default. If specific modal content print is needed, a dedicated CSS for print media or iframe approach would be better. -->
-            <button class="modal-action-btn" onclick="window.print()"><i class="fas fa-print"></i> پرینت صفحه</button>
+        <div class="modal-content-text">
+            <p id="modal-letter-text-content"></p>
         </div>
     </div>
 </div>
-<!-- END: NEW LETTER CONTENT MODAL -->
+<!-- END: NEW MODAL -->
 
 
 <script>
@@ -561,7 +570,7 @@
         const CACHE_DURATION = 3600 * 1000;
         const TRANSACTIONS_PAGE_SIZE = 5;
         const COURSES_PAGE_SIZE = 7;
-        const LETTERS_PAGE_SIZE = 7; // New constant for letters pagination
+        const LETTERS_PAGE_SIZE = 7; // NEW: Page size for letters
 
         // --- Element selectors ---
         const pageLoader = document.getElementById('pageLoader'), loginView = document.getElementById('login-view'), dashboardView = document.getElementById('dashboard-view');
@@ -590,19 +599,16 @@
         const coursesStartDate = document.getElementById('courses-start-date');
         const coursesEndDate = document.getElementById('courses-end-date');
 
-        // --- NEW: Letters Elements ---
+        // --- START: NEW ELEMENTS FOR LETTERS (AS REQUESTED) ---
         const lettersTableBody = document.getElementById('letters-table-body');
         const lettersPagination = document.getElementById('letters-pagination');
         const lettersFilterBtn = document.getElementById('letters-filter-btn');
         const lettersStartDate = document.getElementById('letters-start-date');
         const lettersEndDate = document.getElementById('letters-end-date');
         const letterContentModal = document.getElementById('letter-content-modal');
-        const letterModalCloseBtn = document.getElementById('letter-modal-close-btn');
-        const modalLetterSubject = document.getElementById('modal-letter-subject');
-        const modalLetterDate = document.getElementById('modal-letter-date');
-        const modalLetterNumber = document.getElementById('modal-letter-number');
-        const modalLetterText = document.getElementById('modal-letter-text');
-        const copyLetterTextBtn = document.getElementById('copy-letter-text-btn');
+        const letterContentModalText = document.getElementById('modal-letter-text-content');
+        const letterContentModalCloseBtn = letterContentModal.querySelector('.modal-close-btn');
+        // --- END: NEW ELEMENTS FOR LETTERS ---
         
         // --- Helper Functions ---
         const setCache = (key, data) => localStorage.setItem(key, JSON.stringify({ data, timestamp: new Date().getTime() }));
@@ -700,7 +706,7 @@
                 <td><span class="status-badge ${statusClasses[course.status] || ''}">${course.status}</span></td></tr>`).join('');
         };
 
-        // --- NEW: Fetch and Render Letters ---
+        // --- START: NEW FUNCTIONS FOR LETTERS (AS REQUESTED) ---
         const fetchLetters = (page = 1) => {
             fetchPaginatedData({
                 action: 'getIssuedLetters', page, pageSize: LETTERS_PAGE_SIZE,
@@ -711,23 +717,34 @@
             });
         };
         const renderLetters = (data, container) => {
-            container.innerHTML = data.map(letter => 
-                `<tr>
+            container.innerHTML = data.map(letter => {
+                // Sanitize letter.letterText to be safely used in a data attribute
+                const encodedText = encodeURIComponent(letter.letterText);
+                return `<tr>
                     <td>${letter.subject}</td>
                     <td>${letter.issueDate}</td>
                     <td>${letter.letterNumber}</td>
                     <td>${letter.department}</td>
-                    <td><button class="letter-text-btn" data-subject="${letter.subject}" data-date="${letter.issueDate}" data-number="${letter.letterNumber}" data-text="${letter.letterText}"><i class="fas fa-bars"></i> متن نامه</button></td>
-                </tr>`).join('');
-            
-            // Attach event listeners to the new buttons
-            container.querySelectorAll('.letter-text-btn').forEach(button => {
-                button.addEventListener('click', (event) => {
-                    const { subject, date, number, text } = event.currentTarget.dataset;
-                    openLetterContentModal(subject, date, number, text);
+                    <td>
+                        <button class="letter-text-btn" data-text="${encodedText}">
+                            <i class="fas fa-bars"></i>
+                            <span>متن نامه</span>
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('');
+
+            // Add event listeners to newly created buttons
+            container.querySelectorAll('.letter-text-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const text = decodeURIComponent(btn.dataset.text);
+                    letterContentModalText.textContent = text; // Use textContent for safety
+                    letterContentModal.classList.add('show');
+                    document.body.classList.add('modal-open');
                 });
             });
         };
+        // --- END: NEW FUNCTIONS FOR LETTERS ---
 
         const fetchNonPaginatedData = async (action, cacheKey, renderFunc, container) => {
             let secondaryContainer = null;
@@ -822,14 +839,15 @@
             localStorage.removeItem('courseStatusesData');
             localStorage.removeItem('staffData');
             localStorage.removeItem('dashboardLinks');
-            localStorage.removeItem('issuedLettersData'); // NEW: Clear letters cache
+            // NEW: Remove letters cache on refresh
+            localStorage.removeItem('issuedLettersData');
 
             try {
                 await Promise.all([
                     fetchNonPaginatedData('getFinancialSummary', 'financialSummaryData', renderFinancialSummary, financialStatsContainer),
                     fetchTransactions(1),
                     fetchCourses(1),
-                    fetchLetters(1), // NEW: Fetch letters on refresh
+                    fetchLetters(1), // NEW: Fetch letters data on refresh
                     fetchNonPaginatedData('getStaff', 'staffData', renderStaff, staffListContainer),
                     fetchNonPaginatedData('getDashboardLinks', 'dashboardLinks', renderDataLinks, dataLinksList)
                 ]);
@@ -877,7 +895,7 @@
         // Event Listeners
         transactionsFilterBtn.addEventListener('click', () => fetchTransactions(1));
         coursesFilterBtn.addEventListener('click', () => fetchCourses(1));
-        lettersFilterBtn.addEventListener('click', () => fetchLetters(1)); // NEW: Letters filter
+        lettersFilterBtn.addEventListener('click', () => fetchLetters(1)); // NEW: Event listener for letters filter
         refreshDashboardBtn.addEventListener('click', refreshDashboard);
         themeToggleBtn.addEventListener('click', toggleTheme);
 
@@ -898,20 +916,29 @@
         
         logoutButton.addEventListener('click', () => { localStorage.clear(); location.reload(); });
         
-        const closeModal = (modal) => modal.classList.remove('show');
-        infoModalTrigger.addEventListener('click', () => infoModal.classList.add('show'));
+        const closeModal = (modal) => {
+            modal.classList.remove('show');
+            // Ensure body scroll is re-enabled if no modals are open
+            if (!document.querySelector('.modal-overlay.show')) {
+                document.body.classList.remove('modal-open');
+            }
+        };
+        infoModalTrigger.addEventListener('click', () => {
+            infoModal.classList.add('show');
+            document.body.classList.add('modal-open');
+        });
         infoModalCloseBtn.addEventListener('click', () => closeModal(infoModal));
         userDropdownTrigger.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
-        
-        // NEW: Letter Content Modal Close Listener
-        letterModalCloseBtn.addEventListener('click', () => closeModal(letterContentModal));
+
+        // --- START: NEW EVENT LISTENERS FOR LETTER MODAL (AS REQUESTED) ---
+        letterContentModalCloseBtn.addEventListener('click', () => closeModal(letterContentModal));
+        // --- END: NEW EVENT LISTENERS ---
 
         document.addEventListener('click', (e) => {
             if (e.target.closest('.dropdown') || e.target.closest('.icon-button')) return; 
             userDropdown.classList.remove('show');
             if (e.target === infoModal) closeModal(infoModal);
-            // NEW: Close letter content modal if clicked outside
-            if (e.target === letterContentModal) closeModal(letterContentModal);
+            if (e.target === letterContentModal) closeModal(letterContentModal); // NEW: Close letter modal on overlay click
         });
         
         // START: Logic for new modal buttons
@@ -929,7 +956,7 @@
 ایمیل دبیرخانه: Tashaccol@gmail.com
 وبسایت: Tashacol.ir
 ایتا: @irtaali`;
-        };
+};
 
         if (!navigator.share) {
             shareInfoBtn.style.display = 'none';
@@ -969,33 +996,6 @@
         }
         // END: Logic for new modal buttons
 
-        // --- NEW: Letter Content Modal Functions ---
-        const openLetterContentModal = (subject, date, number, text) => {
-            modalLetterSubject.textContent = subject;
-            modalLetterDate.textContent = date;
-            modalLetterNumber.textContent = number;
-            modalLetterText.textContent = text; // Use textContent to prevent HTML injection
-            letterContentModal.classList.add('show');
-        };
-
-        copyLetterTextBtn.addEventListener('click', () => {
-            const textToCopy = modalLetterText.textContent;
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                const originalHTML = copyLetterTextBtn.innerHTML;
-                copyLetterTextBtn.innerHTML = '<i class="fas fa-check"></i> کپی شد!';
-                copyLetterTextBtn.classList.add('success');
-                copyLetterTextBtn.disabled = true;
-                setTimeout(() => {
-                    copyLetterTextBtn.innerHTML = originalHTML;
-                    copyLetterTextBtn.classList.remove('success');
-                    copyLetterTextBtn.disabled = false;
-                }, 2000);
-            }).catch(err => {
-                console.error('Failed to copy letter text: ', err);
-                alert('خطا در کپی کردن متن نامه.');
-            });
-        });
-
 
         // Initial load checks
         const cachedCeoInfo = getCache('ceoInfo');
@@ -1008,5 +1008,6 @@
         loadThemePreference();
     });
 </script>
+
 </body>
 </html>
