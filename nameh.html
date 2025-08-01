@@ -105,14 +105,16 @@
         #result { display: none; margin-top: 30px; border-top: 1px solid var(--card-border); padding-top: 30px; }
         #previewBox { width: 100%; padding: 10px; background-color: var(--input-bg); border-radius: 10px; border: 1px solid var(--card-border); }
         #previewWrapper { width: 100%; aspect-ratio: 148 / 210; display: flex; justify-content: center; align-items: center; overflow: hidden; }
-        #letterContent {
+        #letterContent, #letterForPrint {
             width: 148mm; height: 210mm;
             padding: 10mm; border: 2px solid #000; box-sizing: border-box;
             background-color: #fff; display: flex; flex-direction: column;
             font-family: 'Amiri', serif; font-size: 16px;
-            transform-origin: center center; flex-shrink: 0;
         }
-        #letterContent * { font-family: 'Amiri', serif; }
+        #letterContent { transform-origin: center center; flex-shrink: 0; }
+        #letterForPrint { position: absolute; left: -9999px; top: -9999px; }
+        
+        #letterContent *, #letterForPrint * { font-family: 'Amiri', serif; }
 
         .letter-header {
             display: flex; justify-content: space-between; align-items: flex-start;
@@ -193,6 +195,9 @@
             </button>
         </div>
     </div>
+
+    <!-- یک div جدا برای نسخه چاپی با ابعاد دقیق -->
+    <div id="letterForPrint"></div>
 
     <div class="modal-overlay" id="successModal">
         <div class="modal-content">
@@ -285,6 +290,7 @@
             `;
         }
 
+
         letterForm.addEventListener('submit', function (event) {
             event.preventDefault();
             hideMessage();
@@ -318,21 +324,23 @@
                 if (data.status === 'success') {
                     showMessage('اطلاعات با موفقیت تائید و ذخیره شد.', 'success');
                     
-                    const letterHTML = getLetterHTML({
+                    const letterData = {
                         letterNumber: letterNumber,
                         issueDate: jalaliDate,
                         department: department,
                         subject: subject,
                         letterText: letterText
-                    });
+                    };
+
+                    const letterHTML = getLetterHTML(letterData);
                     document.getElementById('letterContent').innerHTML = letterHTML;
+                    document.getElementById('letterForPrint').innerHTML = letterHTML;
                     
                     letterForm.style.display = 'none';
                     resultDiv.style.display = 'block';
 
                     requestAnimationFrame(() => {
                         scalePreview();
-                        // فراخوانی دانلود خودکار
                         downloadPdf();
                     });
                     
@@ -352,35 +360,50 @@
         function downloadPdf() {
             const { jsPDF } = window.jspdf;
             setButtonLoading(downloadBtn, true);
+            
+            const printElement = document.getElementById('letterForPrint');
+            
+            // ترفند رندر: عنصر را به طور موقت قابل مشاهده (اما نامرئی) می‌کنیم
+            const originalStyle = { position: printElement.style.position, left: printElement.style.left, top: printElement.style.top, zIndex: printElement.style.zIndex };
+            printElement.style.position = 'fixed';
+            printElement.style.left = '0';
+            printElement.style.top = '0';
+            printElement.style.zIndex = '-1';
+            
+            setTimeout(() => {
+                html2canvas(printElement, { scale: 3, useCORS: true })
+                .then(canvas => {
+                    const imgData = canvas.toDataURL('image/png', 1.0);
+                    const pdf = new jsPDF({
+                        orientation: 'portrait',
+                        unit: 'mm',
+                        format: 'a5',
+                        compress: true
+                    });
 
-            html2canvas(document.getElementById('letterContent'), { scale: 3, useCORS: true })
-            .then(canvas => {
-                const imgData = canvas.toDataURL('image/png', 1.0);
-                const pdf = new jsPDF({
-                    orientation: 'portrait',
-                    unit: 'mm',
-                    format: 'a5',
-                    compress: true
+                    const pdfWidth = 148;
+                    const pdfHeight = 210;
+                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                    
+                    lastGeneratedPdfBlob = pdf.output('blob');
+                    pdf.save('نامه-آزاد.pdf');
+                    successModal.style.display = 'flex';
+                })
+                .catch(err => {
+                    console.error(err);
+                    showMessage('خطایی در تولید PDF رخ داده است.', 'error');
+                })
+                .finally(() => {
+                    // بازگرداندن عنصر به حالت اولیه
+                    printElement.style.position = originalStyle.position;
+                    printElement.style.left = originalStyle.left;
+                    printElement.style.top = originalStyle.top;
+                    printElement.style.zIndex = originalStyle.zIndex;
+                    setButtonLoading(downloadBtn, false);
                 });
-
-                const pdfWidth = 148;
-                const pdfHeight = 210;
-                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                
-                lastGeneratedPdfBlob = pdf.output('blob');
-                pdf.save('نامه-آزاد.pdf');
-                successModal.style.display = 'flex';
-            })
-            .catch(err => {
-                console.error(err);
-                alert('خطایی در تولید PDF رخ داده است.');
-            })
-            .finally(() => {
-                setButtonLoading(downloadBtn, false);
-            });
+            }, 100);
         }
         
-        // اتصال تابع دانلود به دکمه "دانلود مجدد"
         downloadBtn.addEventListener('click', downloadPdf);
         
         window.addEventListener('resize', scalePreview);
