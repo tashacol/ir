@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>استعلام نامه</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #0d6efd;
+            --primary-hover: #0a58ca;
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --text-dark: #212529;
+            --text-light: #6c757d;
+            --border-color: #dee2e6;
+            --error-color: #dc3545;
+            --success-bg: rgba(40, 167, 69, 0.05);
+            --error-bg: rgba(220, 53, 69, 0.05);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Vazirmatn', Arial, sans-serif;
+            direction: rtl;
+            background: var(--bg-color);
+            color: var(--text-dark);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        
+        .container { width: 100%; max-width: 600px; }
+
+        .query-box {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 1.75rem;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .input-group { position: relative; margin-bottom: 1.5rem; }
+
+        .form-input {
+            width: 100%;
+            padding: 14px 16px;
+            font-size: 1rem;
+            font-family: 'Vazirmatn', Arial, sans-serif;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            outline: none;
+            transition: all 0.2s ease-in-out;
+            text-align: right;
+        }
+        .form-input::placeholder { color: #a9aeb4; }
+        .form-input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.15);
+        }
+
+        .action-btn {
+            position: relative; width: 100%; padding: 12px;
+            font-size: 1.1rem; font-weight: 700;
+            font-family: 'Vazirmatn', Arial, sans-serif;
+            background: var(--primary-color); color: #fff;
+            border: none; border-radius: 8px; cursor: pointer;
+            transition: all 0.3s ease; height: 50px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .action-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3);
+        }
+        .action-btn:disabled { background: var(--text-light); cursor: not-allowed; }
+        .action-btn .btn-text, .action-btn .spinner { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); transition: opacity 0.2s; }
+        .action-btn .spinner { opacity: 0; animation: blink 1.5s linear infinite; font-size: 1.5rem; }
+        .action-btn.loading .btn-text { opacity: 0; }
+        .action-btn.loading .spinner { opacity: 1; }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        #statusMessage {
+            text-align: center; margin-top: 1rem;
+            font-size: 0.95rem; display: none; min-height: 20px;
+            padding: 12px; border-radius: 8px;
+        }
+        #statusMessage.error { color: var(--error-color); background-color: var(--error-bg); }
+        
+        #resultsContainer { transition: opacity 0.5s; }
+        .result-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            animation: fadeIn 0.6s ease-out;
+            padding: 2rem;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .result-item { margin-bottom: 1.5rem; }
+        .result-item:last-child { margin-bottom: 0; }
+        .result-item strong {
+            display: block;
+            color: var(--text-dark);
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+        .result-item span, .result-item div {
+            color: var(--text-light);
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+        .result-item div {
+            background-color: var(--bg-color);
+            padding: 1rem;
+            border-radius: 8px;
+            white-space: pre-wrap; /* برای حفظ خطوط جدید در متن نامه */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="query-box">
+            <h1>استعلام نامه</h1>
+            <form id="queryForm">
+                <div class="input-group">
+                    <input type="text" id="issueDateInput" class="form-input" placeholder="مثال: ۱۴۰۴/۰۵/۱۰" required>
+                </div>
+                <div class="input-group">
+                    <input type="text" id="letterNumberInput" class="form-input" placeholder="شماره نامه" inputmode="numeric" required>
+                </div>
+                <button type="submit" id="checkButton" class="action-btn">
+                    <span class="btn-text">بررسی</span>
+                    <span class="spinner">...</span>
+                </button>
+            </form>
+            <div id="statusMessage"></div>
+        </div>
+
+        <div id="resultsContainer"></div>
+    </div>
+
+    <script>
+        // URL وب اپلیکیشن جدید خود را در اینجا قرار دهید
+        const SCRIPT_URL = 'PASTE_YOUR_NEW_SCRIPT_URL_HERE'; 
+
+        const queryForm = document.getElementById('queryForm');
+        const checkButton = document.getElementById('checkButton');
+        const statusMessage = document.getElementById('statusMessage');
+        const resultsContainer = document.getElementById('resultsContainer');
+
+        const setButtonLoading = (isLoading) => {
+            checkButton.disabled = isLoading;
+            checkButton.classList.toggle('loading', isLoading);
+        };
+        const showMessage = (message, type = 'error') => {
+            statusMessage.textContent = message;
+            statusMessage.className = type;
+            statusMessage.style.display = 'block';
+        };
+        const hideMessage = () => { statusMessage.style.display = 'none'; };
+
+        function toEnglishDigits(str) {
+            if (str === null || str === undefined) return '';
+            const persian = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+            const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+            let result = String(str);
+            for(let i=0; i<10; i++) {
+                result = result.replace(new RegExp(persian[i], "g"), english[i]);
+            }
+            return result;
+        }
+
+        queryForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            hideMessage();
+            resultsContainer.innerHTML = ''; // پاک کردن نتایج قبلی
+            setButtonLoading(true);
+
+            const issueDate = document.getElementById('issueDateInput').value.trim();
+            const letterNumber = document.getElementById('letterNumberInput').value.trim();
+
+            if (!issueDate || !letterNumber) {
+                showMessage('هر دو فیلد تاریخ و شماره نامه الزامی است.', 'error');
+                setButtonLoading(false);
+                return;
+            }
+            
+            // تبدیل ارقام فارسی به انگلیسی برای ارسال به سرور
+            const englishDate = toEnglishDigits(issueDate);
+            const englishNumber = toEnglishDigits(letterNumber);
+
+            const url = `${SCRIPT_URL}?date=${encodeURIComponent(englishDate)}&letterNumber=${encodeURIComponent(englishNumber)}`;
+
+            fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.found) {
+                    displayResults(data.data);
+                } else {
+                    showMessage(data.message || 'خطای نامشخص.', 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('خطا در ارتباط با سرور. لطفا اتصال اینترنت خود را بررسی کنید.', 'error');
+                console.error('Fetch Error:', error);
+            })
+            .finally(() => {
+                setButtonLoading(false);
+            });
+        });
+
+        function displayResults(data) {
+            const cardHTML = `
+                <div class="result-card">
+                    <div class="result-item">
+                        <strong>موضوع نامه:</strong>
+                        <span>${data.subject}</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>تاریخ صدور:</strong>
+                        <span>${data.issueDate}</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>شماره نامه:</strong>
+                        <span>${data.letterNumber}</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>به اداره:</strong>
+                        <span>${data.department}</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>متن نامه:</strong>
+                        <div>${data.letterText}</div>
+                    </div>
+                </div>
+            `;
+            resultsContainer.innerHTML = cardHTML;
+        }
+    </script>
+</body>
+</html>
