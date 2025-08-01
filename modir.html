@@ -344,7 +344,7 @@
         background-color: var(--bg-main);
         padding: 15px;
         border-radius: var(--radius-md);
-        margin-top: 20px;
+        margin-top: 10px;
         border: 1px solid var(--border-color);
     }
     .modal-content-text-wrapper p {
@@ -353,9 +353,9 @@
         line-height: 2;
         text-align: justify;
         color: var(--text-dark);
+        padding-left: 10px; /* For scrollbar spacing */
     }
     /* END: NEW STYLES */
-
 </style>
 
 </head>
@@ -542,16 +542,25 @@
 </div>
 <!-- END: MODAL CONTENT EDITED -->
 
-<!-- START: NEW MODAL ADDED AS REQUESTED -->
+<!-- START: NEW MODAL MODIFIED AS REQUESTED -->
 <div class="modal-overlay" id="letter-content-modal">
     <div class="modal-box" style="max-width: 650px;">
         <button class="modal-close-btn"><i class="fas fa-times"></i></button>
-        <div class="modal-header" style="justify-content: flex-start;">
+        <div class="modal-header" style="justify-content: flex-start; align-items: center; margin-bottom: 5px; padding-bottom: 15px; border-bottom: 1px solid var(--border-color);">
             <i class="fas fa-file-alt icon"></i>
-            <h4 style="font-size: 1.2rem;">متن نامه</h4>
+            <div>
+                <h4 style="font-size: 1.2rem; margin: 0;">متن نامه</h4>
+                <p style="text-align: right; margin-top: 8px; font-size: 0.9rem;">
+                    شماره: <span id="modal-letter-number"></span> | تاریخ: <span id="modal-letter-date"></span>
+                </p>
+            </div>
         </div>
         <div class="modal-content-text-wrapper">
              <p id="modal-letter-text-content"></p>
+        </div>
+        <div class="modal-actions">
+            <button id="copy-letter-text-btn" class="modal-action-btn"><i class="fas fa-copy"></i> کپی متن</button>
+            <button id="print-letter-btn" class="modal-action-btn"><i class="fas fa-print"></i> چاپ</button>
         </div>
     </div>
 </div>
@@ -602,6 +611,12 @@
         const letterContentModal = document.getElementById('letter-content-modal');
         const letterContentModalText = document.getElementById('modal-letter-text-content');
         const letterContentModalCloseBtn = letterContentModal.querySelector('.modal-close-btn');
+        // START: Modal detail elements
+        const modalLetterNumber = document.getElementById('modal-letter-number');
+        const modalLetterDate = document.getElementById('modal-letter-date');
+        const copyLetterTextBtn = document.getElementById('copy-letter-text-btn');
+        const printLetterBtn = document.getElementById('print-letter-btn');
+        // END: Modal detail elements
         // --- END: NEW ELEMENTS ---
         
         // --- Helper Functions ---
@@ -719,7 +734,10 @@
                     <td>${letter.letterNumber}</td>
                     <td>${letter.department}</td>
                     <td>
-                        <button class="letter-text-btn" data-text="${encodedText}">
+                        <button class="letter-text-btn" 
+                                data-text="${encodedText}"
+                                data-number="${letter.letterNumber}"
+                                data-date="${letter.issueDate}">
                             <i class="fas fa-bars"></i> متن نامه
                         </button>
                     </td>
@@ -728,8 +746,12 @@
 
             container.querySelectorAll('.letter-text-btn').forEach(btn => {
                 btn.addEventListener('click', event => {
-                    const text = decodeURIComponent(event.currentTarget.dataset.text);
-                    letterContentModalText.textContent = text;
+                    const { text, number, date } = event.currentTarget.dataset;
+                    
+                    modalLetterNumber.textContent = number;
+                    modalLetterDate.textContent = date;
+                    letterContentModalText.textContent = decodeURIComponent(text);
+
                     letterContentModal.classList.add('show');
                     document.body.classList.add('modal-open');
                 });
@@ -922,6 +944,23 @@
         
         // --- START: NEW LISTENERS ADDED AS REQUESTED ---
         letterContentModalCloseBtn.addEventListener('click', () => closeModal(letterContentModal));
+        
+        copyLetterTextBtn.addEventListener('click', () => {
+            const textToCopy = letterContentModalText.textContent;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const originalHTML = copyLetterTextBtn.innerHTML;
+                copyLetterTextBtn.innerHTML = '<i class="fas fa-check"></i> کپی شد!';
+                copyLetterTextBtn.classList.add('success');
+                setTimeout(() => {
+                    copyLetterTextBtn.innerHTML = originalHTML;
+                    copyLetterTextBtn.classList.remove('success');
+                }, 2000);
+            }).catch(err => console.error('Error copying text: ', err));
+        });
+
+        printLetterBtn.addEventListener('click', () => {
+            window.print();
+        });
         // --- END: NEW LISTENERS ---
 
         document.addEventListener('click', (e) => {
