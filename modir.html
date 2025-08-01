@@ -184,16 +184,7 @@
     .table-responsive { overflow-x: auto; min-height: 250px; }
     .data-table { width: 100%; border-collapse: collapse; text-align: right; }
     .data-table th, .data-table td { padding: 15px 10px; border-bottom: 1px solid var(--border-color); white-space: nowrap; transition: border-color var(--transition); }
-    
-    /* START: MODIFIED AS REQUESTED */
-    .data-table th { 
-        font-weight: 700; 
-        color: var(--primary); 
-        font-size: 0.9rem;
-        border-bottom: 2px solid var(--primary);
-    }
-    /* END: MODIFICATION */
-
+    .data-table th { font-weight: 500; color: var(--text-light); font-size: 0.9rem; }
     .data-table tbody tr:last-child td { border-bottom: none; }
     .data-table .amount { font-weight: 500; }
     .data-table .amount.positive { color: var(--success); }
@@ -624,7 +615,7 @@
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         //  مهم: SCRIPT_URL با URL جدیدی که پس از Deploy کردن اسکریپت Apps Script دریافت می‌کنید، جایگزین شده است. 
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw6tCu5dg1tTCIw81cK36QnHu22nQJWbdO_lhvV6aIqLgvPlRzfviIpOluLbUcox8clqA/exec"; 
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyGoC8sCZlBMBGa-0QAJu7JkxRJpI_3wagrJ7_P02lfCpUOvNCPwWvD0MxXbWCKV7J1/exec"; 
         const CACHE_DURATION = 3600 * 1000;
         const TRANSACTIONS_PAGE_SIZE = 5;
         const COURSES_PAGE_SIZE = 7;
@@ -812,20 +803,24 @@
 
         const fetchNonPaginatedData = async (action, cacheKey, renderFunc, container) => {
             let secondaryContainer = null;
+            // START: MODIFIED AS REQUESTED
             if (action === 'getDashboardLinks') {
                 secondaryContainer = document.getElementById('services-links-container');
             }
+            // END: MODIFICATION
 
             if(container) {
                 if (action === 'getFinancialSummary') {
                     container.innerHTML = Array(4).fill('').map(() => `<div class="stat-item"><div class="skeleton skeleton-text" style="width: 60%; height: 1.2rem; margin-bottom: 10px;"></div><div class="skeleton skeleton-text" style="width: 80%; height: 2rem;"></div></div>`).join('');
                 } else if (action === 'getStaff') {
                      container.innerHTML = Array(3).fill('').map(() => `<div class="staff-card"><div class="staff-header"><div class="skeleton skeleton-avatar"></div><div class="staff-title" style="flex:1;"><div class="skeleton skeleton-text" style="width: 60%;"></div><div class="skeleton skeleton-text" style="width: 40%; margin-top:8px;"></div></div></div><ul class="staff-info">${Array(2).fill('<li><div class="skeleton skeleton-text"></div></li>').join('')}</ul></div>`).join('');
+                // START: MODIFIED AS REQUESTED
                 } else if (action === 'getDashboardLinks') {
                     const skeletonHtmlFour = Array(4).fill('').map(() => `<a href="#" class="action-card skeleton"><div class="skeleton skeleton-text" style="width:80%; height:1.5rem;"></div></a>`).join('');
-                    container.innerHTML = skeletonHtmlFour; 
-                    if (secondaryContainer) secondaryContainer.innerHTML = skeletonHtmlFour;
+                    container.innerHTML = skeletonHtmlFour; // For data-links-list
+                    if (secondaryContainer) secondaryContainer.innerHTML = skeletonHtmlFour; // For services-links-container
                 }
+                // END: MODIFICATION
             }
             const cachedData = getCache(cacheKey); if (cachedData) { renderFunc(cachedData); return; }
             try {
@@ -861,16 +856,22 @@
                 </div>`).join('');
         };
 
+        // START: MODIFIED AS REQUESTED
         const renderDataLinks = (links) => {
+            // Populate the new Quick Action button for "صدور نامه"
             const quickActionIssueLetter = document.getElementById('quick-action-issue-letter');
             if (quickActionIssueLetter) {
                 quickActionIssueLetter.href = links.issueLetter || '#';
             }
+
+            // Populate "داده‌های موسسه" (now in the full-width section)
             dataLinksList.innerHTML = 
                 `<a href="${links.students || '#'}" target="_blank" class="action-card"><div class="icon"><i class="fas fa-graduation-cap"></i></div><span>لیست دانشجویان</span></a>
                 <a href="${links.registrations || '#'}" target="_blank" class="action-card"><div class="icon"><i class="fas fa-user-plus"></i></div><span>ثبت نام کنندگان</span></a>
                 <a href="${links.members || '#'}" target="_blank" class="action-card"><div class="icon"><i class="fas fa-users"></i></div><span>اعضای موسسه</span></a>
                 <a href="${links.feedback || '#'}" target="_blank" class="action-card"><div class="icon"><i class="fas fa-comments"></i></div><span>نظرات</span></a>`;
+            
+            // Populate "خدمات و استعلامات" (now in the sidebar)
             if (servicesLinksContainer) {
                 servicesLinksContainer.innerHTML = 
                     `<a href="${links.issueCertificate || '#'}" target="_blank" class="action-card">
@@ -891,6 +892,7 @@
                     </a>`;
             }
         };
+        // END: MODIFICATION
 
         const refreshDashboard = async () => {
             refreshDashboardBtn.classList.add('loading');
@@ -905,11 +907,12 @@
 
             try {
                 await Promise.all([
-                    fetchNonPaginatedData('getFinancialSummary', 'financialSummaryData', renderFinancialSummary, financialStatsContainer),
+                    fetchNonPaginatedData('getFinancialSummary', 'financialSummaryData', financialStatsContainer),
                     fetchTransactions(1),
                     fetchCourses(1),
                     fetchLetters(1),
                     fetchNonPaginatedData('getStaff', 'staffData', renderStaff, staffListContainer),
+                    // Pass both containers to the function
                     fetchNonPaginatedData('getDashboardLinks', 'dashboardLinks', renderDataLinks, dataLinksList)
                 ]);
                 console.log("Dashboard data refreshed successfully!");
