@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa">
 <head>
     <meta charset="UTF-8">
@@ -299,44 +299,48 @@
             const printElement = document.getElementById('letterForPrint');
             const { jsPDF } = window.jspdf;
 
-            html2canvas(printElement, { scale: 3, useCORS: true })
-            .then(canvas => {
-                const imgData = canvas.toDataURL('image/png', 1.0);
-                const pdf = new jsPDF({
-                    orientation: 'portrait',
-                    unit: 'mm',
-                    format: 'a5',
-                    compress: true
+            // یک تأخیر کوتاه (200 میلی‌ثانیه) ایجاد می‌کنیم تا مرورگر فرصت کافی
+            // برای رندر کردن کامل فونت‌های فارسی و محتوای نامه را داشته باشد.
+            // این کار مشکل اصلی یعنی خالی بودن PDF را حل می‌کند.
+            setTimeout(() => {
+                html2canvas(printElement, {
+                    scale: 3, // افزایش کیفیت تصویر
+                    useCORS: true // برای استفاده از فونت‌های خارجی
+                }).then(canvas => {
+                    const imgData = canvas.toDataURL('image/png', 1.0);
+                    const pdf = new jsPDF({
+                        orientation: 'portrait',
+                        unit: 'mm',
+                        format: 'a5',
+                        compress: true
+                    });
+
+                    pdf.addImage(imgData, 'PNG', 0, 0, 148, 210);
+                    
+                    // ذخیره فایل PDF به صورت Blob برای استفاده‌های بعدی
+                    lastGeneratedPdfBlob = pdf.output('blob');
+                    
+                    // دانلود فوری و خودکار فایل
+                    pdf.save('نامه-آزاد.pdf');
+
+                    // نمایش پنجره موفقیت
+                    successModal.style.display = 'flex';
+
+                }).catch(err => {
+                    console.error("خطا در تولید PDF:", err);
+                    showMessage('خطای جدی در تولید PDF رخ داد.', 'error');
+                }).finally(() => {
+                    // در هر صورت، چه موفق چه ناموفق، دکمه از حالت لودینگ خارج شود
+                    setButtonLoading(generateBtn, false);
                 });
-
-                const pdfWidth = 148;
-                const pdfHeight = 210;
-                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                
-                // ذخیره فایل PDF به صورت Blob برای استفاده‌های بعدی (مشاهده، اشتراک، دانلود مجدد)
-                lastGeneratedPdfBlob = pdf.output('blob');
-                
-                // فرمان اصلی برای دانلود خودکار و فوری فایل
-                pdf.save('نامه-آزاد.pdf');
-
-                // نمایش پنجره موفقیت
-                successModal.style.display = 'flex';
-            })
-            .catch(err => {
-                console.error("خطا در ایجاد PDF:", err);
-                showMessage('خطایی در تولید PDF رخ داده است.', 'error');
-            })
-            .finally(() => {
-                // توقف انیمیشن لودینگ در هر صورت (موفق یا ناموفق)
-                setButtonLoading(generateBtn, false);
-            });
+            }, 200); // <-- این تاخیر کوتاه کلید حل مشکل است
         }
 
 
         letterForm.addEventListener('submit', function (event) {
             event.preventDefault();
             hideMessage();
-            setButtonLoading(generateBtn, true); // فعال کردن لودینگ تا پایان کل فرآیند
+            setButtonLoading(generateBtn, true);
 
             const department = document.getElementById('department').value;
             const subject = document.getElementById('subject').value;
@@ -348,12 +352,10 @@
             const letterNumber = `${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}4`;
 
             const payload = {
-                department: department,
-                subject: subject,
-                letterText: letterText,
+                department, subject, letterText,
                 verificationCode: toEnglishDigits(verificationCode),
                 issueDate: toEnglishDigits(jalaliDate),
-                letterNumber: letterNumber
+                letterNumber
             };
 
             fetch(SCRIPT_URL, {
@@ -364,11 +366,10 @@
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    showMessage('اطلاعات تائید شد. در حال تولید و دانلود PDF...', 'success');
+                    showMessage('تائید شد! در حال ساخت PDF...', 'success');
                     
                     const letterData = {
-                        letterNumber: letterNumber, issueDate: jalaliDate,
-                        department: department, subject: subject, letterText: letterText
+                        letterNumber, jalaliDate, department, subject, letterText
                     };
 
                     const letterHTML = getLetterHTML(letterData);
@@ -377,29 +378,27 @@
                     
                     letterForm.style.display = 'none';
                     resultDiv.style.display = 'block';
+                    scalePreview();
                     
-                    requestAnimationFrame(() => {
-                        scalePreview();
-                        // فراخوانی تابع اصلی برای تولید و دانلود فوری PDF
-                        generateAndSavePdf();
-                    });
+                    // فراخوانی تابع اصلی برای تولید و دانلود فوری
+                    generateAndSavePdf();
                     
                 } else {
-                    showMessage(data.message || 'خطای نامشخص از سرور.', 'error');
-                    setButtonLoading(generateBtn, false); // توقف لودینگ در صورت خطا
+                    showMessage(data.message || 'خطای نامشخص.', 'error');
+                    setButtonLoading(generateBtn, false);
                 }
             })
             .catch(error => {
-                showMessage('خطا در ارتباط با سرور. از اتصال اینترنت خود مطمئن شوید.', 'error');
+                showMessage('خطا در ارتباط با سرور.', 'error');
                 console.error('Fetch Error:', error);
-                setButtonLoading(generateBtn, false); // توقف لودینگ در صورت خطا
+                setButtonLoading(generateBtn, false);
             });
         });
 
         
         downloadBtn.addEventListener('click', () => {
             if (!lastGeneratedPdfBlob) {
-                showMessage('فایلی برای دانلود مجدد وجود ندارد. لطفاً ابتدا یک نامه تولید کنید.', 'error');
+                showMessage('ابتدا یک نامه تولید کنید.', 'error');
                 return;
             }
             setButtonLoading(downloadBtn, true);
@@ -411,8 +410,7 @@
                 link.click();
                 document.body.removeChild(link);
             } catch(e) {
-                console.error('Error during re-download:', e);
-                showMessage('خطا در دانلود مجدد فایل.', 'error');
+                showMessage('خطا در دانلود مجدد.', 'error');
             } finally {
                 setButtonLoading(downloadBtn, false);
             }
@@ -424,17 +422,15 @@
         
         document.getElementById("sharePdfBtn").addEventListener("click", async (e) => {
             e.preventDefault();
-            if (lastGeneratedPdfBlob) {
+            if (lastGeneratedPdfBlob && navigator.share) {
                 const file = new File([lastGeneratedPdfBlob], 'نامه-آزاد.pdf', { type: 'application/pdf' });
-                if (navigator.share) {
-                    try { 
-                        await navigator.share({ files: [file], title: 'نامه آزاد' }); 
-                    } catch (err) { 
-                        if (err.name !== 'AbortError') console.error('Share failed', err);
-                    }
-                } else { 
-                    alert("مرورگر شما از قابلیت اشتراک گذاری فایل پشتیبانی نمی کند."); 
+                try { 
+                    await navigator.share({ files: [file], title: 'نامه آزاد' }); 
+                } catch (err) { 
+                    if (err.name !== 'AbortError') console.error('Share failed', err);
                 }
+            } else if (!navigator.share) {
+                alert("مرورگر شما از اشتراک‌گذاری فایل پشتیبانی نمی‌کند.");
             }
         });
 
