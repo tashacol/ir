@@ -206,7 +206,7 @@
     <div class="modal-overlay" id="successModal">
         <div class="modal-content">
             <span class="modal-close" id="modalCloseBtn">×</span>
-            <p>فایل با موفقیت تولید شد!</p>
+            <p>فایل با موفقیت تولید و دانلود شد!</p>
             <div class="download-links">
                 <a href="#" id="viewPdfBtn" class="view-file">مشاهده فایل</a>
                 <a href="#" id="sharePdfBtn" class="share-file">ارسال فایل</a>
@@ -293,11 +293,50 @@
                 </div>
             `;
         }
+        
+        // تابع اصلی برای تولید و دانلود PDF
+        function generateAndSavePdf() {
+            const printElement = document.getElementById('letterForPrint');
+            const { jsPDF } = window.jspdf;
+
+            html2canvas(printElement, { scale: 3, useCORS: true })
+            .then(canvas => {
+                const imgData = canvas.toDataURL('image/png', 1.0);
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a5',
+                    compress: true
+                });
+
+                const pdfWidth = 148;
+                const pdfHeight = 210;
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                
+                // ذخیره فایل PDF به صورت Blob برای استفاده‌های بعدی (مشاهده، اشتراک، دانلود مجدد)
+                lastGeneratedPdfBlob = pdf.output('blob');
+                
+                // فرمان اصلی برای دانلود خودکار و فوری فایل
+                pdf.save('نامه-آزاد.pdf');
+
+                // نمایش پنجره موفقیت
+                successModal.style.display = 'flex';
+            })
+            .catch(err => {
+                console.error("خطا در ایجاد PDF:", err);
+                showMessage('خطایی در تولید PDF رخ داده است.', 'error');
+            })
+            .finally(() => {
+                // توقف انیمیشن لودینگ در هر صورت (موفق یا ناموفق)
+                setButtonLoading(generateBtn, false);
+            });
+        }
+
 
         letterForm.addEventListener('submit', function (event) {
             event.preventDefault();
             hideMessage();
-            setButtonLoading(generateBtn, true);
+            setButtonLoading(generateBtn, true); // فعال کردن لودینگ تا پایان کل فرآیند
 
             const department = document.getElementById('department').value;
             const subject = document.getElementById('subject').value;
@@ -325,14 +364,11 @@
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    showMessage('اطلاعات با موفقیت تائید و ذخیره شد. در حال تولید PDF...', 'success');
+                    showMessage('اطلاعات تائید شد. در حال تولید و دانلود PDF...', 'success');
                     
                     const letterData = {
-                        letterNumber: letterNumber,
-                        issueDate: jalaliDate,
-                        department: department,
-                        subject: subject,
-                        letterText: letterText
+                        letterNumber: letterNumber, issueDate: jalaliDate,
+                        department: department, subject: subject, letterText: letterText
                     };
 
                     const letterHTML = getLetterHTML(letterData);
@@ -341,62 +377,46 @@
                     
                     letterForm.style.display = 'none';
                     resultDiv.style.display = 'block';
-                    scalePreview();
                     
-                    downloadPdf();
+                    requestAnimationFrame(() => {
+                        scalePreview();
+                        // فراخوانی تابع اصلی برای تولید و دانلود فوری PDF
+                        generateAndSavePdf();
+                    });
                     
                 } else {
                     showMessage(data.message || 'خطای نامشخص از سرور.', 'error');
-                    setButtonLoading(generateBtn, false);
+                    setButtonLoading(generateBtn, false); // توقف لودینگ در صورت خطا
                 }
             })
             .catch(error => {
                 showMessage('خطا در ارتباط با سرور. از اتصال اینترنت خود مطمئن شوید.', 'error');
                 console.error('Fetch Error:', error);
-                setButtonLoading(generateBtn, false);
+                setButtonLoading(generateBtn, false); // توقف لودینگ در صورت خطا
             });
         });
 
-        function downloadPdf() {
-            setButtonLoading(downloadBtn, true);
-            
-            const printElement = document.getElementById('letterForPrint');
-            const { jsPDF } = window.jspdf;
-
-            // تاخیر کوتاه برای اطمینان از رندر شدن کامل محتوا قبل از عکس گرفتن
-            setTimeout(() => {
-                html2canvas(printElement, { scale: 3, useCORS: true })
-                .then(canvas => {
-                    const imgData = canvas.toDataURL('image/png', 1.0);
-                    const pdf = new jsPDF({
-                        orientation: 'portrait',
-                        unit: 'mm',
-                        format: 'a5',
-                        compress: true
-                    });
-
-                    const pdfWidth = 148;
-                    const pdfHeight = 210;
-                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                    
-                    lastGeneratedPdfBlob = pdf.output('blob');
-                    pdf.save('نامه-آزاد.pdf'); // دانلود خودکار فایل
-                    
-                    successModal.style.display = 'flex'; // نمایش مودال موفقیت
-                })
-                .catch(err => {
-                    console.error("خطا در ایجاد PDF:", err);
-                    showMessage('خطایی در تولید PDF رخ داده است.', 'error');
-                })
-                .finally(() => {
-                    // ریست کردن وضعیت لودینگ هر دو دکمه
-                    setButtonLoading(generateBtn, false);
-                    setButtonLoading(downloadBtn, false);
-                });
-            }, 100);
-        }
         
-        downloadBtn.addEventListener('click', downloadPdf);
+        downloadBtn.addEventListener('click', () => {
+            if (!lastGeneratedPdfBlob) {
+                showMessage('فایلی برای دانلود مجدد وجود ندارد. لطفاً ابتدا یک نامه تولید کنید.', 'error');
+                return;
+            }
+            setButtonLoading(downloadBtn, true);
+            try {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(lastGeneratedPdfBlob);
+                link.download = 'نامه-آزاد-مجدد.pdf';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch(e) {
+                console.error('Error during re-download:', e);
+                showMessage('خطا در دانلود مجدد فایل.', 'error');
+            } finally {
+                setButtonLoading(downloadBtn, false);
+            }
+        });
         
         window.addEventListener('resize', scalePreview);
         
@@ -406,11 +426,10 @@
             e.preventDefault();
             if (lastGeneratedPdfBlob) {
                 const file = new File([lastGeneratedPdfBlob], 'نامه-آزاد.pdf', { type: 'application/pdf' });
-                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                if (navigator.share) {
                     try { 
                         await navigator.share({ files: [file], title: 'نامه آزاد' }); 
-                    }
-                    catch (err) { 
+                    } catch (err) { 
                         if (err.name !== 'AbortError') console.error('Share failed', err);
                     }
                 } else { 
