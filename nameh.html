@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="fa">
 <head>
     <meta charset="UTF-8">
@@ -105,46 +105,15 @@
         #result { display: none; margin-top: 30px; border-top: 1px solid var(--card-border); padding-top: 30px; }
         #previewBox { width: 100%; padding: 10px; background-color: var(--input-bg); border-radius: 10px; border: 1px solid var(--card-border); }
         #previewWrapper { width: 100%; aspect-ratio: 148 / 210; display: flex; justify-content: center; align-items: center; overflow: hidden; }
-        
-        #letterContent {
-             width: 148mm; height: 210mm;
-             padding: 0; /* پدینگ به page منتقل شد */
-             box-sizing: border-box;
-             background-color: #fff;
-             font-family: 'Amiri', serif; font-size: 16px;
-             transform-origin: center center; flex-shrink: 0;
+        #letterContent, #letterForPrint {
+            width: 148mm; height: 210mm;
+            padding: 10mm; border: 2px solid #000; box-sizing: border-box;
+            background-color: #fff; display: flex; flex-direction: column;
+            font-family: 'Amiri', serif; font-size: 16px;
         }
+        #letterContent { transform-origin: center center; flex-shrink: 0; }
+        #letterForPrint { position: absolute; left: -9999px; top: -9999px; }
 
-        #letterForPrint {
-            /* این والد اکنون حاوی تمام صفحات برای پرینت است */
-            position: absolute; left: -9999px; top: -9999px;
-        }
-
-        /* ویرایش ۱: استایل برای هر صفحه جداگانه */
-        .letter-page {
-            width: 148mm;
-            height: 210mm;
-            padding: 5mm;
-            box-sizing: border-box;
-            background-color: #fff;
-            font-family: 'Amiri', serif;
-            font-size: 16px;
-            display: flex; /* استفاده از فلکس برای چیدمان سربرگ، محتوا و پاصفحه */
-            flex-direction: column;
-            page-break-after: always; /* برای پرینت گرفتن صحیح از مرورگر */
-        }
-        
-        .letter-frame {
-            width: 100%;
-            height: 100%;
-            border: 2px solid #000;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            flex-grow: 1; /* برای پر کردن فضای بین سربرگ و پاصفحه */
-            padding: 10mm;
-        }
-        
         #letterContent *, #letterForPrint * { font-family: 'Amiri', serif; }
 
         .letter-header {
@@ -160,24 +129,11 @@
         .header-subtitle { font-size: 12px; margin: 5px 0 0 0; }
         .header-right p, .header-left p { margin: 2px 0; }
 
-        .content {
-            flex-grow: 1; /* این بخش بزرگ می‌شود تا فضای خالی را پر کند */
-            text-align: right;
-            height: 100%; /* برای محاسبه صحیح ارتفاع */
-            overflow: hidden; /* جلوگیری از نمایش محتوای سرریز شده */
-        }
+        .content { flex-grow: 1; text-align: right; }
         .content p { margin-bottom: 12px; line-height: 1.7; }
-        .letter-paragraph { text-align: right; line-height: 1.8; margin: 25px 0; white-space: pre-wrap; }
-        .signature { text-align: center; padding-top: 40px; } /* margin-top: auto حذف شد */
+        .letter-paragraph { text-align: justify; line-height: 1.8; margin: 25px 0; }
+        .signature { text-align: center; margin-top: auto; padding-top: 40px; }
         .signature p { margin-bottom: 10px; }
-
-        /* ویرایش ۲: استایل برای پاصفحه (فوتر) */
-        .letter-footer {
-            text-align: center;
-            font-size: 12px;
-            padding-top: 10px;
-            color: #555;
-        }
 
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(5px); }
         .modal-content { background: #fff; padding: 30px; border-radius: 15px; text-align: center; width: 90%; max-width: 400px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); position: relative; animation: fadeIn 0.3s; }
@@ -229,7 +185,7 @@
              <div id="previewBox">
                 <div id="previewWrapper">
                     <div id="letterContent">
-                        <!-- فقط صفحه اول اینجا نمایش داده می‌شود -->
+                        <!-- محتوای نامه اینجا به صورت پویا قرار می‌گیرد -->
                     </div>
                 </div>
              </div>
@@ -240,7 +196,7 @@
         </div>
     </div>
 
-    <!-- این div اکنون حاوی تمام صفحات برای تولید PDF خواهد بود -->
+    <!-- یک div جدا برای نسخه چاپی با ابعاد دقیق -->
     <div id="letterForPrint"></div>
 
     <div class="modal-overlay" id="successModal">
@@ -254,6 +210,7 @@
         </div>
     </div>
 
+    <!-- ویرایش ۱: افزودن کتابخانه‌های jsPDF و html2canvas -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
@@ -305,11 +262,9 @@
                 preview.style.transform = `scale(${scale})`;
             }
         }
-        
-        // ویرایش ۳: توابع مجزا برای ساخت سربرگ، امضا و پاصفحه
-        function getHeaderHTML(data, totalPages) {
-            const pageCountText = totalPages > 1 ? `<p>تعداد صفحات: ${toPersianDigits(totalPages)}</p>` : '';
-            return `
+
+        function getLetterHTML(data) {
+             return `
                 <div class="letter-header">
                     <div class="header-right">
                         <p>تلفن: ۰۹۱۳۵۰۷۶۵۸۷</p>
@@ -322,104 +277,23 @@
                     <div class="header-left">
                         <p>شماره نامه: ${toPersianDigits(data.letterNumber)}</p>
                         <p>تاریخ: ${toPersianDigits(data.issueDate)}</p>
-                        ${pageCountText}
                     </div>
                 </div>
-            `;
-        }
-
-        function getSignatureHTML() {
-            return `
+                <div class="content">
+                    <p style="text-align: center; font-weight: bold;">بسمه تعالی</p>
+                    <p>ریاست محترم ${data.department}</p>
+                    <p>موضوع: ${data.subject}</p>
+                    <div class="letter-paragraph">
+                        <span>${data.letterText}</span>
+                    </div>
+                </div>
                 <div class="signature">
                     <p>امضاء</p>
                     <p>مدیرعامل مؤسسه تعالی اندیشه و رشد</p>
                 </div>
             `;
         }
-        
-        function getFooterHTML(currentPage, totalPages) {
-            return `<div class="letter-footer">صفحه ${toPersianDigits(currentPage)} از ${toPersianDigits(totalPages)}</div>`;
-        }
 
-        // ویرایش ۴: تابع اصلی و پیچیده برای تقسیم‌بندی محتوا به صفحات
-        async function paginateContent(data) {
-            const letterForPrint = document.getElementById('letterForPrint');
-            letterForPrint.innerHTML = ''; // پاک کردن محتوای قبلی
-
-            // ایجاد یک صفحه موقت برای اندازه‌گیری ارتفاع محتوا
-            const measuringPage = document.createElement('div');
-            measuringPage.className = 'letter-page';
-            measuringPage.style.position = 'absolute';
-            measuringPage.style.left = '-9999px';
-            measuringPage.style.top = '-9999px';
-            document.body.appendChild(measuringPage);
-
-            measuringPage.innerHTML = `<div class="letter-frame">${getHeaderHTML(data, 1)}<div class="content"></div>${getSignatureHTML()}</div>`;
-            const contentBox = measuringPage.querySelector('.content');
-            const maxContentHeight = contentBox.clientHeight; // ارتفاع خالص موجود برای متن
-
-            // آماده‌سازی محتوای اصلی
-            const mainContentHTML = `
-                <p style="font-weight: bold;">بسمه تعالی</p>
-                <p>ریاست محترم ${data.department}</p>
-                <p>موضوع: ${data.subject}</p>
-                <div class="letter-paragraph"><span></span></div>`;
-            
-            const words = data.letterText.replace(/\n/g, ' \n ').split(' ');
-            const pagesContent = [];
-            let currentPageWords = [];
-
-            contentBox.innerHTML = mainContentHTML;
-            const paragraphSpan = contentBox.querySelector('.letter-paragraph span');
-
-            for (const word of words) {
-                const currentText = paragraphSpan.innerText;
-                paragraphSpan.innerText += (word === '\n' ? '\n' : (paragraphSpan.innerText ? ' ' : '') + word);
-                
-                if (contentBox.scrollHeight > maxContentHeight) {
-                    pagesContent.push(currentPageWords.join(' '));
-                    currentPageWords = [word === '\n' ? '' : word];
-                    paragraphSpan.innerText = word === '\n' ? '\n' : word;
-                } else {
-                    currentPageWords.push(word);
-                }
-            }
-            pagesContent.push(currentPageWords.join(' '));
-
-            document.body.removeChild(measuringPage); // حذف صفحه اندازه‌گیری
-
-            // ساخت نهایی صفحات با سربرگ و پاصفحه صحیح
-            const totalPages = pagesContent.length;
-            for (let i = 0; i < totalPages; i++) {
-                const pageDiv = document.createElement('div');
-                pageDiv.className = 'letter-page';
-
-                const isLastPage = (i === totalPages - 1);
-                const signature = isLastPage ? getSignatureHTML() : '';
-
-                const pageContentHTML = `
-                    <p style="font-weight: bold;">بسمه تعالی</p>
-                    <p>ریاست محترم ${data.department}</p>
-                    <p>موضوع: ${data.subject}</p>
-                    <div class="letter-paragraph">${pagesContent[i]}</div>`;
-                
-                // اگر صفحه اول نیست، سه پاراگراف اول را حذف کن
-                const finalContent = i > 0 ? `<div class="letter-paragraph">${pagesContent[i]}</div>` : pageContentHTML;
-
-                pageDiv.innerHTML = `
-                    <div class="letter-frame">
-                        ${getHeaderHTML(data, totalPages)}
-                        <div class="content">${finalContent}</div>
-                        ${signature}
-                    </div>
-                    ${getFooterHTML(i + 1, totalPages)}`;
-                letterForPrint.appendChild(pageDiv);
-            }
-
-            // نمایش صفحه اول در پیش‌نمایش
-            const letterContent = document.getElementById('letterContent');
-            letterContent.innerHTML = letterForPrint.querySelector('.letter-page').innerHTML;
-        }
 
         letterForm.addEventListener('submit', function (event) {
             event.preventDefault();
@@ -450,17 +324,21 @@
                 body: JSON.stringify(payload)
             })
             .then(response => response.json())
-            .then(async data => { // async برای await کردن paginateContent
+            .then(data => {
                 if (data.status === 'success') {
                     showMessage('اطلاعات با موفقیت تائید و ذخیره شد.', 'success');
                     
                     const letterData = {
-                        letterNumber: letterNumber, issueDate: jalaliDate,
-                        department: department, subject: subject, letterText: letterText
+                        letterNumber: letterNumber,
+                        issueDate: jalaliDate,
+                        department: department,
+                        subject: subject,
+                        letterText: letterText
                     };
-                    
-                    // فراخوانی تابع جدید صفحه‌بندی
-                    await paginateContent(letterData);
+
+                    const letterHTML = getLetterHTML(letterData);
+                    document.getElementById('letterContent').innerHTML = letterHTML;
+                    document.getElementById('letterForPrint').innerHTML = letterHTML;
                     
                     letterForm.style.display = 'none';
                     resultDiv.style.display = 'block';
@@ -483,36 +361,66 @@
             });
         });
 
-        // ویرایش ۵: بازنویسی تابع دانلود برای پشتیبانی از چندین صفحه
-        async function downloadPdf() {
+        // ویرایش ۲: جایگزینی تابع downloadPdf با نسخه اصلاح شده
+        function downloadPdf() {
+            // اطمینان از وجود کتابخانه‌ها
             if (typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined') {
-                showMessage('خطا: کتابخانه PDF بارگذاری نشده است.', 'error'); return;
+                showMessage('خطا: کتابخانه PDF بارگذاری نشده است.', 'error');
+                return;
             }
             const { jsPDF } = window.jspdf;
             setButtonLoading(downloadBtn, true);
             
-            const printContainer = document.getElementById('letterForPrint');
-            const pages = printContainer.querySelectorAll('.letter-page');
+            const printElement = document.getElementById('letterForPrint');
             
-            const pdf = new jsPDF({
-                orientation: 'portrait', unit: 'mm', format: 'a5', compress: true
-            });
+            // ترفند رندر: عنصر را به طور موقت قابل مشاهده (اما نامرئی) می‌کنیم
+            const originalStyle = { position: printElement.style.position, left: printElement.style.left, top: printElement.style.top, zIndex: printElement.style.zIndex };
+            printElement.style.position = 'fixed';
+            printElement.style.left = '0';
+            printElement.style.top = '0';
+            printElement.style.zIndex = '-1';
             
-            for (let i = 0; i < pages.length; i++) {
-                const page = pages[i];
-                const canvas = await html2canvas(page, { scale: 3, useCORS: true, allowTaint: true });
-                const imgData = canvas.toDataURL('image/png', 1.0);
-                
-                if (i > 0) {
-                    pdf.addPage();
-                }
-                pdf.addImage(imgData, 'PNG', 0, 0, 148, 210);
-            }
-            
-            lastGeneratedPdfBlob = pdf.output('blob');
-            pdf.save(`نامه-آزاد-${toEnglishDigits(new Date().toLocaleDateString('fa-IR'))}.pdf`);
-            successModal.style.display = 'flex';
-            setButtonLoading(downloadBtn, false);
+            // تاخیر برای اطمینان از رندر کامل فونت‌های خارجی
+            setTimeout(() => {
+                html2canvas(printElement, {
+                    scale: 3, // افزایش رزولوشن برای کیفیت بالاتر
+                    useCORS: true, // ضروری برای بارگیری فونت‌های گوگل
+                    allowTaint: true
+                })
+                .then(canvas => {
+                    const imgData = canvas.toDataURL('image/png', 1.0);
+                    const pdf = new jsPDF({
+                        orientation: 'portrait',
+                        unit: 'mm',
+                        format: 'a5',
+                        compress: true
+                    });
+
+                    const pdfWidth = 148;
+                    const pdfHeight = 210;
+                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                    
+                    lastGeneratedPdfBlob = pdf.output('blob');
+                    
+                    // شروع دانلود خودکار
+                    pdf.save(`نامه-آزاد-${toEnglishDigits(new Date().toLocaleDateString('fa-IR'))}.pdf`);
+                    
+                    // نمایش مودال موفقیت
+                    successModal.style.display = 'flex';
+                })
+                .catch(err => {
+                    console.error("خطا در تولید PDF:", err);
+                    showMessage('خطایی در تولید PDF رخ داده است. کنسول مرورگر را بررسی کنید.', 'error');
+                })
+                .finally(() => {
+                    // بازگرداندن عنصر به حالت اولیه در هر صورت
+                    printElement.style.position = originalStyle.position;
+                    printElement.style.left = originalStyle.left;
+                    printElement.style.top = originalStyle.top;
+                    printElement.style.zIndex = originalStyle.zIndex;
+                    setButtonLoading(downloadBtn, false);
+                });
+            }, 500); // 500 میلی‌ثانیه تاخیر برای اطمینان از بارگیری فونت
         }
         
         downloadBtn.addEventListener('click', downloadPdf);
