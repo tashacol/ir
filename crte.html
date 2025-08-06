@@ -218,6 +218,7 @@
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrzVqasXqaHAYCtVASahZcU9D1hSiKzvql_dz6y7r-AgTG_vFjWvIhSYDCZ2PTwGeG4A/exec";
 
         let lastGeneratedPdfBlob = null;
+        let currentLetterData = {}; // <<<<==== [تغییر ۱] متغیر جدید برای نگهداری اطلاعات نامه
         const letterForm = document.getElementById('letterForm');
         const generateBtn = document.getElementById('generateBtn');
         const downloadBtn = document.getElementById('downloadBtn');
@@ -335,6 +336,8 @@
                         subject: subject,
                         letterText: letterText
                     };
+                    
+                    currentLetterData = letterData; // <<<<==== [تغییر ۲] ذخیره اطلاعات در متغیر سراسری
 
                     const letterHTML = getLetterHTML(letterData);
                     document.getElementById('letterContent').innerHTML = letterHTML;
@@ -414,13 +417,29 @@
         
         document.getElementById("viewPdfBtn").addEventListener("click", (e) => { e.preventDefault(); if (lastGeneratedPdfBlob) window.open(URL.createObjectURL(lastGeneratedPdfBlob)); });
         
+        // <<<<==== [تغییر ۳] ویرایش کامل تابع اشتراک‌گذاری
         document.getElementById("sharePdfBtn").addEventListener("click", async (e) => {
             e.preventDefault();
-            if (lastGeneratedPdfBlob) {
+            if (lastGeneratedPdfBlob && Object.keys(currentLetterData).length > 0) {
                 const file = new File([lastGeneratedPdfBlob], 'نامه-آزاد.pdf', { type: 'application/pdf' });
+
+                const personName = currentLetterData.department; // نام شخص از فیلد اداره
+                const nationalId = currentLetterData.subject;    // کد ملی از فیلد موضوع
+                const letterDate = toPersianDigits(currentLetterData.issueDate);
+                const letterNum = toPersianDigits(currentLetterData.letterNumber);
+
+                // ساخت متن اشتراک‌گذاری طبق فرمت درخواستی
+                const shareText = `نامه تائید سوابق فعالیت سرکار خانم/جناب آقا (${personName}) با کد ملی(${nationalId}) در مؤسسه تعالی اندیشه\n\nتاریخ: (${letterDate})\nشماره:(${letterNum})`;
+                
+                const shareTitle = `نامه تائید سوابق فعالیت ${personName}`;
+
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
                     try { 
-                        await navigator.share({ files: [file], title: 'نامه آزاد' }); 
+                        await navigator.share({ 
+                            files: [file], 
+                            title: shareTitle,
+                            text: shareText 
+                        }); 
                     }
                     catch (err) { 
                         if (err.name !== 'AbortError') console.error('Share failed', err);
