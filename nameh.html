@@ -210,7 +210,6 @@
         </div>
     </div>
 
-    <!-- ویرایش ۱: افزودن کتابخانه‌های jsPDF و html2canvas -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
@@ -218,6 +217,8 @@
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrzVqasXqaHAYCtVASahZcU9D1hSiKzvql_dz6y7r-AgTG_vFjWvIhSYDCZ2PTwGeG4A/exec";
 
         let lastGeneratedPdfBlob = null;
+        let currentLetterData = {}; // **ویرایش: متغیر برای نگهداری داده‌های نامه فعلی**
+
         const letterForm = document.getElementById('letterForm');
         const generateBtn = document.getElementById('generateBtn');
         const downloadBtn = document.getElementById('downloadBtn');
@@ -335,6 +336,8 @@
                         subject: subject,
                         letterText: letterText
                     };
+                    
+                    currentLetterData = letterData; // **ویرایش: ذخیره داده‌های نامه برای استفاده بعدی**
 
                     const letterHTML = getLetterHTML(letterData);
                     document.getElementById('letterContent').innerHTML = letterHTML;
@@ -361,9 +364,7 @@
             });
         });
 
-        // ویرایش ۲: جایگزینی تابع downloadPdf با نسخه اصلاح شده
         function downloadPdf() {
-            // اطمینان از وجود کتابخانه‌ها
             if (typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined') {
                 showMessage('خطا: کتابخانه PDF بارگذاری نشده است.', 'error');
                 return;
@@ -372,19 +373,16 @@
             setButtonLoading(downloadBtn, true);
             
             const printElement = document.getElementById('letterForPrint');
-            
-            // ترفند رندر: عنصر را به طور موقت قابل مشاهده (اما نامرئی) می‌کنیم
             const originalStyle = { position: printElement.style.position, left: printElement.style.left, top: printElement.style.top, zIndex: printElement.style.zIndex };
             printElement.style.position = 'fixed';
             printElement.style.left = '0';
             printElement.style.top = '0';
             printElement.style.zIndex = '-1';
             
-            // تاخیر برای اطمینان از رندر کامل فونت‌های خارجی
             setTimeout(() => {
                 html2canvas(printElement, {
-                    scale: 3, // افزایش رزولوشن برای کیفیت بالاتر
-                    useCORS: true, // ضروری برای بارگیری فونت‌های گوگل
+                    scale: 3,
+                    useCORS: true,
                     allowTaint: true
                 })
                 .then(canvas => {
@@ -402,10 +400,9 @@
                     
                     lastGeneratedPdfBlob = pdf.output('blob');
                     
-                    // شروع دانلود خودکار
-                    pdf.save(`نامه-آزاد-${toEnglishDigits(new Date().toLocaleDateString('fa-IR'))}.pdf`);
+                    // **ویرایش: نام فایل PDF به موضوع نامه تغییر کرد**
+                    pdf.save(`${currentLetterData.subject}.pdf`);
                     
-                    // نمایش مودال موفقیت
                     successModal.style.display = 'flex';
                 })
                 .catch(err => {
@@ -413,14 +410,13 @@
                     showMessage('خطایی در تولید PDF رخ داده است. کنسول مرورگر را بررسی کنید.', 'error');
                 })
                 .finally(() => {
-                    // بازگرداندن عنصر به حالت اولیه در هر صورت
                     printElement.style.position = originalStyle.position;
                     printElement.style.left = originalStyle.left;
                     printElement.style.top = originalStyle.top;
                     printElement.style.zIndex = originalStyle.zIndex;
                     setButtonLoading(downloadBtn, false);
                 });
-            }, 500); // 500 میلی‌ثانیه تاخیر برای اطمینان از بارگیری فونت
+            }, 500);
         }
         
         downloadBtn.addEventListener('click', downloadPdf);
@@ -429,13 +425,24 @@
         
         document.getElementById("viewPdfBtn").addEventListener("click", (e) => { e.preventDefault(); if (lastGeneratedPdfBlob) window.open(URL.createObjectURL(lastGeneratedPdfBlob)); });
         
+        // **ویرایش: تابع اشتراک‌گذاری برای استفاده از عنوان و متن سفارشی**
         document.getElementById("sharePdfBtn").addEventListener("click", async (e) => {
             e.preventDefault();
-            if (lastGeneratedPdfBlob) {
-                const file = new File([lastGeneratedPdfBlob], 'نامه-آزاد.pdf', { type: 'application/pdf' });
+            if (lastGeneratedPdfBlob && currentLetterData.subject) {
+                // **ویرایش: نام فایل برابر با موضوع نامه قرار داده شد**
+                const file = new File([lastGeneratedPdfBlob], `${currentLetterData.subject}.pdf`, { type: 'application/pdf' });
+                
+                // **ویرایش: متن اشتراک‌گذاری مطابق با درخواست ساخته شد**
+                const shareText = `نامه به ${currentLetterData.department} با موضوع ${currentLetterData.subject}\nتاریخ: ${currentLetterData.issueDate}\nشماره:${toPersianDigits(currentLetterData.letterNumber)}`;
+                
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
                     try { 
-                        await navigator.share({ files: [file], title: 'نامه آزاد' }); 
+                        // **ویرایش: عنوان و متن به تابع اشتراک‌گذاری اضافه شد**
+                        await navigator.share({ 
+                            files: [file], 
+                            title: currentLetterData.subject,
+                            text: shareText
+                        }); 
                     }
                     catch (err) { 
                         if (err.name !== 'AbortError') console.error('Share failed', err);
