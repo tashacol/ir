@@ -89,8 +89,26 @@
         .cert-main-paragraph { line-height: 2 !important; text-align: justify; }
         .cert-bold-text { font-weight: bold; }
         .cert-centered-text { margin-top: 10px; }
-        .cert-signature { margin-top: 80px; text-align: center; }
-        .cert-signature p { font-weight: normal; text-align: center; }
+        /* --- شروع ویرایش CSS --- */
+        .cert-signature { 
+            margin-top: 80px; 
+            text-align: center; 
+            position: relative; /* برای جانمایی دقیق تصویر امضا */
+            min-height: 100px; /* ایجاد فضای کافی برای امضا */
+        }
+        .cert-signature p { 
+            font-weight: normal; 
+            text-align: center; 
+        }
+        .signature-image {
+            position: absolute;
+            bottom: 5px; /* فاصله از پایین کادر */
+            left: 50%;
+            transform: translateX(-50%); /* مرکز کردن افقی تصویر */
+            width: 160px; /* عرض تصویر امضا */
+            height: auto; /* ارتفاع خودکار برای حفظ نسبت */
+        }
+        /* --- پایان ویرایش CSS --- */
 
         #certificateForPrint, #certificateForPrint * { font-family: 'Amiri', serif; font-size: 16px; line-height: 1.5; }
         #certificateForPrint .cert-main-paragraph { line-height: 2 !important; }
@@ -208,10 +226,12 @@
         }
         return result;
     }
-
+    
+    // --- شروع ویرایش تابع تولید HTML ---
     function getCertificateHTML(data) {
         const userInfo = data.user;
         const activities = data.activities;
+        const signatureBase64 = data.signatureImageBase64; // دریافت کد تصویر امضا
 
         let totalActivityMonths = activities.reduce((sum, activity) => sum + (Number(activity.durationMonths) || 0), 0);
         let years = Math.floor(totalActivityMonths / 12);
@@ -226,6 +246,11 @@
             const endDate = activity.endDate ? activity.endDate : 'تا هم اکنون';
             tableRows += `<tr><td>${activity.activity}</td><td>${toPersianDigits(activity.startDate)}</td><td>${toPersianDigits(endDate)}</td></tr>`;
         });
+
+        // اگر کد تصویر امضا وجود داشت، تگ img ساخته می‌شود
+        const signatureImageHTML = signatureBase64 
+            ? `<img src="data:image/png;base64,${signatureBase64}" class="signature-image" alt="مهر و امضا">` 
+            : '';
 
         return `
             <div class="cert-header">
@@ -254,9 +279,11 @@
                 </table>
                 <div class="cert-signature">
                     <p>مهر و امضای مدیر عامل مؤسسه</p>
+                    ${signatureImageHTML}
                 </div>
             </div>`;
     }
+    // --- پایان ویرایش تابع تولید HTML ---
 
     certificateForm.addEventListener("submit", function(event) {
         event.preventDefault();
@@ -293,7 +320,6 @@
             if (res.status === 'success') {
                 showMessage("اطلاعات با موفقیت تائید و ذخیره شد. در حال تولید PDF...", 'success');
                 
-                // --- ویرایش شروع: ذخیره اطلاعات برای اشتراک‌گذاری ---
                 const nowForShare = new Date();
                 const certificateNumberForShare = `${nowForShare.getHours().toString().padStart(2, '0')}${nowForShare.getMinutes().toString().padStart(2, '0')}5`;
                 const dateForShare = toPersianDigits(nowForShare.toLocaleDateString("fa-IR", { year: 'numeric', month: '2-digit', day: '2-digit' }));
@@ -304,8 +330,8 @@
                     date: dateForShare,
                     number: toPersianDigits(certificateNumberForShare)
                 };
-                // --- ویرایش پایان ---
-
+                
+                // حالا res.data شامل کد تصویر امضا نیز هست
                 const certificateHTML = getCertificateHTML(res.data);
                 
                 document.getElementById('certificatePreview').innerHTML = certificateHTML;
@@ -333,6 +359,7 @@
             const certificateToPrint = document.getElementById("certificateForPrint");
             const { jsPDF } = window.jspdf;
             
+            // گزینه useCORS: true برای اطمینان از خواندن صحیح تصاویر ضروری است
             html2canvas(certificateToPrint, { scale: 2, useCORS: true }).then(canvas => {
                 const imgData = canvas.toDataURL("image/jpeg", 0.9);
                 const pdf = new jsPDF('portrait', 'mm', 'a4');
@@ -359,14 +386,12 @@
 
     document.getElementById("viewPdfBtn").addEventListener("click", (e) => { e.preventDefault(); if (lastGeneratedPdfBlob) window.open(URL.createObjectURL(lastGeneratedPdfBlob)); });
     
-    // --- ویرایش شروع: تغییر عملکرد دکمه اشتراک‌گذاری ---
     document.getElementById("sharePdfBtn").addEventListener("click", async (e) => {
         e.preventDefault();
         if (lastGeneratedPdfBlob && certificateShareData.name) {
             const nationalId = document.getElementById("nationalIdInput").value;
             const file = new File([lastGeneratedPdfBlob], `سوابق_موسسه_${nationalId}.pdf`, { type: 'application/pdf' });
 
-            // ساخت متن دلخواه برای اشتراک‌گذاری
             const shareText = `نامه تائید سوابق فعالیت سرکار خانم/جناب آقا ${certificateShareData.name} با کد ملی(${certificateShareData.nationalId}) در مؤسسه تعالی اندیشه\n\nتاریخ: ${certificateShareData.date}\nشماره:${certificateShareData.number}`;
 
             const sharePayload = {
@@ -387,7 +412,6 @@
             }
         }
     });
-    // --- ویرایش پایان ---
 
     modalCloseBtn.addEventListener('click', () => { successModal.style.display = 'none'; });
     successModal.addEventListener('click', (e) => { if (e.target === successModal) successModal.style.display = 'none'; });
