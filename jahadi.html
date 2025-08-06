@@ -92,7 +92,24 @@
         #letterPreview .content p, #letterForPrint .content p { margin-bottom: 5px; }
         #letterPreview .signature p, #letterForPrint .signature p { margin-bottom: 2px; }
         #letterPreview .content p.spacing, #letterForPrint .content p.spacing { margin-bottom: 16px; }
-        #letterPreview .signature, #letterForPrint .signature { text-align: center; padding-top: 10px; }
+        
+        /* --- شروع ویرایش CSS --- */
+        #letterPreview .signature, #letterForPrint .signature { 
+            position: relative; /* برای جانمایی عکس */
+            text-align: center; 
+            padding-top: 10px; 
+            min-height: 90px; /* ایجاد فضا برای عکس */
+        }
+        .signature-image {
+            position: absolute;
+            left: 50%;
+            bottom: 0;
+            transform: translateX(-50%);
+            width: 200px; /* عرض عکس امضا */
+            height: auto;
+        }
+        /* --- پایان ویرایش CSS --- */
+
 
         #letterForPrint { display: block; position: absolute; left: -9999px; top: -9999px; width: 148mm; height: 210mm; padding: 10mm; border: 1px solid #000; box-sizing: border-box; background-color: #fff; }
 
@@ -183,7 +200,7 @@
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz8xelU---r1qvBvCLCo1Ll12PJ_WlVrMURzNSPbtmWZC0_46Tl5ZvPiH2foh-430fG/exec";
 
     let lastGeneratedPdfBlob = null;
-    let letterDataForShare = null; // متغیر برای نگهداری اطلاعات نامه جهت اشتراک گذاری
+    let letterDataForShare = null;
     const generateBtn = document.getElementById('generateBtn');
     const downloadBtn = document.getElementById('downloadBtn');
     const statusMessage = document.getElementById('statusMessage');
@@ -233,8 +250,14 @@
             preview.style.transform = `scale(${scale})`;
         }
     }
-
+    
+    // --- شروع ویرایش: تابع تولید HTML با قابلیت دریافت عکس امضا ---
     function getLetterHTML(data) {
+        // اگر کد عکس امضا وجود داشت، تگ img ساخته می‌شود
+        const signatureImageHTML = data.signatureImageBase64 
+            ? `<img src="data:image/png;base64,${data.signatureImageBase64}" class="signature-image" alt="مهر و امضا">` 
+            : '';
+
         return `
             <div class="header-right">
                 <p>گروه جهادی طلاب و روحانیون جنوب، تاسیس ۱۳۹۸</p>
@@ -253,11 +276,11 @@
                 <p class="spacing">با سلام و احترام،</p>
                 <p style="text-align: center;">احتراما به استحضار می‌رساند، جناب آقا/سرکار خانم ${data.fullName} با کد ملی ${toPersianDigits(data.nationalID)} در فعالیت‌های جهادی گروه طلاب و روحانیون جنوب از تاریخ ${toPersianDigits(data.startYear)} به‌مدت ${data.durationText} مشارکت فعال داشته است، باتشکر</p>
                 <div class="signature">
-                    <p>امضاء</p>
-                    <p>مسئول گروه جهادی طلاب و روحانیون جنوب</p>
+                    ${signatureImageHTML}
                 </div>
             </div>`;
     }
+    // --- پایان ویرایش ---
 
     generateBtn.addEventListener('click', function () {
         hideMessage();
@@ -300,17 +323,22 @@
         })
         .then(response => response.json())
         .then(data => {
+            // --- شروع ویرایش: دریافت پاسخ از سرور و ساخت نامه ---
             if (data.status === 'success') {
                 showMessage('کد تائید شد. در حال تولید نامه...', 'success');
                 
                 const durationSelect = document.getElementById('duration');
                 const durationText = durationSelect.options[durationSelect.selectedIndex].text;
                 
+                // اطلاعات نمایشی را با اطلاعات دریافتی از فرم و تاریخ جلالی ترکیب می‌کنیم
                 const displayData = { ...payload, issueDate: jalaliDate, durationText: durationText };
                 
-                // ** ویرایش: ذخیره اطلاعات برای اشتراک گذاری **
+                // اطلاعات را برای اشتراک گذاری ذخیره می‌کنیم
                 letterDataForShare = { ...displayData };
 
+                // کد عکس امضا را از پاسخ سرور به اطلاعات نمایشی اضافه می‌کنیم
+                displayData.signatureImageBase64 = data.signatureImageBase64;
+                
                 const letterHTML = getLetterHTML(displayData);
                 document.getElementById('letterPreview').innerHTML = letterHTML;
                 document.getElementById('letterForPrint').innerHTML = letterHTML;
@@ -326,6 +354,7 @@
                 showMessage(data.message || 'خطای نامشخص از سرور.', 'error');
                 setButtonLoading(generateBtn, false, "تولید و ذخیره نامه");
             }
+            // --- پایان ویرایش ---
         })
         .catch(error => {
             showMessage('خطا در ارتباط با سرور. از اتصال اینترنت خود مطمئن شوید.', 'error');
@@ -339,34 +368,21 @@
         const { jsPDF } = window.jspdf;
         const printElement = document.getElementById('letterForPrint');
 
-        const originalStyle = { position: printElement.style.position, left: printElement.style.left, top: printElement.style.top, zIndex: printElement.style.zIndex, opacity: printElement.style.opacity };
-        printElement.style.position = 'fixed';
-        printElement.style.left = '0';
-        printElement.style.top = '0';
-        printElement.style.zIndex = '-1';
-        printElement.style.opacity = '1';
-
-        setTimeout(() => {
-            html2canvas(printElement, { scale: 2, useCORS: true, allowTaint: true, logging: false, width: printElement.offsetWidth, height: printElement.offsetHeight })
-                .then(canvas => {
-                    const imgData = canvas.toDataURL('image/jpeg', 1.0);
-                    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
-                    pdf.addImage(imgData, 'JPEG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
-                    lastGeneratedPdfBlob = pdf.output('blob');
-                    pdf.save('نامه-جهادی.pdf');
-                    successModal.style.display = 'flex';
-                }).catch(err => {
-                    showMessage('خطایی در تولید PDF رخ داده است.', 'error');
-                    console.error("html2canvas error: ", err);
-                }).finally(() => {
-                    printElement.style.position = originalStyle.position;
-                    printElement.style.left = originalStyle.left;
-                    printElement.style.top = originalStyle.top;
-                    printElement.style.zIndex = originalStyle.zIndex;
-                    printElement.style.opacity = originalStyle.opacity;
-                    setButtonLoading(downloadBtn, false, "دانلود مجدد PDF");
-                });
-        }, 100);
+        // افزایش scale برای کیفیت بالاتر
+        html2canvas(printElement, { scale: 5, useCORS: true })
+            .then(canvas => {
+                const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
+                pdf.addImage(imgData, 'JPEG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+                lastGeneratedPdfBlob = pdf.output('blob');
+                pdf.save('نامه-جهادی.pdf');
+                successModal.style.display = 'flex';
+            }).catch(err => {
+                showMessage('خطایی در تولید PDF رخ داده است.', 'error');
+                console.error("html2canvas error: ", err);
+            }).finally(() => {
+                setButtonLoading(downloadBtn, false, "دانلود مجدد PDF");
+            });
     }
 
     downloadBtn.addEventListener('click', downloadPdf);
@@ -374,7 +390,6 @@
     window.addEventListener('resize', scalePreview);
     document.getElementById("viewPdfBtn").addEventListener("click", (e) => { e.preventDefault(); if (lastGeneratedPdfBlob) window.open(URL.createObjectURL(lastGeneratedPdfBlob), '_blank'); });
     
-    // ** ویرایش: تغییر متن اشتراک گذاری **
     document.getElementById("sharePdfBtn").addEventListener("click", async (e) => {
         e.preventDefault();
         if (lastGeneratedPdfBlob && letterDataForShare) {
