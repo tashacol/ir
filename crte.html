@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -70,31 +70,42 @@
         #statusMessage.success { background-color: rgba(40, 167, 69, 0.1); color: var(--success-color); }
         #statusMessage.error { background-color: rgba(220, 53, 69, 0.1); color: var(--danger-color); }
         #result { display: none; margin-top: 30px; border-top: 1px solid var(--card-border); padding-top: 30px; }
-        #previewBox { width: 100%; padding: 10px; background-color: var(--input-bg); border-radius: 10px; border: 1px solid var(--card-border); }
+        #previewBox { width: 100%; max-width: 500px; margin-left: auto; margin-right: auto; padding: 10px; background-color: var(--input-bg); border-radius: 10px; border: 1px solid var(--card-border); }
         
-        /* --- شروع ویرایش CSS: استایل گواهی --- */
-        #certificatePreview {
-            width: 100%;
+        /* --- شروع ویرایش CSS برای سایز A5 --- */
+        #certificatePreview { 
+            width: 100%; 
             aspect-ratio: 148 / 210; /* نسبت ابعاد A5 */
-            margin: 0 auto;
-            position: relative;
-            background-color: white;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            padding: 5% 7%;
-            box-sizing: border-box;
-            font-family: 'Amiri', serif;
-            font-size: clamp(8px, 2.5vw, 16px); /* فونت واکنشگرا */
-            line-height: 1.6;
+            margin: 0 auto; 
+            position: relative; 
+            background-color: white; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+            padding: 5% 7%; 
         }
-        #certificatePreview::before {
-            content: "";
-            position: absolute;
-            top: 10mm; left: 10mm; right: 10mm; bottom: 10mm;
-            border: 2px solid black;
-            box-sizing: border-box;
+        #certificateForPrint { 
+            display: block; 
+            position: absolute; 
+            left: -9999px; 
+            top: -9999px; 
+            width: 148mm; /* عرض A5 */
+            height: 210mm; /* ارتفاع A5 */
+            padding: 15mm; /* پدینگ متناسب با A5 */
+            margin: auto; 
+            z-index: -1; 
+            background-color: white; 
+            box-sizing: border-box; 
         }
-        /* --- پایان ویرایش CSS --- */
-
+        #certificateForPrint::before { 
+            content: ""; 
+            position: absolute; 
+            top: 7mm; /* حاشیه متناسب با A5 */
+            left: 7mm; 
+            right: 7mm; 
+            bottom: 7mm; 
+            border: 2px solid black; 
+        }
+        /* --- پایان ویرایش CSS برای سایز A5 --- */
+        
         .cert-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
         .cert-header p { font-weight: 700 !important; }
         .cert-header-right, .cert-header-left, .cert-header-center { width: 100%; }
@@ -112,8 +123,8 @@
         .cert-signature { 
             margin-top: 80px; 
             text-align: center; 
-            position: relative;
-            min-height: 100px;
+            position: relative; 
+            min-height: 100px; 
         }
         .cert-signature p { 
             font-weight: normal; 
@@ -121,12 +132,19 @@
         }
         .signature-image {
             position: absolute;
-            bottom: 5px;
+            bottom: 5px; 
             left: 50%;
-            transform: translateX(-50%);
-            width: 160px;
-            height: auto;
+            transform: translateX(-50%); 
+            width: 160px; 
+            height: auto; 
         }
+
+        #certificateForPrint, #certificateForPrint * { font-family: 'Amiri', serif; font-size: 12px; line-height: 1.5; } /* تغییر سایز فونت پایه برای A5 */
+        #certificateForPrint .cert-main-paragraph { line-height: 2 !important; }
+        #certificateForPrint .cert-signature p, #certificateForPrint .cert-title, #certificateForPrint .cert-centered-text { font-size: 11px; }
+        #certificateForPrint .cert-table { font-size: 10px; }
+        #certificatePreview, #certificatePreview * { font-family: 'Amiri', serif; font-size: clamp(6px, 1.8vw, 12px); line-height: 1.5; }
+        #certificatePreview .cert-main-paragraph { line-height: 2 !important; }
 
         #downloadControls { margin-top: 20px; text-align: center; }
         
@@ -184,7 +202,7 @@
     </div>
 </div>
 
-<!-- المان certificateForPrint حذف شد -->
+<div id="certificateForPrint"></div>
 
 <div class="modal-overlay" id="successModal">
     <div class="modal-content">
@@ -198,10 +216,11 @@
 </div>
 
 <script>
+    // URL وب اپلیکیشن جدید خود را در اینجا قرار دهید
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyV866aacQPkaM-s02YQV2au1AGVf9hjI0R5S9wmlhR7kaIxJ_y4GVOEpix6efyxNh5/exec'; 
     
     let lastGeneratedPdfBlob = null;
-    let certificateShareData = {};
+    let certificateShareData = {}; // متغیر برای نگهداری اطلاعات جهت اشتراک‌گذاری
 
     const certificateForm = document.getElementById("certificateForm");
     const generateButton = document.getElementById("generateButton");
@@ -237,11 +256,10 @@
         return result;
     }
     
-    // --- شروع ویرایش تابع تولید HTML ---
     function getCertificateHTML(data) {
         const userInfo = data.user;
         const activities = data.activities;
-        const signatureInfo = data.signatureImage; // دریافت شیء اطلاعات امضا
+        const signatureBase64 = data.signatureImageBase64; 
 
         let totalActivityMonths = activities.reduce((sum, activity) => sum + (Number(activity.durationMonths) || 0), 0);
         let years = Math.floor(totalActivityMonths / 12);
@@ -257,9 +275,8 @@
             tableRows += `<tr><td>${activity.activity}</td><td>${toPersianDigits(activity.startDate)}</td><td>${toPersianDigits(endDate)}</td></tr>`;
         });
 
-        // اگر اطلاعات امضا وجود داشت، تگ img با نوع صحیح ساخته می‌شود
-        const signatureImageHTML = signatureInfo 
-            ? `<img src="data:${signatureInfo.contentType};base64,${signatureInfo.base64}" class="signature-image" alt="مهر و امضا">` 
+        const signatureImageHTML = signatureBase64 
+            ? `<img src="data:image/png;base64,${signatureBase64}" class="signature-image" alt="مهر و امضا">` 
             : '';
 
         return `
@@ -293,7 +310,6 @@
                 </div>
             </div>`;
     }
-    // --- پایان ویرایش تابع تولید HTML ---
 
     certificateForm.addEventListener("submit", function(event) {
         event.preventDefault();
@@ -328,7 +344,7 @@
         .then(response => response.json())
         .then(res => {
             if (res.status === 'success') {
-                showMessage("اطلاعات تائید شد. در حال تولید PDF...", 'success');
+                showMessage("اطلاعات با موفقیت تائید و ذخیره شد. در حال تولید PDF...", 'success');
                 
                 const nowForShare = new Date();
                 const certificateNumberForShare = `${nowForShare.getHours().toString().padStart(2, '0')}${nowForShare.getMinutes().toString().padStart(2, '0')}5`;
@@ -342,7 +358,9 @@
                 };
                 
                 const certificateHTML = getCertificateHTML(res.data);
+                
                 document.getElementById('certificatePreview').innerHTML = certificateHTML;
+                document.getElementById('certificateForPrint').innerHTML = certificateHTML;
         
                 certificateForm.style.display = "none";
                 resultDiv.style.display = "block";
@@ -359,47 +377,40 @@
             setButtonLoading(generateButton, false);
         });
     });
-    
-    // --- شروع بازنویسی کامل تابع دانلود PDF ---
+
+    // --- شروع ویرایش تابع دانلود PDF برای سایز A5 ---
     function downloadPdf() {
         setButtonLoading(downloadPdfBtn, true);
-        const { jsPDF } = window.jspdf;
-        const certificateElement = document.getElementById('certificatePreview');
-
-        html2canvas(certificateElement, {
-            scale: 3, // افزایش رزولوشن برای کیفیت چاپ بالاتر
-            useCORS: true,
-            logging: true, // برای اشکال‌زدایی احتمالی در کنسول
-            allowTaint: true
-        }).then(canvas => {
-            try {
-                const imgData = canvas.toDataURL('image/jpeg', 0.9);
-                const pdf = new jsPDF('portrait', 'mm', 'a5');
-                const pdfWidth = 148; // عرض A5
-                const pdfHeight = 210; // ارتفاع A5
+        try {
+            const certificateToPrint = document.getElementById("certificateForPrint");
+            const { jsPDF } = window.jspdf;
+            
+            html2canvas(certificateToPrint, { scale: 3, useCORS: true }).then(canvas => { // افزایش scale برای کیفیت بهتر در A5
+                const imgData = canvas.toDataURL("image/jpeg", 0.95); // کیفیت بالاتر
                 
-                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                // ایجاد PDF در سایز A5 (ابعاد 148x210 میلی‌متر)
+                const pdf = new jsPDF('portrait', 'mm', 'a5'); 
+                
+                // افزودن تصویر به PDF و پوشاندن کامل صفحه A5
+                pdf.addImage(imgData, 'JPEG', 0, 0, 148, 210);
+                
                 lastGeneratedPdfBlob = pdf.output('blob');
-                
                 const nationalId = document.getElementById("nationalIdInput").value;
                 pdf.save(`سوابق_موسسه_${nationalId}.pdf`);
 
                 successModal.style.display = 'flex';
-            } catch(e) {
-                console.error("خطا در ساخت PDF:", e);
-                showMessage("خطا در ایجاد گواهی PDF.", 'error');
-            } finally {
                 setButtonLoading(downloadPdfBtn, false);
                 setButtonLoading(generateButton, false);
-            }
-        }).catch(err => {
-            console.error("خطا در html2canvas:", err);
-            showMessage("خطا در پردازش قالب گواهی.", 'error');
+            });
+
+        } catch (error) {
+            console.error("خطا در ایجاد گواهی PDF:", error);
+            showMessage("خطا در ایجاد گواهی PDF.", 'error');
             setButtonLoading(downloadPdfBtn, false);
             setButtonLoading(generateButton, false);
-        });
+        }
     }
-    // --- پایان بازنویسی کامل تابع دانلود PDF ---
+    // --- پایان ویرایش تابع دانلود PDF ---
     
     downloadPdfBtn.addEventListener("click", downloadPdf);
 
@@ -410,13 +421,25 @@
         if (lastGeneratedPdfBlob && certificateShareData.name) {
             const nationalId = document.getElementById("nationalIdInput").value;
             const file = new File([lastGeneratedPdfBlob], `سوابق_موسسه_${nationalId}.pdf`, { type: 'application/pdf' });
+
             const shareText = `نامه تائید سوابق فعالیت سرکار خانم/جناب آقا ${certificateShareData.name} با کد ملی(${certificateShareData.nationalId}) در مؤسسه تعالی اندیشه\n\nتاریخ: ${certificateShareData.date}\nشماره:${certificateShareData.number}`;
-            const sharePayload = { files: [file], title: 'گواهی سوابق فعالیت', text: shareText };
+
+            const sharePayload = {
+                files: [file],
+                title: 'گواهی سوابق فعالیت',
+                text: shareText
+            };
 
             if (navigator.canShare && navigator.canShare(sharePayload)) {
-                try { await navigator.share(sharePayload); }
-                catch (err) { if (err.name !== 'AbortError') console.error('Share failed', err); }
-            } else { alert("مرورگر شما از قابلیت اشتراک گذاری فایل و متن به صورت همزمان پشتیبانی نمی کند."); }
+                try { 
+                    await navigator.share(sharePayload); 
+                }
+                catch (err) { 
+                    if (err.name !== 'AbortError') console.error('Share failed', err);
+                }
+            } else { 
+                alert("مرورگر شما از قابلیت اشتراک گذاری فایل و متن به صورت همزمان پشتیبانی نمی کند."); 
+            }
         }
     });
 
