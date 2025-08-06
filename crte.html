@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -71,26 +71,30 @@
         #statusMessage.error { background-color: rgba(220, 53, 69, 0.1); color: var(--danger-color); }
         #result { display: none; margin-top: 30px; border-top: 1px solid var(--card-border); padding-top: 30px; }
         #previewBox { width: 100%; padding: 10px; background-color: var(--input-bg); border-radius: 10px; border: 1px solid var(--card-border); }
-        #certificatePreview { width: 100%; aspect-ratio: 148 / 210; margin: 0 auto; position: relative; background-color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 5% 7%; }
         
-        /* --- شروع ویرایش CSS: تغییر ابعاد به A5 --- */
-        #certificateForPrint { 
-            display: block; 
-            position: absolute; 
-            left: -9999px; 
-            top: -9999px; 
-            width: 148mm; /* ابعاد A5 */
-            height: 210mm; /* ابعاد A5 */
-            padding: 20mm; 
-            margin: auto; 
-            z-index: -1; 
-            background-color: white; 
-            box-sizing: border-box; 
+        /* --- شروع ویرایش CSS: استایل گواهی --- */
+        #certificatePreview {
+            width: 100%;
+            aspect-ratio: 148 / 210; /* نسبت ابعاد A5 */
+            margin: 0 auto;
+            position: relative;
+            background-color: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            padding: 5% 7%;
+            box-sizing: border-box;
+            font-family: 'Amiri', serif;
+            font-size: clamp(8px, 2.5vw, 16px); /* فونت واکنشگرا */
+            line-height: 1.6;
+        }
+        #certificatePreview::before {
+            content: "";
+            position: absolute;
+            top: 10mm; left: 10mm; right: 10mm; bottom: 10mm;
+            border: 2px solid black;
+            box-sizing: border-box;
         }
         /* --- پایان ویرایش CSS --- */
 
-        #certificateForPrint::before { content: ""; position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 2px solid black; }
-        
         .cert-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
         .cert-header p { font-weight: 700 !important; }
         .cert-header-right, .cert-header-left, .cert-header-center { width: 100%; }
@@ -123,13 +127,6 @@
             width: 160px;
             height: auto;
         }
-
-        #certificateForPrint, #certificateForPrint * { font-family: 'Amiri', serif; font-size: 16px; line-height: 1.5; }
-        #certificateForPrint .cert-main-paragraph { line-height: 2 !important; }
-        #certificateForPrint .cert-signature p, #certificateForPrint .cert-title, #certificateForPrint .cert-centered-text { font-size: 14px; }
-        #certificateForPrint .cert-table { font-size: 12px; }
-        #certificatePreview, #certificatePreview * { font-family: 'Amiri', serif; font-size: clamp(6px, 1.8vw, 12px); line-height: 1.5; }
-        #certificatePreview .cert-main-paragraph { line-height: 2 !important; }
 
         #downloadControls { margin-top: 20px; text-align: center; }
         
@@ -187,7 +184,7 @@
     </div>
 </div>
 
-<div id="certificateForPrint"></div>
+<!-- المان certificateForPrint حذف شد -->
 
 <div class="modal-overlay" id="successModal">
     <div class="modal-content">
@@ -201,7 +198,6 @@
 </div>
 
 <script>
-    // URL وب اپلیکیشن جدید خود را در اینجا قرار دهید
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyV866aacQPkaM-s02YQV2au1AGVf9hjI0R5S9wmlhR7kaIxJ_y4GVOEpix6efyxNh5/exec'; 
     
     let lastGeneratedPdfBlob = null;
@@ -241,10 +237,11 @@
         return result;
     }
     
+    // --- شروع ویرایش تابع تولید HTML ---
     function getCertificateHTML(data) {
         const userInfo = data.user;
         const activities = data.activities;
-        const signatureBase64 = data.signatureImageBase64;
+        const signatureInfo = data.signatureImage; // دریافت شیء اطلاعات امضا
 
         let totalActivityMonths = activities.reduce((sum, activity) => sum + (Number(activity.durationMonths) || 0), 0);
         let years = Math.floor(totalActivityMonths / 12);
@@ -260,8 +257,9 @@
             tableRows += `<tr><td>${activity.activity}</td><td>${toPersianDigits(activity.startDate)}</td><td>${toPersianDigits(endDate)}</td></tr>`;
         });
 
-        const signatureImageHTML = signatureBase64 
-            ? `<img src="data:image/png;base64,${signatureBase64}" class="signature-image" alt="مهر و امضا">` 
+        // اگر اطلاعات امضا وجود داشت، تگ img با نوع صحیح ساخته می‌شود
+        const signatureImageHTML = signatureInfo 
+            ? `<img src="data:${signatureInfo.contentType};base64,${signatureInfo.base64}" class="signature-image" alt="مهر و امضا">` 
             : '';
 
         return `
@@ -295,6 +293,7 @@
                 </div>
             </div>`;
     }
+    // --- پایان ویرایش تابع تولید HTML ---
 
     certificateForm.addEventListener("submit", function(event) {
         event.preventDefault();
@@ -329,7 +328,7 @@
         .then(response => response.json())
         .then(res => {
             if (res.status === 'success') {
-                showMessage("اطلاعات با موفقیت تائید و ذخیره شد. در حال تولید PDF...", 'success');
+                showMessage("اطلاعات تائید شد. در حال تولید PDF...", 'success');
                 
                 const nowForShare = new Date();
                 const certificateNumberForShare = `${nowForShare.getHours().toString().padStart(2, '0')}${nowForShare.getMinutes().toString().padStart(2, '0')}5`;
@@ -343,9 +342,7 @@
                 };
                 
                 const certificateHTML = getCertificateHTML(res.data);
-                
                 document.getElementById('certificatePreview').innerHTML = certificateHTML;
-                document.getElementById('certificateForPrint').innerHTML = certificateHTML;
         
                 certificateForm.style.display = "none";
                 resultDiv.style.display = "block";
@@ -363,37 +360,46 @@
         });
     });
     
-    // --- شروع ویرایش تابع دانلود PDF ---
+    // --- شروع بازنویسی کامل تابع دانلود PDF ---
     function downloadPdf() {
         setButtonLoading(downloadPdfBtn, true);
-        try {
-            const certificateToPrint = document.getElementById("certificateForPrint");
-            const { jsPDF } = window.jspdf;
-            
-            html2canvas(certificateToPrint, { scale: 2, useCORS: true }).then(canvas => {
-                const imgData = canvas.toDataURL("image/jpeg", 0.9);
-                // تعریف PDF با اندازه A5
+        const { jsPDF } = window.jspdf;
+        const certificateElement = document.getElementById('certificatePreview');
+
+        html2canvas(certificateElement, {
+            scale: 3, // افزایش رزولوشن برای کیفیت چاپ بالاتر
+            useCORS: true,
+            logging: true, // برای اشکال‌زدایی احتمالی در کنسول
+            allowTaint: true
+        }).then(canvas => {
+            try {
+                const imgData = canvas.toDataURL('image/jpeg', 0.9);
                 const pdf = new jsPDF('portrait', 'mm', 'a5');
-                // افزودن تصویر به PDF با ابعاد A5
-                pdf.addImage(imgData, 'JPEG', 0, 0, 148, 210);
+                const pdfWidth = 148; // عرض A5
+                const pdfHeight = 210; // ارتفاع A5
                 
+                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
                 lastGeneratedPdfBlob = pdf.output('blob');
+                
                 const nationalId = document.getElementById("nationalIdInput").value;
                 pdf.save(`سوابق_موسسه_${nationalId}.pdf`);
 
                 successModal.style.display = 'flex';
+            } catch(e) {
+                console.error("خطا در ساخت PDF:", e);
+                showMessage("خطا در ایجاد گواهی PDF.", 'error');
+            } finally {
                 setButtonLoading(downloadPdfBtn, false);
                 setButtonLoading(generateButton, false);
-            });
-
-        } catch (error) {
-            console.error("خطا در ایجاد گواهی PDF:", error);
-            showMessage("خطا در ایجاد گواهی PDF.", 'error');
+            }
+        }).catch(err => {
+            console.error("خطا در html2canvas:", err);
+            showMessage("خطا در پردازش قالب گواهی.", 'error');
             setButtonLoading(downloadPdfBtn, false);
             setButtonLoading(generateButton, false);
-        }
+        });
     }
-    // --- پایان ویرایش تابع دانلود PDF ---
+    // --- پایان بازنویسی کامل تابع دانلود PDF ---
     
     downloadPdfBtn.addEventListener("click", downloadPdf);
 
@@ -404,25 +410,13 @@
         if (lastGeneratedPdfBlob && certificateShareData.name) {
             const nationalId = document.getElementById("nationalIdInput").value;
             const file = new File([lastGeneratedPdfBlob], `سوابق_موسسه_${nationalId}.pdf`, { type: 'application/pdf' });
-
             const shareText = `نامه تائید سوابق فعالیت سرکار خانم/جناب آقا ${certificateShareData.name} با کد ملی(${certificateShareData.nationalId}) در مؤسسه تعالی اندیشه\n\nتاریخ: ${certificateShareData.date}\nشماره:${certificateShareData.number}`;
-
-            const sharePayload = {
-                files: [file],
-                title: 'گواهی سوابق فعالیت',
-                text: shareText
-            };
+            const sharePayload = { files: [file], title: 'گواهی سوابق فعالیت', text: shareText };
 
             if (navigator.canShare && navigator.canShare(sharePayload)) {
-                try { 
-                    await navigator.share(sharePayload); 
-                }
-                catch (err) { 
-                    if (err.name !== 'AbortError') console.error('Share failed', err);
-                }
-            } else { 
-                alert("مرورگر شما از قابلیت اشتراک گذاری فایل و متن به صورت همزمان پشتیبانی نمی کند."); 
-            }
+                try { await navigator.share(sharePayload); }
+                catch (err) { if (err.name !== 'AbortError') console.error('Share failed', err); }
+            } else { alert("مرورگر شما از قابلیت اشتراک گذاری فایل و متن به صورت همزمان پشتیبانی نمی کند."); }
         }
     });
 
