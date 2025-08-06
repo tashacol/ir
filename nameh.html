@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa">
 <head>
     <meta charset="UTF-8">
@@ -105,34 +105,19 @@
         #result { display: none; margin-top: 30px; border-top: 1px solid var(--card-border); padding-top: 30px; }
         #previewBox { width: 100%; padding: 10px; background-color: var(--input-bg); border-radius: 10px; border: 1px solid var(--card-border); }
         #previewWrapper { width: 100%; aspect-ratio: 148 / 210; display: flex; justify-content: center; align-items: center; overflow: hidden; }
-        
-        #letterContent { transform-origin: top center; flex-shrink: 0; width: 100%; }
+        #letterContent, #letterForPrint {
+            width: 148mm; height: 210mm;
+            padding: 10mm; border: 2px solid #000; box-sizing: border-box;
+            background-color: #fff; display: flex; flex-direction: column;
+            font-family: 'Amiri', serif; font-size: 16px;
+            /* ویرایش: افزودن این دو خط برای بهبود رندرینگ حروف در PDF */
+            font-kerning: normal;
+            text-rendering: optimizeLegibility;
+        }
+        #letterContent { transform-origin: center center; flex-shrink: 0; }
         #letterForPrint { position: absolute; left: -9999px; top: -9999px; }
 
-        .page-a5 {
-            width: 148mm;
-            height: 210mm;
-            padding: 10mm;
-            border: 2px solid #000;
-            box-sizing: border-box;
-            background-color: #fff;
-            display: flex;
-            flex-direction: column;
-            font-family: 'Amiri', serif;
-            font-size: 16px;
-            position: relative; 
-            page-break-after: always;
-        }
-
-        .page-a5:not(:last-child) {
-            margin-bottom: 5mm;
-        }
-        
-        /* ویرایش ۱: افزودن text-rendering برای بهبود نمایش حروف فارسی */
-        #letterContent *, #letterForPrint * { 
-            font-family: 'Amiri', serif; 
-            text-rendering: geometricPrecision;
-        }
+        #letterContent *, #letterForPrint * { font-family: 'Amiri', serif; }
 
         .letter-header {
             display: flex; justify-content: space-between; align-items: flex-start;
@@ -149,28 +134,10 @@
 
         .content { flex-grow: 1; text-align: right; }
         .content p { margin-bottom: 12px; line-height: 1.7; }
-
-        /* ویرایش ۲: تنظیم margin و text-align برای پاراگراف اصلی نامه */
-        .letter-paragraph { 
-            text-align: justify; 
-            line-height: 1.8; 
-            margin-top: 15px; /* کاهش فاصله از بالا */
-            margin-bottom: 25px;
-            white-space: pre-wrap; 
-        }
+        /* ویرایش: کاهش فاصله بالای پاراگراف متن اصلی */
+        .letter-paragraph { text-align: justify; line-height: 1.8; margin: 15px 0 25px 0; white-space: pre-wrap; }
         .signature { text-align: center; margin-top: auto; padding-top: 40px; }
         .signature p { margin-bottom: 10px; }
-
-        .page-footer {
-            position: absolute;
-            bottom: 5mm;
-            left: 10mm;
-            right: 10mm;
-            text-align: center;
-            font-size: 12px;
-            font-family: 'Vazirmatn', sans-serif;
-            color: #333;
-        }
 
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(5px); }
         .modal-content { background: #fff; padding: 30px; border-radius: 15px; text-align: center; width: 90%; max-width: 400px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); position: relative; animation: fadeIn 0.3s; }
@@ -233,6 +200,7 @@
         </div>
     </div>
 
+    <!-- یک div جدا برای نسخه چاپی با ابعاد دقیق -->
     <div id="letterForPrint"></div>
 
     <div class="modal-overlay" id="successModal">
@@ -246,6 +214,7 @@
         </div>
     </div>
 
+    <!-- کتابخانه‌های jsPDF و html2canvas -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
@@ -253,8 +222,6 @@
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrzVqasXqaHAYCtVASahZcU9D1hSiKzvql_dz6y7r-AgTG_vFjWvIhSYDCZ2PTwGeG4A/exec";
 
         let lastGeneratedPdfBlob = null;
-        let lastLetterData = null;
-
         const letterForm = document.getElementById('letterForm');
         const generateBtn = document.getElementById('generateBtn');
         const downloadBtn = document.getElementById('downloadBtn');
@@ -292,26 +259,46 @@
             const wrapper = document.getElementById('previewWrapper');
             const preview = document.getElementById('letterContent');
             if (!wrapper || !preview) return;
-            const firstPage = preview.querySelector('.page-a5');
-            if (!firstPage) return;
             const wrapperWidth = wrapper.clientWidth;
-            const previewWidth = firstPage.offsetWidth;
+            const previewWidth = preview.offsetWidth;
             if (previewWidth > 0) {
                 const scale = wrapperWidth / previewWidth;
                 preview.style.transform = `scale(${scale})`;
             }
         }
 
-        function getLetterHeaderHTML(data) {
-            return `<div class="letter-header">...</div>`; // Kept for brevity, content is inside generateMultiPagePdf
+        function getLetterHTML(data) {
+             return `
+                <div class="letter-header">
+                    <div class="header-right">
+                        <p>تلفن: ۰۹۱۳۵۰۷۶۵۸۷</p>
+                        <p>آدرس: جیرفت، ابتدای خیابان استقلال</p>
+                    </div>
+                    <div class="header-center">
+                        <p class="header-title">مؤسسه تعالی اندیشه و رشد</p>
+                        <p class="header-subtitle">شناسه ملی: ۱۴۰۱۳۷۷۰۶۱۱</p>
+                    </div>
+                    <div class="header-left">
+                        <p>شماره نامه: ${toPersianDigits(data.letterNumber)}</p>
+                        <p>تاریخ: ${toPersianDigits(data.issueDate)}</p>
+                    </div>
+                </div>
+                <div class="content">
+                    <p style="text-align: center; font-weight: bold;">بسمه تعالی</p>
+                    <p>ریاست محترم ${data.department}</p>
+                    <p>موضوع: ${data.subject}</p>
+                    <div class="letter-paragraph">
+                        <span>${data.letterText}</span>
+                    </div>
+                </div>
+                <div class="signature">
+                    <p>امضاء</p>
+                    <p>مدیرعامل مؤسسه تعالی اندیشه و رشد</p>
+                </div>
+            `;
         }
-        function getLetterSignatureHTML() {
-            return `<div class="signature">...</div>`; // Kept for brevity
-        }
-        function getLetterFooterHTML(pageNum, totalPages) {
-            return `<div class="page-footer">...</div>`; // Kept for brevity
-        }
-        
+
+
         letterForm.addEventListener('submit', function (event) {
             event.preventDefault();
             hideMessage();
@@ -325,16 +312,15 @@
             const now = new Date();
             const jalaliDate = now.toLocaleDateString('fa-IR');
             const letterNumber = `${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}4`;
-            
-            lastLetterData = {
-                letterNumber: letterNumber,
-                issueDate: jalaliDate,
+
+            const payload = {
                 department: department,
                 subject: subject,
-                letterText: letterText
+                letterText: letterText,
+                verificationCode: toEnglishDigits(verificationCode),
+                issueDate: toEnglishDigits(jalaliDate),
+                letterNumber: letterNumber
             };
-
-            const payload = { ...lastLetterData, verificationCode: toEnglishDigits(verificationCode), issueDate: toEnglishDigits(jalaliDate) };
 
             fetch(SCRIPT_URL, {
                 method: 'POST',
@@ -344,10 +330,28 @@
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    showMessage('اطلاعات تائید شد، در حال تولید PDF...', 'success');
+                    showMessage('اطلاعات با موفقیت تائید و ذخیره شد.', 'success');
+                    
+                    const letterData = {
+                        letterNumber: letterNumber,
+                        issueDate: jalaliDate,
+                        department: department,
+                        subject: subject,
+                        letterText: letterText
+                    };
+
+                    const letterHTML = getLetterHTML(letterData);
+                    document.getElementById('letterContent').innerHTML = letterHTML;
+                    document.getElementById('letterForPrint').innerHTML = letterHTML;
+                    
                     letterForm.style.display = 'none';
                     resultDiv.style.display = 'block';
-                    generateMultiPagePdf(lastLetterData, true); 
+
+                    requestAnimationFrame(() => {
+                        scalePreview();
+                        downloadPdf();
+                    });
+                    
                 } else {
                     showMessage(data.message || 'خطای نامشخص از سرور.', 'error');
                 }
@@ -360,139 +364,64 @@
                 setButtonLoading(generateBtn, false);
             });
         });
-
-        // --- ویرایش ۳: بازنویسی کامل تابع تولید PDF برای حل مشکل حروف جدا و صفحه‌بندی ---
-        async function generateMultiPagePdf(letterData, shouldAutoDownload = false) {
+        
+        // ویرایش: جایگزینی تابع downloadPdf با نسخه اصلاح شده برای حل مشکل حروف
+        function downloadPdf() {
             if (typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined') {
                 showMessage('خطا: کتابخانه PDF بارگذاری نشده است.', 'error');
                 return;
             }
-            setButtonLoading(generateBtn, true);
-            setButtonLoading(downloadBtn, true);
-
             const { jsPDF } = window.jspdf;
-            const printContainer = document.getElementById('letterForPrint');
-            const previewContainer = document.getElementById('letterContent');
-            printContainer.innerHTML = '';
-            previewContainer.innerHTML = '';
-
-            // --- مرحله ۱: ساخت تمام صفحات در DOM ---
-            const tempDiv = document.createElement('div');
-            tempDiv.style.visibility = 'hidden';
-            tempDiv.style.position = 'absolute';
-            document.body.appendChild(tempDiv);
+            setButtonLoading(downloadBtn, true);
             
-            const words = letterData.letterText.replace(/\n/g, ' \n ').split(' ');
-            let pagesContent = [];
-            let currentPageEl = createNewPageElement(1, 1, letterData); // Page, Total, Data
-            tempDiv.appendChild(currentPageEl);
-            let contentDiv = currentPageEl.querySelector('.letter-paragraph');
+            const printElement = document.getElementById('letterForPrint');
+            const originalStyle = { position: printElement.style.position, left: printElement.style.left, top: printElement.style.top, zIndex: printElement.style.zIndex };
+            printElement.style.position = 'fixed';
+            printElement.style.left = '0';
+            printElement.style.top = '0';
+            printElement.style.zIndex = '-1';
             
-            for(const word of words) {
-                const isLineBreak = word.includes('\n');
-                contentDiv.innerHTML += (isLineBreak ? '<br>' : word + ' ');
-                
-                // 210mm (A5 height) - 20mm (paddings) - ~45mm (header) - ~25mm (footer+sig) = ~120mm content area
-                if(currentPageEl.scrollHeight > 120 * 3.78) { 
-                    contentDiv.innerHTML = contentDiv.innerHTML.replace(new RegExp((isLineBreak ? '<br>' : word) + ' $'), '');
-                    pagesContent.push(currentPageEl);
-                    currentPageEl = createNewPageElement(pagesContent.length + 1, 0, letterData);
-                    tempDiv.appendChild(currentPageEl);
-                    contentDiv = currentPageEl.querySelector('.letter-paragraph');
-                    contentDiv.innerHTML += (word + ' ');
-                }
-            }
-            pagesContent.push(currentPageEl);
-            document.body.removeChild(tempDiv);
-            
-            const totalPages = pagesContent.length;
-
-            // --- مرحله ۲: تولید PDF صفحه به صفحه (راه حل اصلی مشکل حروف) ---
-            const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5', compress: true });
-
-            for (let i = 0; i < totalPages; i++) {
-                const pageEl = pagesContent[i];
-                
-                // Update footer with correct total pages
-                pageEl.querySelector('.page-footer').innerHTML = `صفحه ${toPersianDigits(i + 1)} از ${toPersianDigits(totalPages)}`;
-
-                // Add signature ONLY to the very last page
-                if (i === totalPages - 1) {
-                    pageEl.innerHTML += `<div class="signature"><p>امضاء</p><p>مدیرعامل مؤسسه تعالی اندیشه و رشد</p></div>`;
-                }
-
-                printContainer.appendChild(pageEl); // Add to a visible-but-offscreen container for html2canvas
-            }
-            
-            // Render first page for preview
-            previewContainer.innerHTML = printContainer.innerHTML;
-            requestAnimationFrame(scalePreview);
-            
-            // تاخیر کوتاه برای اطمینان از رندر کامل
-            await new Promise(res => setTimeout(res, 500));
-
-            try {
-                const pageElements = printContainer.querySelectorAll('.page-a5');
-                for (let i = 0; i < pageElements.length; i++) {
-                    const canvas = await html2canvas(pageElements[i], {
-                        scale: 3,
-                        useCORS: true,
-                        backgroundColor: '#ffffff'
-                    });
+            // ویرایش: انتظار برای بارگذاری کامل فونت‌ها به جای تاخیر ثابت
+            document.fonts.ready.then(() => {
+                html2canvas(printElement, {
+                    scale: 3, 
+                    useCORS: true,
+                    allowTaint: true
+                })
+                .then(canvas => {
                     const imgData = canvas.toDataURL('image/png', 1.0);
-                    
-                    if (i > 0) pdf.addPage();
-                    pdf.addImage(imgData, 'PNG', 0, 0, 148, 210, undefined, 'FAST');
-                    
-                    // افزودن متن عمودی
-                    pdf.setFont('Vazirmatn', 'normal');
-                    pdf.setFontSize(9);
-                    pdf.setTextColor('#999');
-                    pdf.text(`تعداد کل صفحات: ${toPersianDigits(totalPages)}`, 144, 105, { angle: 90, align: 'center' });
-                }
+                    const pdf = new jsPDF({
+                        orientation: 'portrait',
+                        unit: 'mm',
+                        format: 'a5',
+                        compress: true
+                    });
 
-                lastGeneratedPdfBlob = pdf.output('blob');
-                
-                if (shouldAutoDownload) {
+                    const pdfWidth = 148;
+                    const pdfHeight = 210;
+                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                    
+                    lastGeneratedPdfBlob = pdf.output('blob');
+                    
                     pdf.save(`نامه-آزاد-${toEnglishDigits(new Date().toLocaleDateString('fa-IR'))}.pdf`);
+                    
                     successModal.style.display = 'flex';
-                }
-            } catch (err) {
-                 console.error("خطا در تولید PDF:", err);
-                 showMessage('خطایی در تولید PDF رخ داده است. کنسول را بررسی کنید.', 'error');
-            } finally {
-                setButtonLoading(generateBtn, false);
-                setButtonLoading(downloadBtn, false);
-            }
+                })
+                .catch(err => {
+                    console.error("خطا در تولید PDF:", err);
+                    showMessage('خطایی در تولید PDF رخ داده است. کنسول مرورگر را بررسی کنید.', 'error');
+                })
+                .finally(() => {
+                    printElement.style.position = originalStyle.position;
+                    printElement.style.left = originalStyle.left;
+                    printElement.style.top = originalStyle.top;
+                    printElement.style.zIndex = originalStyle.zIndex;
+                    setButtonLoading(downloadBtn, false);
+                });
+            });
         }
         
-        function createNewPageElement(pageNum, totalPages, data) {
-            const pageDiv = document.createElement('div');
-            pageDiv.className = 'page-a5';
-            pageDiv.innerHTML = `
-                <div class="letter-header">
-                    <div class="header-right"><p>تلفن: ۰۹۱۳۵۰۷۶۵۸۷</p><p>آدرس: جیرفت، ابتدای خیابان استقلال</p></div>
-                    <div class="header-center"><p class="header-title">مؤسسه تعالی اندیشه و رشد</p><p class="header-subtitle">شناسه ملی: ۱۴۰۱۳۷۷۰۶۱۱</p></div>
-                    <div class="header-left"><p>شماره نامه: ${toPersianDigits(data.letterNumber)}</p><p>تاریخ: ${toPersianDigits(data.issueDate)}</p></div>
-                </div>
-                <div class="content">
-                    <p style="text-align: center; font-weight: bold; margin-bottom: 15px;">بسمه تعالی</p>
-                    <p><strong>ریاست محترم ${data.department}</strong></p>
-                    <p><strong>موضوع: ${data.subject}</strong></p>
-                    <div class="letter-paragraph"></div>
-                </div>
-                <div class="page-footer">صفحه ${toPersianDigits(pageNum)} از ${toPersianDigits(totalPages)}</div>
-            `;
-            return pageDiv;
-        }
-
-        downloadBtn.addEventListener('click', () => {
-            if (lastLetterData) {
-                generateMultiPagePdf(lastLetterData, true);
-            } else {
-                showMessage('ابتدا یک نامه تولید کنید.', 'error');
-            }
-        });
+        downloadBtn.addEventListener('click', downloadPdf);
         
         window.addEventListener('resize', scalePreview);
         
@@ -503,9 +432,15 @@
             if (lastGeneratedPdfBlob) {
                 const file = new File([lastGeneratedPdfBlob], 'نامه-آزاد.pdf', { type: 'application/pdf' });
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    try { await navigator.share({ files: [file], title: 'نامه آزاد' }); }
-                    catch (err) { if (err.name !== 'AbortError') console.error('Share failed', err); }
-                } else { alert("مرورگر شما از قابلیت اشتراک گذاری فایل پشتیبانی نمی کند."); }
+                    try { 
+                        await navigator.share({ files: [file], title: 'نامه آزاد' }); 
+                    }
+                    catch (err) { 
+                        if (err.name !== 'AbortError') console.error('Share failed', err);
+                    }
+                } else { 
+                    alert("مرورگر شما از قابلیت اشتراک گذاری فایل پشتیبانی نمی کند."); 
+                }
             }
         });
 
