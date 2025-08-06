@@ -183,6 +183,7 @@
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz8xelU---r1qvBvCLCo1Ll12PJ_WlVrMURzNSPbtmWZC0_46Tl5ZvPiH2foh-430fG/exec";
 
     let lastGeneratedPdfBlob = null;
+    let letterDataForShare = null; // متغیر برای نگهداری اطلاعات نامه جهت اشتراک گذاری
     const generateBtn = document.getElementById('generateBtn');
     const downloadBtn = document.getElementById('downloadBtn');
     const statusMessage = document.getElementById('statusMessage');
@@ -305,9 +306,11 @@
                 const durationSelect = document.getElementById('duration');
                 const durationText = durationSelect.options[durationSelect.selectedIndex].text;
                 
-                // داده‌ها را برای نمایش آماده می‌کنیم (تاریخ شمسی از متغیر بالا می‌آید)
                 const displayData = { ...payload, issueDate: jalaliDate, durationText: durationText };
                 
+                // ** ویرایش: ذخیره اطلاعات برای اشتراک گذاری **
+                letterDataForShare = { ...displayData };
+
                 const letterHTML = getLetterHTML(displayData);
                 document.getElementById('letterPreview').innerHTML = letterHTML;
                 document.getElementById('letterForPrint').innerHTML = letterHTML;
@@ -370,16 +373,32 @@
     
     window.addEventListener('resize', scalePreview);
     document.getElementById("viewPdfBtn").addEventListener("click", (e) => { e.preventDefault(); if (lastGeneratedPdfBlob) window.open(URL.createObjectURL(lastGeneratedPdfBlob), '_blank'); });
+    
+    // ** ویرایش: تغییر متن اشتراک گذاری **
     document.getElementById("sharePdfBtn").addEventListener("click", async (e) => {
         e.preventDefault();
-        if (lastGeneratedPdfBlob) {
+        if (lastGeneratedPdfBlob && letterDataForShare) {
             const file = new File([lastGeneratedPdfBlob], 'نامه-جهادی.pdf', { type: 'application/pdf' });
+
+            const shareText = `نامه تائید سوابق فعالیت جهادی (${letterDataForShare.fullName}) با کدملی (${toPersianDigits(letterDataForShare.nationalID)}) به اداره (${letterDataForShare.department})\n\nتاریخ: (${toPersianDigits(letterDataForShare.issueDate)})\nشماره:(${toPersianDigits(letterDataForShare.letterNumber)})`;
+
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                try { await navigator.share({ files: [file], title: 'نامه سوابق جهادی' }); }
-                catch (err) { console.log('Share failed', err); }
-            } else { alert("مرورگر شما از قابلیت اشتراک گذاری فایل پشتیبانی نمی کند."); }
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: 'نامه سوابق جهادی',
+                        text: shareText
+                    });
+                }
+                catch (err) {
+                    console.log('Share failed', err);
+                }
+            } else {
+                alert("مرورگر شما از قابلیت اشتراک گذاری فایل پشتیبانی نمی کند.");
+            }
         }
     });
+
     modalCloseBtn.addEventListener('click', () => { successModal.style.display = 'none'; });
     successModal.addEventListener('click', (e) => { if (e.target === successModal) successModal.style.display = 'none'; });
 </script>
