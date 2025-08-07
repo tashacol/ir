@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>پرتال اساتید قرآن</title>
     <style>
-        :root { --primary-color: #2c7a7b; --secondary-color: #1a5f7a; --light-bg: #f0f5f9; --white: #ffffff; --dark-text: #333; --border-color: #dce4e8; }
+        :root { --primary-color: #2c7a7b; --secondary-color: #1a5f7a; --light-bg: #f0f5f9; --white: #ffffff; --dark-text: #333; --border-color: #dce4e8; --danger-color: #e74c3c; --warning-color: #f39c12; }
         body { font-family: 'Vazirmatn', sans-serif; background-color: var(--light-bg); margin: 0; padding: 20px; color: var(--dark-text); line-height: 1.6; }
         @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap');
         .container { max-width: 950px; margin: auto; background: var(--white); padding: 30px; border-radius: 12px; box-shadow: 0 6px 15px rgba(0,0,0,0.08); }
@@ -21,7 +21,12 @@
         button:hover { background-color: var(--secondary-color); }
         button.secondary { background-color: #6c757d; }
         button.secondary:hover { background-color: #5a6268; }
-        #error-message { color: #e74c3c; text-align: center; margin-top: 15px; font-weight: bold; }
+        button.edit-btn { background-color: var(--warning-color); }
+        button.edit-btn:hover { background-color: #e67e22; }
+        button.delete-btn { background-color: var(--danger-color); }
+        button.delete-btn:hover { background-color: #c0392b; }
+        .card-actions { display: flex; gap: 10px; margin-top: 20px; }
+        #error-message { color: var(--danger-color); text-align: center; margin-top: 15px; font-weight: bold; }
         #welcome-message { font-size: 1.3em; margin-bottom: 25px; background: #e8f3f3; padding: 15px; border-radius: 8px; border-right: 5px solid var(--primary-color); }
         .course-card { background: #fafafa; border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; margin-bottom: 25px; }
         .course-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;}
@@ -86,6 +91,21 @@
         </div>
     </div>
 
+    <!-- مودال ویرایش دوره -->
+    <div id="edit-course-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal('edit-course-modal')">&times;</span>
+            <h3>ویرایش تاریخ دوره <span id="edit-modal-course-id" style="color: var(--secondary-color);"></span></h3>
+            <div class="form-group">
+                <label>تاریخ شروع جدید:</label>
+                <select id="edit-start-day"></select>
+                <select id="edit-start-month"></select>
+                <select id="edit-start-year" disabled></select>
+            </div>
+            <button id="btn-submit-edit-course">ذخیره تغییرات</button>
+        </div>
+    </div>
+
     <!-- مودال افزودن قرآن آموز -->
     <div id="add-student-modal" class="modal hidden">
         <div class="modal-content">
@@ -116,40 +136,28 @@
     // # مهم: لطفاً URL وب اپلیکیشن خود را که از گوگل اسکریپت دریافت کرده‌اید،      #
     // # در اینجا جایگزین کنید.                                                      #
     // ##################################################################################
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzQaOwN9iWbpthIqBnKnTbADX-5lbAhlG_LZ4yz7KYBpn5SP4EV-LcWvNE-WP3zCcMJJw/exec"; 
+    const SCRIPT_URL = "YOUR_WEB_APP_URL"; 
     
-    // --- متغیرهای سراسری برای نگهداری اطلاعات کاربر ---
+    // --- متغیرهای سراسری ---
     let loggedInInstructorId = null;
     let loggedInInstructorName = null;
     let tempStudents = [];
     let currentCourseIdForAddingStudents = null;
+    let currentCourseIdForEditing = null;
 
-    /**
-     * تابع عمومی برای ارسال درخواست به Google Apps Script
-     * @param {string} action - نام عملیاتی که باید در بک‌اند اجرا شود.
-     * @param {object} params - پارامترهای مورد نیاز برای آن عملیات.
-     * @returns {Promise<any>} - نتیجه بازگشتی از سرور.
-     */
     async function callAppsScript(action, params = {}) {
         showLoader(true);
         try {
             const response = await fetch(SCRIPT_URL, {
                 method: 'POST',
                 mode: 'cors',
-                headers: {
-                    'Content-Type': 'text/plain;charset=utf-8', // Apps Script با این هدر بهتر کار می‌کند
-                },
+                redirect: 'follow', // دنبال کردن ریدایرکت‌ها
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify({ action, params }),
             });
-
-            if (!response.ok) {
-                throw new Error(`خطای شبکه: ${response.statusText}`);
-            }
-            
             const result = await response.json();
             showLoader(false);
             return result;
-
         } catch (error) {
             showLoader(false);
             console.error('خطا در ارتباط با Google Script:', error);
@@ -158,28 +166,23 @@
         }
     }
 
-
     // --- مدیریت رویدادهای اصلی ---
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('login-form').addEventListener('submit', handleLogin);
         document.getElementById('btn-create-course').addEventListener('click', showCreateCourseModal);
         document.getElementById('btn-submit-course').addEventListener('click', handleCreateCourse);
+        document.getElementById('btn-submit-edit-course').addEventListener('click', handleEditCourse);
         document.getElementById('btn-add-to-list').addEventListener('click', addStudentToTempList);
         document.getElementById('btn-save-student-list').addEventListener('click', saveStudentList);
     });
 
-    // --- توابع اصلی برنامه ---
-    function showLoader(show) {
-        document.getElementById('loader').classList.toggle('hidden', !show);
-    }
+    function showLoader(show) { document.getElementById('loader').classList.toggle('hidden', !show); }
 
     async function handleLogin(event) {
         event.preventDefault();
         const nationalId = document.getElementById('nationalId').value;
         const password = document.getElementById('password').value;
-        
         const response = await callAppsScript('checkLogin', { nationalId, password });
-        
         if (response.success) {
             loggedInInstructorId = nationalId;
             loggedInInstructorName = response.name;
@@ -210,25 +213,14 @@
             container.innerHTML = '<p style="text-align: center;">شما هنوز هیچ دوره‌ای ایجاد نکرده‌اید.</p>';
             return;
         }
-
-        courses.sort((a, b) => b.courseId - a.courseId).forEach(course => {
+        courses.forEach(course => {
             const card = document.createElement('div');
             card.className = 'course-card';
             card.id = `course-${course.courseId}`;
-
             let studentsHtml = '<p style="text-align: center; color: #777;">هنوز قرآن‌آموزی برای این دوره ثبت نشده است.</p>';
             if (course.students.length > 0) {
-                studentsHtml = `
-                    <div class="student-list">
-                        <table>
-                            <thead><tr><th>نام و نام خانوادگی</th><th>کد ملی</th><th>مجموع نمره</th></tr></thead>
-                            <tbody>
-                                ${course.students.map(s => `<tr><td>${s.name || ''}</td><td>${s.nationalId || ''}</td><td>${s.totalScore || 'ثبت نشده'}</td></tr>`).join('')}
-                            </tbody>
-                        </table>
-                    </div>`;
+                studentsHtml = `<div class="student-list"><table><thead><tr><th>نام و نام خانوادگی</th><th>کد ملی</th><th>مجموع نمره</th></tr></thead><tbody>${course.students.map(s => `<tr><td>${s.name || ''}</td><td>${s.nationalId || ''}</td><td>${s.totalScore || 'ثبت نشده'}</td></tr>`).join('')}</tbody></table></div>`;
             }
-
             card.innerHTML = `
                 <div class="course-header">
                     <h3>دوره: روخوانی و روانخوانی قرآن کریم (کد: ${course.courseId})</h3>
@@ -236,43 +228,41 @@
                 </div>
                 <h4>لیست قرآن آموزان</h4>
                 ${studentsHtml}
-                <button onclick="showAddStudentModal('${course.courseId}')">افزودن قرآن آموز</button>
+                <div class="card-actions">
+                    <button onclick="showAddStudentModal('${course.courseId}')">افزودن قرآن آموز</button>
+                    <button class="edit-btn" onclick="showEditCourseModal('${course.courseId}', '${course.startDate}')">ویرایش دوره</button>
+                    <button class="delete-btn" onclick="promptDeleteCourse('${course.courseId}')">حذف دوره</button>
+                </div>
             `;
             container.appendChild(card);
         });
     }
     
-    function showCreateCourseModal() {
-        populateDatePicker();
-        document.getElementById('create-course-modal').classList.remove('hidden');
-    }
-
-    function populateDatePicker() {
-        const daySelect = document.getElementById('start-day');
-        const monthSelect = document.getElementById('start-month');
-        const yearSelect = document.getElementById('start-year');
-        
+    function populateDatePicker(dayId, monthId, yearId) {
+        const daySelect = document.getElementById(dayId);
+        const monthSelect = document.getElementById(monthId);
+        const yearSelect = document.getElementById(yearId);
         if (daySelect.options.length > 1) return;
-
         daySelect.innerHTML = '';
         for (let i = 1; i <= 31; i++) daySelect.innerHTML += `<option value="${i}">${i}</option>`;
-        
         monthSelect.innerHTML = '';
         const months = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"];
         months.forEach((month, index) => monthSelect.innerHTML += `<option value="${index + 1}">${month}</option>`);
-
         const currentPersianYear = new Date().toLocaleDateString('fa-IR-u-nu-latn').split('/')[0];
         yearSelect.innerHTML = `<option value="${currentPersianYear}">${currentPersianYear}</option>`;
     }
-    
+
+    function showCreateCourseModal() {
+        populateDatePicker('start-day', 'start-month', 'start-year');
+        document.getElementById('create-course-modal').classList.remove('hidden');
+    }
+
     async function handleCreateCourse() {
         const day = document.getElementById('start-day').value;
         const month = document.getElementById('start-month').value;
         const year = document.getElementById('start-year').value;
         const startDate = `${year}/${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')}`;
-
         const response = await callAppsScript('createNewCourse', { instructorId: loggedInInstructorId, startDate });
-        
         closeModal('create-course-modal');
         if (response.success) {
             alert('دوره با موفقیت ایجاد شد!');
@@ -298,7 +288,6 @@
         const nationalIdInput = document.getElementById('student-nationalId');
         const name = nameInput.value.trim();
         const nationalId = nationalIdInput.value.trim();
-        
         if (name && nationalId) {
             if (tempStudents.some(s => s.nationalId === nationalId)) {
                 alert('این کد ملی قبلاً به لیست اضافه شده است.');
@@ -317,7 +306,7 @@
     function renderTempStudentList() {
         const listElement = document.getElementById('temp-student-list');
         listElement.innerHTML = '';
-        tempStudents.forEach((student, index) => {
+        tempStudents.forEach((student) => {
             const li = document.createElement('li');
             li.innerText = `${student.name} - کد ملی: ${student.nationalId}`;
             listElement.appendChild(li);
@@ -329,13 +318,7 @@
             alert('هیچ قرآن‌آموزی برای ذخیره در لیست وجود ندارد.');
             return;
         }
-        
-        const response = await callAppsScript('addStudentsToCourse', { 
-            courseId: currentCourseIdForAddingStudents, 
-            students: tempStudents, 
-            instructorName: loggedInInstructorName 
-        });
-        
+        const response = await callAppsScript('addStudentsToCourse', { courseId: currentCourseIdForAddingStudents, students: tempStudents, instructorName: loggedInInstructorName });
         if (response.success) {
             alert(response.message);
             closeModal('add-student-modal');
@@ -345,9 +328,51 @@
         }
     }
     
-    function closeModal(modalId) {
-        document.getElementById(modalId).classList.add('hidden');
+    function promptDeleteCourse(courseId) {
+        if (confirm(`آیا از حذف کامل دوره با کد ${courseId} و تمام قرآن‌آموزان آن اطمینان دارید؟ این عملیات غیرقابل بازگشت است.`)) {
+            handleDeleteCourse(courseId);
+        }
     }
+
+    async function handleDeleteCourse(courseId) {
+        const response = await callAppsScript('deleteCourse', { courseId });
+        alert(response.message);
+        if (response.success) {
+            fetchDashboardData();
+        }
+    }
+
+    function showEditCourseModal(courseId, currentDate) {
+        currentCourseIdForEditing = courseId;
+        populateDatePicker('edit-start-day', 'edit-start-month', 'edit-start-year');
+        document.getElementById('edit-modal-course-id').innerText = courseId;
+        try {
+            const [year, month, day] = currentDate.split('/');
+            document.getElementById('edit-start-day').value = parseInt(day, 10);
+            document.getElementById('edit-start-month').value = parseInt(month, 10);
+            // سال در حال حاضر ثابت است و تغییر نمی‌کند
+        } catch (e) {
+            console.error("تاریخ با فرمت نامعتبر:", currentDate);
+        }
+        document.getElementById('edit-course-modal').classList.remove('hidden');
+    }
+
+    async function handleEditCourse() {
+        const day = document.getElementById('edit-start-day').value;
+        const month = document.getElementById('edit-start-month').value;
+        const year = document.getElementById('edit-start-year').value;
+        const newDate = `${year}/${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')}`;
+        
+        const response = await callAppsScript('editCourse', { courseId: currentCourseIdForEditing, newDate });
+
+        alert(response.message);
+        if(response.success){
+            closeModal('edit-course-modal');
+            fetchDashboardData();
+        }
+    }
+    
+    function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
 </script>
 </body>
 </html>
