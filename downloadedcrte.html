@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دریافت گواهی</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f4f7f6;
+            padding: 20px;
+        }
+        .container {
+            background-color: #fff;
+            padding: 2rem 3rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+        }
+        h2 {
+            margin-bottom: 1.5rem;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+            text-align: right;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #555;
+            font-weight: 500;
+        }
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            text-align: left;
+            direction: ltr;
+        }
+        .captcha-label {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #d9534f;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+        }
+        #btn-submit, #btn-download {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            color: #fff;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #btn-submit {
+            background-color: #007bff;
+        }
+        #btn-submit:hover {
+            background-color: #0056b3;
+        }
+        #btn-download {
+            background-color: #28a745;
+        }
+        #btn-download:hover {
+            background-color: #218838;
+        }
+        #btn-submit:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #message-area {
+            margin-top: 1.5rem;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: 500;
+            display: none;
+        }
+        .message-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .message-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        #download-area {
+            margin-top: 1.5rem;
+            display: none;
+        }
+        #loader {
+            display: none;
+        }
+        #pdf-viewer-frame {
+            display: none; /* این قاب برای کاربر مخفی است */
+        }
+
+        /* استایل‌های مخصوص چاپ */
+        @media print {
+            /* همه چیز را مخفی کن به جز قاب PDF */
+            body * {
+                visibility: hidden;
+            }
+            #pdf-viewer-frame, #pdf-viewer-frame * {
+                visibility: visible;
+            }
+            #pdf-viewer-frame {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+            }
+            /* تنظیمات صفحه برای چاپ A4 افقی */
+            @page {
+                size: A4 landscape;
+                margin: 0;
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>دریافت گواهی دیجیتال</h2>
+        <form id="certificate-form">
+            <div class="form-group">
+                <label for="nationalId">کد ملی</label>
+                <input type="text" id="nationalId" required>
+            </div>
+            <div class="form-group">
+                <label class="captcha-label" for="captcha-answer">سوال امنیتی: <span id="captcha-question"></span></label>
+                <input type="number" id="captcha-answer" required placeholder="پاسخ را اینجا وارد کنید">
+            </div>
+            <button type="submit" id="btn-submit">
+                <span id="button-text">بررسی</span>
+                <span id="loader">درحال بررسی...</span>
+            </button>
+        </form>
+        <div id="message-area"></div>
+        <div id="download-area">
+            <button id="btn-download">دانلود و ذخیره گواهی (A4 افقی)</button>
+        </div>
+    </div>
+    
+    <!-- این قاب برای بارگذاری و چاپ PDF استفاده می‌شود -->
+    <iframe id="pdf-viewer-frame" title="PDF Viewer"></iframe>
+
+
+    <script>
+        // --- بسیار مهم ---
+        // آدرس وب اپلیکیشنی که از گوگل اسکریپت در مرحله ۲ دریافت کردید را در اینجا قرار دهید
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbze9NUsu8iFQLNuFmjIr27AA5luRO8kQyrwPbjnlRnOus-h9XXkIvIamKFpjTi0FfIu7A/exec";
+        // ------------------
+
+        let expectedAnswer; // برای نگهداری پاسخ صحیح سوال امنیتی
+
+        function generateCaptcha() {
+            const num1 = Math.floor(Math.random() * 20) + 1;
+            const num2 = Math.floor(Math.random() * 20) + 1;
+            expectedAnswer = num1 + num2;
+            document.getElementById('captcha-question').textContent = `${num1} + ${num2} = ؟`;
+            document.getElementById('captcha-answer').value = '';
+        }
+
+        function showMessage(message, type) {
+            const messageArea = document.getElementById('message-area');
+            messageArea.textContent = message;
+            messageArea.className = `message-${type}`;
+            messageArea.style.display = 'block';
+        }
+
+        function setLoadingState(isLoading) {
+            const submitButton = document.getElementById('btn-submit');
+            const buttonText = document.getElementById('button-text');
+            const loader = document.getElementById('loader');
+
+            submitButton.disabled = isLoading;
+            buttonText.style.display = isLoading ? 'none' : 'inline';
+            loader.style.display = isLoading ? 'inline' : 'none';
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            generateCaptcha();
+
+            const form = document.getElementById('certificate-form');
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+
+                setLoadingState(true);
+                document.getElementById('message-area').style.display = 'none';
+                document.getElementById('download-area').style.display = 'none';
+
+                const formData = {
+                    nationalId: document.getElementById('nationalId').value,
+                    captchaAnswer: document.getElementById('captcha-answer').value,
+                    expectedAnswer: expectedAnswer
+                };
+
+                // ارسال درخواست به API گوگل اسکریپت
+                fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'cors', // اجازه دسترسی از دامنه‌های مختلف
+                    // Apps Script داده‌های POST را به صورت text/plain دریافت می‌کند
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
+                    body: JSON.stringify(formData)
+                })
+                .then(response => response.json())
+                .then(response => {
+                    setLoadingState(false);
+                    if (response.status === 'success') {
+                        showMessage('فایل شما آماده است. برای ذخیره روی دکمه زیر کلیک کنید.', 'success');
+                        const downloadArea = document.getElementById('download-area');
+                        const downloadBtn = document.getElementById('btn-download');
+                        downloadArea.style.display = 'block';
+                        
+                        // آماده‌سازی برای چاپ و ذخیره
+                        const pdfFrame = document.getElementById('pdf-viewer-frame');
+                        pdfFrame.src = `data:${response.mimeType};base64,${response.data}`;
+
+                        downloadBtn.onclick = function() {
+                           // باز کردن کادر چاپ مرورگر
+                           // کاربر باید گزینه Save as PDF را انتخاب کند
+                           try {
+                               pdfFrame.contentWindow.print();
+                           } catch(e) {
+                               console.error("Print failed:", e);
+                               showMessage("مرورگر شما ممکن است از چاپ خودکار پشتیبانی نکند. لطفاً فایل را به صورت دستی چاپ کنید.", "error");
+                           }
+                        };
+                        
+                    } else {
+                        showMessage(response.message, 'error');
+                        generateCaptcha(); // ایجاد سوال جدید پس از خطا
+                    }
+                })
+                .catch(error => {
+                    setLoadingState(false);
+                    showMessage('خطای ارتباط با سرور: ' + error.message, 'error');
+                    generateCaptcha();
+                });
+            });
+        });
+    </script>
+</body>
+</html>
