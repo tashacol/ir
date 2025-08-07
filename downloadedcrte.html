@@ -10,14 +10,18 @@
         :root {
             --primary-color: #007bff;
             --primary-hover: #0056b3;
+            --secondary-color: #6c757d;
+            --secondary-hover: #5a6268;
+            --success-color: #28a745;
+            --success-hover: #218838;
             --success-bg: #d4edda;
             --success-text: #155724;
             --error-bg: #f8d7da;
             --error-text: #721c24;
-            --light-gray: #f4f7f6;
-            --dark-gray: #333;
-            --medium-gray: #555;
-            --border-color: #ccc;
+            --light-gray: #f8f9fa;
+            --dark-gray: #343a40;
+            --medium-gray: #495057;
+            --border-color: #ced4da;
         }
 
         body {
@@ -32,13 +36,14 @@
         }
         .container {
             background-color: #fff;
-            padding: 2.5rem;
+            padding: 2rem 2.5rem;
             border-radius: 12px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
             width: 100%;
             max-width: 480px;
             text-align: center;
             box-sizing: border-box;
+            transition: all 0.3s ease-in-out;
         }
         h2 {
             margin-top: 0;
@@ -62,10 +67,14 @@
             border: 1px solid var(--border-color);
             border-radius: 8px;
             box-sizing: border-box;
-            text-align: left;
-            direction: ltr;
+            /* ویرایش: اعمال راست‌چین برای متن ورودی */
+            text-align: right;
+            direction: rtl; 
             font-size: 1rem;
             transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        input::placeholder {
+            text-align: right;
         }
         input[type="text"]:focus, input[type="number"]:focus {
             border-color: var(--primary-color);
@@ -126,60 +135,118 @@
             display: none;
             word-wrap: break-word;
         }
-        .message-success { background-color: var(--success-bg); color: var(--success-text); }
-        .message-error { background-color: var(--error-bg); color: var(--error-text); }
+        .message-success { background-color: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-color);}
+        .message-error { background-color: var(--error-bg); color: var(--error-text); border: 1px solid var(--error-text);}
         
-        #download-area {
-            margin-top: 1rem;
+        #actions-area {
+            margin-top: 1.5rem;
             display: none;
         }
-        #btn-download {
+        #btn-show-actions {
             width: 100%;
             padding: 14px;
             border: none;
             border-radius: 8px;
             color: #fff;
-            background-color: #28a745;
+            background-color: var(--success-color);
             font-size: 1.1rem;
             font-weight: 500;
             cursor: pointer;
             transition: background-color 0.3s;
         }
-         #btn-download:hover { background-color: #218838; }
+         #btn-show-actions:hover { background-color: var(--success-hover); }
 
+        /* استایل‌های مربوط به پاپ‌آپ (Modal) */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: #fff;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .modal-buttons {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 1.5rem;
+            gap: 1rem;
+        }
+        .modal-buttons button {
+            flex-grow: 1;
+            padding: 12px;
+            font-size: 1rem;
+            border-radius: 8px;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        #btn-view { background-color: var(--primary-color); }
+        #btn-view:hover { background-color: var(--primary-hover); }
+        #btn-share { background-color: var(--secondary-color); }
+        #btn-share:hover { background-color: var(--secondary-hover); }
+        #btn-share:disabled { background-color: #ccc; cursor: not-allowed; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h2>دریافت گواهی دیجیتال</h2>
-        <form id="certificate-form">
-            <div class="form-group">
-                <label for="nationalId">کد ملی</label>
-                <input type="text" id="nationalId" inputmode="numeric" pattern="[0-9]*" required autocomplete="off">
-            </div>
-            <div class="form-group">
-                <label class="captcha-label" for="captcha-answer" id="captcha-question">در حال بارگذاری سوال...</label>
-                <input type="number" id="captcha-answer" required placeholder="پاسخ را اینجا وارد کنید" autocomplete="off">
-            </div>
-            <button type="submit" id="btn-submit">
-                <span id="button-text">بررسی</span>
-                <div class="loader"></div>
-            </button>
-        </form>
+        <div id="form-container">
+            <h2>دریافت گواهی دیجیتال</h2>
+            <form id="certificate-form">
+                <div class="form-group">
+                    <label for="nationalId">کد ملی</label>
+                    <input type="text" id="nationalId" inputmode="numeric" pattern="[0-9]*" required autocomplete="off" placeholder="کد ملی خود را وارد کنید">
+                </div>
+                <div class="form-group">
+                    <label class="captcha-label" for="captcha-answer" id="captcha-question">درحال دریافت سوال امنیتی...</label>
+                    <input type="number" id="captcha-answer" required placeholder="پاسخ را اینجا وارد کنید" autocomplete="off">
+                </div>
+                <button type="submit" id="btn-submit">
+                    <span id="button-text">بررسی</span>
+                    <div class="loader"></div>
+                </button>
+            </form>
+        </div>
         <div id="message-area"></div>
-        <div id="download-area">
-            <button id="btn-download">دانلود فایل گواهی</button>
+        <div id="actions-area">
+            <button id="btn-show-actions">مشاهده و اشتراک‌گذاری گواهی</button>
+        </div>
+    </div>
+
+    <!-- ساختار پاپ‌آپ (Modal) -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal-content">
+            <h3>گزینه‌ها</h3>
+            <p>فایل گواهی شما آماده است.</p>
+            <div class="modal-buttons">
+                <button id="btn-view">مشاهده</button>
+                <button id="btn-share">اشتراک گذاری</button>
+            </div>
         </div>
     </div>
 
     <script>
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwfLyqYKO7JdzALcoV2GTJpQNx9sin7DUNORaeC1WAFBbRgWANHpIxyTx_Tyr6NmvvsJg/exec"; // <-- آدرس وب اپلیکیشن خود را اینجا قرار دهید
         
-        let currentQuestionId = null;
-        let fileToDownload = null;
+        // متغیر برای نگهداری اطلاعات فایل آماده شده
+        let fileToProcess = null;
 
-        const form = document.getElementById('certificate-form');
+        // دریافت عناصر از DOM
+        const formContainer = document.getElementById('form-container');
+        const certificateForm = document.getElementById('certificate-form');
         const nationalIdInput = document.getElementById('nationalId');
         const captchaAnswerInput = document.getElementById('captcha-answer');
         const captchaQuestionEl = document.getElementById('captcha-question');
@@ -187,21 +254,39 @@
         const buttonText = document.getElementById('button-text');
         const loader = document.querySelector('.loader');
         const messageArea = document.getElementById('message-area');
-        const downloadArea = document.getElementById('download-area');
-        const downloadBtn = document.getElementById('btn-download');
+        const actionsArea = document.getElementById('actions-area');
+        const showActionsBtn = document.getElementById('btn-show-actions');
+        
+        // عناصر پاپ‌آپ
+        const modalOverlay = document.getElementById('modal-overlay');
+        const viewBtn = document.getElementById('btn-view');
+        const shareBtn = document.getElementById('btn-share');
 
-        // تابع برای ارسال درخواست به API گوگل اسکریپت
+        // تابع برای تبدیل Base64 به Blob (برای مشاهده فایل)
+        function b64toBlob(b64Data, contentType = '', sliceSize = 512) {
+            const byteCharacters = atob(b64Data);
+            const byteArrays = [];
+            for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+                const slice = byteCharacters.slice(offset, offset + sliceSize);
+                const byteNumbers = new Array(slice.length);
+                for (let i = 0; i < slice.length; i++) {
+                    byteNumbers[i] = slice.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                byteArrays.push(byteArray);
+            }
+            return new Blob(byteArrays, { type: contentType });
+        }
+        
+        // تابع برای ارسال درخواست به API
         async function apiCall(body) {
             try {
                 const response = await fetch(SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'cors', // مهم برای درخواست‌های بین دامنه
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // برای جلوگیری از preflight request
+                    mode: 'cors',
                     body: JSON.stringify(body),
                 });
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 return await response.json();
             } catch (error) {
                 console.error("API Call failed:", error);
@@ -209,91 +294,119 @@
             }
         }
 
-        // تابع برای گرفتن سوال امنیتی جدید از سرور
+        // تابع برای گرفتن سوال امنیتی جدید
         async function getNewCaptcha() {
-            captchaQuestionEl.textContent = 'در حال دریافت سوال جدید...';
+            // ویرایش: تغییر متن
+            captchaQuestionEl.textContent = 'درحال دریافت سوال امنیتی...';
             const response = await apiCall({ action: 'getCaptcha' });
             if (response && response.status === 'success') {
                 captchaQuestionEl.textContent = response.question;
-                currentQuestionId = response.questionId;
+                fileToProcess = { ...fileToProcess, questionId: response.questionId };
             } else {
                 captchaQuestionEl.textContent = 'خطا در بارگذاری سوال';
                 showMessage(response.message || 'مشکلی در دریافت سوال امنیتی پیش آمد.', 'error');
             }
         }
-
-        // تابع برای نمایش پیام
+        
         function showMessage(message, type) {
             messageArea.textContent = message;
             messageArea.className = `message-${type}`;
             messageArea.style.display = 'block';
         }
 
-        // تابع برای کنترل وضعیت لودینگ
         function setLoadingState(isLoading) {
             submitButton.disabled = isLoading;
             buttonText.style.display = isLoading ? 'none' : 'inline';
             loader.style.display = isLoading ? 'block' : 'none';
         }
 
-        // تابع برای دانلود فایل
-        function downloadFile(fileName, mimeType, base64Data) {
-            const link = document.createElement('a');
-            link.href = `data:${mimeType};base64,${base64Data}`;
-            link.download = fileName;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
         // رویداد ارسال فرم
-        form.addEventListener('submit', async function(event) {
+        certificateForm.addEventListener('submit', async function(event) {
             event.preventDefault();
-            
             setLoadingState(true);
             messageArea.style.display = 'none';
-            downloadArea.style.display = 'none';
-            fileToDownload = null;
+            actionsArea.style.display = 'none';
 
             const formData = {
                 action: 'verify',
                 nationalId: nationalIdInput.value,
                 captchaAnswer: captchaAnswerInput.value,
-                questionId: currentQuestionId
+                questionId: fileToProcess.questionId
             };
             
             const response = await apiCall(formData);
             
             if (response && response.status === 'success') {
-                showMessage('فایل شما با موفقیت پیدا شد. برای دانلود کلیک کنید.', 'success');
-                downloadArea.style.display = 'block';
-                fileToDownload = {
+                // ویرایش: مخفی کردن فرم و نمایش پیام و دکمه جدید
+                formContainer.style.display = 'none';
+                showMessage('گواهی شما با موفقیت یافت شد.', 'success');
+                actionsArea.style.display = 'block';
+                
+                // ذخیره اطلاعات فایل برای پردازش بعدی
+                fileToProcess = {
                     name: response.fileName,
                     type: response.mimeType,
                     data: response.data
                 };
             } else {
                 showMessage(response.message || 'پاسخ نامعتبر از سرور دریافت شد.', 'error');
+                // گرفتن سوال جدید در صورت خطا
+                await getNewCaptcha();
             }
-
-            // پاک کردن فیلدها و گرفتن سوال جدید در هر صورت
+            
             captchaAnswerInput.value = '';
-            await getNewCaptcha();
             setLoadingState(false);
         });
-        
-        // رویداد کلیک روی دکمه دانلود
-        downloadBtn.addEventListener('click', function() {
-            if (fileToDownload) {
-                downloadFile(fileToDownload.name, fileToDownload.type, fileToDownload.data);
+
+        // رویداد کلیک برای نمایش پاپ‌آپ
+        showActionsBtn.addEventListener('click', () => {
+            // بررسی اینکه آیا مرورگر از قابلیت اشتراک‌گذاری پشتیبانی می‌کند یا خیر
+            if (navigator.share) {
+                shareBtn.disabled = false;
+            } else {
+                shareBtn.disabled = true;
+                console.log("Web Share API not supported in this browser.");
+            }
+            modalOverlay.style.display = 'flex';
+        });
+
+        // بستن پاپ‌آپ با کلیک روی پس‌زمینه
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) {
+                modalOverlay.style.display = 'none';
+            }
+        });
+
+        // رویداد دکمه "مشاهده"
+        viewBtn.addEventListener('click', () => {
+            if (fileToProcess) {
+                const blob = b64toBlob(fileToProcess.data, fileToProcess.type);
+                const url = URL.createObjectURL(blob);
+                window.open(url, '_blank'); // باز کردن در تب جدید
+            }
+        });
+
+        // رویداد دکمه "اشتراک‌گذاری"
+        shareBtn.addEventListener('click', async () => {
+            if (!fileToProcess || !navigator.share) return;
+            
+            try {
+                const blob = b64toBlob(fileToProcess.data, fileToProcess.type);
+                const file = new File([blob], fileToProcess.name, { type: fileToProcess.type });
+
+                await navigator.share({
+                    title: 'گواهینامه دوره آموزشی',
+                    text: 'گواهی نامه دوره آموزشی شما.',
+                    files: [file]
+                });
+                console.log('File shared successfully');
+            } catch (err) {
+                console.error('Error sharing file:', err);
             }
         });
 
         // اجرای اولیه هنگام بارگذاری کامل صفحه
-        document.addEventListener('DOMContentLoaded', function() {
-            getNewCaptcha();
-        });
-
+        document.addEventListener('DOMContentLoaded', getNewCaptcha);
     </script>
 </body>
 </html>
