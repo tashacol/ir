@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -67,7 +67,6 @@
             border: 1px solid var(--border-color);
             border-radius: 8px;
             box-sizing: border-box;
-            /* ویرایش: اعمال راست‌چین برای متن ورودی */
             text-align: right;
             direction: rtl; 
             font-size: 1rem;
@@ -138,66 +137,49 @@
         .message-success { background-color: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-color);}
         .message-error { background-color: var(--error-bg); color: var(--error-text); border: 1px solid var(--error-text);}
         
+        /* ویرایش: استایل برای ناحیه دکمه‌های عملیاتی */
         #actions-area {
             margin-top: 1.5rem;
-            display: none;
+            display: none; /* مخفی به صورت پیش‌فرض */
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
         }
-        #btn-show-actions {
-            width: 100%;
-            padding: 14px;
+        /* در صفحه‌های بزرگتر، دکمه‌ها کنار هم قرار می‌گیرند */
+        @media (min-width: 480px) {
+            #actions-area {
+                grid-template-columns: 1fr 1fr 1fr;
+            }
+        }
+
+        .action-button {
+            padding: 12px;
             border: none;
             border-radius: 8px;
             color: #fff;
-            background-color: var(--success-color);
-            font-size: 1.1rem;
+            font-size: 1rem;
             font-weight: 500;
             cursor: pointer;
-            transition: background-color 0.3s;
+            transition: background-color 0.3s, transform 0.2s;
         }
-         #btn-show-actions:hover { background-color: var(--success-hover); }
+        .action-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+        
+        #btn-download { background-color: var(--success-color); }
+        #btn-download:hover { background-color: var(--success-hover); }
 
-        /* استایل‌های مربوط به پاپ‌آپ (Modal) */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        .modal-content {
-            background: #fff;
-            padding: 2rem;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 400px;
-            text-align: center;
-        }
-        .modal-buttons {
-            display: flex;
-            justify-content: space-around;
-            margin-top: 1.5rem;
-            gap: 1rem;
-        }
-        .modal-buttons button {
-            flex-grow: 1;
-            padding: 12px;
-            font-size: 1rem;
-            border-radius: 8px;
-            border: none;
-            color: #fff;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
         #btn-view { background-color: var(--primary-color); }
         #btn-view:hover { background-color: var(--primary-hover); }
+
         #btn-share { background-color: var(--secondary-color); }
         #btn-share:hover { background-color: var(--secondary-hover); }
-        #btn-share:disabled { background-color: #ccc; cursor: not-allowed; }
+        
+        .action-button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
     </style>
 </head>
 <body>
@@ -221,30 +203,19 @@
             </form>
         </div>
         <div id="message-area"></div>
+        <!-- ویرایش: ناحیه جدید برای سه دکمه -->
         <div id="actions-area">
-            <button id="btn-show-actions">مشاهده و اشتراک‌گذاری گواهی</button>
-        </div>
-    </div>
-
-    <!-- ساختار پاپ‌آپ (Modal) -->
-    <div class="modal-overlay" id="modal-overlay">
-        <div class="modal-content">
-            <h3>گزینه‌ها</h3>
-            <p>فایل گواهی شما آماده است.</p>
-            <div class="modal-buttons">
-                <button id="btn-view">مشاهده</button>
-                <button id="btn-share">اشتراک گذاری</button>
-            </div>
+            <button id="btn-download" class="action-button">دانلود</button>
+            <button id="btn-view" class="action-button">مشاهده</button>
+            <button id="btn-share" class="action-button">اشتراک گذاری</button>
         </div>
     </div>
 
     <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwfLyqYKO7JdzALcoV2GTJpQNx9sin7DUNORaeC1WAFBbRgWANHpIxyTx_Tyr6NmvvsJg/exec"; // <-- آدرس وب اپلیکیشن خود را اینجا قرار دهید
+        const SCRIPT_URL = "YOUR_WEB_APP_URL"; // <-- آدرس وب اپلیکیشن خود را اینجا قرار دهید
         
-        // متغیر برای نگهداری اطلاعات فایل آماده شده
         let fileToProcess = null;
 
-        // دریافت عناصر از DOM
         const formContainer = document.getElementById('form-container');
         const certificateForm = document.getElementById('certificate-form');
         const nationalIdInput = document.getElementById('nationalId');
@@ -254,15 +225,13 @@
         const buttonText = document.getElementById('button-text');
         const loader = document.querySelector('.loader');
         const messageArea = document.getElementById('message-area');
-        const actionsArea = document.getElementById('actions-area');
-        const showActionsBtn = document.getElementById('btn-show-actions');
         
-        // عناصر پاپ‌آپ
-        const modalOverlay = document.getElementById('modal-overlay');
+        // ویرایش: دریافت ناحیه و دکمه‌های جدید
+        const actionsArea = document.getElementById('actions-area');
+        const downloadBtn = document.getElementById('btn-download');
         const viewBtn = document.getElementById('btn-view');
         const shareBtn = document.getElementById('btn-share');
 
-        // تابع برای تبدیل Base64 به Blob (برای مشاهده فایل)
         function b64toBlob(b64Data, contentType = '', sliceSize = 512) {
             const byteCharacters = atob(b64Data);
             const byteArrays = [];
@@ -278,7 +247,6 @@
             return new Blob(byteArrays, { type: contentType });
         }
         
-        // تابع برای ارسال درخواست به API
         async function apiCall(body) {
             try {
                 const response = await fetch(SCRIPT_URL, {
@@ -294,9 +262,7 @@
             }
         }
 
-        // تابع برای گرفتن سوال امنیتی جدید
         async function getNewCaptcha() {
-            // ویرایش: تغییر متن
             captchaQuestionEl.textContent = 'درحال دریافت سوال امنیتی...';
             const response = await apiCall({ action: 'getCaptcha' });
             if (response && response.status === 'success') {
@@ -320,7 +286,6 @@
             loader.style.display = isLoading ? 'block' : 'none';
         }
 
-        // رویداد ارسال فرم
         certificateForm.addEventListener('submit', async function(event) {
             event.preventDefault();
             setLoadingState(true);
@@ -337,12 +302,10 @@
             const response = await apiCall(formData);
             
             if (response && response.status === 'success') {
-                // ویرایش: مخفی کردن فرم و نمایش پیام و دکمه جدید
                 formContainer.style.display = 'none';
-                showMessage('گواهی شما با موفقیت یافت شد.', 'success');
-                actionsArea.style.display = 'block';
+                showMessage('گواهی شما با موفقیت یافت شد. اکنون می‌توانید فایل را دریافت کنید.', 'success');
+                actionsArea.style.display = 'grid'; // نمایش ناحیه دکمه‌ها
                 
-                // ذخیره اطلاعات فایل برای پردازش بعدی
                 fileToProcess = {
                     name: response.fileName,
                     type: response.mimeType,
@@ -350,7 +313,6 @@
                 };
             } else {
                 showMessage(response.message || 'پاسخ نامعتبر از سرور دریافت شد.', 'error');
-                // گرفتن سوال جدید در صورت خطا
                 await getNewCaptcha();
             }
             
@@ -358,22 +320,15 @@
             setLoadingState(false);
         });
 
-        // رویداد کلیک برای نمایش پاپ‌آپ
-        showActionsBtn.addEventListener('click', () => {
-            // بررسی اینکه آیا مرورگر از قابلیت اشتراک‌گذاری پشتیبانی می‌کند یا خیر
-            if (navigator.share) {
-                shareBtn.disabled = false;
-            } else {
-                shareBtn.disabled = true;
-                console.log("Web Share API not supported in this browser.");
-            }
-            modalOverlay.style.display = 'flex';
-        });
-
-        // بستن پاپ‌آپ با کلیک روی پس‌زمینه
-        modalOverlay.addEventListener('click', (e) => {
-            if (e.target === modalOverlay) {
-                modalOverlay.style.display = 'none';
+        // رویداد دکمه "دانلود"
+        downloadBtn.addEventListener('click', () => {
+            if (fileToProcess) {
+                const link = document.createElement('a');
+                link.href = `data:${fileToProcess.type};base64,${fileToProcess.data}`;
+                link.download = fileToProcess.name;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
             }
         });
 
@@ -382,7 +337,7 @@
             if (fileToProcess) {
                 const blob = b64toBlob(fileToProcess.data, fileToProcess.type);
                 const url = URL.createObjectURL(blob);
-                window.open(url, '_blank'); // باز کردن در تب جدید
+                window.open(url, '_blank');
             }
         });
 
@@ -399,14 +354,11 @@
                     text: 'گواهی نامه دوره آموزشی شما.',
                     files: [file]
                 });
-                console.log('File shared successfully');
             } catch (err) {
                 console.error('Error sharing file:', err);
             }
         });
 
         // اجرای اولیه هنگام بارگذاری کامل صفحه
-        document.addEventListener('DOMContentLoaded', getNewCaptcha);
-    </script>
-</body>
-</html>
+        document.addEventListener('DOMContentLoaded', () => {
+            // 
