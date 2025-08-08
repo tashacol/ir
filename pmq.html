@@ -50,6 +50,7 @@
         .course-card table { width: 100%; border-collapse: collapse; margin-top: 20px; } .course-card th, .course-card td { padding: 15px; border-bottom: 1px solid var(--border-color); text-align: right; vertical-align: middle; }
         .course-card th { background-color: var(--light-bg); font-size: 1rem; } .course-card tr:last-child td { border-bottom: none; }
         .course-actions { display: flex; align-items: center; gap: 10px; margin-top: 20px; padding-top: 20px; border-top: 1px dashed var(--border-color); }
+        .student-actions { display: flex; align-items: center; gap: 5px; }
 
         .modal { position: fixed; z-index: 1000; inset: 0; background-color: rgba(15, 23, 42, 0.7); display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
         .modal-content { background-color: var(--container-bg); padding: 30px; width: 90%; max-width: 650px; border-radius: 16px; animation: modal-appear 0.4s; }
@@ -105,16 +106,23 @@
                     ${course.students.map(s => {
                         const hasGrade = s.totalScore && s.totalScore != '0';
                         const scoreDisplay = !hasGrade ? `<button class="icon-btn" onclick="showGradingModal(event, '${course.courseId}', '${course.startDate}', '${s.name}', '${s.nationalId}')"><svg class="icon"><use href="#icon-grade"></use></svg><span class="btn-text">ثبت نمره</span></button>` : `<strong>${s.totalScore}</strong>`;
-                        const editButton = !hasGrade ? `<button class="icon-btn" onclick="showEditStudentModal(event, '${course.courseId}', '${s.name}', '${s.nationalId}')"><svg class="icon"><use href="#icon-pencil"></use></svg></button>` : '';
+                        
+                        // **درخواست جدید: دکمه‌های ویرایش و حذف**
+                        const studentActions = !hasGrade ? `
+                            <div class="student-actions">
+                                <button class="icon-btn" onclick="showEditStudentModal(event, '${course.courseId}', '${s.name}', '${s.nationalId}')" title="ویرایش"><svg class="icon"><use href="#icon-pencil"></use></svg></button>
+                                <button class="icon-btn delete-btn" onclick="showDeleteStudentModal(event, '${course.courseId}', '${s.name}', '${s.nationalId}')" title="حذف"><svg class="icon"><use href="#icon-trash"></use></svg></button>
+                            </div>` : '';
+                        
                         let certStatusText = ''; switch(s.certificateStatus) { case '0': certStatusText = 'مردود'; break; case '2': certStatusText = 'بررسی'; break; case '5': certStatusText = 'صدور'; break; }
-                        return `<tr><td>${s.name||''}</td><td>${s.nationalId||''}</td><td>${scoreDisplay}</td><td>${certStatusText}</td><td>${editButton}</td></tr>`
+                        return `<tr><td>${s.name||''}</td><td>${s.nationalId||''}</td><td>${scoreDisplay}</td><td>${certStatusText}</td><td>${studentActions}</td></tr>`
                     }).join('')}</tbody></table>`;
             }
             container.innerHTML += `<div class="course-card"><div class="course-header"><h4>دوره روخوانی (کد: ${course.courseId})</h4><span style="font-weight: bold; color: var(--light-text);">تاریخ شروع: ${course.startDate}</span></div>${studentsHtml}
                 <div class="course-actions">
                     <button class="icon-btn" onclick="showAddStudentModal(event, '${course.courseId}')"><svg class="icon"><use href="#icon-plus-circle"></use></svg><span class="btn-text">افزودن قرآن آموز</span></button>
                     <button class="icon-btn" onclick="showEditDateModal(event, '${course.courseId}')" ${isCourseStarted ? 'disabled title="امکان ویرایش تاریخ پس از شروع دوره وجود ندارد"' : ''}><svg class="icon"><use href="#icon-pencil"></use></svg><span class="btn-text">ویرایش تاریخ</span></button>
-                    <button class="icon-btn delete-btn" onclick="showDeleteConfirmationModal(event, '${course.courseId}')"><svg class="icon"><use href="#icon-trash"></use></svg><span class="btn-text">حذف دوره</span></button>
+                    <button class="icon-btn delete-btn" onclick="showDeleteCourseModal(event, '${course.courseId}')"><svg class="icon"><use href="#icon-trash"></use></svg><span class="btn-text">حذف دوره</span></button>
                 </div></div>`;
         });
     }
@@ -131,18 +139,8 @@
         return `<select id="${prefix}-day">${opts.d}</select><select id="${prefix}-month">${opts.m}</select><select id="${prefix}-year" disabled>${opts.y}</select>`;
     }
     
-    // **ویرایش درخواستی: تابع دقیق تبدیل تاریخ شمسی به میلادی**
     function jalaliToGregorian(jy, jm, jd) {
-        var sal_a, gy, gm, gd, days;
-        jy += 1595; days = -355668 + (365 * jy) + (~~(jy / 33) * 8) + ~~(((jy % 33) + 3) / 4) + jd + ((jm < 7) ? (jm - 1) * 31 : ((jm - 7) * 30) + 186);
-        gy = 400 * ~~(days / 146097); days %= 146097;
-        if (days > 36524) { gy += 100 * ~~(--days / 36524); days %= 36524; if (days >= 365) days++; }
-        gy += 4 * ~~(days / 1461); days %= 1461;
-        if (days > 365) { gy += ~~((days - 1) / 365); days = (days - 1) % 365; }
-        gd = days + 1;
-        sal_a = [0, 31, ((gy % 4 === 0 && gy % 100 !== 0) || (gy % 400 === 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-        for (gm = 0; gm < 13 && gd > sal_a[gm]; gm++) gd -= sal_a[gm];
-        return new Date(gy, gm - 1, gd);
+        var sal_a, gy, gm, gd, days; jy += 1595; days = -355668 + (365 * jy) + (~~(jy / 33) * 8) + ~~(((jy % 33) + 3) / 4) + jd + ((jm < 7) ? (jm - 1) * 31 : ((jm - 7) * 30) + 186); gy = 400 * ~~(days / 146097); days %= 146097; if (days > 36524) { gy += 100 * ~~(--days / 36524); days %= 36524; if (days >= 365) days++; } gy += 4 * ~~(days / 1461); days %= 1461; if (days > 365) { gy += ~~((days - 1) / 365); days = (days - 1) % 365; } gd = days + 1; sal_a = [0, 31, ((gy % 4 === 0 && gy % 100 !== 0) || (gy % 400 === 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]; for (gm = 0; gm < 13 && gd > sal_a[gm]; gm++) gd -= sal_a[gm]; return new Date(gy, gm - 1, gd);
     }
 
     function showCreateCourseModal() { renderModal('ایجاد دوره جدید', `<p>نام دوره: روخوانی و روانخوانی قرآن کریم</p><div class="form-group"><label>تاریخ شروع</label>${populateDatePicker('start')}</div><button onclick="handleCreateCourse(event)"><span class="btn-text">ایجاد دوره</span></button>`); }
@@ -161,7 +159,7 @@
         if (res.success) { alert(res.message); fetchDashboardData(); } else alert("خطا: " + res.message); closeAllModals();
     }
     
-    function showDeleteConfirmationModal(event, courseId) { currentCourseId = courseId; renderModal('تایید حذف دوره', `<p style="color:var(--danger-color);">آیا از حذف این دوره و تمام قرآن‌آموزان آن اطمینان دارید؟</p><div class="form-group"><label for="delete-password">برای تایید، رمز عبور را وارد کنید:</label><input type="password" id="delete-password"></div><button class="danger" onclick="handleDeleteCourse(event)"><span class="btn-text">بله، حذف کن</span></button>`); }
+    function showDeleteCourseModal(event, courseId) { currentCourseId = courseId; renderModal('تایید حذف دوره', `<p style="color:var(--danger-color);">آیا از حذف این دوره و تمام قرآن‌آموزان آن اطمینان دارید؟</p><div class="form-group"><label for="delete-password">برای تایید، رمز عبور را وارد کنید:</label><input type="password" id="delete-password"></div><button class="danger" onclick="handleDeleteCourse(event)"><span class="btn-text">بله، حذف کن</span></button>`); }
     async function handleDeleteCourse(event) {
         const password = document.getElementById('delete-password').value; if (!password) { alert("رمز عبور الزامی است."); return; }
         const res = await callAppsScript('deleteCourse', { courseId: currentCourseId, instructorId: loggedInInstructorId, password }, event.target);
@@ -184,20 +182,22 @@
         if (res.success) { alert(res.message); fetchDashboardData(); } else alert("خطا: " + res.message); closeAllModals();
     }
     
-    // **ویرایش درخواستی: منطق دقیق قفل نمره‌دهی**
-    function showGradingModal(event, courseId, courseStartDate, studentName, studentNationalId) {
-        const [year, month, day] = courseStartDate.split('/').map(Number);
-        const startDate = jalaliToGregorian(year, month, day);
-        const today = new Date();
-        startDate.setHours(0,0,0,0); today.setHours(0,0,0,0);
-        const diffTime = today - startDate;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        if (diffDays < 25) {
-            alert(`امکان نمره‌دهی وجود ندارد.\nباید حداقل ۲۵ روز از تاریخ شروع دوره (${courseStartDate}) گذشته باشد.`);
-            return;
-        }
+    // **درخواست جدید: مودال حذف قرآن‌آموز**
+    function showDeleteStudentModal(event, courseId, studentName, studentNationalId) {
+        currentCourseId = courseId; currentStudentOriginalId = studentNationalId;
+        renderModal('تایید حذف قرآن‌آموز', `<p>آیا از حذف قرآن‌آموز <strong>${studentName}</strong> (کد ملی: ${studentNationalId}) اطمینان دارید؟</p><p style="color:var(--danger-color);">این عمل غیرقابل بازگشت است.</p><button class="danger" onclick="handleDeleteStudent(event)"><span class="btn-text">بله، حذف کن</span></button>`);
+    }
+    async function handleDeleteStudent(event) {
+        const res = await callAppsScript('deleteStudent', { courseId: currentCourseId, studentNationalId: currentStudentOriginalId }, event.target);
+        if (res.success) { alert(res.message); fetchDashboardData(); } else { alert("خطا: " + res.message); }
+        closeAllModals();
+    }
 
+    function showGradingModal(event, courseId, courseStartDate, studentName, studentNationalId) {
+        const [year, month, day] = courseStartDate.split('/').map(Number); const startDate = jalaliToGregorian(year, month, day); const today = new Date();
+        startDate.setHours(0,0,0,0); today.setHours(0,0,0,0);
+        const diffDays = Math.ceil((today - startDate) / (1000 * 60 * 60 * 24));
+        if (diffDays < 25) { alert(`امکان نمره‌دهی وجود ندارد.\nباید حداقل ۲۵ روز از تاریخ شروع دوره (${courseStartDate}) گذشته باشد.`); return; }
         currentCourseId = courseId; currentStudentOriginalId = studentNationalId;
         const content = `<p><strong>نام:</strong> ${studentName} | <strong>کد ملی:</strong> ${studentNationalId}</p><hr>
             <div class="form-group"><label>صحت حروف (از بیست نمره)</label><input type="number" id="g1" min="0" max="20"></div><div class="form-group"><label>صحت حرکات (از بیست نمره)</label><input type="number" id="g2" min="0" max="20"></div>
@@ -206,8 +206,7 @@
         renderModal('ثبت نمره برای قرآن آموز', content);
     }
     async function handleGradeSubmission(event) {
-        const grades = {};
-        for(let i=1; i<=5; i++) { const gradeVal = document.getElementById(`g${i}`).value; if(gradeVal === '' || isNaN(gradeVal) || gradeVal < 0 || gradeVal > 20) { alert(`نمره برای همه موارد باید عددی بین 0 و 20 باشد.`); return; } grades[`g${i}`] = Number(gradeVal); }
+        const grades = {}; for(let i=1; i<=5; i++) { const gradeVal = document.getElementById(`g${i}`).value; if(gradeVal === '' || isNaN(gradeVal) || gradeVal < 0 || gradeVal > 20) { alert(`نمره برای همه موارد باید عددی بین 0 و 20 باشد.`); return; } grades[`g${i}`] = Number(gradeVal); }
         if (confirm("آیا از ثبت نمرات اطمینان دارید؟ نمرات پس از ثبت قابل ویرایش نیستند.")) {
             const res = await callAppsScript('submitStudentGrades', { courseId: currentCourseId, studentNationalId: currentStudentOriginalId, grades }, event.target);
             if (res.success) { alert(res.message); fetchDashboardData(); } else alert("خطا: " + res.message); closeAllModals();
