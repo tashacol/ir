@@ -41,11 +41,6 @@
         #dashboard-container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
         .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 1rem; }
         .dashboard-header h1 { font-size: 2rem; margin: 0; }
-        
-        .search-section { background: var(--bg-card); padding: 20px; border-radius: var(--radius-lg); margin-bottom: 30px; box-shadow: var(--shadow); }
-        .search-controls { display: grid; grid-template-columns: 1fr 1fr auto; gap: 15px; align-items: flex-end; }
-        .search-controls .input-wrapper { margin-bottom: 0; }
-        
         .status-section { margin-bottom: 40px; }
         .status-section h2 { font-size: 1.5rem; color: var(--text-dark); padding-bottom: 15px; margin-bottom: 20px; border-bottom: 2px solid var(--border-color); text-align: right; }
         .course-accordion .course-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); cursor: pointer; transition: var(--transition); margin-bottom: 10px; }
@@ -58,7 +53,7 @@
         .course-header.active .accordion-arrow { transform: rotate(180deg); }
 
         .student-list-container { background: var(--bg-card); border: 1px solid var(--border-color); border-top: none; padding: 0 20px; border-bottom-left-radius: var(--radius-md); border-bottom-right-radius: var(--radius-md); max-height: 0; overflow: hidden; transition: max-height 0.4s ease-out, padding 0.4s ease-out; }
-        .student-list-container.show { max-height: fit-content; padding: 20px; }
+        .student-list-container.show { max-height: 1000px; padding: 20px; }
         .student-table { width: 100%; border-collapse: collapse; }
         .student-table th, .student-table td { padding: 12px 10px; border-bottom: 1px solid var(--border-color); text-align: right; vertical-align: middle; }
         .student-table th { font-weight: 700; color: var(--primary); font-size: 0.9rem; }
@@ -69,12 +64,6 @@
         .action-icon.delete { color: var(--danger); } .action-icon.delete:hover { color: #b02a37; }
 
         .loader { width: 40px; height: 40px; border: 4px solid var(--primary-light); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 50px auto; }
-        .load-more-container { text-align: center; margin-top: 20px; }
-        
-        .skeleton { animation: skeleton-loading 1.5s linear infinite alternate; background-color: var(--border-color); border-radius: var(--radius-md); }
-        @keyframes skeleton-loading { from { background-color: var(--border-color); } to { background-color: #f0f3f6; } }
-        .skeleton.h2 { height: 36px; width: 40%; margin-bottom: 20px; }
-        .skeleton.header { height: 50px; width: 100%; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -98,40 +87,25 @@
             <button id="logout-btn" class="btn" style="background-color: var(--danger);"><i class="fas fa-sign-out-alt"></i><span class="btn-text">خروج</span></button>
         </div>
         
-        <div class="search-section">
-            <div class="search-controls">
-                <div class="input-wrapper"><i class="fas fa-chalkboard-teacher input-icon"></i><input type="text" id="master-search-nid" class="form-input" placeholder="جستجو بر اساس کد ملی استاد"></div>
-                <div class="input-wrapper"><i class="fas fa-user-graduate input-icon"></i><input type="text" id="student-search-nid" class="form-input" placeholder="جستجو بر اساس کد ملی قرآن‌آموز"></div>
-                <button id="search-btn" class="btn"><i class="fas fa-search"></i><span class="btn-text">جستجو</span></button>
-            </div>
-        </div>
-        
         <div class="status-section" id="pending-section">
             <h2><i class="fas fa-clock" style="margin-left: 10px;"></i>در انتظار صدور گواهی</h2>
             <div id="pending-courses-container"></div>
-            <div class="load-more-container" id="pending-load-more"></div>
         </div>
 
         <div class="status-section" id="issued-section">
             <h2><i class="fas fa-check-circle" style="margin-left: 10px;"></i>گواهی‌های صادر شده</h2>
             <div id="issued-courses-container"></div>
-            <div class="load-more-container" id="issued-load-more"></div>
         </div>
 
         <div class="status-section" id="rejected-section">
             <h2><i class="fas fa-times-circle" style="margin-left: 10px;"></i>رد شده در آزمون</h2>
             <div id="rejected-courses-container"></div>
-            <div class="load-more-container" id="rejected-load-more"></div>
         </div>
     </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx8-iGGBFcF6vFHG2uh2aEYB8mj0kqLOIGA4McgmVoM0saJtBJ2qUN9277ZyyXNrWQ-/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx4OJUh91vS2vqjPA7fWTo62gUYeuNEXSS16bi24KNOgDhHOayzn117AB3zneN4yaeg/exec";
     const sessionKey = 'quranAdminSession';
-    const COURSE_PAGE_SIZE = 5;
-
-    let searchParams = { searchType: '', searchNid: '' };
-    let currentPages = { '2': 1, '5': 1, '0': 1 };
 
     async function callAppsScript(action, params = {}, button = null) {
         if(button) button.classList.add('btn-loading');
@@ -150,7 +124,6 @@
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('login-form').addEventListener('submit', handleManualLogin);
         document.getElementById('logout-btn').addEventListener('click', handleLogout);
-        document.getElementById('search-btn').addEventListener('click', handleSearch);
         const savedSession = localStorage.getItem(sessionKey);
         if (savedSession === 'loggedIn') {
             showDashboard();
@@ -160,7 +133,7 @@
     function showDashboard() {
         document.getElementById('login-container').classList.add('hidden');
         document.getElementById('dashboard-container').classList.remove('hidden');
-        fetchAllSections(true); // **اصلاح کلیدی: نمایش لودینگ هنگام ورود خودکار**
+        fetchDashboardData();
     }
     
     async function handleManualLogin(event) {
@@ -182,151 +155,83 @@
         localStorage.removeItem(sessionKey);
         window.location.reload();
     }
-    
-    function handleSearch(event) {
-        const masterNid = document.getElementById('master-search-nid').value.trim();
-        const studentNid = document.getElementById('student-search-nid').value.trim();
-        
-        if (masterNid && studentNid) {
-            alert('لطفاً فقط یکی از فیلدهای جستجو را پر کنید.');
-            return;
-        }
 
-        searchParams.searchType = masterNid ? 'master' : (studentNid ? 'student' : '');
-        searchParams.searchNid = masterNid || studentNid;
-        
-        fetchAllSections(true, event.target); // Reset and fetch
-    }
-
-    function fetchAllSections(reset = false, button = null) {
-        if (reset) {
-            currentPages = { '2': 1, '5': 1, '0': 1 };
-            renderSkeletonLoader();
-        }
-        fetchSectionData('2', reset, button);
-        fetchSectionData('5', reset, button);
-        fetchSectionData('0', reset, button);
-    }
-    
-    async function fetchSectionData(status, reset = false, button = null) {
-        const container = document.getElementById(getContainerId(status));
-        const loadMoreContainer = document.getElementById(getLoadMoreContainerId(status));
-        
-        if (reset) {
-            loadMoreContainer.innerHTML = '';
-        }
-
-        const res = await callAppsScript('getPaginatedData', { status, coursePage: currentPages[status], ...searchParams }, button);
-
+    async function fetchDashboardData() {
+        renderSkeletonLoader();
+        const res = await callAppsScript('getDashboardData');
         if (res.success) {
-            if (reset) container.innerHTML = '';
-            renderCourses(container, res.data, status);
-            
-            if (currentPages[status] * COURSE_PAGE_SIZE < res.totalCourses) {
-                loadMoreContainer.innerHTML = `<button class="btn" onclick="loadMoreCourses('${status}', this)"><span class="btn-text">نمایش بیشتر</span></button>`;
-            } else {
-                loadMoreContainer.innerHTML = '';
-            }
-            if (reset && res.totalCourses === 0) {
-                 container.innerHTML = '<p style="text-align: center; color: var(--text-light);">موردی برای نمایش یافت نشد.</p>';
-            }
+            renderSection('pending-courses-container', res.data['2'], 'approve');
+            renderSection('issued-courses-container', res.data['5'], 'approved');
+            renderSection('rejected-courses-container', res.data['0'], 'delete');
         } else {
             alert('خطا در دریافت اطلاعات: ' + res.message);
         }
     }
-
+    
     function renderSkeletonLoader() {
         ['pending-courses-container', 'issued-courses-container', 'rejected-courses-container'].forEach(id => {
-            let container = document.getElementById(id);
-            container.innerHTML = `<div class="skeleton h2"></div><div class="skeleton header"></div><div class="skeleton header"></div>`;
+            document.getElementById(id).innerHTML = '<div class="loader"></div>';
         });
     }
 
-    function loadMoreCourses(status, button) {
-        currentPages[status]++;
-        button.remove();
-        fetchSectionData(status);
-    }
-
-    function renderCourses(container, data, status) {
+    function renderSection(containerId, data, actionType) {
+        const container = document.getElementById(containerId);
+        if (Object.keys(data).length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: var(--text-light);">موردی برای نمایش وجود ندارد.</p>';
+            return;
+        }
+        
         let html = '';
         for (const courseId in data) {
             const course = data[courseId];
-            const studentContainerId = `${status}-students-${courseId}`;
+            let studentsHtml = '<table class="student-table"><thead><tr><th>ردیف</th><th>نام و نام خانوادگی</th><th>کد ملی</th><th>نمره کل</th><th>عملیات</th></tr></thead><tbody>';
+            course.students.forEach((student, index) => {
+                let actionHtml = '';
+                if (actionType === 'approve') {
+                    actionHtml = `<i class="fas fa-check-circle action-icon approve" title="تایید و صدور گواهی" onclick="handleApprove(this, '${student.nationalId}', '${courseId}')"></i>`;
+                } else if (actionType === 'approved') {
+                    actionHtml = `<i class="fas fa-check-circle action-icon approved" title="تایید شده"></i>`;
+                } else if (actionType === 'delete') {
+                    actionHtml = `<i class="fas fa-trash-alt action-icon delete" title="حذف نمرات" onclick="handleReset(this, '${student.nationalId}', '${courseId}')"></i>`;
+                }
+                studentsHtml += `<tr><td>${index + 1}</td><td>${student.name}</td><td>${student.nationalId}</td><td>${student.totalScore || '-'}</td><td>${actionHtml}</td></tr>`;
+            });
+            studentsHtml += '</tbody></table>';
+
             html += `<div class="course-accordion">
-                        <div class="course-header" data-target-id="${studentContainerId}" data-course-id="${courseId}" data-status="${status}">
-                            <div class="course-header-info"><span>نام استاد: <strong>${course.masterName}</strong></span><span>تاریخ شروع: <strong>${course.startDate}</strong></span></div>
+                        <div class="course-header" data-course-id="${courseId}">
+                            <div class="course-header-info">
+                                <span>نام استاد: <strong>${course.masterName}</strong></span>
+                                <span>تاریخ شروع: <strong>${course.startDate}</strong></span>
+                            </div>
                             <i class="fas fa-chevron-down accordion-arrow"></i>
                         </div>
-                        <div class="student-list-container" id="${studentContainerId}">
-                           ${renderStudentTable(course.students, status, courseId, course.hasMoreStudents)}
+                        <div class="student-list-container" id="students-${courseId}">
+                            ${studentsHtml}
                         </div>
                      </div>`;
         }
-        container.innerHTML += html;
+        container.innerHTML = html;
         
         container.querySelectorAll('.course-header').forEach(header => {
-            if(header.getAttribute('listener') !== 'true') {
-                 header.addEventListener('click', () => {
-                    const content = document.getElementById(header.dataset.targetId);
-                    header.classList.toggle('active');
-                    content.classList.toggle('show');
-                });
-                header.setAttribute('listener', 'true');
-            }
+            header.addEventListener('click', () => {
+                const content = document.getElementById(`students-${header.dataset.courseId}`);
+                header.classList.toggle('active');
+                content.classList.toggle('show');
+            });
         });
-    }
-    
-    function renderStudentTable(students, status, courseId, hasMore, page = 1) {
-         let studentsHtml = '<table class="student-table" data-course-id="${courseId}"><thead><tr><th>ردیف</th><th>نام و نام خانوادگی</th><th>کد ملی</th><th>نمره کل</th><th>عملیات</th></tr></thead><tbody>';
-            students.forEach((student, index) => {
-                let actionHtml = '';
-                const actionType = status === '2' ? 'approve' : (status === '5' ? 'approved' : 'delete');
-
-                if (actionType === 'approve') actionHtml = `<i class="fas fa-check-circle action-icon approve" title="تایید گواهی" onclick="handleApprove(this, '${student.nationalId}', '${courseId}')"></i>`;
-                else if (actionType === 'approved') actionHtml = `<i class="fas fa-check-circle action-icon approved" title="تایید شده"></i>`;
-                else if (actionType === 'delete') actionHtml = `<i class="fas fa-trash-alt action-icon delete" title="حذف نمرات" onclick="handleReset(this, '${student.nationalId}', '${courseId}')"></i>`;
-                
-                studentsHtml += `<tr><td>${(page - 1) * 10 + index + 1}</td><td>${student.name}</td><td>${student.nationalId}</td><td>${student.totalScore || '-'}</td><td>${actionHtml}</td></tr>`;
-            });
-            studentsHtml += '</tbody></table>';
-            if(hasMore) {
-                studentsHtml += `<div class="load-more-container"><button class="btn" style="padding: 8px 20px; font-size: 0.9rem;" onclick="loadMoreStudents(this, '${courseId}', '${status}', ${page + 1})"><span class="btn-text">نمایش دانشجویان بیشتر</span></button></div>`;
-            }
-        return studentsHtml;
-    }
-
-    async function loadMoreStudents(button, courseId, status, nextPage) {
-        const res = await callAppsScript('getPaginatedStudents', { courseId, status, studentPage: nextPage }, button);
-        if (res.success && res.data.length > 0) {
-            const tableBody = button.closest('.student-list-container').querySelector('tbody');
-            let newRowsHtml = '';
-            res.data.forEach((student, index) => {
-                 let actionHtml = '';
-                const actionType = status === '2' ? 'approve' : (status === '5' ? 'approved' : 'delete');
-                if (actionType === 'approve') actionHtml = `<i class="fas fa-check-circle action-icon approve" title="تایید گواهی" onclick="handleApprove(this, '${student.nationalId}', '${courseId}')"></i>`;
-                else if (actionType === 'approved') actionHtml = `<i class="fas fa-check-circle action-icon approved" title="تایید شده"></i>`;
-                else if (actionType === 'delete') actionHtml = `<i class="fas fa-trash-alt action-icon delete" title="حذف نمرات" onclick="handleReset(this, '${student.nationalId}', '${courseId}')"></i>`;
-                newRowsHtml += `<tr><td>${(nextPage - 1) * 10 + index + 1}</td><td>${student.name}</td><td>${student.nationalId}</td><td>${student.totalScore || '-'}</td><td>${actionHtml}</td></tr>`;
-            });
-            tableBody.innerHTML += newRowsHtml;
-            
-            if (res.hasMoreStudents) {
-                button.setAttribute('onclick', `loadMoreStudents(this, '${courseId}', '${status}', ${nextPage + 1})`);
-            } else {
-                button.remove();
-            }
-        } else {
-             button.remove();
-        }
     }
 
     async function handleApprove(element, nationalId, courseId) {
-        if (confirm(`آیا از صدور گواهی برای این قرآن‌آموز اطمینان دارید؟`)) {
+        if (confirm(`آیا از صدور گواهی برای این قرآن‌آموز اطمینان دارید؟ این عملیات ممکن است کمی طول بکشد.`)) {
             element.classList.remove('fa-check-circle'); element.classList.add('fa-spinner', 'fa-spin');
             const res = await callAppsScript('approveCertificate', { nationalId, courseId });
-            if (res.success) { alert(res.message); fetchAllSections(true); } 
-            else { alert('خطا: ' + res.message); element.classList.add('fa-check-circle'); element.classList.remove('fa-spinner', 'fa-spin'); }
+            if (res.success) {
+                alert(res.message); fetchDashboardData();
+            } else {
+                alert('خطا: ' + res.message);
+                element.classList.add('fa-check-circle'); element.classList.remove('fa-spinner', 'fa-spin');
+            }
         }
     }
 
@@ -334,21 +239,13 @@
         if (confirm(`آیا از حذف تمام نمرات این قرآن‌آموز اطمینان دارید؟`)) {
             element.classList.remove('fa-trash-alt'); element.classList.add('fa-spinner', 'fa-spin');
             const res = await callAppsScript('resetGrades', { nationalId, courseId });
-            if (res.success) { alert(res.message); fetchAllSections(true); } 
-            else { alert('خطا: ' + res.message); element.classList.add('fa-trash-alt'); element.classList.remove('fa-spinner', 'fa-spin'); }
+            if (res.success) {
+                alert(res.message); fetchDashboardData();
+            } else {
+                alert('خطا: ' + res.message);
+                element.classList.add('fa-trash-alt'); element.classList.remove('fa-spinner', 'fa-spin');
+            }
         }
-    }
-
-    function getContainerId(status) {
-        if (status === '2') return 'pending-courses-container';
-        if (status === '5') return 'issued-courses-container';
-        if (status === '0') return 'rejected-courses-container';
-    }
-
-    function getLoadMoreContainerId(status) {
-        if (status === '2') return 'pending-load-more';
-        if (status === '5') return 'issued-load-more';
-        if (status === '0') return 'rejected-load-more';
     }
 </script>
 </body>
