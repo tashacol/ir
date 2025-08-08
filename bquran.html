@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>پنل مدیریت گواهی‌ها</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        #login-section {
+            max-width: 400px;
+            margin: 50px auto;
+            padding: 30px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fff;
+        }
+        #login-section h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            color: white;
+        }
+        .btn-primary {
+            background-color: #007bff;
+            width: 100%;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        .btn-success {
+            background-color: #28a745;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+        }
+        #main-content {
+            display: none;
+        }
+        .status-box {
+            margin-bottom: 30px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            padding: 20px;
+        }
+        .status-box h2 {
+            margin-top: 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+        details {
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        summary {
+            padding: 15px;
+            background-color: #f9f9f9;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: right;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .loader, #message {
+            text-align: center;
+            padding: 20px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="login-section" class="container">
+        <h2>ورود به پنل</h2>
+        <div id="login-message" style="color:red; margin-bottom:15px;"></div>
+        <div class="form-group">
+            <label for="username">نام کاربری</label>
+            <input type="text" id="username" value="3020562732">
+        </div>
+        <div class="form-group">
+            <label for="password">رمز عبور</label>
+            <input type="password" id="password" value="3020562732">
+        </div>
+        <button id="login-btn" class="btn btn-primary">ورود</button>
+    </div>
+
+    <div id="main-content" class="container">
+        <h1>داشبورد مدیریت گواهی‌ها</h1>
+        <div id="dashboard-message"></div>
+        <div id="loader" class="loader" style="display: none;">درحال بارگذاری اطلاعات...</div>
+
+        <div class="status-box">
+            <h2><span style="color: #ffc107;">&#9203;</span> در انتظار صدور گواهی</h2>
+            <div id="pending-box"></div>
+        </div>
+
+        <div class="status-box">
+            <h2><span style="color: #28a745;">&#10004;</span> صادر شده</h2>
+            <div id="issued-box"></div>
+        </div>
+
+        <div class="status-box">
+            <h2><span style="color: #dc3545;">&#10006;</span> رد شده / سایر</h2>
+            <div id="rejected-box"></div>
+        </div>
+    </div>
+
+    <script>
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        // !!! महत्वपूर्ण !!! لطفا آدرس وب اپلیکیشن خود را در اینجا قرار دهید
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        const SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL";
+
+        const loginBtn = document.getElementById('login-btn');
+        const loginSection = document.getElementById('login-section');
+        const mainContent = document.getElementById('main-content');
+        const loader = document.getElementById('loader');
+        const loginMessage = document.getElementById('login-message');
+        const dashboardMessage = document.getElementById('dashboard-message');
+
+        let credentials = {};
+
+        loginBtn.addEventListener('click', handleLogin);
+        mainContent.addEventListener('click', handleActionClick);
+
+        function handleLogin() {
+            credentials.username = document.getElementById('username').value;
+            credentials.password = document.getElementById('password').value;
+            
+            if (!credentials.username || !credentials.password) {
+                loginMessage.textContent = 'لطفا نام کاربری و رمز عبور را وارد کنید.';
+                return;
+            }
+
+            fetchData();
+        }
+
+        async function fetchData() {
+            loader.style.display = 'block';
+            loginMessage.textContent = '';
+            clearAllBoxes();
+
+            try {
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ ...credentials, action: 'getData' }),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    loginSection.style.display = 'none';
+                    mainContent.style.display = 'block';
+                    renderData(result.data);
+                } else {
+                    loginMessage.textContent = result.message || 'خطای ناشناخته رخ داد.';
+                }
+            } catch (error) {
+                loginMessage.textContent = 'خطا در ارتباط با سرور. لطفا از صحت آدرس اسکریپت و اتصال اینترنت خود مطمئن شوید.';
+                console.error("Fetch Error:", error);
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
+        function renderData(data) {
+            clearAllBoxes();
+            renderBox('pending-box', data.pending, true, false);
+            renderBox('issued-box', data.issued, false, false);
+            renderBox('rejected-box', data.rejected, false, true);
+        }
+
+        function renderBox(boxId, groups, showApprove, showDelete) {
+            const container = document.getElementById(boxId);
+            if (groups.length === 0) {
+                container.innerHTML = '<p>موردی برای نمایش وجود ندارد.</p>';
+                return;
+            }
+
+            let html = '';
+            groups.forEach(group => {
+                html += `
+                    <details>
+                        <summary>${group.groupTitle}</summary>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ردیف</th>
+                                    <th>نام و نام خانوادگی</th>
+                                    <th>کد ملی</th>
+                                    <th>تاریخ دوره</th>
+                                    <th>نمره</th>
+                                    <th>عملیات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${group.students.map((student, index) => `
+                                    <tr>
+                                        <td>${index + 1}</td>
+                                        <td>${student.name}</td>
+                                        <td>${student.nationalId}</td>
+                                        <td>${student.courseDate}</td>
+                                        <td>${student.score}</td>
+                                        <td>
+                                            ${showApprove ? `<button class="btn btn-success" data-action="approve" data-row="${student.rowIndex}">تایید و صدور</button>` : ''}
+                                            ${showDelete ? `<button class="btn btn-danger" data-action="delete" data-row="${student.rowIndex}">حذف نمرات</button>` : ''}
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </details>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        async function handleActionClick(event) {
+            const target = event.target;
+            const action = target.getAttribute('data-action');
+            const rowIndex = target.getAttribute('data-row');
+
+            if (!action || !rowIndex) return;
+            
+            let confirmationMessage = '';
+            if (action === 'approve') confirmationMessage = 'آیا از تایید و صدور گواهی برای این کاربر اطمینان دارید؟';
+            if (action === 'delete') confirmationMessage = 'آیا از حذف تمام نمرات این کاربر اطمینان دارید؟ این عملیات غیرقابل بازگشت است.';
+
+            if (confirm(confirmationMessage)) {
+                loader.style.display = 'block';
+                dashboardMessage.textContent = '';
+                try {
+                    const response = await fetch(SCRIPT_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({ ...credentials, action, rowIndex }),
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    const result = await response.json();
+
+                    if (result.status === 'success') {
+                        dashboardMessage.textContent = result.message;
+                        dashboardMessage.style.color = 'green';
+                        fetchData(); // Refresh the data
+                    } else {
+                        dashboardMessage.textContent = `خطا: ${result.message}`;
+                        dashboardMessage.style.color = 'red';
+                    }
+                } catch(error) {
+                    dashboardMessage.textContent = 'خطا در ارتباط با سرور.';
+                    dashboardMessage.style.color = 'red';
+                } finally {
+                   loader.style.display = 'none';
+                }
+            }
+        }
+
+        function clearAllBoxes() {
+            document.getElementById('pending-box').innerHTML = '';
+            document.getElementById('issued-box').innerHTML = '';
+            document.getElementById('rejected-box').innerHTML = '';
+        }
+    </script>
+
+</body>
+</html>
