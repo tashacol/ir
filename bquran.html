@@ -70,6 +70,11 @@
 
         .loader { width: 40px; height: 40px; border: 4px solid var(--primary-light); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 50px auto; }
         .load-more-container { text-align: center; margin-top: 20px; }
+        
+        .skeleton { animation: skeleton-loading 1.5s linear infinite alternate; background-color: var(--border-color); border-radius: var(--radius-md); }
+        @keyframes skeleton-loading { from { background-color: var(--border-color); } to { background-color: #f0f3f6; } }
+        .skeleton.h2 { height: 36px; width: 40%; margin-bottom: 20px; }
+        .skeleton.header { height: 50px; width: 100%; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -155,7 +160,7 @@
     function showDashboard() {
         document.getElementById('login-container').classList.add('hidden');
         document.getElementById('dashboard-container').classList.remove('hidden');
-        fetchAllSections();
+        fetchAllSections(true); // **اصلاح کلیدی: نمایش لودینگ هنگام ورود خودکار**
     }
     
     async function handleManualLogin(event) {
@@ -196,6 +201,7 @@
     function fetchAllSections(reset = false, button = null) {
         if (reset) {
             currentPages = { '2': 1, '5': 1, '0': 1 };
+            renderSkeletonLoader();
         }
         fetchSectionData('2', reset, button);
         fetchSectionData('5', reset, button);
@@ -205,8 +211,8 @@
     async function fetchSectionData(status, reset = false, button = null) {
         const container = document.getElementById(getContainerId(status));
         const loadMoreContainer = document.getElementById(getLoadMoreContainerId(status));
+        
         if (reset) {
-            container.innerHTML = '<div class="loader"></div>';
             loadMoreContainer.innerHTML = '';
         }
 
@@ -216,7 +222,6 @@
             if (reset) container.innerHTML = '';
             renderCourses(container, res.data, status);
             
-            const totalCoursesInResponse = Object.keys(res.data).length;
             if (currentPages[status] * COURSE_PAGE_SIZE < res.totalCourses) {
                 loadMoreContainer.innerHTML = `<button class="btn" onclick="loadMoreCourses('${status}', this)"><span class="btn-text">نمایش بیشتر</span></button>`;
             } else {
@@ -228,6 +233,13 @@
         } else {
             alert('خطا در دریافت اطلاعات: ' + res.message);
         }
+    }
+
+    function renderSkeletonLoader() {
+        ['pending-courses-container', 'issued-courses-container', 'rejected-courses-container'].forEach(id => {
+            let container = document.getElementById(id);
+            container.innerHTML = `<div class="skeleton h2"></div><div class="skeleton header"></div><div class="skeleton header"></div>`;
+        });
     }
 
     function loadMoreCourses(status, button) {
@@ -338,7 +350,6 @@
         if (status === '5') return 'issued-load-more';
         if (status === '0') return 'rejected-load-more';
     }
-
 </script>
 </body>
 </html>
