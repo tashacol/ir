@@ -55,6 +55,7 @@
         .btn-icon.reject { color: var(--danger); } .btn-icon.reject:hover { background: #f8d7da; }
         
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); animation: fadeIn 0.3s; padding: 20px;}
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .modal-overlay.show { display: flex; }
         .modal-box { background: var(--bg-card); padding: 30px; border-radius: var(--radius-lg); width: 100%; max-width: 450px; box-shadow: var(--shadow); animation: modal-pop-in 0.3s ease-out; text-align: center;}
         @keyframes modal-pop-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
@@ -117,10 +118,17 @@
     }
 
     async function fetchDashboardData() {
-        // Simple text loader for now
-        document.getElementById('pending-container').innerHTML += '<p id="loader">در حال بارگذاری...</p>';
+        const containers = {
+            pending: document.getElementById('pending-container'),
+            issued: document.getElementById('issued-container'),
+            rejected: document.getElementById('rejected-container')
+        };
+        Object.values(containers).forEach(c => { c.innerHTML += '<p class="loader" style="text-align:center;">در حال بارگذاری...</p>'; });
+        
         const res = await callAppsScript('getDashboardData');
-        document.getElementById('loader').remove();
+        
+        document.querySelectorAll('.loader').forEach(el => el.remove());
+
         if (res.success) {
             renderDashboard(res.data);
         } else {
@@ -134,7 +142,6 @@
             issued: document.getElementById('issued-container'),
             rejected: document.getElementById('rejected-container')
         };
-        // Clear previous content but keep headers
         Object.values(containers).forEach(c => { c.innerHTML = `<h2 class="column-header">${c.querySelector('h2').textContent}</h2>`; });
 
         renderColumn(data.pending, containers.pending, 'approve');
@@ -152,9 +159,9 @@
             course.students.forEach((student, index) => {
                 let actionButton = '';
                 if (type === 'approve') {
-                    actionButton = `<button class="btn-icon approve" onclick="handleApprove(event, '${student.nationalId}', '${course.courseCode}')" title="تایید گواهی"><i class="fas fa-check-circle"></i></button>`;
+                    actionButton = `<button class="btn-icon approve" onclick="handleApprove(event, '${student.nationalId}', '${student.courseCode}')" title="تایید گواهی"><i class="fas fa-check-circle"></i></button>`;
                 } else if (type === 'reject') {
-                    actionButton = `<button class="btn-icon reject" onclick="handleReject(event, '${student.nationalId}', '${course.courseCode}')" title="رد کردن و پاک کردن نمرات"><i class="fas fa-trash-alt"></i></button>`;
+                    actionButton = `<button class="btn-icon reject" onclick="handleReject(event, '${student.nationalId}', '${student.courseCode}')" title="رد کردن و پاک کردن نمرات"><i class="fas fa-trash-alt"></i></button>`;
                 }
                 tableRows += `<tr>
                     <td>${index + 1}</td>
