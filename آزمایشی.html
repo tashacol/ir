@@ -46,10 +46,10 @@
         .course-accordion .course-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); cursor: pointer; transition: var(--transition); margin-bottom: 10px; }
         .course-accordion .course-header:hover { background-color: #f1f1f1; }
         .course-accordion .course-header.active { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
-        /* Style change: Made the info display vertically for better readability */
         .course-header-info { display: flex; flex-direction: column; gap: 8px; font-weight: 500; }
         .course-header-info span { color: var(--text-light); }
         .course-header-info strong { color: var(--text-dark); }
+        .countdown { color: var(--primary-dark); font-weight: 700; } /* Style for countdown text */
         .accordion-arrow { transition: transform 0.3s; }
         .course-header.active .accordion-arrow { transform: rotate(180deg); }
 
@@ -84,10 +84,23 @@
     
     <div id="dashboard-container" class="hidden">
         <div class="dashboard-header">
-            <h1>وضعیت صدور گواهی‌ها</h1>
+            <h1>وضعیت دوره‌ها</h1>
             <button id="logout-btn" class="btn" style="background-color: var(--danger);"><i class="fas fa-sign-out-alt"></i><span class="btn-text">خروج</span></button>
         </div>
         
+        <!-- NEW SECTION: Upcoming Courses -->
+        <div class="status-section" id="upcoming-section">
+            <h2><i class="fas fa-calendar-alt" style="margin-left: 10px;"></i>دوره‌های آتی</h2>
+            <div id="upcoming-courses-container"></div>
+        </div>
+        
+        <!-- NEW SECTION: Ongoing Courses -->
+        <div class="status-section" id="ongoing-section">
+            <h2><i class="fas fa-tasks" style="margin-left: 10px;"></i>دوره‌های در حال برگزاری</h2>
+            <div id="ongoing-courses-container"></div>
+        </div>
+        
+        <!-- Existing Sections -->
         <div class="status-section" id="pending-section">
             <h2><i class="fas fa-clock" style="margin-left: 10px;"></i>در انتظار صدور گواهی</h2>
             <div id="pending-courses-container"></div>
@@ -161,6 +174,9 @@
         renderSkeletonLoader();
         const res = await callAppsScript('getDashboardData');
         if (res.success) {
+            // *** CHANGE: Render all 5 sections ***
+            renderSection('upcoming-courses-container', res.data.upcoming, 'upcoming');
+            renderSection('ongoing-courses-container', res.data.ongoing, 'ongoing');
             renderSection('pending-courses-container', res.data['2'], 'approve');
             renderSection('issued-courses-container', res.data['5'], 'approved');
             renderSection('rejected-courses-container', res.data['0'], 'delete');
@@ -170,14 +186,16 @@
     }
     
     function renderSkeletonLoader() {
-        ['pending-courses-container', 'issued-courses-container', 'rejected-courses-container'].forEach(id => {
-            document.getElementById(id).innerHTML = '<div class="loader"></div>';
+        // *** CHANGE: Added new containers to the loader list ***
+        ['upcoming-courses-container', 'ongoing-courses-container', 'pending-courses-container', 'issued-courses-container', 'rejected-courses-container'].forEach(id => {
+            const container = document.getElementById(id);
+            if(container) container.innerHTML = '<div class="loader"></div>';
         });
     }
 
     function renderSection(containerId, data, actionType) {
         const container = document.getElementById(containerId);
-        if (Object.keys(data).length === 0) {
+        if (!data || Object.keys(data).length === 0) {
             container.innerHTML = '<p style="text-align: center; color: var(--text-light);">موردی برای نمایش وجود ندارد.</p>';
             return;
         }
@@ -185,30 +203,51 @@
         let html = '';
         for (const courseId in data) {
             const course = data[courseId];
-            let studentsHtml = '<table class="student-table"><thead><tr><th>ردیف</th><th>نام و نام خانوادگی</th><th>کد ملی</th><th>نمره کل</th><th>عملیات</th></tr></thead><tbody>';
-            course.students.forEach((student, index) => {
-                let actionHtml = '';
-                if (actionType === 'approve') {
-                    actionHtml = `<i class="fas fa-check-circle action-icon approve" title="تایید و صدور گواهی" onclick="handleApprove(this, '${student.nationalId}', '${courseId}')"></i>`;
-                } else if (actionType === 'approved') {
-                    actionHtml = `<i class="fas fa-check-circle action-icon approved" title="تایید شده"></i>`;
-                } else if (actionType === 'delete') {
-                    actionHtml = `<i class="fas fa-trash-alt action-icon delete" title="حذف نمرات" onclick="handleReset(this, '${student.nationalId}', '${courseId}')"></i>`;
-                }
-                studentsHtml += `<tr><td>${index + 1}</td><td>${student.name}</td><td>${student.nationalId}</td><td>${student.totalScore || '-'}</td><td>${actionHtml}</td></tr>`;
-            });
+            // *** CHANGE: Logic for student table headers based on section ***
+            let studentTableHeaders = '<th>ردیف</th><th>نام و نام خانوادگی</th><th>کد ملی</th>';
+            if(actionType === 'approve' || actionType === 'approved' || actionType === 'delete') {
+                 studentTableHeaders += '<th>نمره کل</th><th>عملیات</th>';
+            }
+            
+            let studentsHtml = `<table class="student-table"><thead><tr>${studentTableHeaders}</tr></thead><tbody>`;
+            
+            if(course.students && course.students.length > 0) {
+              course.students.forEach((student, index) => {
+                  let actionHtml = '';
+                  // Logic for action icons based on actionType
+                  if (actionType === 'approve') {
+                      actionHtml = `<td style="text-align:center;"><i class="fas fa-check-circle action-icon approve" title="تایید و صدور گواهی" onclick="handleApprove(this, '${student.nationalId}', '${courseId}')"></i></td>`;
+                  } else if (actionType === 'approved') {
+                      actionHtml = `<td style="text-align:center;"><i class="fas fa-check-circle action-icon approved" title="تایید شده"></i></td>`;
+                  } else if (actionType === 'delete') {
+                      actionHtml = `<td style="text-align:center;"><i class="fas fa-trash-alt action-icon delete" title="حذف نمرات" onclick="handleReset(this, '${student.nationalId}', '${courseId}')"></i></td>`;
+                  }
+                  
+                  let scoreHtml = '';
+                   if(actionType === 'approve' || actionType === 'approved' || actionType === 'delete') {
+                       scoreHtml = `<td>${student.totalScore || '-'}</td>`;
+                  }
+
+                  studentsHtml += `<tr><td>${index + 1}</td><td>${student.name}</td><td>${student.nationalId}</td>${scoreHtml}${actionHtml}</tr>`;
+              });
+            } else {
+              studentsHtml += '<tr><td colspan="5" style="text-align:center; color: var(--text-light);">قرآن‌آموزی برای این دوره ثبت نشده است.</td></tr>';
+            }
+
             studentsHtml += '</tbody></table>';
 
             const studentContainerId = `${actionType}-students-${courseId}`;
+            // *** CHANGE: Use displayDate for countdown, otherwise use startDate ***
+            const dateToDisplay = course.displayDate || course.startDate;
+            const dateLabel = (actionType === 'upcoming') ? "زمان شروع:" : "تاریخ شروع:";
+            const dateClass = course.displayDate && course.displayDate.includes('روز') ? "countdown" : "";
 
-            // *** CHANGE IS HERE ***
-            // Added a line for "نام دوره" (course.courseName) to be displayed.
             html += `<div class="course-accordion">
                         <div class="course-header" data-target-id="${studentContainerId}">
                             <div class="course-header-info">
                                 <span>نام دوره: <strong>${course.courseName || 'نامشخص'}</strong></span>
                                 <span>نام استاد: <strong>${course.masterName}</strong></span>
-                                <span>تاریخ شروع: <strong>${course.startDate}</strong></span>
+                                <span>${dateLabel} <strong class="${dateClass}">${dateToDisplay}</strong></span>
                             </div>
                             <i class="fas fa-chevron-down accordion-arrow"></i>
                         </div>
