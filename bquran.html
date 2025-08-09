@@ -34,6 +34,7 @@
         .form-input:focus { border-color: var(--primary); background: var(--bg-card); box-shadow: 0 0 0 3px var(--primary-light); }
         .btn { position:relative; background-color: var(--primary); color: var(--text-on-dark); padding: 12px 30px; border: none; border-radius: var(--radius-md); cursor: pointer; font-size: 1rem; font-family: var(--font-main); transition: var(--transition); display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none;}
         .btn:hover:not(:disabled) { background: var(--primary-dark); transform: translateY(-2px); }
+        .btn:disabled { background-color: #a0c9ff; cursor: not-allowed; }
         .btn-loading .btn-text { visibility: hidden; }
         .btn-loading::after { content: ''; position: absolute; width: 20px; height: 20px; top: 0; left: 0; right: 0; bottom: 0; margin: auto; border: 3px solid transparent; border-top-color: #ffffff; border-radius: 50%; animation: spin 1s ease infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -43,10 +44,15 @@
         .dashboard-header h1 { font-size: 2rem; margin: 0; }
         .status-section { margin-bottom: 40px; }
         .status-section h2 { font-size: 1.5rem; color: var(--text-dark); padding-bottom: 15px; margin-bottom: 20px; border-bottom: 2px solid var(--border-color); text-align: right; }
+        
+        .search-controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .search-controls input { flex: 1; min-width: 200px; }
+        .search-controls .btn { padding: 8px 15px; font-size: 0.9rem; }
+
         .course-accordion .course-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); cursor: pointer; transition: var(--transition); margin-bottom: 10px; }
         .course-accordion .course-header:hover { background-color: #f1f1f1; }
         .course-accordion .course-header.active { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
-        .course-header-info { display: flex; gap: 20px; font-weight: 500; flex-wrap: wrap; }
+        .course-header-info { display: flex; flex-direction: column; gap: 8px; font-weight: 500; }
         .course-header-info span { color: var(--text-light); }
         .course-header-info strong { color: var(--text-dark); }
         .accordion-arrow { transition: transform 0.3s; }
@@ -62,6 +68,9 @@
         .action-icon.approve { color: var(--success); } .action-icon.approve:hover { color: #146c43; }
         .action-icon.approved { color: var(--success); }
         .action-icon.delete { color: var(--danger); } .action-icon.delete:hover { color: #b02a37; }
+
+        .pagination-controls { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px; }
+        .pagination-controls .page-info { font-weight: 500; color: var(--text-light); }
 
         .loader { width: 40px; height: 40px; border: 4px solid var(--primary-light); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 50px auto; }
     </style>
@@ -89,29 +98,52 @@
         
         <div class="status-section" id="pending-section">
             <h2><i class="fas fa-clock" style="margin-left: 10px;"></i>در انتظار صدور گواهی</h2>
+            <div class="search-controls">
+                <input type="text" id="pending-teacher-search" class="form-input" placeholder="جستجوی کد ملی استاد...">
+                <input type="text" id="pending-student-search" class="form-input" placeholder="جستجوی کد ملی قرآن‌آموز...">
+                <button id="pending-search-btn" class="btn">جستجو</button>
+            </div>
             <div id="pending-courses-container"></div>
+            <div class="pagination-controls" id="pending-pagination"></div>
         </div>
 
         <div class="status-section" id="issued-section">
             <h2><i class="fas fa-check-circle" style="margin-left: 10px;"></i>گواهی‌های صادر شده</h2>
+            <div class="search-controls">
+                <input type="text" id="issued-teacher-search" class="form-input" placeholder="جستجوی کد ملی استاد...">
+                <input type="text" id="issued-student-search" class="form-input" placeholder="جستجوی کد ملی قرآن‌آموز...">
+                <button id="issued-search-btn" class="btn">جستجو</button>
+            </div>
             <div id="issued-courses-container"></div>
+            <div class="pagination-controls" id="issued-pagination"></div>
         </div>
 
         <div class="status-section" id="rejected-section">
             <h2><i class="fas fa-times-circle" style="margin-left: 10px;"></i>رد شده در آزمون</h2>
+            <div class="search-controls">
+                <input type="text" id="rejected-teacher-search" class="form-input" placeholder="جستجوی کد ملی استاد...">
+                <input type="text" id="rejected-student-search" class="form-input" placeholder="جستجوی کد ملی قرآن‌آموز...">
+                <button id="rejected-search-btn" class="btn">جستجو</button>
+            </div>
             <div id="rejected-courses-container"></div>
+            <div class="pagination-controls" id="rejected-pagination"></div>
         </div>
     </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz_kCuLFsVdzciNKIhxIlhZQBRoClZI2x8mPsjOquBIr35-TSMcROyPcfeo9lLlf-p6/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx2r9PQtwCE8fbzPWxJ7qM6fO6hzwkQ4N8-oZczfmhPfkkUmdTS7gXkc9tiwPcbWjR1/exec";
     const sessionKey = 'quranAdminSession';
+    const ITEMS_PER_PAGE = 5;
+
+    // Global state to hold all data and current page for each section
+    let fullData = { '2': {}, '5': {}, '0': {} };
+    let currentPages = { 'pending': 1, 'issued': 1, 'rejected': 1 };
 
     async function callAppsScript(action, params = {}, button = null) {
         if(button) button.classList.add('btn-loading');
         try { 
             const res = await fetch(SCRIPT_URL, { method: 'POST', mode: 'cors', headers: {'Content-Type': 'text/plain;charset=utf-8'}, body: JSON.stringify({ action, params }) }); 
-            if (!res.ok) throw new Error(`Network error`); 
+            if (!res.ok) throw new Error('Network error'); 
             return await res.json();
         } catch (error) { 
             alert('خطا در ارتباط با سرور.'); 
@@ -122,8 +154,16 @@
     }
     
     document.addEventListener('DOMContentLoaded', () => {
+        // Login/Logout handlers
         document.getElementById('login-form').addEventListener('submit', handleManualLogin);
         document.getElementById('logout-btn').addEventListener('click', handleLogout);
+
+        // Search button handlers
+        document.getElementById('pending-search-btn').addEventListener('click', () => { currentPages.pending = 1; displayData('2', 'pending'); });
+        document.getElementById('issued-search-btn').addEventListener('click', () => { currentPages.issued = 1; displayData('5', 'issued'); });
+        document.getElementById('rejected-search-btn').addEventListener('click', () => { currentPages.rejected = 1; displayData('0', 'rejected'); });
+
+        // Check for logged-in session
         const savedSession = localStorage.getItem(sessionKey);
         if (savedSession === 'loggedIn') {
             showDashboard();
@@ -160,11 +200,13 @@
         renderSkeletonLoader();
         const res = await callAppsScript('getDashboardData');
         if (res.success) {
-            renderSection('pending-courses-container', res.data['2'], 'approve');
-            renderSection('issued-courses-container', res.data['5'], 'approved');
-            renderSection('rejected-courses-container', res.data['0'], 'delete');
+            fullData = res.data;
+            // Initial display of all sections
+            displayData('2', 'pending');
+            displayData('5', 'issued');
+            displayData('0', 'rejected');
         } else {
-            alert('خطا در دریافت اطلاعات: ' + res.message);
+            alert('خطا در دریافت اطلاعات: ' + (res.message || 'Unknown error'));
         }
     }
     
@@ -174,16 +216,57 @@
         });
     }
 
-    function renderSection(containerId, data, actionType) {
+    function displayData(statusKey, sectionPrefix) {
+        const allCoursesForStatus = Object.values(fullData[statusKey] || {});
+        
+        // Filter logic
+        const teacherSearchTerm = document.getElementById(`${sectionPrefix}-teacher-search`).value.trim();
+        const studentSearchTerm = document.getElementById(`${sectionPrefix}-student-search`).value.trim();
+
+        let filteredCourses = allCoursesForStatus;
+
+        if (teacherSearchTerm) {
+            filteredCourses = filteredCourses.filter(course => course.masterNationalId.includes(teacherSearchTerm));
+        }
+
+        if (studentSearchTerm) {
+            filteredCourses = filteredCourses.filter(course => 
+                course.students.some(student => student.nationalId.includes(studentSearchTerm))
+            );
+        }
+
+        // Pagination logic
+        const currentPage = currentPages[sectionPrefix];
+        const totalItems = filteredCourses.length;
+        const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+        
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        const endIndex = startIndex + ITEMS_PER_PAGE;
+        const paginatedCourses = filteredCourses.slice(startIndex, endIndex);
+
+        // Render the filtered and paginated data
+        renderSection(`${sectionPrefix}-courses-container`, paginatedCourses, statusKey);
+        
+        // Render pagination controls
+        renderPagination(`${sectionPrefix}-pagination`, currentPage, totalPages, (newPage) => {
+            currentPages[sectionPrefix] = newPage;
+            displayData(statusKey, sectionPrefix);
+        });
+    }
+
+    function renderSection(containerId, coursesToShow, statusKey) {
         const container = document.getElementById(containerId);
-        if (Object.keys(data).length === 0) {
+        if (!coursesToShow || coursesToShow.length === 0) {
             container.innerHTML = '<p style="text-align: center; color: var(--text-light);">موردی برای نمایش وجود ندارد.</p>';
             return;
         }
         
         let html = '';
-        for (const courseId in data) {
-            const course = data[courseId];
+        const actionTypeMap = { '2': 'approve', '5': 'approved', '0': 'delete' };
+        const actionType = actionTypeMap[statusKey];
+
+        coursesToShow.forEach(course => {
+            const courseId = course.originalCourseId; // Use the original ID for actions
             let studentsHtml = '<table class="student-table"><thead><tr><th>ردیف</th><th>نام و نام خانوادگی</th><th>کد ملی</th><th>نمره کل</th><th>عملیات</th></tr></thead><tbody>';
             course.students.forEach((student, index) => {
                 let actionHtml = '';
@@ -198,11 +281,12 @@
             });
             studentsHtml += '</tbody></table>';
 
-            const studentContainerId = `${actionType}-students-${courseId}`;
+            const studentContainerId = `${actionType}-students-${courseId}-${Math.random()}`; // Add random to avoid duplicates
 
             html += `<div class="course-accordion">
                         <div class="course-header" data-target-id="${studentContainerId}">
                             <div class="course-header-info">
+                                <span>نام دوره: <strong>${course.courseName || 'نامشخص'}</strong></span>
                                 <span>نام استاد: <strong>${course.masterName}</strong></span>
                                 <span>تاریخ شروع: <strong>${course.startDate}</strong></span>
                             </div>
@@ -212,19 +296,55 @@
                             ${studentsHtml}
                         </div>
                      </div>`;
-        }
+        });
         container.innerHTML = html;
         
+        // Re-attach event listeners for accordions
         container.querySelectorAll('.course-header').forEach(header => {
-            if(header.getAttribute('listener') !== 'true') {
-                 header.addEventListener('click', () => {
-                    const content = document.getElementById(header.dataset.targetId);
-                    header.classList.toggle('active');
-                    content.classList.toggle('show');
-                });
-                header.setAttribute('listener', 'true');
-            }
+            header.addEventListener('click', () => {
+                const content = document.getElementById(header.dataset.targetId);
+                header.classList.toggle('active');
+                content.classList.toggle('show');
+            });
         });
+    }
+    
+    function renderPagination(containerId, currentPage, totalPages, onPageClick) {
+        const container = document.getElementById(containerId);
+        if (totalPages <= 1) {
+            container.innerHTML = '';
+            return;
+        }
+
+        let html = '';
+        // Previous Button
+        const prevBtn = `<button class="btn" onclick="(${() => onPageClick(currentPage - 1)})()" ${currentPage === 1 ? 'disabled' : ''}>قبلی</button>`;
+        // Page Info
+        const pageInfo = `<span class="page-info">صفحه ${currentPage} از ${totalPages}</span>`;
+        // Next Button
+        const nextBtn = `<button class="btn" onclick="(${() => onPageClick(currentPage + 1)})()" ${currentPage === totalPages ? 'disabled' : ''}>بعدی</button>`;
+
+        // A trick to make the onclick work when dynamically inserted
+        container.innerHTML = '';
+        const prevBtnEl = document.createElement('button');
+        prevBtnEl.className = 'btn';
+        prevBtnEl.innerText = 'قبلی';
+        if (currentPage === 1) prevBtnEl.disabled = true;
+        prevBtnEl.onclick = () => onPageClick(currentPage - 1);
+
+        const pageInfoEl = document.createElement('span');
+        pageInfoEl.className = 'page-info';
+        pageInfoEl.innerText = `صفحه ${currentPage} از ${totalPages}`;
+
+        const nextBtnEl = document.createElement('button');
+        nextBtnEl.className = 'btn';
+        nextBtnEl.innerText = 'بعدی';
+        if (currentPage === totalPages) nextBtnEl.disabled = true;
+        nextBtnEl.onclick = () => onPageClick(currentPage + 1);
+        
+        container.appendChild(prevBtnEl);
+        container.appendChild(pageInfoEl);
+        container.appendChild(nextBtnEl);
     }
 
     async function handleApprove(element, nationalId, courseId) {
@@ -232,7 +352,8 @@
             element.classList.remove('fa-check-circle'); element.classList.add('fa-spinner', 'fa-spin');
             const res = await callAppsScript('approveCertificate', { nationalId, courseId });
             if (res.success) {
-                alert(res.message); fetchDashboardData();
+                alert(res.message);
+                fetchDashboardData(); // Refetch all data to ensure consistency
             } else {
                 alert('خطا: ' + res.message);
                 element.classList.add('fa-check-circle'); element.classList.remove('fa-spinner', 'fa-spin');
@@ -245,7 +366,8 @@
             element.classList.remove('fa-trash-alt'); element.classList.add('fa-spinner', 'fa-spin');
             const res = await callAppsScript('resetGrades', { nationalId, courseId });
             if (res.success) {
-                alert(res.message); fetchDashboardData();
+                alert(res.message);
+                fetchDashboardData(); // Refetch all data to ensure consistency
             } else {
                 alert('خطا: ' + res.message);
                 element.classList.add('fa-trash-alt'); element.classList.remove('fa-spinner', 'fa-spin');
