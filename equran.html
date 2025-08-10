@@ -56,7 +56,7 @@
             text-align: center;
             box-sizing: border-box;
             overflow: hidden;
-            min-height: 650px; /* افزایش ارتفاع برای فیلد جدید */
+            min-height: 650px;
             display: flex;
             flex-direction: column;
             opacity: 0;
@@ -102,11 +102,21 @@
         .form-group { position: relative; margin-bottom: 1.75rem; }
         .form-group .form-icon { position: absolute; top: 50%; transform: translateY(-50%); right: 15px; color: var(--text-light); transition: color 0.3s; z-index: 1; }
         .form-control { width: 100%; padding: 14px 50px 14px 14px; border: 1px solid var(--border-color); border-radius: 12px; font-size: 1.1rem; direction: ltr; text-align: center; letter-spacing: 2px; transition: var(--transition); box-sizing: border-box; background: rgba(255,255,255,0.5); -webkit-appearance: none; -moz-appearance: none; appearance: none; }
+        select.form-control { text-align: right; direction: rtl; letter-spacing: normal; } /* استایل خاص برای سلکت */
         .form-control:focus { outline: none; border-color: var(--secondary-color); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2); }
         .form-label { position: absolute; top: 50%; right: 45px; transform: translateY(-50%); color: var(--text-light); background: var(--bg-glass); padding: 0 5px; transition: all 0.2s ease-out; pointer-events: none; }
-        .form-control:focus + .form-label, .form-control:not(:placeholder-shown) + .form-label { top: 0; right: 40px; font-size: 0.9rem; color: var(--primary-color); background: #fff; }
-        /* استایل اختصاصی برای لیبل سلکت باکس */
-        select.form-control + .form-label { top: 0; right: 40px; font-size: 0.9rem; color: var(--primary-color); background: #fff; }
+        
+        /* --- اصلاحیه برای رفتار لیبل در حالت های مختلف --- */
+        .form-control:focus + .form-label,
+        .form-control:not(:placeholder-shown) + .form-label,
+        .form-control.has-value + .form-label { /* .has-value برای select اضافه شد */
+            top: 0;
+            right: 40px;
+            font-size: 0.9rem;
+            color: var(--primary-color);
+            background: #fff;
+        }
+
         .form-control:focus ~ .form-icon { color: var(--primary-color); }
         
         .captcha-group { display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 12px; padding: 10px; justify-content: center; min-height: 50px; position: relative; background: rgba(255,255,255,0.5); }
@@ -159,10 +169,10 @@
                     <label for="nationalId" class="form-label">کد ملی</label>
                 </div>
                 
-                <!-- === فیلد جدید برای انتخاب دوره === -->
                 <div class="form-group">
                     <i class="fa-solid fa-book-open form-icon"></i>
-                    <select id="courseCode" class="form-control" required style="text-align: center; direction: rtl;">
+                    <select id="courseCode" class="form-control" required>
+                        <option value="" disabled selected>-- انتخاب دوره --</option>
                         <option value="50">روخوانی و روانخوانی</option>
                         <option value="51">حفظ جزء ۳۰</option>
                     </select>
@@ -255,17 +265,24 @@
 
         certificateForm.addEventListener('submit', async function(event) {
             event.preventDefault();
+            
+            // --- اصلاحیه برای بررسی انتخاب دوره ---
+            const nationalIdValue = document.getElementById('nationalId').value.trim();
+            const courseCodeValue = document.getElementById('courseCode').value;
+
+            if (!courseCodeValue) {
+                showMessage('لطفاً دوره مورد نظر را انتخاب کنید.', 'error');
+                return;
+            }
+
             contentWrapper.style.opacity = '0.5';
             mainLoader.style.display = 'flex';
             
-            // --- ویرایش اصلی برای ترکیب کد ملی و کد دوره ---
-            const nationalIdValue = document.getElementById('nationalId').value.trim();
-            const courseCodeValue = document.getElementById('courseCode').value;
             const combinedId = nationalIdValue + courseCodeValue;
 
             const formData = {
                 action: 'verify',
-                nationalId: combinedId, // ارسال شناسه ترکیبی به سرور
+                nationalId: combinedId,
                 captchaAnswer: captchaAnswerInput.value,
                 questionId: fileToProcess.questionId
             };
@@ -276,7 +293,7 @@
             contentWrapper.style.opacity = '1';
 
             if (response && response.status === 'success') {
-                const successfulNationalId = nationalIdValue; // استفاده از کد ملی اصلی برای نمایش
+                const successfulNationalId = nationalIdValue;
                 certificateForm.style.display = 'none';
                 document.querySelector('.header').style.display = 'none';
                 
@@ -297,6 +314,15 @@
         shareBtn.addEventListener('click', async () => { if (!fileToProcess || !navigator.share) return; try { const blob = b64toBlob(fileToProcess.data, fileToProcess.type); const file = new File([blob], fileToProcess.name, { type: fileToProcess.type }); const shareText = `گواهينامه دوره قرآن کریم\nموسسه تعالی اندیشه و رشد با همکاری خانه قرآن و عترت نسیم وحی\nکدملی قرآن‌ آموز: ${fileToProcess.nationalId}\n\nموفق و مؤید باشید`; await navigator.share({ title: 'گواهينامه دوره قرآن کریم', text: shareText, files: [file] }); } catch (err) { console.error('Error sharing file:', err); } });
 
         document.addEventListener('DOMContentLoaded', () => {
+            const courseSelect = document.getElementById('courseCode');
+            courseSelect.addEventListener('change', function() {
+                if (this.value) {
+                    this.classList.add('has-value');
+                } else {
+                    this.classList.remove('has-value');
+                }
+            });
+
             const urlParams = new URLSearchParams(window.location.search);
             const nationalIdFromUrl = urlParams.get('id');
             if (nationalIdFromUrl) {
