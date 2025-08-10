@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>پنل معاونت پژوهش</title>
+    <title>پنل معاونت آموزش</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap" rel="stylesheet">
@@ -87,6 +87,23 @@
         .accordion-arrow { transition: transform 0.3s; }
         .course-header.active .accordion-arrow { transform: rotate(180deg); }
 
+        /* --- اصلاحیه برای آکاردئون و جلوگیری از بیرون زدگی --- */
+        .student-list-container { 
+            background: var(--container-bg); 
+            border: 1px solid var(--border-color); 
+            border-top: none; 
+            padding: 0 20px; 
+            border-bottom-left-radius: var(--radius-md); 
+            border-bottom-right-radius: var(--radius-md); 
+            max-height: 0; 
+            overflow: hidden; /* این خط از بیرون زدگی جلوگیری می کند */
+            transition: max-height 0.4s ease-out, padding 0.4s ease-out;
+        }
+        .student-list-container.show { 
+            max-height: 1000px; 
+            padding: 20px;
+        }
+
         .data-table { width: 100%; border-collapse: collapse; }
         .data-table th, .data-table td { padding: 12px 10px; border-bottom: 1px solid var(--border-color); text-align: right; vertical-align: middle; }
         .data-table th { font-weight: 700; color: var(--primary-color); background-color: #e2e8f0; }
@@ -104,7 +121,7 @@
     <div id="login-container">
         <div class="login-box" id="login-section">
             <i class="fas fa-university logo"></i>
-            <h1>پنل معاونت پژوهش</h1>
+            <h1>پنل معاونت آموزش</h1>
             <p>برای ورود به سامانه اطلاعات خود را وارد کنید.</p>
             <form id="login-form">
                 <div class="input-wrapper"><i class="fas fa-user input-icon"></i><input type="text" id="username" class="form-input" placeholder="نام کاربری" required></div>
@@ -117,7 +134,7 @@
     
     <div id="dashboard-container" class="hidden">
         <div class="dashboard-header">
-            <h1>پنل معاونت پژوهش</h1>
+            <h1>پنل معاونت آموزش</h1>
             <button id="logout-btn" class="btn" style="background-color: var(--danger-color);"><i class="fas fa-sign-out-alt"></i><span class="btn-text">خروج</span></button>
         </div>
         
@@ -274,7 +291,7 @@
         const actionType = actionTypeMap[statusKey];
         coursesToShow.forEach(course => {
             const courseId = course.originalCourseId;
-            let studentsHtml = '<table class="data-table"><thead><tr><th>ردیف</th><th>نام و نام خانوادگی</th><th>کد ملی</th><th>نمره کل</th><th>عملیات</th></tr></thead><tbody>';
+            let studentsHtml = '<div class="student-list-container"><table class="data-table"><thead><tr><th>ردیف</th><th>نام و نام خانوادگی</th><th>کد ملی</th><th>نمره کل</th><th>عملیات</th></tr></thead><tbody>';
             course.students.forEach((student, index) => {
                 let actionHtml = '';
                 if (actionType === 'approve') { actionHtml = `<i class="fas fa-check-circle action-icon approve" title="تایید و صدور گواهی" onclick="handleApprove(this, '${student.nationalId}', '${courseId}')"></i>`; } 
@@ -282,12 +299,29 @@
                 else if (actionType === 'delete') { actionHtml = `<i class="fas fa-trash-alt action-icon delete" title="حذف نمرات" onclick="handleReset(this, '${student.nationalId}', '${courseId}')"></i>`; }
                 studentsHtml += `<tr><td>${index + 1}</td><td>${student.name}</td><td>${student.nationalId}</td><td>${student.totalScore || '-'}</td><td>${actionHtml}</td></tr>`;
             });
-            studentsHtml += '</tbody></table>';
-            const studentContainerId = `${actionType}-students-${courseId}-${Math.random()}`;
-            html += `<div class="course-accordion"><div class="course-header" data-target-id="${studentContainerId}"><div class="course-header-info"><span>نام دوره: <strong>${course.courseName || 'نامشخص'}</strong></span><span>نام استاد: <strong>${course.masterName}</strong></span><span>تاریخ شروع: <strong>${course.startDate}</strong></span></div><i class="fas fa-chevron-down accordion-arrow"></i></div><div class="student-list-container" id="${studentContainerId}">${studentsHtml}</div></div>`;
+            studentsHtml += '</tbody></table></div>';
+            
+            // --- اصلاحیه برای رفع مشکل آکاردئون ---
+            html += `<div class="course-accordion">
+                        <div class="course-header">
+                            <div class="course-header-info">
+                                <span>نام دوره: <strong>${course.courseName || 'نامشخص'}</strong></span>
+                                <span>نام استاد: <strong>${course.masterName}</strong></span>
+                                <span>تاریخ شروع: <strong>${course.startDate}</strong></span>
+                            </div>
+                            <i class="fas fa-chevron-down accordion-arrow"></i>
+                        </div>
+                        ${studentsHtml}
+                     </div>`;
         });
         container.innerHTML = html;
-        container.querySelectorAll('.course-header').forEach(header => header.addEventListener('click', () => { document.getElementById(header.dataset.targetId).classList.toggle('show'); header.classList.toggle('active'); }));
+        container.querySelectorAll('.course-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const content = header.nextElementSibling; // The student-list-container is the next element
+                header.classList.toggle('active');
+                content.classList.toggle('show');
+            });
+        });
     }
 
     function renderPendingCourses(courses) {
