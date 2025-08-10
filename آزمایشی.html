@@ -74,6 +74,7 @@
         .icon-btn.delete-btn:hover:not(:disabled) { background-color: #fee2e2; }
 
         .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding: 15px; background-color: rgba(255,255,255,0.8); backdrop-filter: blur(5px); border-radius: 12px; }
+        .header-actions { display: flex; align-items: center; gap: 10px; }
         .header-loader { width: 24px; height: 24px; border: 3px solid var(--border-color); border-top-color: var(--secondary-color); border-radius: 50%; animation: button-loading-spinner 1s linear infinite; display: none; margin-right: 15px;}
         .dashboard-header.loading .header-loader { display: block; }
 
@@ -91,7 +92,6 @@
             width: 50px;
         }
 
-        /* --- CSS اصلاح شده برای چیدمان دکمه ها و وضعیت --- */
         .course-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 20px; padding-top: 20px; border-top: 1px dashed var(--border-color); }
         .action-buttons-container { display: flex; align-items: center; gap: 10px; }
         .course-status-container { display: flex; justify-content: flex-start; }
@@ -166,6 +166,7 @@
         <symbol xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" id="icon-info"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10s10-4.48 10-10S17.52 2 12 2m1 15h-2v-6h2zm0-8h-2V7h2z"/></symbol>
         <symbol xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" id="icon-download"><path fill="currentColor" d="M5 20h14v-2H5zM19 9h-4V3H9v6H5l7 7z"/></symbol>
         <symbol xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" id="icon-clock"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m4.5 13.5L11 12.17V7h1.5v4.5l4.62 2.81z"/></symbol>
+        <symbol xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" id="icon-email"><path fill="currentColor" d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2m0 4l-8 5l-8-5V6l8 5l8-5z"/></symbol>
     </svg>
     
     <div id="login-container">
@@ -191,7 +192,14 @@
     
     <div id="dashboard-section" class="hidden">
         <div class="container">
-            <div class="dashboard-header"><div id="welcome-message" style="font-size: 1.5rem;"></div><div class="header-loader"></div><button id="logout-btn" class="icon-btn delete-btn"><svg class="icon"><use href="#icon-logout"></use></svg><span class="btn-text">خروج</span></button></div>
+            <div class="dashboard-header">
+                <div id="welcome-message" style="font-size: 1.5rem;"></div>
+                <div class="header-loader"></div>
+                <div class="header-actions">
+                    <button id="edit-email-btn" class="icon-btn"><svg class="icon" style="color:var(--accent-color);"><use href="#icon-email"></use></svg><span class="btn-text">ویرایش ایمیل</span></button>
+                    <button id="logout-btn" class="icon-btn delete-btn"><svg class="icon"><use href="#icon-logout"></use></svg><span class="btn-text">خروج</span></button>
+                </div>
+            </div>
             <div id="create-course-container"><button id="btn-create-course"><span class="btn-text">ایجاد دوره جدید</span></button></div>
             <div id="courses-container" style="margin-top:30px;"></div>
         </div>
@@ -200,7 +208,8 @@
 <script>
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzMOI3ciPOgc9WpeYeWHv6EhR0HwkNRpbNn9T7H2caNwQa1F2Qytu60ZhKvbJ-XAyxcgQ/exec";
     const sessionKey = 'quranTeacherSession';
-    let loggedInInstructorId = null, loggedInInstructorName = null, tempStudents = []; let currentCourseId = null, currentStudentOriginalId = null;
+    let loggedInInstructorId = null, loggedInInstructorName = null, loggedInInstructorEmail = null, tempStudents = []; 
+    let currentCourseId = null, currentStudentOriginalId = null;
     let existingStudentsByCourse = {};
 
     async function callAppsScript(action, params = {}, button = null) {
@@ -212,24 +221,35 @@
     
     function setButtonLoading(button, isLoading) { if(!button) return; if(isLoading) { button.disabled = true; button.classList.add('btn-loading'); } else { button.disabled = false; button.classList.remove('btn-loading'); } }
     
-    function isValidNationalId(nid) {
-        if (!nid) return false;
-        const regex = /^\d{10}$/;
-        return regex.test(nid);
-    }
+    function isValidNationalId(nid) { if (!nid) return false; return /^\d{10}$/.test(nid); }
+    function isValidEmail(email) { if (!email) return false; return /\S+@\S+\.\S+/.test(email); }
 
     document.addEventListener('DOMContentLoaded', () => {
-        document.getElementById('btn-create-course').addEventListener('click', e => showCreateCourseModal(e.target));
-        document.getElementById('logout-btn').addEventListener('click', handleLogout);
         const savedSession = localStorage.getItem(sessionKey);
-        if (savedSession) { const { nationalId, name } = JSON.parse(savedSession); showDashboard(nationalId, name); }
+        if (savedSession) {
+            const { nationalId, name, email } = JSON.parse(savedSession);
+            showDashboard(nationalId, name, email);
+        }
     });
 
-    function showDashboard(nationalId, name) {
-        loggedInInstructorId = nationalId; loggedInInstructorName = name;
-        document.getElementById('login-container').classList.add('hidden'); document.getElementById('dashboard-section').classList.remove('hidden');
+    function showDashboard(nationalId, name, email) {
+        loggedInInstructorId = nationalId; 
+        loggedInInstructorName = name;
+        loggedInInstructorEmail = email;
+
+        document.getElementById('login-container').classList.add('hidden'); 
+        document.getElementById('dashboard-section').classList.remove('hidden');
         document.getElementById('welcome-message').innerHTML = `استاد <strong>${name}</strong>، خوش آمدید.`;
-        fetchDashboardData();
+        
+        document.getElementById('btn-create-course').addEventListener('click', e => showCreateCourseModal(e.target));
+        document.getElementById('logout-btn').addEventListener('click', handleLogout);
+        document.getElementById('edit-email-btn').addEventListener('click', showEditEmailModal);
+
+        if (!loggedInInstructorEmail) {
+            showEmailPromptModal();
+        } else {
+            fetchDashboardData();
+        }
     }
     
     async function handleManualLogin(event) {
@@ -247,8 +267,8 @@
 
         const res = await callAppsScript('checkLogin', { nationalId, password }, event.target.querySelector('button'));
         if (res.success) {
-            localStorage.setItem(sessionKey, JSON.stringify({ nationalId: nationalId, name: res.name }));
-            showDashboard(nationalId, res.name);
+            localStorage.setItem(sessionKey, JSON.stringify({ nationalId: nationalId, name: res.name, email: res.email }));
+            showDashboard(nationalId, res.name, res.email);
         } else {
             errorP.innerText = res.message || "خطای ورود.";
             errorP.classList.remove('hidden');
@@ -256,6 +276,81 @@
     }
 
     function handleLogout() { localStorage.removeItem(sessionKey); window.location.reload(); }
+    
+    // --- توابع جدید برای مدیریت ایمیل ---
+    function showEmailPromptModal() {
+        const content = `
+            <p style="text-align: center; margin-bottom: 20px;">لطفا ایمیل خود را جهت اطلاع از وضعیت دوره‌ها و قرآن آموزان وارد کنید.</p>
+            <div class="form-group">
+                <label for="prompt-email">آدرس ایمیل</label>
+                <div class="input-icon"><svg class="icon"><use href="#icon-email"></use></svg></div>
+                <input type="email" id="prompt-email" required class="has-icon" style="direction: ltr;">
+            </div>
+            <div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div>
+            <div style="text-align:center;"><button onclick="handleEmailPromptSubmit(event)"><span class="btn-text">ذخیره ایمیل</span></button></div>`;
+        renderModal('ثبت ایمیل', content, 'narrow');
+    }
+
+    async function handleEmailPromptSubmit(event) {
+        const emailInput = document.getElementById('prompt-email');
+        const email = emailInput.value.trim();
+        hideModalError('modal-error-container');
+
+        if (!isValidEmail(email)) {
+            showModalError('modal-error-container', 'لطفا یک آدرس ایمیل معتبر وارد کنید.');
+            return;
+        }
+
+        const res = await callAppsScript('updateTeacherEmail', { instructorId: loggedInInstructorId, newEmail: email }, event.target);
+        if (res.success) {
+            loggedInInstructorEmail = email;
+            const sessionData = JSON.parse(localStorage.getItem(sessionKey));
+            sessionData.email = email;
+            localStorage.setItem(sessionKey, JSON.stringify(sessionData));
+
+            closeAllModals();
+            showCustomAlert('ایمیل شما با موفقیت ثبت شد!', 'success');
+            fetchDashboardData();
+        } else {
+            showModalError('modal-error-container', res.message);
+        }
+    }
+
+    function showEditEmailModal() {
+        const content = `
+            <div class="form-group">
+                <label for="edit-email">ایمیل جدید</label>
+                <div class="input-icon"><svg class="icon"><use href="#icon-email"></use></svg></div>
+                <input type="email" id="edit-email" required class="has-icon" style="direction: ltr;" value="${loggedInInstructorEmail || ''}">
+            </div>
+            <div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div>
+            <div style="text-align:center;"><button onclick="handleUpdateEmail(event)"><span class="btn-text">ذخیره تغییرات</span></button></div>`;
+        renderModal('ویرایش ایمیل', content, 'narrow');
+    }
+
+    async function handleUpdateEmail(event) {
+        const emailInput = document.getElementById('edit-email');
+        const email = emailInput.value.trim();
+        hideModalError('modal-error-container');
+
+        if (!isValidEmail(email)) {
+            showModalError('modal-error-container', 'لطفا یک آدرس ایمیل معتبر وارد کنید.');
+            return;
+        }
+
+        const res = await callAppsScript('updateTeacherEmail', { instructorId: loggedInInstructorId, newEmail: email }, event.target);
+        if (res.success) {
+            loggedInInstructorEmail = email;
+            const sessionData = JSON.parse(localStorage.getItem(sessionKey));
+            sessionData.email = email;
+            localStorage.setItem(sessionKey, JSON.stringify(sessionData));
+            
+            closeAllModals();
+            showCustomAlert(res.message, 'success');
+        } else {
+            showModalError('modal-error-container', res.message);
+        }
+    }
 
     async function fetchDashboardData() {
         renderSkeletonLoader();
@@ -294,28 +389,15 @@
             
             let statusHtml = '';
             switch(course.approvalStatus) {
-                case '5':
-                    statusHtml = `<div class="course-status status-approved"><svg class="icon"><use href="#icon-check-circle"></use></svg><span>تایید شده</span></div>`;
-                    break;
-                case '2':
-                    statusHtml = `<div class="course-status status-pending"><svg class="icon"><use href="#icon-clock"></use></svg><span>در حال بررسی</span></div>`;
-                    addStudentBtn = '';
-                    break;
+                case '5': statusHtml = `<div class="course-status status-approved"><svg class="icon"><use href="#icon-check-circle"></use></svg><span>تایید شده</span></div>`; break;
+                case '2': statusHtml = `<div class="course-status status-pending"><svg class="icon"><use href="#icon-clock"></use></svg><span>در حال بررسی</span></div>`; addStudentBtn = ''; break;
                 case '0':
                     const reasonText = course.rejectionReason ? `<div class="rejection-reason">${course.rejectionReason}</div>` : '';
-                    statusHtml = `<div class="course-status status-rejected">
-                                    <div class="status-header">
-                                        <svg class="icon"><use href="#icon-alert-error"></use></svg>
-                                        <span>نیازمند اصلاح</span>
-                                    </div>
-                                    ${reasonText}
-                                  </div>`;
+                    statusHtml = `<div class="course-status status-rejected"><div class="status-header"><svg class="icon"><use href="#icon-alert-error"></use></svg><span>نیازمند اصلاح</span></div>${reasonText}</div>`;
                     editDateBtn = '';
-                    // دکمه ویرایش دوره جایگزین دکمه افزودن قرآن آموز می شود
                     addStudentBtn = `<button class="icon-btn" onclick="showEditRejectedCourseModal(event, '${course.courseId}', '${course.startDate}', '${course.courseCode}')"><svg class="icon"><use href="#icon-pencil"></use></svg><span class="btn-text">ویرایش دوره</span></button>`;
                     break;
-                default:
-                    statusHtml = '';
+                default: statusHtml = '';
             }
 
             let studentsHtml = '<p style="text-align: center; color: var(--light-text);">هنوز قرآن‌آموزی ثبت نشده است.</p>';
@@ -339,7 +421,6 @@
                         return `<tr><td>${index + 1}</td><td>${s.name||''}</td><td>${s.nationalId||''}</td><td>${scoreDisplay}</td><td>${certStatusDisplay}</td><td>${studentActionsDisplay}</td></tr>`
                     }).join('')}</tbody></table>`;
             }
-            // --- HTML اصلاح شده برای چیدمان دکمه ها ---
             container.innerHTML += `<div class="course-card">
                 <div class="course-header">
                     <h4>${course.courseName} (کد: ${course.courseId})</h4>
@@ -363,337 +444,35 @@
     const modalContainer = document.getElementById('modal-container');
     function renderModal(title, content, extraClasses = '') { modalContainer.innerHTML = `<div class="modal"><div class="modal-content ${extraClasses}"><div class="modal-header"><h3>${title}</h3><button class="close-btn" onclick="closeAllModals()">×</button></div>${content}</div></div>`; }
     function closeAllModals() { modalContainer.innerHTML = ''; }
-    
-    function showCustomAlert(message, type = 'info') {
-        const icons = { success: 'icon-alert-success', error: 'icon-alert-error', info: 'icon-alert-confirm' }; const iconClass = type === 'info' ? 'confirm' : type;
-        const content = `<div class="alert-icon ${iconClass}"><svg class="icon"><use href="#${icons[type]}"></use></svg></div><p class="alert-message">${message}</p><div class="alert-buttons"><button onclick="closeAllModals()"><span class="btn-text">باشه</span></button></div>`;
-        modalContainer.innerHTML = `<div class="modal"><div class="modal-content alert-modal-content">${content}</div></div>`;
-    }
-    function showCustomConfirm(message) {
-        return new Promise((resolve) => {
-            const content = `<div class="alert-icon confirm"><svg class="icon"><use href="#icon-alert-confirm"></use></svg></div><p class="alert-message">${message}</p><div class="alert-buttons"><button id="confirm-btn-yes"><span class="btn-text">تایید</span></button><button id="confirm-btn-no" class="secondary"><span class="btn-text">لغو</span></button></div>`;
-            modalContainer.innerHTML = `<div class="modal"><div class="modal-content alert-modal-content">${content}</div></div>`;
-            document.getElementById('confirm-btn-yes').onclick = () => { closeAllModals(); resolve(true); }; document.getElementById('confirm-btn-no').onclick = () => { closeAllModals(); resolve(false); };
-        });
-    }
-
-    function showModalError(containerId, message) {
-        const errorContainer = document.getElementById(containerId);
-        if (errorContainer) {
-            errorContainer.innerHTML = `<p class="modal-error-message">${message}</p>`;
-            errorContainer.classList.remove('hidden');
-        }
-    }
-
-    function hideModalError(containerId) {
-        const errorContainer = document.getElementById(containerId);
-        if (errorContainer) {
-            errorContainer.classList.add('hidden');
-            errorContainer.innerHTML = '';
-        }
-    }
-    
+    function showCustomAlert(message, type = 'info') { const icons = { success: 'icon-alert-success', error: 'icon-alert-error', info: 'icon-alert-confirm' }; const iconClass = type === 'info' ? 'confirm' : type; const content = `<div class="alert-icon ${iconClass}"><svg class="icon"><use href="#${icons[type]}"></use></svg></div><p class="alert-message">${message}</p><div class="alert-buttons"><button onclick="closeAllModals()"><span class="btn-text">باشه</span></button></div>`; modalContainer.innerHTML = `<div class="modal"><div class="modal-content alert-modal-content">${content}</div></div>`; }
+    function showCustomConfirm(message) { return new Promise((resolve) => { const content = `<div class="alert-icon confirm"><svg class="icon"><use href="#icon-alert-confirm"></use></svg></div><p class="alert-message">${message}</p><div class="alert-buttons"><button id="confirm-btn-yes"><span class="btn-text">تایید</span></button><button id="confirm-btn-no" class="secondary"><span class="btn-text">لغو</span></button></div>`; modalContainer.innerHTML = `<div class="modal"><div class="modal-content alert-modal-content">${content}</div></div>`; document.getElementById('confirm-btn-yes').onclick = () => { closeAllModals(); resolve(true); }; document.getElementById('confirm-btn-no').onclick = () => { closeAllModals(); resolve(false); }; }); }
+    function showModalError(containerId, message) { const errorContainer = document.getElementById(containerId); if (errorContainer) { errorContainer.innerHTML = `<p class="modal-error-message">${message}</p>`; errorContainer.classList.remove('hidden'); } }
+    function hideModalError(containerId) { const errorContainer = document.getElementById(containerId); if (errorContainer) { errorContainer.classList.add('hidden'); errorContainer.innerHTML = ''; } }
     function getTodayJalaliString() { const p2e = s => s.replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)); return p2e(new Date().toLocaleDateString('fa-IR', {year: 'numeric', month: '2-digit', day: '2-digit'})); }
-    function populateDatePicker(prefix = 'start', defaultDateStr) {
-        let defaultDay, defaultMonth, defaultYear;
-        if (defaultDateStr) {
-            [defaultYear, defaultMonth, defaultDay] = defaultDateStr.split('/').map(Number);
-        }
-
-        let opts = { d: '', m: '', y: ''}; 
-        for (let i = 1; i <= 31; i++) opts.d += `<option value="${i}" ${i === defaultDay ? 'selected' : ''}>${i}</option>`; 
-        ["فروردین","اردیبهشت","خرداد","تیر","مرداد","شهریور","مهر","آبان","آذر","دی","بهمن","اسفند"].forEach((m, i) => opts.m += `<option value="${i+1}" ${i + 1 === defaultMonth ? 'selected' : ''}>${m}</option>`); 
-        const currentYear = new Date().toLocaleDateString('fa-IR-u-nu-latn').split('/')[0];
-        opts.y = `<option value="${currentYear}">${currentYear}</option>`;
-        return `<select id="${prefix}-day">${opts.d}</select><select id="${prefix}-month">${opts.m}</select><select id="${prefix}-year" disabled>${opts.y}</select>`;
-    }
+    function populateDatePicker(prefix = 'start', defaultDateStr) { let defaultDay, defaultMonth, defaultYear; if (defaultDateStr) { [defaultYear, defaultMonth, defaultDay] = defaultDateStr.split('/').map(Number); } let opts = { d: '', m: '', y: ''}; for (let i = 1; i <= 31; i++) opts.d += `<option value="${i}" ${i === defaultDay ? 'selected' : ''}>${i}</option>`; ["فروردین","اردیبهشت","خرداد","تیر","مرداد","شهریور","مهر","آبان","آذر","دی","بهمن","اسفند"].forEach((m, i) => opts.m += `<option value="${i+1}" ${i + 1 === defaultMonth ? 'selected' : ''}>${m}</option>`); const currentYear = new Date().toLocaleDateString('fa-IR-u-nu-latn').split('/')[0]; opts.y = `<option value="${currentYear}">${currentYear}</option>`; return `<select id="${prefix}-day">${opts.d}</select><select id="${prefix}-month">${opts.m}</select><select id="${prefix}-year" disabled>${opts.y}</select>`; }
     function jalaliToGregorian(jy, jm, jd) { var sal_a, gy, gm, gd, days; jy += 1595; days = -355668 + (365 * jy) + (~~(jy / 33) * 8) + ~~(((jy % 33) + 3) / 4) + jd + ((jm < 7) ? (jm - 1) * 31 : ((jm - 7) * 30) + 186); gy = 400 * ~~(days / 146097); days %= 146097; if (days > 36524) { gy += 100 * ~~(--days / 36524); days %= 36524; if (days >= 365) days++; } gy += 4 * ~~(days / 1461); days %= 1461; if (days > 365) { gy += ~~((days - 1) / 365); days = (days - 1) % 365; } gd = days + 1; sal_a = [0, 31, ((gy % 4 === 0 && gy % 100 !== 0) || (gy % 400 === 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]; for (gm = 0; gm < 13 && gd > sal_a[gm]; gm++) gd -= sal_a[gm]; return new Date(gy, gm - 1, gd); }
-
-    async function showCreateCourseModal(button) {
-        const res = await callAppsScript('getCourseDefinitions', {}, button);
-        if (!res.success || !res.data || res.data.length === 0) {
-            showCustomAlert(res.message || 'هیچ دوره تعریف شده‌ای برای انتخاب یافت نشد.', 'error');
-            return;
-        }
-
-        const courseOptions = res.data.map(course => `<option value="${course.code}">${course.name}</option>`).join('');
-
-        const content = `
-            <div class="form-group">
-                <label for="course-definition-select">نام دوره</label>
-                <select id="course-definition-select" style="text-align-last: center;">${courseOptions}</select>
-            </div>
-            <div class="form-group"><label>تاریخ شروع</label>${populateDatePicker('start')}</div>
-            <div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div>
-            <div style="text-align:center;"><button onclick="handleCreateCourse(event)"><span class="btn-text">ایجاد دوره</span></button></div>`;
-        renderModal('ایجاد دوره جدید', content, 'narrow');
-    }
-
-    async function handleCreateCourse(event) {
-        hideModalError('modal-error-container');
-        const selectedCourseCode = document.getElementById('course-definition-select').value;
-        const date = `${document.getElementById('start-year').value}/${document.getElementById('start-month').value.padStart(2,'0')}/${document.getElementById('start-day').value.padStart(2,'0')}`;
-        
-        if (!selectedCourseCode) { showModalError("modal-error-container", "لطفا یک دوره را انتخاب کنید."); return; }
-        if (date < getTodayJalaliString()) { showModalError("modal-error-container", "تاریخ انتخابی نمی‌تواند در گذشته باشد."); return; }
-
-        const res = await callAppsScript('createNewCourse', { instructorId: loggedInInstructorId, startDate: date, courseCode: selectedCourseCode }, event.target);
-        if (res.success) {
-            closeAllModals();
-            showCustomAlert('دوره با موفقیت ایجاد و برای تایید ارسال شد.', 'success');
-            fetchDashboardData();
-        } else {
-            showModalError("modal-error-container", 'خطا: ' + res.message);
-        }
-    }
-    
-    async function showEditRejectedCourseModal(event, courseId, originalStartDate, originalCourseCode) {
-        const button = event.target.closest('button');
-        const res = await callAppsScript('getCourseDefinitions', {}, button);
-        if (!res.success || !res.data || res.data.length === 0) {
-            showCustomAlert(res.message || 'هیچ دوره تعریف شده‌ای برای انتخاب یافت نشد.', 'error');
-            return;
-        }
-
-        const courseOptions = res.data.map(course => `<option value="${course.code}" ${course.code === originalCourseCode ? 'selected' : ''}>${course.name}</option>`).join('');
-
-        const content = `
-            <div class="form-group">
-                <label for="edit-course-definition-select">نام دوره</label>
-                <select id="edit-course-definition-select" style="text-align-last: center;">${courseOptions}</select>
-            </div>
-            <div class="form-group"><label>تاریخ شروع</label>${populateDatePicker('edit-start', originalStartDate)}</div>
-            <div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div>
-            <div style="text-align:center;"><button onclick="handleUpdateRejectedCourse(event, '${courseId}', '${originalStartDate}')"><span class="btn-text">ثبت ویرایش و ارسال مجدد</span></button></div>`;
-        renderModal('ویرایش دوره', content, 'narrow');
-    }
-
-    // --- تابع اصلاح شده برای منطق تاریخ ---
-    async function handleUpdateRejectedCourse(event, courseId, originalStartDate) {
-        hideModalError('modal-error-container');
-        const newCourseCode = document.getElementById('edit-course-definition-select').value;
-        const newStartDate = `${document.getElementById('edit-start-year').value}/${document.getElementById('edit-start-month').value.padStart(2,'0')}/${document.getElementById('edit-start-day').value.padStart(2,'0')}`;
-        const today = getTodayJalaliString();
-        
-        if (!newCourseCode) { 
-            showModalError("modal-error-container", "لطفا یک دوره را انتخاب کنید."); 
-            return; 
-        }
-
-        // منطق جدید: تاریخ جدید باید بزرگتر یا مساوی تاریخ قبلی یا بزرگتر یا مساوی تاریخ امروز باشد
-        if (newStartDate < originalStartDate && newStartDate < today) {
-            showModalError("modal-error-container", `تاریخ جدید نامعتبر است. لطفاً تاریخی از امروز به بعد یا بعد از تاریخ قبلی (${originalStartDate}) انتخاب کنید.`);
-            return;
-        }
-
-        const res = await callAppsScript('updateRejectedCourse', { courseId: courseId, newCourseCode: newCourseCode, newStartDate: newStartDate }, event.target);
-        if (res.success) {
-            closeAllModals();
-            showCustomAlert(res.message, 'success');
-            fetchDashboardData();
-        } else {
-            showModalError("modal-error-container", 'خطا: ' + res.message);
-        }
-    }
-
-    function showEditDateModal(event, courseId) {
-        currentCourseId = courseId;
-        const content = `
-            <div class="form-group"><label>تاریخ جدید</label>${populateDatePicker('edit')}</div>
-            <div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div>
-            <div style="text-align:center;"><button onclick="handleUpdateCourseDate(event)"><span class="btn-text">ذخیره</span></button></div>`;
-        renderModal('ویرایش تاریخ دوره', content);
-    }
-    async function handleUpdateCourseDate(event) {
-        hideModalError('modal-error-container');
-        const newDate = `${document.getElementById('edit-year').value}/${document.getElementById('edit-month').value.padStart(2, '0')}/${document.getElementById('edit-day').value.padStart(2, '0')}`;
-        if (newDate < getTodayJalaliString()) { showModalError("modal-error-container", "تاریخ انتخابی نمی‌تواند در گذشته باشد."); return; }
-        const res = await callAppsScript('updateCourseDate', { courseId: currentCourseId, newDate }, event.target);
-        if (res.success) { closeAllModals(); showCustomAlert(res.message, 'success'); fetchDashboardData(); } else { showModalError("modal-error-container", "خطا: " + res.message); }
-    }
-    
-    function showDeleteCourseModal(event, courseId) {
-        currentCourseId = courseId;
-        const content = `
-            <p style="color:var(--danger-color); text-align:center;">آیا از حذف این دوره و تمام قرآن‌آموزان آن اطمینان دارید؟</p>
-            <div class="form-group"><label for="delete-password">برای تایید، رمز عبور را وارد کنید:</label><input type="password" id="delete-password"></div>
-            <div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div>
-            <div style="text-align:center;"><button class="danger" onclick="handleDeleteCourse(event)"><span class="btn-text">بله، حذف کن</span></button></div>`;
-        renderModal('تایید حذف دوره', content);
-    }
-    async function handleDeleteCourse(event) {
-        hideModalError('modal-error-container');
-        const password = document.getElementById('delete-password').value;
-        if (!password) { showModalError("modal-error-container", "رمز عبور الزامی است."); return; }
-        const res = await callAppsScript('deleteCourse', { courseId: currentCourseId, instructorId: loggedInInstructorId, password }, event.target);
-        if (res.success) { closeAllModals(); showCustomAlert(res.message, 'success'); fetchDashboardData(); } else { showModalError("modal-error-container", "خطا: " + res.message); }
-    }
-
-    function showSyllabusModal() {
-        const content = `
-        <div class="syllabus-modal-content">
-            <h4>آموزش تئوری:</h4>
-            <ul>
-                <li>آموزش حروف عربی</li><li>آموزش حرکات کوتاه و کشیده</li><li>آموزش حروف ناخوانا</li><li>آموزش ابتدا از همزه وصل</li><li>آموزش وقف</li><li>آموزش التقاء ساکنین</li><li>آموزش بخش خوانی</li>
-            </ul>
-            <h4>آموزش عملی: <span style="font-weight:normal; font-size: 0.9rem; color: var(--light-text);">می‌توان از روش های زیر استفاده نمود</span></h4>
-            <ul>
-                <li>تمرین عملی روزانه به تشخیص استاد</li><li>گوش دادن به صوت قرآن</li><li>هم خوانی و جمع خوانی قرآن در کلاس و...</li><li>آموزش قرائت نماز</li>
-            </ul>
-        </div>
-        <div style="text-align:center; margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border-color);">
-             <a href="YOUR_PDF_FILE_URL_HERE.pdf" download="روخوانی-روانخوانی-جزوه.pdf" class="btn-like">
-                <svg class="icon" style="width: 1.2em; height: 1.2em; margin-left: 8px; vertical-align: middle;"><use href="#icon-download"></use></svg>
-                <span class="btn-text">جزوه پیشنهادی</span>
-            </a>
-        </div>`;
-        renderModal('<strong>شیوه نامه کلاس های روخوانی و روانخوانی قرآن کریم</strong>', content);
-    }
-
-    function showAddStudentModal(event, courseId) {
-        currentCourseId = courseId;
-        const savedData = localStorage.getItem(`tempStudents_${currentCourseId}`);
-        tempStudents = savedData ? JSON.parse(savedData) : [];
-
-        const content = `
-            <div id="add-student-form">
-                <div class="form-group"><label for="student-name">نام</label><input type="text" id="student-name"></div>
-                <div class="form-group"><label for="student-nationalId">کد ملی</label><input type="tel" inputmode="numeric" pattern="[0-9]*" id="student-nationalId"></div>
-                <div style="text-align:center;"><button onclick="addStudentToTempList(event)"><span class="btn-text">افزودن به لیست</span></button></div>
-                <div id="modal-error-container" class="hidden" style="margin-top: 15px;"></div>
-            </div>
-            <h4 style="margin-top: 25px;">لیست موقت</h4>
-            <ul id="temp-student-list"></ul><br>
-            <div style="text-align:center;"><button onclick="saveStudentList(event)"><span class="btn-text">ارسال و ذخیره لیست</span></button></div>`;
-        renderModal(`افزودن قرآن آموز به دوره ${courseId}`, content);
-        renderTempStudentList();
-    }
-
-    function renderTempStudentList() {
-        const listElement = document.getElementById('temp-student-list');
-        if (!listElement) return;
-        if(tempStudents.length === 0){
-             listElement.innerHTML = `<li style="justify-content: center; color: var(--light-text);">لیست موقت خالی است.</li>`;
-             return;
-        }
-        listElement.innerHTML = tempStudents.map((student, index) => `
-            <li><span>${student.name} - ${student.nationalId}</span>
-                <button class="icon-btn delete-btn temp-student-delete-btn" onclick="promptDeleteTempStudent(${index}, this)" title="حذف از لیست موقت">
-                    <svg class="icon"><use href="#icon-trash"></use></svg>
-                </button></li>`).join('');
-    }
-
+    async function showCreateCourseModal(button) { const res = await callAppsScript('getCourseDefinitions', {}, button); if (!res.success || !res.data || res.data.length === 0) { showCustomAlert(res.message || 'هیچ دوره تعریف شده‌ای برای انتخاب یافت نشد.', 'error'); return; } const courseOptions = res.data.map(course => `<option value="${course.code}">${course.name}</option>`).join(''); const content = `<div class="form-group"><label for="course-definition-select">نام دوره</label><select id="course-definition-select" style="text-align-last: center;">${courseOptions}</select></div><div class="form-group"><label>تاریخ شروع</label>${populateDatePicker('start')}</div><div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div><div style="text-align:center;"><button onclick="handleCreateCourse(event)"><span class="btn-text">ایجاد دوره</span></button></div>`; renderModal('ایجاد دوره جدید', content, 'narrow'); }
+    async function handleCreateCourse(event) { hideModalError('modal-error-container'); const selectedCourseCode = document.getElementById('course-definition-select').value; const date = `${document.getElementById('start-year').value}/${document.getElementById('start-month').value.padStart(2,'0')}/${document.getElementById('start-day').value.padStart(2,'0')}`; if (!selectedCourseCode) { showModalError("modal-error-container", "لطفا یک دوره را انتخاب کنید."); return; } if (date < getTodayJalaliString()) { showModalError("modal-error-container", "تاریخ انتخابی نمی‌تواند در گذشته باشد."); return; } const res = await callAppsScript('createNewCourse', { instructorId: loggedInInstructorId, startDate: date, courseCode: selectedCourseCode, instructorName: loggedInInstructorName }, event.target); if (res.success) { closeAllModals(); showCustomAlert('دوره با موفقیت ایجاد و برای تایید ارسال شد.', 'success'); fetchDashboardData(); } else { showModalError("modal-error-container", 'خطا: ' + res.message); } }
+    async function showEditRejectedCourseModal(event, courseId, originalStartDate, originalCourseCode) { const button = event.target.closest('button'); const res = await callAppsScript('getCourseDefinitions', {}, button); if (!res.success || !res.data || res.data.length === 0) { showCustomAlert(res.message || 'هیچ دوره تعریف شده‌ای برای انتخاب یافت نشد.', 'error'); return; } const courseOptions = res.data.map(course => `<option value="${course.code}" ${course.code === originalCourseCode ? 'selected' : ''}>${course.name}</option>`).join(''); const content = `<div class="form-group"><label for="edit-course-definition-select">نام دوره</label><select id="edit-course-definition-select" style="text-align-last: center;">${courseOptions}</select></div><div class="form-group"><label>تاریخ شروع</label>${populateDatePicker('edit-start', originalStartDate)}</div><div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div><div style="text-align:center;"><button onclick="handleUpdateRejectedCourse(event, '${courseId}', '${originalStartDate}')"><span class="btn-text">ثبت ویرایش و ارسال مجدد</span></button></div>`; renderModal('ویرایش دوره', content, 'narrow'); }
+    async function handleUpdateRejectedCourse(event, courseId, originalStartDate) { hideModalError('modal-error-container'); const newCourseCode = document.getElementById('edit-course-definition-select').value; const newStartDate = `${document.getElementById('edit-start-year').value}/${document.getElementById('edit-start-month').value.padStart(2,'0')}/${document.getElementById('edit-start-day').value.padStart(2,'0')}`; const today = getTodayJalaliString(); if (!newCourseCode) { showModalError("modal-error-container", "لطفا یک دوره را انتخاب کنید."); return; } if (newStartDate < originalStartDate && newStartDate < today) { showModalError("modal-error-container", `تاریخ جدید نامعتبر است. لطفاً تاریخی از امروز به بعد یا بعد از تاریخ قبلی (${originalStartDate}) انتخاب کنید.`); return; } const res = await callAppsScript('updateRejectedCourse', { courseId: courseId, newCourseCode: newCourseCode, newStartDate: newStartDate }, event.target); if (res.success) { closeAllModals(); showCustomAlert(res.message, 'success'); fetchDashboardData(); } else { showModalError("modal-error-container", 'خطا: ' + res.message); } }
+    function showEditDateModal(event, courseId) { currentCourseId = courseId; const content = `<div class="form-group"><label>تاریخ جدید</label>${populateDatePicker('edit')}</div><div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div><div style="text-align:center;"><button onclick="handleUpdateCourseDate(event)"><span class="btn-text">ذخیره</span></button></div>`; renderModal('ویرایش تاریخ دوره', content); }
+    async function handleUpdateCourseDate(event) { hideModalError('modal-error-container'); const newDate = `${document.getElementById('edit-year').value}/${document.getElementById('edit-month').value.padStart(2, '0')}/${document.getElementById('edit-day').value.padStart(2, '0')}`; if (newDate < getTodayJalaliString()) { showModalError("modal-error-container", "تاریخ انتخابی نمی‌تواند در گذشته باشد."); return; } const res = await callAppsScript('updateCourseDate', { courseId: currentCourseId, newDate }, event.target); if (res.success) { closeAllModals(); showCustomAlert(res.message, 'success'); fetchDashboardData(); } else { showModalError("modal-error-container", "خطا: " + res.message); } }
+    function showDeleteCourseModal(event, courseId) { currentCourseId = courseId; const content = `<p style="color:var(--danger-color); text-align:center;">آیا از حذف این دوره و تمام قرآن‌آموزان آن اطمینان دارید؟</p><div class="form-group"><label for="delete-password">برای تایید، رمز عبور را وارد کنید:</label><input type="password" id="delete-password"></div><div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div><div style="text-align:center;"><button class="danger" onclick="handleDeleteCourse(event)"><span class="btn-text">بله، حذف کن</span></button></div>`; renderModal('تایید حذف دوره', content); }
+    async function handleDeleteCourse(event) { hideModalError('modal-error-container'); const password = document.getElementById('delete-password').value; if (!password) { showModalError("modal-error-container", "رمز عبور الزامی است."); return; } const res = await callAppsScript('deleteCourse', { courseId: currentCourseId, instructorId: loggedInInstructorId, password }, event.target); if (res.success) { closeAllModals(); showCustomAlert(res.message, 'success'); fetchDashboardData(); } else { showModalError("modal-error-container", "خطا: " + res.message); } }
+    function showSyllabusModal() { const content = `<div class="syllabus-modal-content"><h4>آموزش تئوری:</h4><ul><li>آموزش حروف عربی</li><li>آموزش حرکات کوتاه و کشیده</li><li>آموزش حروف ناخوانا</li><li>آموزش ابتدا از همزه وصل</li><li>آموزش وقف</li><li>آموزش التقاء ساکنین</li><li>آموزش بخش خوانی</li></ul><h4>آموزش عملی: <span style="font-weight:normal; font-size: 0.9rem; color: var(--light-text);">می‌توان از روش های زیر استفاده نمود</span></h4><ul><li>تمرین عملی روزانه به تشخیص استاد</li><li>گوش دادن به صوت قرآن</li><li>هم خوانی و جمع خوانی قرآن در کلاس و...</li><li>آموزش قرائت نماز</li></ul></div><div style="text-align:center; margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border-color);"><a href="YOUR_PDF_FILE_URL_HERE.pdf" download="روخوانی-روانخوانی-جزوه.pdf" class="btn-like"><svg class="icon" style="width: 1.2em; height: 1.2em; margin-left: 8px; vertical-align: middle;"><use href="#icon-download"></use></svg><span class="btn-text">جزوه پیشنهادی</span></a></div>`; renderModal('<strong>شیوه نامه کلاس های روخوانی و روانخوانی قرآن کریم</strong>', content); }
+    function showAddStudentModal(event, courseId) { currentCourseId = courseId; const savedData = localStorage.getItem(`tempStudents_${currentCourseId}`); tempStudents = savedData ? JSON.parse(savedData) : []; const content = `<div id="add-student-form"><div class="form-group"><label for="student-name">نام</label><input type="text" id="student-name"></div><div class="form-group"><label for="student-nationalId">کد ملی</label><input type="tel" inputmode="numeric" pattern="[0-9]*" id="student-nationalId"></div><div style="text-align:center;"><button onclick="addStudentToTempList(event)"><span class="btn-text">افزودن به لیست</span></button></div><div id="modal-error-container" class="hidden" style="margin-top: 15px;"></div></div><h4 style="margin-top: 25px;">لیست موقت</h4><ul id="temp-student-list"></ul><br><div style="text-align:center;"><button onclick="saveStudentList(event)"><span class="btn-text">ارسال و ذخیره لیست</span></button></div>`; renderModal(`افزودن قرآن آموز به دوره ${courseId}`, content); renderTempStudentList(); }
+    function renderTempStudentList() { const listElement = document.getElementById('temp-student-list'); if (!listElement) return; if(tempStudents.length === 0){ listElement.innerHTML = `<li style="justify-content: center; color: var(--light-text);">لیست موقت خالی است.</li>`; return; } listElement.innerHTML = tempStudents.map((student, index) => `<li><span>${student.name} - ${student.nationalId}</span><button class="icon-btn delete-btn temp-student-delete-btn" onclick="promptDeleteTempStudent(${index}, this)" title="حذف از لیست موقت"><svg class="icon"><use href="#icon-trash"></use></svg></button></li>`).join(''); }
     function saveTempStudentsToLocal() { if (currentCourseId) localStorage.setItem(`tempStudents_${currentCourseId}`, JSON.stringify(tempStudents)); }
-    function promptDeleteTempStudent(index, btnElement) {
-        const existingConfirmBtn = document.querySelector('.confirm-delete-btn');
-        if(existingConfirmBtn && existingConfirmBtn !== btnElement){
-            const originalIndex = existingConfirmBtn.getAttribute('data-index');
-             existingConfirmBtn.innerHTML = `<svg class="icon"><use href="#icon-trash"></use></svg>`;
-             existingConfirmBtn.onclick = () => promptDeleteTempStudent(originalIndex, existingConfirmBtn);
-             existingConfirmBtn.classList.remove('confirm-delete-btn');
-             existingConfirmBtn.removeAttribute('data-index');
-        }
-        btnElement.innerHTML = `<svg class="icon"><use href="#icon-check-circle"></use></svg>`;
-        btnElement.onclick = () => confirmDeleteTempStudent(index);
-        btnElement.classList.add('confirm-delete-btn');
-        btnElement.setAttribute('data-index', index);
-    }
+    function promptDeleteTempStudent(index, btnElement) { const existingConfirmBtn = document.querySelector('.confirm-delete-btn'); if(existingConfirmBtn && existingConfirmBtn !== btnElement){ const originalIndex = existingConfirmBtn.getAttribute('data-index'); existingConfirmBtn.innerHTML = `<svg class="icon"><use href="#icon-trash"></use></svg>`; existingConfirmBtn.onclick = () => promptDeleteTempStudent(originalIndex, existingConfirmBtn); existingConfirmBtn.classList.remove('confirm-delete-btn'); existingConfirmBtn.removeAttribute('data-index'); } btnElement.innerHTML = `<svg class="icon"><use href="#icon-check-circle"></use></svg>`; btnElement.onclick = () => confirmDeleteTempStudent(index); btnElement.classList.add('confirm-delete-btn'); btnElement.setAttribute('data-index', index); }
     function confirmDeleteTempStudent(index) { tempStudents.splice(index, 1); saveTempStudentsToLocal(); renderTempStudentList(); }
-
-    function addStudentToTempList() {
-        hideModalError('modal-error-container');
-        const nameInput = document.getElementById('student-name'), nidInput = document.getElementById('student-nationalId');
-        const name = nameInput.value.trim(), nationalId = nidInput.value.trim();
-
-        if (!name || !nationalId) { showModalError('modal-error-container', 'نام و کد ملی هر دو الزامی هستند.'); return; }
-        if (!isValidNationalId(nationalId)) { showModalError('modal-error-container', 'کد ملی وارد شده نامعتبر است. لطفاً یک کد ملی ۱۰ رقمی وارد کنید.'); return; }
-        if (tempStudents.some(s => s.nationalId === nationalId)) { showModalError('modal-error-container', 'این کد ملی در لیست موقت شما وجود دارد.'); return; }
-        if (existingStudentsByCourse[currentCourseId] && existingStudentsByCourse[currentCourseId].has(nationalId)) { showModalError('modal-error-container', 'این قرآن‌آموز قبلاً در این دوره ثبت‌نام شده است.'); return; }
-
-        tempStudents.push({ name: name, nationalId: nationalId });
-        saveTempStudentsToLocal(); renderTempStudentList();
-        nameInput.value = ''; nidInput.value = ''; nameInput.focus();
-    }
-    async function saveStudentList(event) {
-        hideModalError('modal-error-container');
-        if (tempStudents.length === 0) { showModalError('modal-error-container', 'لیست افزودن قرآن‌آموزان خالی است. ابتدا شخصی را به لیست اضافه کنید.'); return; }
-        const res = await callAppsScript('addStudentsToCourse', { courseId: currentCourseId, students: tempStudents, instructorName: loggedInInstructorName }, event.target);
-        if (res.success) {
-            localStorage.removeItem(`tempStudents_${currentCourseId}`); tempStudents = []; closeAllModals();
-            showCustomAlert(res.message, 'success'); fetchDashboardData();
-        } else { showModalError('modal-error-container', `خطا: ${res.message}`); }
-    }
-    
-    function showEditStudentModal(event, courseId, name, nid) {
-        currentCourseId = courseId; currentStudentOriginalId = nid;
-        const content = `
-            <div class="form-group"><label for="edit-student-name">نام</label><input type="text" id="edit-student-name" value="${name}"></div>
-            <div class="form-group"><label for="edit-student-nationalId">کد ملی</label><input type="tel" inputmode="numeric" pattern="[0-9]*" id="edit-student-nationalId" value="${nid}"></div>
-            <div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div>
-            <div style="text-align:center;"><button onclick="handleUpdateStudent(event)"><span class="btn-text">ذخیره</span></button></div>`;
-        renderModal('ویرایش قرآن آموز', content);
-    }
-    async function handleUpdateStudent(event) {
-        hideModalError('modal-error-container');
-        const newName = document.getElementById('edit-student-name').value.trim(), newNid = document.getElementById('edit-student-nationalId').value.trim();
-        if(!newName || !newNid) { showModalError('modal-error-container', "فیلدها نباید خالی باشند."); return; }
-        if(!isValidNationalId(newNid)) { showModalError('modal-error-container', "کد ملی وارد شده نامعتبر است. لطفاً یک کد ملی ۱۰ رقمی وارد کنید."); return; }
-        const res = await callAppsScript('updateStudentInfo', { courseId: currentCourseId, originalNationalId: currentStudentOriginalId, newName, newNationalId: newNid }, event.target);
-        if (res.success) { closeAllModals(); showCustomAlert(res.message, 'success'); fetchDashboardData();
-        } else { showModalError('modal-error-container', "خطا: " + res.message); }
-    }
-    
+    function addStudentToTempList() { hideModalError('modal-error-container'); const nameInput = document.getElementById('student-name'), nidInput = document.getElementById('student-nationalId'); const name = nameInput.value.trim(), nationalId = nidInput.value.trim(); if (!name || !nationalId) { showModalError('modal-error-container', 'نام و کد ملی هر دو الزامی هستند.'); return; } if (!isValidNationalId(nationalId)) { showModalError('modal-error-container', 'کد ملی وارد شده نامعتبر است. لطفاً یک کد ملی ۱۰ رقمی وارد کنید.'); return; } if (tempStudents.some(s => s.nationalId === nationalId)) { showModalError('modal-error-container', 'این کد ملی در لیست موقت شما وجود دارد.'); return; } if (existingStudentsByCourse[currentCourseId] && existingStudentsByCourse[currentCourseId].has(nationalId)) { showModalError('modal-error-container', 'این قرآن‌آموز قبلاً در این دوره ثبت‌نام شده است.'); return; } tempStudents.push({ name: name, nationalId: nationalId }); saveTempStudentsToLocal(); renderTempStudentList(); nameInput.value = ''; nidInput.value = ''; nameInput.focus(); }
+    async function saveStudentList(event) { hideModalError('modal-error-container'); if (tempStudents.length === 0) { showModalError('modal-error-container', 'لیست افزودن قرآن‌آموزان خالی است. ابتدا شخصی را به لیست اضافه کنید.'); return; } const res = await callAppsScript('addStudentsToCourse', { courseId: currentCourseId, students: tempStudents, instructorName: loggedInInstructorName }, event.target); if (res.success) { localStorage.removeItem(`tempStudents_${currentCourseId}`); tempStudents = []; closeAllModals(); showCustomAlert(res.message, 'success'); fetchDashboardData(); } else { showModalError('modal-error-container', `خطا: ${res.message}`); } }
+    function showEditStudentModal(event, courseId, name, nid) { currentCourseId = courseId; currentStudentOriginalId = nid; const content = `<div class="form-group"><label for="edit-student-name">نام</label><input type="text" id="edit-student-name" value="${name}"></div><div class="form-group"><label for="edit-student-nationalId">کد ملی</label><input type="tel" inputmode="numeric" pattern="[0-9]*" id="edit-student-nationalId" value="${nid}"></div><div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div><div style="text-align:center;"><button onclick="handleUpdateStudent(event)"><span class="btn-text">ذخیره</span></button></div>`; renderModal('ویرایش قرآن آموز', content); }
+    async function handleUpdateStudent(event) { hideModalError('modal-error-container'); const newName = document.getElementById('edit-student-name').value.trim(), newNid = document.getElementById('edit-student-nationalId').value.trim(); if(!newName || !newNid) { showModalError('modal-error-container', "فیلدها نباید خالی باشند."); return; } if(!isValidNationalId(newNid)) { showModalError('modal-error-container', "کد ملی وارد شده نامعتبر است. لطفاً یک کد ملی ۱۰ رقمی وارد کنید."); return; } const res = await callAppsScript('updateStudentInfo', { courseId: currentCourseId, originalNationalId: currentStudentOriginalId, newName, newNationalId: newNid }, event.target); if (res.success) { closeAllModals(); showCustomAlert(res.message, 'success'); fetchDashboardData(); } else { showModalError('modal-error-container', "خطا: " + res.message); } }
     function showDeleteStudentModal(event, courseId, studentName, studentNationalId) { currentCourseId = courseId; currentStudentOriginalId = studentNationalId; renderModal('تایید حذف قرآن‌آموز', `<p style="text-align:center;">آیا از حذف قرآن‌آموز <strong>${studentName}</strong> (کد ملی: ${studentNationalId}) اطمینان دارید؟</p><p style="color:var(--danger-color); text-align:center;">این عمل غیرقابل بازگشت است.</p><div style="text-align:center;"><button class="danger" onclick="handleDeleteStudent(event)"><span class="btn-text">بله، حذف کن</span></button></div>`); }
-    async function handleDeleteStudent(event) {
-        const res = await callAppsScript('deleteStudent', { courseId: currentCourseId, studentNationalId: currentStudentOriginalId }, event.target);
-        if (res.success) { closeAllModals(); showCustomAlert(res.message, 'success'); fetchDashboardData(); } else { showCustomAlert("خطا: " + res.message, 'error'); }
-    }
-
-    function showGradingModal(event, courseId, courseStartDate, studentName, studentNationalId, approvalStatus) {
-        if (approvalStatus !== '5') {
-            showCustomAlert('امکان نمره‌دهی وجود ندارد.\nاین دوره هنوز توسط معاون آموزشی تأیید نهایی نشده است.', 'error');
-            return;
-        }
-
-        const [year, month, day] = courseStartDate.split('/').map(Number); const startDate = jalaliToGregorian(year, month, day); const today = new Date(); startDate.setHours(0,0,0,0); today.setHours(0,0,0,0); const diffDays = Math.ceil((today - startDate) / (1000 * 60 * 60 * 24));
-        if (diffDays < 25) { showCustomAlert(`امکان نمره‌دهی وجود ندارد.\nباید حداقل ۲۵ روز از تاریخ شروع دوره (${courseStartDate}) گذشته باشد.`, 'error'); return; }
-        
-        currentCourseId = courseId; currentStudentOriginalId = studentNationalId;
-        const content = `
-            <div class="grading-modal-header">
-                <div><span class="student-name">${studentName}</span></div>
-                <div style="font-size: 0.9rem; color: var(--light-text);">کد ملی: ${studentNationalId}</div>
-            </div>
-            <div class="form-group grade-input-group"><label for="g1">صحت حروف (از ۲۰)</label><input type="number" id="g1" min="0" max="20"></div>
-            <div class="form-group grade-input-group"><label for="g2">صحت حرکات (از ۲۰)</label><input type="number" id="g2" min="0" max="20"></div>
-            <div class="form-group grade-input-group"><label for="g3">حروف ناخوانا (از ۲۰)</label><input type="number" id="g3" min="0" max="20"></div>
-            <div class="form-group grade-input-group"><label for="g4">وقف و ابتدا (از ۲۰)</label><input type="number" id="g4" min="0" max="20"></div>
-            <div class="form-group grade-input-group"><label for="g5">التقاء ساکنین (از ۲۰)</label><input type="number" id="g5" min="0" max="20"></div>
-            <div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div>
-            <div style="text-align:center;"><button onclick="handleGradeSubmission(event)"><span class="btn-text">تایید و ارسال نمرات</span></button></div>`;
-        renderModal('ثبت نمره برای قرآن آموز', content, 'narrow');
-    }
-    async function handleGradeSubmission(event) {
-        hideModalError('modal-error-container');
-        const grades = {};
-        for(let i=1; i<=5; i++) {
-            const gradeVal = document.getElementById(`g${i}`).value;
-            if(gradeVal === '' || isNaN(gradeVal) || gradeVal < 0 || gradeVal > 20) {
-                showModalError('modal-error-container', `نمره برای همه موارد باید عددی بین 0 و 20 باشد.`);
-                return;
-            }
-            grades[`g${i}`] = Number(gradeVal);
-        }
-        const confirmed = await showCustomConfirm("آیا از ثبت نمرات اطمینان دارید؟ نمرات پس از ثبت قابل ویرایش نیستند.");
-        if (confirmed) {
-            const res = await callAppsScript('submitStudentGrades', { courseId: currentCourseId, studentNationalId: currentStudentOriginalId, grades }, document.querySelector('.modal button'));
-            if (res.success) {
-                closeAllModals(); showCustomAlert(res.message, 'success'); fetchDashboardData();
-            } else {
-                showCustomAlert("خطا: " + res.message, 'error');
-            }
-        }
-    }
+    async function handleDeleteStudent(event) { const res = await callAppsScript('deleteStudent', { courseId: currentCourseId, studentNationalId: currentStudentOriginalId }, event.target); if (res.success) { closeAllModals(); showCustomAlert(res.message, 'success'); fetchDashboardData(); } else { showCustomAlert("خطا: " + res.message, 'error'); } }
+    function showGradingModal(event, courseId, courseStartDate, studentName, studentNationalId, approvalStatus) { if (approvalStatus !== '5') { showCustomAlert('امکان نمره‌دهی وجود ندارد.\nاین دوره هنوز توسط معاون آموزشی تأیید نهایی نشده است.', 'error'); return; } const [year, month, day] = courseStartDate.split('/').map(Number); const startDate = jalaliToGregorian(year, month, day); const today = new Date(); startDate.setHours(0,0,0,0); today.setHours(0,0,0,0); const diffDays = Math.ceil((today - startDate) / (1000 * 60 * 60 * 24)); if (diffDays < 25) { showCustomAlert(`امکان نمره‌دهی وجود ندارد.\nباید حداقل ۲۵ روز از تاریخ شروع دوره (${courseStartDate}) گذشته باشد.`, 'error'); return; } currentCourseId = courseId; currentStudentOriginalId = studentNationalId; const content = `<div class="grading-modal-header"><div><span class="student-name">${studentName}</span></div><div style="font-size: 0.9rem; color: var(--light-text);">کد ملی: ${studentNationalId}</div></div><div class="form-group grade-input-group"><label for="g1">صحت حروف (از ۲۰)</label><input type="number" id="g1" min="0" max="20"></div><div class="form-group grade-input-group"><label for="g2">صحت حرکات (از ۲۰)</label><input type="number" id="g2" min="0" max="20"></div><div class="form-group grade-input-group"><label for="g3">حروف ناخوانا (از ۲۰)</label><input type="number" id="g3" min="0" max="20"></div><div class="form-group grade-input-group"><label for="g4">وقف و ابتدا (از ۲۰)</label><input type="number" id="g4" min="0" max="20"></div><div class="form-group grade-input-group"><label for="g5">التقاء ساکنین (از ۲۰)</label><input type="number" id="g5" min="0" max="20"></div><div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div><div style="text-align:center;"><button onclick="handleGradeSubmission(event, '${studentName}')"><span class="btn-text">تایید و ارسال نمرات</span></button></div>`; renderModal('ثبت نمره برای قرآن آموز', content, 'narrow'); }
+    async function handleGradeSubmission(event, studentName) { hideModalError('modal-error-container'); const grades = {}; for(let i=1; i<=5; i++) { const gradeVal = document.getElementById(`g${i}`).value; if(gradeVal === '' || isNaN(gradeVal) || gradeVal < 0 || gradeVal > 20) { showModalError('modal-error-container', `نمره برای همه موارد باید عددی بین 0 و 20 باشد.`); return; } grades[`g${i}`] = Number(gradeVal); } const confirmed = await showCustomConfirm("آیا از ثبت نمرات اطمینان دارید؟ نمرات پس از ثبت قابل ویرایش نیستند."); if (confirmed) { const res = await callAppsScript('submitStudentGrades', { courseId: currentCourseId, studentNationalId: currentStudentOriginalId, studentName: studentName, grades }, document.querySelector('.modal button')); if (res.success) { closeAllModals(); showCustomAlert(res.message, 'success'); fetchDashboardData(); } else { showCustomAlert("خطا: " + res.message, 'error'); } } }
 </script>
 </body>
 </html>
