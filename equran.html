@@ -56,7 +56,7 @@
             text-align: center;
             box-sizing: border-box;
             overflow: hidden;
-            min-height: 580px;
+            min-height: 650px; /* افزایش ارتفاع برای فیلد جدید */
             display: flex;
             flex-direction: column;
             opacity: 0;
@@ -100,11 +100,13 @@
         }
 
         .form-group { position: relative; margin-bottom: 1.75rem; }
-        .form-group .form-icon { position: absolute; top: 50%; transform: translateY(-50%); right: 15px; color: var(--text-light); transition: color 0.3s; }
-        .form-control { width: 100%; padding: 14px 50px 14px 14px; border: 1px solid var(--border-color); border-radius: 12px; font-size: 1.1rem; direction: ltr; text-align: center; letter-spacing: 2px; transition: var(--transition); box-sizing: border-box; background: rgba(255,255,255,0.5); }
+        .form-group .form-icon { position: absolute; top: 50%; transform: translateY(-50%); right: 15px; color: var(--text-light); transition: color 0.3s; z-index: 1; }
+        .form-control { width: 100%; padding: 14px 50px 14px 14px; border: 1px solid var(--border-color); border-radius: 12px; font-size: 1.1rem; direction: ltr; text-align: center; letter-spacing: 2px; transition: var(--transition); box-sizing: border-box; background: rgba(255,255,255,0.5); -webkit-appearance: none; -moz-appearance: none; appearance: none; }
         .form-control:focus { outline: none; border-color: var(--secondary-color); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2); }
         .form-label { position: absolute; top: 50%; right: 45px; transform: translateY(-50%); color: var(--text-light); background: var(--bg-glass); padding: 0 5px; transition: all 0.2s ease-out; pointer-events: none; }
         .form-control:focus + .form-label, .form-control:not(:placeholder-shown) + .form-label { top: 0; right: 40px; font-size: 0.9rem; color: var(--primary-color); background: #fff; }
+        /* استایل اختصاصی برای لیبل سلکت باکس */
+        select.form-control + .form-label { top: 0; right: 40px; font-size: 0.9rem; color: var(--primary-color); background: #fff; }
         .form-control:focus ~ .form-icon { color: var(--primary-color); }
         
         .captcha-group { display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 12px; padding: 10px; justify-content: center; min-height: 50px; position: relative; background: rgba(255,255,255,0.5); }
@@ -157,6 +159,16 @@
                     <label for="nationalId" class="form-label">کد ملی</label>
                 </div>
                 
+                <!-- === فیلد جدید برای انتخاب دوره === -->
+                <div class="form-group">
+                    <i class="fa-solid fa-book-open form-icon"></i>
+                    <select id="courseCode" class="form-control" required style="text-align: center; direction: rtl;">
+                        <option value="50">روخوانی و روانخوانی</option>
+                        <option value="51">حفظ جزء ۳۰</option>
+                    </select>
+                    <label for="courseCode" class="form-label">انتخاب دوره</label>
+                </div>
+                
                 <div class="form-group">
                     <div class="captcha-group">
                          <div id="captcha-text-container">
@@ -187,10 +199,6 @@
     </div>
 
     <script>
-        // ==========================================================
-        // هسته اصلی جاوا اسکریپت - بدون هیچ تغییری در منطق
-        // ==========================================================
-
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzxTK0QFo44h_e6fbN_DyuYUuQ-1sdc5diN7vknRsta9Rt48CMetVLhqJ7N9xWNdqT5eA/exec";
         
         let fileToProcess = null;
@@ -250,9 +258,14 @@
             contentWrapper.style.opacity = '0.5';
             mainLoader.style.display = 'flex';
             
+            // --- ویرایش اصلی برای ترکیب کد ملی و کد دوره ---
+            const nationalIdValue = document.getElementById('nationalId').value.trim();
+            const courseCodeValue = document.getElementById('courseCode').value;
+            const combinedId = nationalIdValue + courseCodeValue;
+
             const formData = {
                 action: 'verify',
-                nationalId: document.getElementById('nationalId').value,
+                nationalId: combinedId, // ارسال شناسه ترکیبی به سرور
                 captchaAnswer: captchaAnswerInput.value,
                 questionId: fileToProcess.questionId
             };
@@ -263,11 +276,11 @@
             contentWrapper.style.opacity = '1';
 
             if (response && response.status === 'success') {
-                const successfulNationalId = formData.nationalId;
+                const successfulNationalId = nationalIdValue; // استفاده از کد ملی اصلی برای نمایش
                 certificateForm.style.display = 'none';
                 document.querySelector('.header').style.display = 'none';
                 
-                const successMessage = `کدملی <strong>${successfulNationalId}</strong> در دوره روخوانی و روانخوانی قرآن کریم شرکت کرده و موفق به اخذ گواهی شده است. جهت مشاهده و دریافت گواهی از دکمه های زیر استفاده نمایید.`;
+                const successMessage = `کدملی <strong>${successfulNationalId}</strong> در دوره انتخابی شرکت کرده و موفق به اخذ گواهی شده است. جهت مشاهده و دریافت گواهی از دکمه های زیر استفاده نمایید.`;
                 showMessage(successMessage, 'success');
                 actionsArea.style.display = 'flex';
                 
@@ -281,7 +294,7 @@
         
         downloadBtn.addEventListener('click', triggerDownload);
         viewBtn.addEventListener('click', () => { if (fileToProcess) { const blob = b64toBlob(fileToProcess.data, fileToProcess.type); const url = URL.createObjectURL(blob); window.open(url, '_blank'); } });
-        shareBtn.addEventListener('click', async () => { if (!fileToProcess || !navigator.share) return; try { const blob = b64toBlob(fileToProcess.data, fileToProcess.type); const file = new File([blob], fileToProcess.name, { type: fileToProcess.type }); const shareText = `گواهينامه دوره روخوانی و روانخوانی قرآن کریم\nموسسه تعالی اندیشه و رشد با همکاری خانه قرآن و عترت نسیم وحی\nکدملی قرآن‌ آموز: ${fileToProcess.nationalId}\n\nموفق و مؤید باشید`; await navigator.share({ title: 'گواهينامه دوره روخوانی و روانخوانی قرآن کریم', text: shareText, files: [file] }); } catch (err) { console.error('Error sharing file:', err); } });
+        shareBtn.addEventListener('click', async () => { if (!fileToProcess || !navigator.share) return; try { const blob = b64toBlob(fileToProcess.data, fileToProcess.type); const file = new File([blob], fileToProcess.name, { type: fileToProcess.type }); const shareText = `گواهينامه دوره قرآن کریم\nموسسه تعالی اندیشه و رشد با همکاری خانه قرآن و عترت نسیم وحی\nکدملی قرآن‌ آموز: ${fileToProcess.nationalId}\n\nموفق و مؤید باشید`; await navigator.share({ title: 'گواهينامه دوره قرآن کریم', text: shareText, files: [file] }); } catch (err) { console.error('Error sharing file:', err); } });
 
         document.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -289,8 +302,7 @@
             if (nationalIdFromUrl) {
                 const nationalIdInput = document.getElementById('nationalId');
                 nationalIdInput.value = nationalIdFromUrl;
-                // Force label to move up by adding a class or triggering an event if needed
-                nationalIdInput.dispatchEvent(new Event('input')); // A simple way to trigger checks
+                nationalIdInput.dispatchEvent(new Event('input')); 
             }
 
             if (!navigator.share) {
