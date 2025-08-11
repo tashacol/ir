@@ -1,4 +1,4 @@
- <!DOCTYPE html> 
+<!DOCTYPE html> 
 
 <html lang="fa" dir="rtl">
 <head>
@@ -451,6 +451,8 @@
         color: var(--success);
         cursor: pointer;
         transition: transform 0.2s;
+        text-decoration: none; /* Ensure link doesn't get underlined */
+        display: inline-block;
     }
     .cert-status-icon:hover {
         transform: scale(1.1);
@@ -614,7 +616,7 @@
             </div>
         </div>
 
-        <!-- START: NEW SECTION FOR APPROVED COURSES -->
+        <!-- START: APPROVED COURSES SECTION -->
         <div class="full-width-section">
             <div class="card">
                 <div class="card-header">
@@ -634,8 +636,42 @@
                 <div class="pagination-controls" id="approved-courses-pagination"></div>
             </div>
         </div>
-        <!-- END: NEW SECTION FOR APPROVED COURSES -->
+        <!-- END: APPROVED COURSES SECTION -->
 
+        <!-- START: NEW SECTION FOR GENERAL CERTIFICATES -->
+        <div class="full-width-section">
+            <div class="card">
+                <div class="card-header">
+                    <div class="title-part">
+                        <i class="fas fa-award icon"></i>
+                        <h2>گواهی های صادره دوره های فرهنگی و تربیتی</h2>
+                    </div>
+                </div>
+                <div class="filter-controls">
+                    <input type="number" id="general-certs-nid-search" class="form-input" placeholder="جستجوی کد ملی...">
+                    <input type="text" id="general-certs-num-search" class="form-input" placeholder="جستجوی شماره گواهی...">
+                    <button id="general-certs-filter-btn"><span class="btn-text">جستجو</span><div class="spinner"></div></button>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ردیف</th>
+                                <th>نام</th>
+                                <th>کد ملی</th>
+                                <th>نام دوره</th>
+                                <th>تاریخ صدور</th>
+                                <th>شماره گواهی</th>
+                                <th>مشاهده</th>
+                            </tr>
+                        </thead>
+                        <tbody id="general-certs-table-body"></tbody>
+                    </table>
+                </div>
+                <div class="pagination-controls" id="general-certs-pagination"></div>
+            </div>
+        </div>
+        <!-- END: NEW SECTION FOR GENERAL CERTIFICATES -->
 
         <div class="full-width-section">
             <div class="card">
@@ -745,7 +781,8 @@
         const TRANSACTIONS_PAGE_SIZE = 5;
         const COURSES_PAGE_SIZE = 7;
         const LETTERS_PAGE_SIZE = 7;
-        const APPROVED_COURSES_PAGE_SIZE = 5; // --- NEW ---
+        const APPROVED_COURSES_PAGE_SIZE = 5;
+        const GENERAL_CERTS_PAGE_SIZE = 5; // --- NEW ---
 
         // --- Element selectors ---
         const pageLoader = document.getElementById('pageLoader'), loginView = document.getElementById('login-view'), dashboardView = document.getElementById('dashboard-view');
@@ -754,7 +791,7 @@
         const financialStatsContainer = document.getElementById('financial-stats-container');
         const staffListContainer = document.getElementById('staff-list-container');
         const dataLinksList = document.getElementById('data-links-list');
-        const servicesLinksContainer = document.getElementById('services-links-container'); // Added for swapped section
+        const servicesLinksContainer = document.getElementById('services-links-container');
         const infoModal = document.getElementById('info-modal'), infoModalTrigger = document.getElementById('info-modal-trigger'), infoModalCloseBtn = infoModal.querySelector('.modal-close-btn');
         const userDropdown = document.getElementById('user-dropdown'), userDropdownTrigger = document.getElementById('user-dropdown-trigger');
         const refreshDashboardBtn = document.getElementById('refresh-dashboard-btn');
@@ -789,13 +826,19 @@
         const copyLetterTextBtn = document.getElementById('copy-letter-text-btn');
         const printLetterBtn = document.getElementById('print-letter-btn');
 
-        // --- Approved Courses Elements (NEW) ---
+        // --- Approved Courses Elements ---
         const approvedCoursesContainer = document.getElementById('approved-courses-container');
         const approvedCoursesPagination = document.getElementById('approved-courses-pagination');
         const approvedCoursesFilterBtn = document.getElementById('approved-courses-filter-btn');
         const approvedCoursesMasterSearch = document.getElementById('approved-courses-master-search');
         const approvedCoursesStudentSearch = document.getElementById('approved-courses-student-search');
-
+        
+        // --- General Certificates Elements (NEW) ---
+        const generalCertsTableBody = document.getElementById('general-certs-table-body');
+        const generalCertsPagination = document.getElementById('general-certs-pagination');
+        const generalCertsFilterBtn = document.getElementById('general-certs-filter-btn');
+        const generalCertsNidSearch = document.getElementById('general-certs-nid-search');
+        const generalCertsNumSearch = document.getElementById('general-certs-num-search');
         
         // --- Helper Functions ---
         const setCache = (key, data) => localStorage.setItem(key, JSON.stringify({ data, timestamp: new Date().getTime() }));
@@ -826,9 +869,8 @@
 
 
         const renderPagination = (container, currentPage, totalPages, navHandler) => {
-            if (totalPages <= 0) {
-                container.innerHTML = `<p class="pagination-info" style="text-align: center; width: 100%;"></p>`;
-                 // De-scoped the logic here slightly for simplicity. If no pages, message will be set by fetcher.
+            if (totalPages <= 1) { // Changed to <= 1 to hide for single page
+                container.innerHTML = '';
                 return;
             }
             container.innerHTML = 
@@ -864,9 +906,11 @@
                 }
             }
             
+            let container = tableBody || approvedCoursesContainer;
+            
             // Determine skeleton type
             if (action === 'getApprovedCourses') {
-                renderAccordionSkeleton(pageSize, approvedCoursesContainer);
+                renderAccordionSkeleton(pageSize, container);
             } else if (tableBody) {
                 const cols = tableBody.previousElementSibling.rows[0].cells.length;
                 renderSkeleton(pageSize, cols, tableBody);
@@ -880,10 +924,8 @@
                 const result = await response.json();
                 if (result.error) throw new Error(result.message);
                 
-                let container = tableBody || approvedCoursesContainer;
-                
                 if (result.data && result.data.length > 0) {
-                    renderFunction(result.data, container);
+                    renderFunction(result.data, container, page, pageSize);
                 } else {
                     const cols = tableBody ? tableBody.previousElementSibling.rows[0].cells.length : 1;
                     const message = `<tr><td colspan="${cols}" style="text-align:center; padding: 40px 0; color: var(--text-light);">موردی برای نمایش یافت نشد.</td></tr>`;
@@ -892,7 +934,6 @@
                 if (paginationContainer) renderPagination(paginationContainer, result.currentPage, result.totalPages, navHandler);
 
             } catch (error) {
-                let container = tableBody || approvedCoursesContainer;
                 const cols = tableBody ? tableBody.previousElementSibling.rows[0].cells.length : 1;
                 const errorMessage = `<tr><td colspan="${cols}" style="text-align:center; padding: 40px 0; color:var(--danger);">${error.message}</td></tr>`;
                 container.innerHTML = (action === 'getApprovedCourses') ? `<p style="text-align:center; padding: 40px 0; color:var(--danger);">${error.message}</p>` : errorMessage;
@@ -979,7 +1020,6 @@
             });
         };
 
-        // --- EDITED: APPROVED COURSES FUNCTIONS ---
         const fetchApprovedCourses = (page = 1) => {
             const searchParams = {
                 masterNid: approvedCoursesMasterSearch.value,
@@ -996,13 +1036,13 @@
         const renderApprovedCourses = (data, container) => {
             container.innerHTML = data.map(course => {
                 let studentsHtml = `<div class="student-list-container"><div class="table-responsive"><table class="data-table">
-                                    <thead><tr><th>ردیف</th><th>نام و نام خانوادگی</th><th>کد ملی</th><th>وضعیت گواهی</th></tr></thead><tbody>`; // Header Added
+                                    <thead><tr><th>ردیف</th><th>نام و نام خانوادگی</th><th>کد ملی</th><th>وضعیت گواهی</th></tr></thead><tbody>`;
                 if(course.students && course.students.length > 0) {
                      course.students.forEach((student, index) => {
                         let statusHtml = '';
                         if (student.certStatus === '5') {
-                            statusHtml = `<a href="https://tashacol.ir/equran.html?id=${student.nationalId}" target="_blank" title="مشاهده گواهینامه">
-                                            <i class="fas fa-check-circle cert-status-icon"></i>
+                            statusHtml = `<a href="https://tashacol.ir/equran.html?id=${student.nationalId}" target="_blank" title="مشاهده گواهینامه" class="cert-status-icon">
+                                            <i class="fas fa-check-circle"></i>
                                           </a>`;
                         } else if (student.certStatus === '2') {
                             statusHtml = `<span class="cert-status-text">در حال بررسی</span>`;
@@ -1015,7 +1055,7 @@
                                          </tr>`;
                     });
                 } else {
-                    studentsHtml += `<tr><td colspan="4" style="text-align:center; padding: 20px;">قرآن‌آموزی برای این دوره ثبت نشده است.</td></tr>`; // Colspan updated to 4
+                    studentsHtml += `<tr><td colspan="4" style="text-align:center; padding: 20px;">قرآن‌آموزی برای این دوره ثبت نشده است.</td></tr>`;
                 }
                 studentsHtml += '</tbody></table></div></div>';
                 
@@ -1041,6 +1081,38 @@
             });
         };
 
+        // --- NEW GENERAL CERTIFICATES FUNCTIONS ---
+        const fetchGeneralCertificates = (page = 1) => {
+            const searchParams = {
+                nationalId: generalCertsNidSearch.value,
+                certNumber: generalCertsNumSearch.value
+            };
+            fetchPaginatedData({
+                action: 'getGeneralCertificates', page, pageSize: GENERAL_CERTS_PAGE_SIZE,
+                tableBody: generalCertsTableBody, paginationContainer: generalCertsPagination,
+                renderFunction: renderGeneralCertificates, navHandler: fetchGeneralCertificates,
+                filterBtn: generalCertsFilterBtn,
+                searchParams: searchParams
+            });
+        };
+        const renderGeneralCertificates = (data, container, page, pageSize) => {
+            const startIndex = (page - 1) * pageSize;
+            container.innerHTML = data.map((cert, index) => {
+                const certLinkHtml = cert.link ? 
+                    `<a href="${cert.link}" target="_blank" title="مشاهده گواهینامه" class="cert-status-icon">
+                        <i class="fas fa-check-circle"></i>
+                     </a>` : '';
+                return `<tr>
+                            <td>${startIndex + index + 1}</td>
+                            <td>${cert.name}</td>
+                            <td>${cert.nationalId}</td>
+                            <td>${cert.courseName}</td>
+                            <td>${cert.issueDate}</td>
+                            <td>${cert.certNumber}</td>
+                            <td style="text-align:center;">${certLinkHtml}</td>
+                        </tr>`;
+            }).join('');
+        };
 
         const fetchNonPaginatedData = async (action, cacheKey, renderFunc, container) => {
             let secondaryContainer = null;
@@ -1093,22 +1165,16 @@
                 </div>`).join('');
         };
 
-        // START: MODIFIED AS REQUESTED
         const renderDataLinks = (links) => {
-            // Populate the new Quick Action button for "صدور نامه"
             const quickActionIssueLetter = document.getElementById('quick-action-issue-letter');
             if (quickActionIssueLetter) {
                 quickActionIssueLetter.href = links.issueLetter || '#';
             }
-
-            // Populate "داده‌های موسسه" (now in the full-width section)
             dataLinksList.innerHTML = 
                 `<a href="${links.students || '#'}" target="_blank" class="action-card"><div class="icon"><i class="fas fa-graduation-cap"></i></div><span>لیست دانشجویان</span></a>
                 <a href="${links.registrations || '#'}" target="_blank" class="action-card"><div class="icon"><i class="fas fa-user-plus"></i></div><span>ثبت نام کنندگان</span></a>
                 <a href="${links.members || '#'}" target="_blank" class="action-card"><div class="icon"><i class="fas fa-users"></i></div><span>اعضای موسسه</span></a>
                 <a href="${links.feedback || '#'}" target="_blank" class="action-card"><div class="icon"><i class="fas fa-comments"></i></div><span>نظرات</span></a>`;
-            
-            // Populate "خدمات و استعلامات" (now in the sidebar)
             if (servicesLinksContainer) {
                 servicesLinksContainer.innerHTML = 
                     `<a href="${links.issueCertificate || '#'}" target="_blank" class="action-card">
@@ -1129,19 +1195,12 @@
                     </a>`;
             }
         };
-        // END: MODIFICATION
 
         const refreshDashboard = async () => {
             refreshDashboardBtn.classList.add('loading');
             refreshDashboardBtn.disabled = true;
-
-            localStorage.removeItem('financialSummaryData');
-            localStorage.removeItem('financialsData'); 
-            localStorage.removeItem('courseStatusesData');
-            localStorage.removeItem('staffData');
-            localStorage.removeItem('dashboardLinks');
-            localStorage.removeItem('issuedLettersData');
-            // No caching for approved courses as it's dynamic with search
+            // Clear all caches to get fresh data
+            Object.keys(localStorage).forEach(key => localStorage.removeItem(key));
 
             try {
                 await Promise.all([
@@ -1149,7 +1208,8 @@
                     fetchTransactions(1),
                     fetchCourses(1),
                     fetchLetters(1),
-                    fetchApprovedCourses(1), // --- NEW ---
+                    fetchApprovedCourses(1),
+                    fetchGeneralCertificates(1), // --- NEW ---
                     fetchNonPaginatedData('getStaff', 'staffData', renderStaff, staffListContainer),
                     fetchNonPaginatedData('getDashboardLinks', 'dashboardLinks', renderDataLinks, dataLinksList)
                 ]);
@@ -1198,7 +1258,8 @@
         transactionsFilterBtn.addEventListener('click', () => fetchTransactions(1));
         coursesFilterBtn.addEventListener('click', () => fetchCourses(1));
         lettersFilterBtn.addEventListener('click', () => fetchLetters(1));
-        approvedCoursesFilterBtn.addEventListener('click', () => fetchApprovedCourses(1)); // --- NEW ---
+        approvedCoursesFilterBtn.addEventListener('click', () => fetchApprovedCourses(1));
+        generalCertsFilterBtn.addEventListener('click', () => fetchGeneralCertificates(1)); // --- NEW ---
         refreshDashboardBtn.addEventListener('click', refreshDashboard);
         themeToggleBtn.addEventListener('click', toggleTheme);
 
