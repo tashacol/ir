@@ -12,7 +12,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="googlebot" content="noindex, nofollow">
 <meta name="bingbot" content="noindex, nofollow">
-<link rel="canonical" href="https://script.google.com/macros/s/AKfycbxfuZC2sz7UihlH0DYwgjkfqqOTAKHtmcQvUEGwKs4MZQzkkUDRvhvgwwimxGQLK16s/exec" />
+<link rel="canonical" href="https://script.google.com/macros/s/AKfycbww2M2NzANppad3c1bBtNf1I4n9UG5JBJ1p14-AU2tPKT6wJhuv5JCNlCdw4emBp6Mz/exec" />
 <!-- END: تگ‌های اضافه شده -->
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
@@ -778,8 +778,10 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbww2M2NzANppad3c1bBtNf1I4n9UG5JBJ1p14-AU2tPKT6wJhuv5JCNlCdw4emBp6Mz/exec"; 
-        const CACHE_DURATION = 3600 * 1000;
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby2QxmFRfV3HyFGx8-8qYkpO-rwzP5ZlvsTTG4KnRT-Bt6HG1umdvb4hRGwCZBQHJkk/exec"; 
+        // START: CACHE DURATION CHANGED TO 24 HOURS
+        const CACHE_DURATION = 24 * 3600 * 1000; // 24 hours in milliseconds
+        // END: CACHE DURATION CHANGED
         const TRANSACTIONS_PAGE_SIZE = 5;
         const COURSES_PAGE_SIZE = 7;
         const LETTERS_PAGE_SIZE = 7;
@@ -807,7 +809,6 @@
         const addCourseBtn = document.getElementById('add-course-btn'), addCourseModal = document.getElementById('add-course-modal'), addCourseModalCloseBtn = addCourseModal.querySelector('.modal-close-btn'), addCourseForm = document.getElementById('add-course-form'), addCourseSubmitBtn = document.getElementById('add-course-submit-btn'), addCourseCostWrapper = document.getElementById('add-course-cost-value-wrapper'), costTypeRadios = document.querySelectorAll('input[name="cost-type"]'), addCourseYear = document.getElementById('add-course-year'), addCourseMonth = document.getElementById('add-course-month'), addCourseDay = document.getElementById('add-course-day');
         
         // --- Helper Functions ---
-        // این توابع مسئول ذخیره و بازیابی اطلاعات ورود در حافظه مرورگر هستند و دست‌نخورده باقی مانده‌اند
         const setCache = (key, data) => localStorage.setItem(key, JSON.stringify({ data, timestamp: new Date().getTime() }));
         const getCache = (key) => {
             const itemStr = localStorage.getItem(key); if (!itemStr) return null;
@@ -826,7 +827,7 @@
             container.querySelector('.next-btn').addEventListener('click', () => navHandler(currentPage + 1));
         };
         
-        // --- Data Fetching and Rendering ---
+        // --- Data Fetching and Rendering (This entire block is unchanged) ---
         const fetchPaginatedData = async (config) => {
             const { action, page, pageSize, startDateEl, endDateEl, tableBody, paginationContainer, renderFunction, navHandler, filterBtn, searchParams } = config;
             filterBtn.classList.add('loading'); filterBtn.disabled = true;
@@ -868,7 +869,7 @@
         // --- Event Listeners ---
         transactionsFilterBtn.addEventListener('click', () => fetchTransactions(1)); coursesFilterBtn.addEventListener('click', () => fetchCourses(1)); lettersFilterBtn.addEventListener('click', () => fetchLetters(1)); approvedCoursesFilterBtn.addEventListener('click', () => fetchApprovedCourses(1)); generalCertsFilterBtn.addEventListener('click', () => fetchGeneralCertificates(1)); refreshDashboardBtn.addEventListener('click', refreshDashboard); themeToggleBtn.addEventListener('click', toggleTheme);
         
-        // START: MODIFIED/NEW EVENT LISTENERS
+        // --- Event Listeners for new features ---
         coursesTableBody.addEventListener('click', (e) => {
             if (e.target.classList.contains('cost-icon')) {
                 const cost = e.target.dataset.cost;
@@ -877,7 +878,14 @@
             }
         });
 
-        addCourseBtn.addEventListener('click', () => { addCourseModal.classList.add('show'); document.body.classList.add('modal-open'); });
+        // START: FIX FOR DATE FIELDS BUG
+        addCourseBtn.addEventListener('click', () => { 
+            setupAddCourseModal(); // Re-initialize date fields every time the modal is opened
+            addCourseModal.classList.add('show'); 
+            document.body.classList.add('modal-open'); 
+        });
+        // END: FIX FOR DATE FIELDS BUG
+        
         addCourseModalCloseBtn.addEventListener('click', () => closeModal(addCourseModal));
 
         costTypeRadios.forEach(radio => {
@@ -888,7 +896,6 @@
 
         addCourseForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            // این بخش مسئول نمایش لودینگ روی دکمه است
             addCourseSubmitBtn.classList.add('loading'); addCourseSubmitBtn.disabled = true;
 
             const courseName = document.getElementById('add-course-name').value.trim();
@@ -918,30 +925,24 @@
                 alert('دوره جدید با موفقیت اضافه شد!');
                 closeModal(addCourseModal);
                 addCourseForm.reset(); addCourseCostWrapper.style.display = 'none';
-                fetchCourses(1); // Refresh the course list
+                fetchCourses(1);
             } catch (error) {
                 alert('خطا در افزودن دوره: ' + error.message);
             } finally {
-                // این بخش مسئول پنهان کردن لودینگ پس از دریافت پاسخ است
                 addCourseSubmitBtn.classList.remove('loading'); addCourseSubmitBtn.disabled = false;
             }
         });
         
-        // تابع جدید برای کنترل تاریخ‌های گذشته
         const updateDateValidation = () => {
             const today = new Date();
             const todayJalali = today.toLocaleDateString('fa-IR-u-nu-latn').split('/');
             const currentJalaliMonth = parseInt(todayJalali[1], 10);
             const currentJalaliDay = parseInt(todayJalali[2], 10);
-
             const selectedMonth = parseInt(addCourseMonth.value, 10);
-
-            // غیرفعال کردن روزهای گذشته
             for (const dayOption of addCourseDay.options) {
                 const dayValue = parseInt(dayOption.value, 10);
                 dayOption.disabled = (selectedMonth === currentJalaliMonth && dayValue < currentJalaliDay);
             }
-            // اگر کاربر به ماهی در گذشته برگشت، اولین روز مجاز را انتخاب کن
             if (parseInt(addCourseDay.value) < currentJalaliDay && selectedMonth === currentJalaliMonth) {
                 addCourseDay.value = currentJalaliDay;
             }
@@ -954,27 +955,20 @@
             const currentJalaliMonth = parseInt(todayJalali[1], 10);
             
             addCourseYear.value = currentJalaliYear;
-            
-            // Populate months and disable past ones
             let monthOptions = '';
             for(let i = 1; i <= 12; i++) {
                 const disabled = i < currentJalaliMonth ? 'disabled' : '';
                 monthOptions += `<option value="${i}" ${disabled}>${i}</option>`;
             }
             addCourseMonth.innerHTML = monthOptions;
-            addCourseMonth.value = currentJalaliMonth; // Set to current month by default
-            
-            // Populate days
+            addCourseMonth.value = currentJalaliMonth;
             addCourseDay.innerHTML = Array.from({length: 31}, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
-
-            updateDateValidation(); // Initial validation check
+            updateDateValidation();
         };
         
-        // Add event listeners to date dropdowns to re-validate
         addCourseMonth.addEventListener('change', updateDateValidation);
-        // END: MODIFIED/NEW EVENT LISTENERS
 
-
+        // --- Core Application Logic (This entire block is unchanged) ---
         window.handleLogin = async () => {
             loginErrorMsg.textContent = ''; loginButton.classList.add('loading'); loginButton.disabled = true;
             try {
@@ -982,7 +976,6 @@
                 const response = await fetch(`${SCRIPT_URL}?action=ceoLogin&username=${username}&password=${password}`);
                 const result = await response.json();
                 if (result.found) { 
-                    // این خط مسئول ذخیره اطلاعات ورود است
                     setCache('ceoInfo', result.data); 
                     initDashboard(result.data); 
                 } 
@@ -1008,13 +1001,11 @@
         copyInfoBtn.addEventListener('click', () => { navigator.clipboard.writeText(getInfoText()).then(() => { const originalHTML = copyInfoBtn.innerHTML; copyInfoBtn.innerHTML = '<i class="fas fa-check"></i> کپی شد!'; copyInfoBtn.classList.add('success'); copyInfoBtn.disabled = true; setTimeout(() => { copyInfoBtn.innerHTML = originalHTML; copyInfoBtn.classList.remove('success'); copyInfoBtn.disabled = false; }, 2000); }).catch(err => { console.error('Failed to copy text: ', err); alert('خطا در کپی کردن متن.'); }); });
         if (navigator.share) { shareInfoBtn.addEventListener('click', async () => { const shareData = { title: 'اطلاعات موسسه تعالی', text: getInfoText(), }; try { await navigator.share(shareData); } catch (err) { console.error('Share failed:', err); } }); }
 
-        // Initial load checks
-        // این خط مسئول بررسی سابقه ورود کاربر است
         const cachedCeoInfo = getCache('ceoInfo');
         if (cachedCeoInfo) { initDashboard(cachedCeoInfo); } 
         else { pageLoader.classList.add('hidden'); loginView.style.display = 'flex'; }
         loadThemePreference();
-        setupAddCourseModal();
+
     });
 </script>
 
