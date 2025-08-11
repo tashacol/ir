@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -36,8 +36,8 @@
     .login-container p { color: #6c757d; margin-bottom: 30px; }
     .input-wrapper { position: relative; margin-bottom: 25px; text-align: right; }
     .input-icon { position: absolute; top: 15px; right: 15px; color: var(--text-light); transition: var(--transition); z-index: 2; }
-    .form-input { width: 100%; padding: 22px 50px 8px 15px; border: 1px solid #ced4da; border-radius: var(--radius-md); font-size: 1rem; outline: none; transition: var(--transition); background-color: #fff; color: var(--text-dark); }
-    .form-label { position: absolute; right: 50px; top: 15px; color: var(--text-light); transition: var(--transition); pointer-events: none; background-color: #fff; padding: 0 5px; }
+    .form-input { width: 100%; padding: 22px 55px 8px 15px; border: 1px solid #ced4da; border-radius: var(--radius-md); font-size: 1rem; outline: none; transition: var(--transition); background-color: #fff; color: var(--text-dark); }
+    .form-label { position: absolute; right: 55px; top: 15px; color: var(--text-light); transition: var(--transition); pointer-events: none; background-color: #fff; padding: 0 5px; }
     .form-input:focus + .form-label, .form-input:not(:placeholder-shown) + .form-label { top: -10px; font-size: 0.85rem; color: var(--primary); }
     .form-input:focus { border-color: var(--primary); }
     .form-input:focus ~ .input-icon { color: var(--primary); }
@@ -101,6 +101,7 @@
     .filter-controls .form-group-inline { flex-grow: 1; }
     .filter-controls button { padding: 0 20px; height: 48px; background: var(--primary-light); color: var(--primary); font-weight: 500; border: none; border-radius: var(--radius-md); cursor: pointer; }
     .form-select { -webkit-appearance: none; appearance: none; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: left 0.75rem center; background-size: 16px 12px; }
+    html.dark-mode .form-select { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23e0e0e0' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e"); }
     
     .pagination-controls { margin-top: 20px; display: flex; justify-content: space-between; align-items: center; }
     .pagination-controls button { padding: 8px 20px; background: var(--primary-light); color: var(--primary); font-weight: 500; border: none; border-radius: 8px; cursor: pointer; }
@@ -138,7 +139,6 @@
         .financial-stats-grid { grid-template-columns: 1fr; }
         .filter-controls { flex-direction: column; align-items: stretch; }
         .data-table { font-size: 0.9rem; }
-        .user-info { display: none; }
     }
 </style>
 </head>
@@ -302,7 +302,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(url);
             const result = await response.json();
             if (result.success) {
-                localStorage.removeItem(FAILED_ATTEMPTS_KEY); showConfirmationModal(result);
+                localStorage.removeItem(FAILED_ATTEMPTS_KEY);
+                sessionStorage.setItem('pendingUser', JSON.stringify(result)); // FIX: Store pending user data
+                showConfirmationModal(result);
             } else {
                 attempts++; setCache(FAILED_ATTEMPTS_KEY, { count: attempts }, LOCKOUT_DURATION);
                 if (attempts === 2) { loginErrorMsg.textContent = "هشدار: در صورت ورود مجدد اطلاعات اشتباه، حساب شما به مدت ۲۴ ساعت از طریق این مرورگر قفل خواهد شد."; } 
@@ -318,7 +320,28 @@ document.addEventListener('DOMContentLoaded', () => {
     confirmLoginBtn.addEventListener('click', () => { const session = getCache(SESSION_KEY, SESSION_DURATION); if(session) { initDashboard(session); confirmationModal.classList.remove('show'); } else { const pendingUser = JSON.parse(sessionStorage.getItem('pendingUser')); if(pendingUser) { setCache(SESSION_KEY, pendingUser, SESSION_DURATION); initDashboard(pendingUser); confirmationModal.classList.remove('show'); sessionStorage.removeItem('pendingUser'); } } });
     cancelLoginBtn.addEventListener('click', async () => { cancelLoginBtn.classList.add('loading'); cancelLoginBtn.disabled = true; try { await fetch(`${SCRIPT_URL}?action=resetPasswordOnCancel`); showToast('برای امنیت، رمز عبور تغییر یافت. لطفاً با مدیر سیستم تماس بگیرید.', 'info'); setTimeout(() => location.reload(), 3000); } catch (e) { showToast('خطا در خروج امن.', 'error'); cancelLoginBtn.classList.remove('loading'); cancelLoginBtn.disabled = false; }});
 
-    const setupDateFields = (prefix) => { const y = document.getElementById(`${prefix}-year`), m = document.getElementById(`${prefix}-month`), d = document.getElementById(`${prefix}-day`); const c = new Date().toLocaleDateString('fa-IR-u-nu-latn').split('/'); m.innerHTML = `<option value="">ماه</option>` + Array.from({length: 12}, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join(''); d.innerHTML = `<option value="">روز</option>` + Array.from({length: 31}, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join(''); let yearOptions = `<option value="">سال</option>`; for (let i = parseInt(c[0]); i >= 1395; i--) { yearOptions += `<option value="${i}">${i}</option>`; } y.innerHTML = yearOptions; if (prefix === 'transaction') { y.value = c[0]; m.value = parseInt(c[1], 10); d.value = parseInt(c[2], 10); } };
+    const setupDateFields = (prefix) => {
+        const isFilter = prefix.startsWith('filter-');
+        const type = isFilter ? prefix.split('-')[1] : prefix;
+        const y = document.getElementById(isFilter ? `filter-year-${type}` : `${type}-year`);
+        const m = document.getElementById(isFilter ? `filter-month-${type}` : `${type}-month`);
+        const d = document.getElementById(isFilter ? `filter-day-${type}` : `${type}-day`);
+        
+        if (!y || !m || !d) return;
+
+        const c = new Date().toLocaleDateString('fa-IR-u-nu-latn').split('/');
+        m.innerHTML = `<option value="">ماه</option>` + Array.from({length: 12}, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
+        d.innerHTML = `<option value="">روز</option>` + Array.from({length: 31}, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
+        let yearOptions = `<option value="">سال</option>`;
+        for (let i = parseInt(c[0]); i >= 1395; i--) { yearOptions += `<option value="${i}">${i}</option>`; }
+        y.innerHTML = yearOptions;
+        
+        if (prefix === 'transaction') {
+            y.value = c[0];
+            m.value = parseInt(c[1], 10);
+            d.value = parseInt(c[2], 10);
+        }
+    };
     continueBtn.addEventListener('click', () => { const a = document.getElementById('accountant-name').value, y = document.getElementById('transaction-year').value; if (!a || !y) { showToast('لطفاً نام حسابدار و تاریخ را وارد کنید.', 'error'); return; } step1.style.display = 'none'; step2.style.display = 'block'; });
     descriptionText.addEventListener('input', () => { wordCountDisplay.textContent = `تعداد کلمات: ${descriptionText.value.trim().split(/\s+/).filter(Boolean).length}`; });
     form.addEventListener('submit', async (e) => { e.preventDefault(); submitBtn.classList.add('loading'); submitBtn.disabled = true; if (descriptionText.value.trim().split(/\s+/).filter(Boolean).length < 50) { showToast('توضیحات باید حداقل شامل ۵۰ کلمه باشد.', 'error'); submitBtn.classList.remove('loading'); submitBtn.disabled = false; return; } const y = document.getElementById('transaction-year').value, m = String(document.getElementById('transaction-month').value).padStart(2, '0'), d = String(document.getElementById('transaction-day').value).padStart(2, '0'); const url = new URL(SCRIPT_URL); url.searchParams.append('action', 'addTransaction'); url.searchParams.append('accountantName', document.getElementById('accountant-name').value); url.searchParams.append('date', `${y}/${m}/${d}`); url.searchParams.append('income', document.getElementById('income-value').value || '0'); url.searchParams.append('expenses', document.getElementById('expenses-value').value || '0'); url.searchParams.append('description', descriptionText.value); try { const r = await fetch(url); const d = await r.json(); if(d.error) throw new Error(d.message); showToast(d.message, 'success'); form.reset(); wordCountDisplay.textContent = 'تعداد کلمات: 0'; step2.style.display = 'none'; step1.style.display = 'block'; fetchFinancialData(); } catch(e) { showToast('خطا در ثبت تراکنش: ' + e.message, 'error'); } finally { submitBtn.classList.remove('loading'); submitBtn.disabled = false; }});
