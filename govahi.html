@@ -1,248 +1,190 @@
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>پنل مدیریت صدور گواهی</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap">
-    <style>
-        :root { --primary: #0d6efd; --secondary: #6c757d; --success: #198754; --danger: #dc3545; --light: #f8f9fa; --dark: #212529; }
-        body { font-family: 'Vazirmatn', sans-serif; background-color: #e9ecef; color: var(--dark); margin: 0; padding: 20px; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; }
-        .container { width: 100%; max-width: 900px; }
-        #login-view, #panel-view { background-color: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        h1, h2 { text-align: center; color: var(--primary); }
-        .form-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 8px; font-weight: 500; }
-        input[type="text"], input[type="password"] { width: 100%; padding: 12px; border: 1px solid #ced4da; border-radius: 8px; box-sizing: border-box; }
-        .btn { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s; font-size: 1rem; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-        .btn-primary { background-color: var(--primary); color: white; width: 100%; }
-        .btn-primary:hover { background-color: #0b5ed7; }
-        .btn .spinner { display: none; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 1s linear infinite; }
-        .btn.loading .spinner { display: inline-block; }
-        .btn.loading span { display: none; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        #error-message { color: var(--danger); text-align: center; margin-top: 15px; display: none; }
-        .accordion-header { background-color: #f1f3f5; padding: 15px; margin-top: 20px; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 700; }
-        .accordion-header:hover { background-color: #e9ecef; }
-        .accordion-content { padding: 0 15px; max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; background-color: #fff; }
-        .student-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        .student-table th, .student-table td { padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6; }
-        .student-table th { font-weight: 700; background-color: var(--light); }
-        .action-icon { font-size: 1.2rem; cursor: pointer; margin: 0 8px; transition: color 0.2s; }
-        .view-project { color: var(--primary); }
-        .issue-cert { color: var(--success); }
-        .action-icon:hover { opacity: 0.7; }
-        .action-icon .spinner { width: 18px; height: 18px; border-color: var(--secondary) transparent; }
-        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: var(--dark); color: white; padding: 15px 25px; border-radius: 8px; z-index: 1000; opacity: 0; transition: opacity 0.5s, bottom 0.5s; font-size: 1rem; }
-        .toast.show { opacity: 1; bottom: 30px; }
-        .toast.success { background-color: var(--success); }
-        .toast.error { background-color: var(--danger); }
-        #loader { text-align: center; padding: 40px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <!-- Login View -->
-        <div id="login-view">
-            <h1>ورود مدیر</h1>
-            <div class="form-group">
-                <label for="username">نام کاربری</label>
-                <input type="text" id="username">
-            </div>
-            <div class="form-group">
-                <label for="password">رمز عبور</label>
-                <input type="password" id="password">
-            </div>
-            <button class="btn btn-primary" id="login-btn">
-                <span>ورود</span>
-                <div class="spinner"></div>
-            </button>
-            <p id="error-message"></p>
-        </div>
-
-        <!-- Admin Panel View -->
-        <div id="panel-view" style="display: none;">
-            <h1>درخواست‌های صدور گواهی</h1>
-            <div id="student-list">
-                <div id="loader">
-                    <div class="spinner" style="display:inline-block; border-color: var(--dark) transparent;"></div> 
-                    <p>در حال بارگذاری اطلاعات...</p>
-                </div>
-            </div>
-        </div>
+ <!-- این بخش HTML را در صفحه سایت خود قرار دهید -->
+<div id="certificate-app-container">
+    <!-- Login View -->
+    <div id="login-view">
+      <h1>ورود مدیر</h1>
+      <div id="login-message" class="message" style="display:none;"></div>
+      <div class="form-group">
+        <label for="username">نام کاربری</label>
+        <input type="text" id="username">
+      </div>
+      <div class="form-group">
+        <label for="password">رمز عبور</label>
+        <input type="password" id="password">
+      </div>
+      <button class="btn btn-primary" id="login-btn">ورود</button>
     </div>
-    <div id="toast" class="toast"></div>
 
-    <script>
-        // ▼▼▼ مرحله مهم: آدرس API که از گوگل کپی کردید را اینجا قرار دهید ▼▼▼
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyP552WGzzG4qwQuymcLvwoRfsvyUpFlV3dHZCz1hPOaglzLZorkMSJLjk4DcKUr59T/exec';
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-        
-        let sessionToken = null; // برای نگهداری وضعیت لاگین
+    <!-- Main View -->
+    <div id="main-view" style="display:none;">
+      <h1>لیست درخواست‌های گواهی</h1>
+      <div id="main-message" class="message" style="display:none;"></div>
+      <div id="student-list">
+        <div class="loader"></div>
+      </div>
+    </div>
+</div>
 
-        document.getElementById('login-btn').addEventListener('click', handleLogin);
-        document.getElementById('password').addEventListener('keypress', (e) => { if(e.key === 'Enter') handleLogin(); });
+<!-- استایل‌ها را می‌توانید در فایل CSS اصلی سایت خود قرار دهید -->
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap');
+    :root { --primary-color: #0d6efd; --secondary-color: #6c757d; --success-color: #198754; --danger-color: #dc3545; --light-color: #f8f9fa; --dark-color: #212529; --border-color: #dee2e6; }
+    #certificate-app-container { font-family: 'Vazirmatn', sans-serif; direction: rtl; max-width: 900px; margin: auto; }
+    h1 { text-align: center; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; font-weight: bold; }
+    input[type="text"], input[type="password"] { width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; box-sizing: border-box; }
+    .btn { display: inline-block; width: 100%; padding: 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; text-align: center; font-size: 16px; position: relative; }
+    .btn-primary { background-color: var(--primary-color); color: #fff; }
+    .accordion-header { background-color: #e9ecef; padding: 15px; margin-top: 20px; cursor: pointer; border: 1px solid var(--border-color); font-weight: bold; }
+    .accordion-content { padding: 0 15px; max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+    .student-row { display: grid; grid-template-columns: 30px 1fr 1fr 1fr 80px 80px; gap: 10px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-color); }
+    .action-btn { padding: 6px 10px; border: none; border-radius: 4px; color: #fff; cursor: pointer; font-size: 14px; text-decoration: none; text-align: center; display: block; }
+    .btn-view { background-color: var(--secondary-color); }
+    .btn-issue { background-color: var(--success-color); }
+    .loader, .btn-loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary-color); border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto; }
+    .btn-loader { width: 16px; height: 16px; border-width: 2px; display: inline-block; vertical-align: middle; margin: 0; }
+    .message { padding: 15px; margin: 15px 0; border-radius: 4px; text-align: center; }
+    .message.error { background-color: #f8d7da; color: #842029; }
+    .message.success { background-color: #d1e7dd; color: #0f5132; }
+</style>
 
-        async function callGoogleScript(action, payload) {
-            try {
-                const res = await fetch(SCRIPT_URL, {
-                    method: 'POST',
-                    mode: 'cors',
-                    credentials: 'omit',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify({ action, payload })
-                });
-                // The response from a redirected fetch is opaque, so we can't read the body.
-                // We'll have to parse the text to check for success messages.
-                const textResponse = await res.text();
-                const result = JSON.parse(textResponse);
+<!-- این کد جاوا اسکریپت را در تگ <script> در انتهای صفحه سایت خود قرار دهید -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
 
-                if (result.error) {
-                    throw new Error(result.error);
-                }
-                return result.data;
-            } catch (error) {
-                 // Handle complex errors from Google's redirect
-                if (error instanceof SyntaxError) {
-                    throw new Error("پاسخ نامعتبر از سرور دریافت شد. لطفاً از درست بودن آدرس API و CORS اطمینان حاصل کنید.");
-                }
-                throw error;
-            }
-        }
-        
-        async function handleLogin() {
-            const loginBtn = document.getElementById('login-btn');
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            const errorMessage = document.getElementById('error-message');
+    // آدرس Web App خود را اینجا قرار دهید
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxz1vcnpSq6ozCtLLFiccStLFFql-pLXhobj2aa0QLtVEJUHecyprOGZG5ReUfDLiiG/exec";
 
-            if (!username || !password) {
-                errorMessage.textContent = 'نام کاربری و رمز عبور الزامی است.';
-                errorMessage.style.display = 'block';
-                return;
-            }
+    const loginView = document.getElementById('login-view');
+    const mainView = document.getElementById('main-view');
+    const loginBtn = document.getElementById('login-btn');
+    const studentListDiv = document.getElementById('student-list');
+    const loginMsg = document.getElementById('login-message');
+    const mainMsg = document.getElementById('main-message');
 
-            loginBtn.classList.add('loading');
-            errorMessage.style.display = 'none';
-
-            try {
-                const isValid = await callGoogleScript('verifyAdmin', { username, password });
-                 if (isValid) {
-                    sessionToken = Math.random().toString(36).substring(2); // Simple session token
-                    document.getElementById('login-view').style.display = 'none';
-                    document.getElementById('panel-view').style.display = 'block';
-                    loadStudentList();
-                } else {
-                     throw new Error('نام کاربری یا رمز عبور اشتباه است.');
-                }
-            } catch (error) {
-                errorMessage.textContent = error.message;
-                errorMessage.style.display = 'block';
-            } finally {
-                loginBtn.classList.remove('loading');
-            }
-        }
-
-        async function loadStudentList() {
-             if (!sessionToken) return;
-            document.getElementById('student-list').innerHTML = `<div id="loader"><div class="spinner" style="display:inline-block; border-color: var(--dark) transparent;"></div><p>در حال بارگذاری اطلاعات...</p></div>`;
-            try {
-                const groupedData = await callGoogleScript('getPendingStudents', { token: sessionToken });
-                displayStudents(groupedData);
-            } catch (error) {
-                 onGenericError(error);
-            }
-        }
-
-        function displayStudents(groupedData) {
-            const container = document.getElementById('student-list');
-            container.innerHTML = '';
-            if (Object.keys(groupedData).length === 0) {
-                container.innerHTML = '<p style="text-align:center; color: var(--secondary);">هیچ درخواست در حال بررسی یافت نشد.</p>';
-                return;
-            }
-            const sortedDates = Object.keys(groupedData).sort((a, b) => new Date(a) - new Date(b));
-            sortedDates.forEach(date => {
-                const students = groupedData[date];
-                const formattedDate = new Date(date).toLocaleDateString('fa-IR', { year: 'numeric', month: 'long', day: 'numeric' });
-                let tableRows = '';
-                students.forEach((student, index) => {
-                    const studentData = JSON.stringify(student).replace(/"/g, '&quot;');
-                    tableRows += `
-                        <tr>
-                            <td>${index + 1}</td>
-                            <td>${student.name}</td>
-                            <td>${student.nationalId}</td>
-                            <td>${student.courseName}</td>
-                            <td>
-                                <a href="${student.projectLink}" target="_blank" title="مشاهده پروژه"><i class="fas fa-eye action-icon view-project"></i></a>
-                                <button id="btn-${student.nationalId}" class="btn" style="background:none; border:none; padding:0;" onclick='issueCertificate(this, ${studentData})' title="صدور گواهی">
-                                    <i class="fas fa-certificate action-icon issue-cert"></i>
-                                    <div class="spinner"></div>
-                                </button>
-                            </td>
-                        </tr>`;
-                });
-                const accordion = `
-                    <div class="accordion-item">
-                        <div class="accordion-header">
-                            <span>${formattedDate} (${students.length} درخواست)</span>
-                            <i class="fas fa-chevron-down"></i>
-                        </div>
-                        <div class="accordion-content">
-                            <table class="student-table">
-                                <thead><tr><th>ردیف</th><th>نام</th><th>کد ملی</th><th>دوره</th><th>عملیات</th></tr></thead>
-                                <tbody>${tableRows}</tbody>
-                            </table>
-                        </div>
-                    </div>`;
-                container.innerHTML += accordion;
+    // تابع اصلی برای تمام درخواست‌های API
+    async function apiCall(action, payload) {
+        try {
+            const response = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'cors', // مهم
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8', // Apps Script با این هدر بهتر کار می‌کند
+                },
+                body: JSON.stringify({ action, payload })
             });
-            document.querySelectorAll('.accordion-header').forEach(header => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+
+    // --- توابع مدیریت UI ---
+    
+    function showLoader(button, show = true) {
+        button.disabled = show;
+        if(show){
+            button.innerHTML = '<div class="btn-loader"></div>';
+        } else {
+            button.innerHTML = button.dataset.originalText || 'دکمه';
+        }
+    }
+
+    function showMessage(element, text, isError = true) {
+        element.className = 'message ' + (isError ? 'error' : 'success');
+        element.textContent = text;
+        element.style.display = 'block';
+    }
+
+    // --- توابع رویدادها ---
+
+    loginBtn.addEventListener('click', async () => {
+        loginBtn.dataset.originalText = loginBtn.innerHTML;
+        showLoader(loginBtn);
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+
+        const result = await apiCall('login', { username, password });
+        
+        showLoader(loginBtn, false);
+        if (result.success && result.data.isLoggedIn) {
+            loginView.style.display = 'none';
+            mainView.style.display = 'block';
+            fetchStudents();
+        } else {
+            showMessage(loginMsg, result.error || 'نام کاربری یا رمز عبور اشتباه است.');
+        }
+    });
+
+    async function fetchStudents() {
+        studentListDiv.innerHTML = '<div class="loader"></div>';
+        const result = await apiCall('getStudents', {});
+        
+        studentListDiv.innerHTML = '';
+        if (result.success) {
+            const groupedData = result.data;
+            if (groupedData.length === 0) {
+                 studentListDiv.innerHTML = '<p style="text-align:center;">هیچ درخواست در انتظاری وجود ندارد.</p>';
+                 return;
+            }
+            
+            groupedData.forEach(group => {
+                const header = document.createElement('div');
+                header.className = 'accordion-header';
+                header.textContent = `درخواست‌های روز: ${group.date}`;
+                
+                const content = document.createElement('div');
+                content.className = 'accordion-content';
+
+                group.students.forEach(student => {
+                    const row = document.createElement('div');
+                    row.className = 'student-row';
+                    row.innerHTML = `
+                        <div>${group.students.indexOf(student) + 1}</div>
+                        <div>${student.name || '---'}</div>
+                        <div>${student.nationalId || '---'}</div>
+                        <div>${student.courseName || '---'}</div>
+                        <div><a href="${student.projectUrl || '#'}" target="_blank" class="action-btn btn-view">پروژه</a></div>
+                        <div><button class="action-btn btn-issue">صدور</button></div>
+                    `;
+                    const issueBtn = row.querySelector('.btn-issue');
+                    issueBtn.addEventListener('click', () => handleIssueCertificate(student, issueBtn));
+                    content.appendChild(row);
+                });
+
+                studentListDiv.appendChild(header);
+                studentListDiv.appendChild(content);
+
                 header.addEventListener('click', () => {
-                    const content = header.nextElementSibling;
-                    const icon = header.querySelector('i');
                     if (content.style.maxHeight) {
                         content.style.maxHeight = null;
-                        icon.style.transform = 'rotate(0deg)';
                     } else {
-                        content.style.maxHeight = content.scrollHeight + 'px';
-                        icon.style.transform = 'rotate(180deg)';
+                        content.style.maxHeight = content.scrollHeight + "px";
                     }
                 });
             });
+        } else {
+            showMessage(mainMsg, result.error || 'خطا در دریافت لیست دانشجویان.');
+        }
+    }
+
+    async function handleIssueCertificate(studentData, button) {
+        button.dataset.originalText = button.innerHTML;
+        showLoader(button);
+
+        const result = await apiCall('issueCertificate', { studentData });
+
+        if (result.success) {
+            showMessage(mainMsg, result.message, false);
+        } else {
+            showMessage(mainMsg, result.error || 'خطا در صدور گواهی.', true);
         }
         
-        async function issueCertificate(buttonElement, studentData) {
-             if (!sessionToken || buttonElement.classList.contains('loading')) return;
-            buttonElement.classList.add('loading');
-            buttonElement.querySelector('i').style.display = 'none';
-
-            try {
-                const message = await callGoogleScript('issueCertificate', { token: sessionToken, studentData });
-                showToast(message, 'success');
-                loadStudentList();
-            } catch(error) {
-                onGenericError(error);
-            }
-        }
-
-        function onGenericError(error) {
-            showToast(error.message, 'error');
-            document.querySelectorAll('.btn.loading').forEach(btn => {
-                btn.classList.remove('loading');
-                const icon = btn.querySelector('i');
-                if(icon) icon.style.display = 'inline-block';
-            });
-        }
-
-        function showToast(message, type = 'dark') {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.className = 'toast show ' + type;
-            setTimeout(() => { toast.className = 'toast ' + type; }, 3000);
-        }
-    </script>
-</body>
-</html>
+        setTimeout(fetchStudents, 2000); // رفرش لیست
+    }
+});
+</script>
