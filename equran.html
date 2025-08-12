@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">  
 <head>
     <meta charset="UTF-8">
@@ -199,9 +199,9 @@
 
             <div id="message-area"></div>
             <div id="actions-area">
-                <button id="btn-download" class="action-button" disabled><i class="fa-solid fa-download"></i>دانلود</button>
-                <button id="btn-view" class="action-button" disabled><i class="fa-solid fa-eye"></i>مشاهده</button>
-                <button id="btn-share" class="action-button" disabled><i class="fa-solid fa-share-alt"></i>اشتراک گذاری</button>
+                <button id="btn-download" class="action-button"><i class="fa-solid fa-download"></i>دانلود</button>
+                <button id="btn-view" class="action-button"><i class="fa-solid fa-eye"></i>مشاهده</button>
+                <button id="btn-share" class="action-button"><i class="fa-solid fa-share-alt"></i>اشتراک گذاری</button>
             </div>
         </div>
     </div>
@@ -240,7 +240,10 @@
                 const response = await fetch(SCRIPT_URL, {
                     method: 'POST',
                     mode: 'cors',
-                    body: JSON.stringify(body)
+                    body: JSON.stringify(body),
+                    headers: {
+                        'Authorization': `Bearer ${google.script.history.token}`,
+                    }
                 });
                 if (!response.ok) throw new Error(`خطای شبکه: ${response.status}`);
                 return await response.json();
@@ -263,20 +266,32 @@
         }
         function hideLoader() { mainLoader.style.display = 'none'; }
         
-        function b64toBlob(b64Data, contentType = '') {
-            const byteCharacters = atob(b64Data);
-            const byteArrays = [];
-            for (let offset = 0; offset < byteCharacters.length; offset += 512) {
-                const slice = byteCharacters.slice(offset, offset + 512);
-                const byteNumbers = new Array(slice.length);
-                for (let i = 0; i < slice.length; i++) {
-                    byteNumbers[i] = slice.charCodeAt(i);
-                }
-                byteArrays.push(new Uint8Array(byteNumbers));
-            }
-            return new Blob(byteArrays, { type: contentType });
-        }
+        // تابع برای دانلود فایل از لینک گوگل و ذخیره آن در حافظه
+        async function fetchAndCacheFile(url) {
+            showLoader("در حال دریافت فایل...");
+            try {
+                // برای دسترسی به لینک API گوگل، باید توکن دسترسی را بگیریم
+                const accessToken = await new Promise((resolve, reject) => google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getOAuthToken());
+                
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
 
+                if (!response.ok) {
+                    throw new Error('پاسخ شبکه برای دریافت فایل معتبر نبود.');
+                }
+                fileBlob = await response.blob();
+                hideLoader();
+                return true;
+            } catch (error) {
+                console.error('خطا در دانلود فایل از لینک:', error);
+                hideLoader();
+                showMessage('مشکلی در دریافت فایل گواهینامه از سرور گوگل رخ داد. لطفاً دوباره تلاش کنید.', 'error');
+                return false;
+            }
+        }
 
         certificateForm.addEventListener('submit', async function(event) {
             event.preventDefault();
@@ -288,62 +303,47 @@
             const courseCodeValue = document.getElementById('courseCode').value;
             const combinedId = nationalIdValue + courseCodeValue;
 
-            // تماس اول: ارسال برای تایید
-            const verifyResponse = await apiCall({
+            const response = await apiCall({
                 action: 'verify',
                 nationalId: combinedId,
                 captchaAnswer: document.getElementById('captcha-answer').value,
                 captchaToken: captchaTokenInput.value
             });
             
-            if (verifyResponse && verifyResponse.status === 'verified') {
-                // تایید موفقیت آمیز بود، حالا محتوای فایل را درخواست می‌دهیم
-                showMessage('گواهینامه شما یافت شد. در حال دریافت فایل...', 'success');
-                showLoader('در حال دریافت گواهینامه...');
+            hideLoader();
+
+            if (response && response.status === 'success') {
+                fileInfo = {
+                    name: response.fileName,
+                    nationalId: nationalIdValue,
+                    downloadUrl: response.downloadUrl
+                };
+
+                certificateForm.style.display = 'none';
+                document.querySelector('.header').style.display = 'none';
                 
-                // تماس دوم: درخواست محتوای فایل
-                const fileContentResponse = await apiCall({
-                    action: 'getFileContent',
-                    fileId: verifyResponse.fileId
-                });
-
-                if (fileContentResponse && fileContentResponse.status === 'success') {
-                    // فایل با موفقیت دریافت شد
-                    fileBlob = b64toBlob(fileContentResponse.data, fileContentResponse.mimeType);
-                    fileInfo = {
-                        name: verifyResponse.fileName,
-                        nationalId: nationalIdValue
-                    };
-
-                    hideLoader();
-                    certificateForm.style.display = 'none';
-                    document.querySelector('.header').style.display = 'none';
-                    const successMessage = `کاربر گرامی با کدملی <strong>${fileInfo.nationalId}</strong>، گواهینامه شما با موفقیت آماده شد.`;
-                    showMessage(successMessage, 'success');
-                    
-                    actionsArea.style.display = 'flex';
-                    downloadBtn.disabled = false;
-                    viewBtn.disabled = false;
-                    if (navigator.share) shareBtn.disabled = false;
-
-                } else {
-                    // خطا در تماس دوم
-                    hideLoader();
-                    showMessage(fileContentResponse.message || 'مشکلی در دریافت فایل گواهینامه رخ داد. لطفاً دوباره تلاش کنید.', 'error');
-                }
-
+                // نمایش پیغام تایید و اخذ اجازه دانلود
+                const successMessage = `قرآن آموز با کد ملی <strong>${fileInfo.nationalId}</strong> در دوره انتخابی شرکت کرده و گواهی دریافت نموده. آیا مایل به دانلود اطلاعات او هستید؟`;
+                showMessage(successMessage, 'success');
+                
+                // نمایش دکمه ها
+                actionsArea.style.display = 'flex';
+                
             } else {
-                // خطا در تماس اول
-                hideLoader();
-                showMessage(verifyResponse.message || 'پاسخ نامعتبر از سرور.', 'error');
+                showMessage(response.message || 'پاسخ نامعتبر از سرور.', 'error');
                 document.getElementById('captcha-answer').value = '';
                 generateClientCaptcha();
             }
             submitBtn.disabled = false;
         });
         
-        downloadBtn.addEventListener('click', () => {
-            if (!fileBlob) return;
+        downloadBtn.addEventListener('click', async () => {
+            if (!fileInfo.downloadUrl) return;
+            if (!fileBlob) {
+                const success = await fetchAndCacheFile(fileInfo.downloadUrl);
+                if (!success) return; // اگر دانلود ناموفق بود، عملیات را متوقف کن
+            }
+            
             const url = URL.createObjectURL(fileBlob);
             const a = document.createElement('a');
             a.href = url;
@@ -354,14 +354,22 @@
             URL.revokeObjectURL(url);
         });
 
-        viewBtn.addEventListener('click', () => {
-            if (!fileBlob) return;
+        viewBtn.addEventListener('click', async () => {
+            if (!fileInfo.downloadUrl) return;
+            if (!fileBlob) {
+                const success = await fetchAndCacheFile(fileInfo.downloadUrl);
+                if (!success) return;
+            }
             const url = URL.createObjectURL(fileBlob);
             window.open(url, '_blank');
         });
 
         shareBtn.addEventListener('click', async () => {
-            if (!fileBlob || !navigator.share) return;
+            if (!fileInfo.downloadUrl || !navigator.share) return;
+            if (!fileBlob) {
+                const success = await fetchAndCacheFile(fileInfo.downloadUrl);
+                if (!success) return;
+            }
             try {
                 const file = new File([fileBlob], fileInfo.name, { type: fileBlob.type });
                 const shareText = `گواهينامه دوره قرآن کریم\nکدملی قرآن‌آموز: ${fileInfo.nationalId}\n\nموفق و مؤید باشید`;
@@ -378,13 +386,11 @@
         captchaContainer.addEventListener('click', generateClientCaptcha);
 
         document.addEventListener('DOMContentLoaded', () => {
-            // منطق داینامیک بودن فیلد کد ملی که خواسته بودید حفظ شود
             const urlParams = new URLSearchParams(window.location.search);
             const nationalIdFromUrl = urlParams.get('id');
             if (nationalIdFromUrl) {
                 const nationalIdInput = document.getElementById('nationalId');
                 nationalIdInput.value = nationalIdFromUrl;
-                // این رویداد برای شناور شدن لیبل ضروری است
                 nationalIdInput.dispatchEvent(new Event('input', { bubbles: true })); 
             }
 
@@ -394,5 +400,7 @@
             generateClientCaptcha();
         });
     </script>
+    <!-- این خط برای استفاده از google.script.run ضروری است -->
+    <script src="//apis.google.com/js/api.js"></script> 
 </body>
 </html>
