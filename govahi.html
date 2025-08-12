@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl"> 
 <head>
     <meta charset="UTF-8">
@@ -96,7 +96,7 @@
             <button id="logout-btn" class="btn" style="background-color: var(--danger-color);"><i class="fas fa-sign-out-alt"></i><span class="btn-text">خروج</span></button>
         </div>
         
-        <!-- === بخش اضافه شده برای صدور گواهی عمومی (اولین باکس) === -->
+        <!-- === بخش جدید اضافه شده برای صدور گواهی عمومی (اولین باکس) === -->
         <div class="admin-card" id="public-issuance-section">
             <h2><i class="fas fa-certificate" style="margin-left: 10px; color: var(--success-color);"></i>صدور گواهی عمومی</h2>
             <div id="public-requests-container"></div>
@@ -230,7 +230,6 @@
     }
 
     // --- توابع جدید برای صدور گواهی عمومی ---
-
     function renderPublicCertificateRequests(groupedData) {
         const container = document.getElementById('public-requests-container');
         if (!groupedData || groupedData.length === 0) {
@@ -300,16 +299,144 @@
     }
 
 
-    // --- توابع موجود پنل (بدون تغییر) ---
-    function displayData(statusKey, sectionPrefix) { /* ... کد موجود بدون تغییر ... */ }
-    function renderSection(containerId, coursesToShow, statusKey) { /* ... کد موجود بدون تغییر ... */ }
-    function renderPendingCourses(courses) { /* ... کد موجود بدون تغییر ... */ }
-    function renderPagination(containerId, currentPage, totalPages, onPageClick) { /* ... کد موجود بدون تغییر ... */ }
-    async function handleApproveCourse(element, courseId) { /* ... کد موجود بدون تغییر ... */ }
-    async function handleRejectCourse(element, courseId) { /* ... کد موجود بدون تغییر ... */ }
-    async function handleApprove(element, nationalId, courseId) { /* ... کد موجود بدون تغییر ... */ }
-    async function handleReset(element, nationalId, courseId) { /* ... کد موجود بدون تغییر ... */ }
+    // --- توابع موجود پنل (هیچ کدام حذف نشده‌اند و کامل هستند) ---
+    function displayData(statusKey, sectionPrefix) {
+        const allCoursesForStatus = Object.values(fullData.students[statusKey] || {});
+        const teacherSearchTerm = document.getElementById(`${sectionPrefix}-teacher-search`).value.trim();
+        const studentSearchTerm = document.getElementById(`${sectionPrefix}-student-search`).value.trim();
+        let filteredCourses = allCoursesForStatus;
+        if (teacherSearchTerm) { filteredCourses = filteredCourses.filter(course => course.masterNationalId.includes(teacherSearchTerm)); }
+        if (studentSearchTerm) { filteredCourses = filteredCourses.filter(course => course.students.some(student => student.nationalId.includes(studentSearchTerm)));}
 
+        const currentPage = currentPages[sectionPrefix];
+        const totalItems = filteredCourses.length;
+        const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        const endIndex = startIndex + ITEMS_PER_PAGE;
+        const paginatedCourses = filteredCourses.slice(startIndex, endIndex);
+
+        renderSection(`${sectionPrefix}-courses-container`, paginatedCourses, statusKey);
+        renderPagination(`${sectionPrefix}-pagination`, currentPage, totalPages, (newPage) => {
+            currentPages[sectionPrefix] = newPage;
+            displayData(statusKey, sectionPrefix);
+        });
+    }
+
+    function renderSection(containerId, coursesToShow, statusKey) {
+        const container = document.getElementById(containerId);
+        if (!coursesToShow || coursesToShow.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: var(--light-text);">موردی برای نمایش وجود ندارد.</p>';
+            return;
+        }
+        let html = '';
+        const actionTypeMap = { '2': 'approve', '5': 'approved', '0': 'delete' };
+        const actionType = actionTypeMap[statusKey];
+        coursesToShow.forEach(course => {
+            const courseId = course.originalCourseId;
+            let studentsHtml = `<div class="student-list-container"><div class="table-responsive-wrapper"><table class="data-table"><thead><tr><th>ردیف</th><th>نام و نام خانوادگی</th><th>کد ملی</th><th>نمره کل</th><th>عملیات</th></tr></thead><tbody>`;
+            course.students.forEach((student, index) => {
+                let actionHtml = '';
+                if (actionType === 'approve') { actionHtml = `<i class="fas fa-check-circle action-icon approve" title="تایید و صدور گواهی" onclick="handleApprove(this, '${student.nationalId}', '${courseId}')"></i>`; } 
+                else if (actionType === 'approved') { actionHtml = `<i class="fas fa-check-circle action-icon approved" title="تایید شده"></i>`; } 
+                else if (actionType === 'delete') { actionHtml = `<i class="fas fa-trash-alt action-icon delete" title="حذف نمرات" onclick="handleReset(this, '${student.nationalId}', '${courseId}')"></i>`; }
+                studentsHtml += `<tr><td>${index + 1}</td><td>${student.name}</td><td>${student.nationalId}</td><td>${student.totalScore || '-'}</td><td>${actionHtml}</td></tr>`;
+            });
+            studentsHtml += '</tbody></table></div></div>';
+            
+            html += `<div class="course-accordion">
+                        <div class="course-header">
+                            <div class="course-header-info">
+                                <span>نام دوره: <strong>${course.courseName || 'نامشخص'}</strong></span>
+                                <span>نام استاد: <strong>${course.masterName}</strong></span>
+                                <span>تاریخ شروع: <strong>${course.startDate}</strong></span>
+                            </div>
+                            <i class="fas fa-chevron-down accordion-arrow"></i>
+                        </div>
+                        ${studentsHtml}
+                     </div>`;
+        });
+        container.innerHTML = html;
+        container.querySelectorAll('.course-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const content = header.nextElementSibling;
+                header.classList.toggle('active');
+                content.classList.toggle('show');
+            });
+        });
+    }
+
+    function renderPendingCourses(courses) {
+        const container = document.getElementById('course-approval-container');
+        if (!courses || courses.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: var(--light-text);">دوره جدیدی برای تایید وجود ندارد.</p>';
+            return;
+        }
+        let tableHtml = '<div class="table-responsive-wrapper"><table class="data-table"><thead><tr><th>نام دوره</th><th>نام استاد</th><th>تاریخ شروع</th><th>عملیات</th></tr></thead><tbody>';
+        courses.forEach(course => {
+            tableHtml += `<tr><td>${course.courseName}</td><td>${course.masterName}</td><td>${course.startDate}</td><td><div class="action-buttons"><i class="fas fa-check-circle action-icon approve" title="تایید دوره" onclick="handleApproveCourse(this, '${course.courseId}')"></i><i class="fas fa-times-circle action-icon reject" title="رد دوره" onclick="handleRejectCourse(this, '${course.courseId}')"></i></div></td></tr>`;
+        });
+        tableHtml += '</tbody></table></div>';
+        container.innerHTML = tableHtml;
+    }
+    
+    function renderPagination(containerId, currentPage, totalPages, onPageClick) {
+        const container = document.getElementById(containerId);
+        if (totalPages <= 1) { container.innerHTML = ''; return; }
+        container.innerHTML = '';
+        const prevBtnEl = document.createElement('button');
+        prevBtnEl.className = 'btn'; prevBtnEl.innerText = 'قبلی';
+        if (currentPage === 1) prevBtnEl.disabled = true;
+        prevBtnEl.onclick = () => onPageClick(currentPage - 1);
+        const pageInfoEl = document.createElement('span');
+        pageInfoEl.className = 'page-info'; pageInfoEl.innerText = `صفحه ${currentPage} از ${totalPages}`;
+        const nextBtnEl = document.createElement('button');
+        nextBtnEl.className = 'btn'; nextBtnEl.innerText = 'بعدی';
+        if (currentPage === totalPages) nextBtnEl.disabled = true;
+        nextBtnEl.onclick = () => onPageClick(currentPage + 1);
+        container.appendChild(prevBtnEl); container.appendChild(pageInfoEl); container.appendChild(nextBtnEl);
+    }
+    
+    async function handleApproveCourse(element, courseId) {
+        if (confirm('آیا از تایید این دوره اطمینان دارید؟')) {
+            element.parentElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            const res = await callAppsScript('approveCourse', { courseId });
+            if (res.success) { alert(res.message); fetchDashboardData(); } 
+            else {
+                alert('خطا: ' + res.message);
+                element.parentElement.innerHTML = `<i class="fas fa-check-circle action-icon approve" title="تایید دوره" onclick="handleApproveCourse(this, '${courseId}')"></i><i class="fas fa-times-circle action-icon reject" title="رد دوره" onclick="handleRejectCourse(this, '${courseId}')"></i>`;
+            }
+        }
+    }
+
+    async function handleRejectCourse(element, courseId) {
+        const reason = prompt('لطفا دلیل رد شدن دوره را وارد نمایید:');
+        if (reason === null) return;
+        if (!reason.trim()) { alert('وارد کردن دلیل برای رد کردن دوره الزامی است.'); return; }
+        element.parentElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        const res = await callAppsScript('rejectCourse', { courseId, reason });
+        if (res.success) { alert(res.message); fetchDashboardData(); } 
+        else {
+            alert('خطا: ' + res.message);
+            element.parentElement.innerHTML = `<i class="fas fa-check-circle action-icon approve" title="تایید دوره" onclick="handleApproveCourse(this, '${courseId}')"></i><i class="fas fa-times-circle action-icon reject" title="رد دوره" onclick="handleRejectCourse(this, '${courseId}')"></i>`;
+        }
+    }
+
+    async function handleApprove(element, nationalId, courseId) {
+        if (confirm(`آیا از صدور گواهی برای این قرآن‌آموز اطمینان دارید؟ این عملیات ممکن است کمی طول بکشد.`)) {
+            element.classList.remove('fa-check-circle'); element.classList.add('fa-spinner', 'fa-spin');
+            const res = await callAppsScript('approveCertificate', { nationalId, courseId });
+            if (res.success) { alert(res.message); fetchDashboardData(); } 
+            else { alert('خطا: ' + res.message); element.classList.add('fa-check-circle'); element.classList.remove('fa-spinner', 'fa-spin'); }
+        }
+    }
+    async function handleReset(element, nationalId, courseId) {
+        if (confirm(`آیا از حذف تمام نمرات این قرآن‌آموز اطمینان دارید؟`)) {
+            element.classList.remove('fa-trash-alt'); element.classList.add('fa-spinner', 'fa-spin');
+            const res = await callAppsScript('resetGrades', { nationalId, courseId });
+            if (res.success) { alert(res.message); fetchDashboardData(); } 
+            else { alert('خطا: ' + res.message); element.classList.add('fa-trash-alt'); element.classList.remove('fa-spinner', 'fa-spin'); }
+        }
+    }
 </script>
 </body>
 </html>
