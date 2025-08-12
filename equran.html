@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="fa" dir="rtl">  
 <head>
     <meta charset="UTF-8">
@@ -185,7 +185,6 @@
                         <i class="fa-solid fa-arrows-rotate refresh-icon"></i>
                         <span id="captcha-question"></span>
                     </div>
-                    <!-- فیلد مخفی برای نگهداری توکن کپچا -->
                     <input type="hidden" id="captcha-token">
                 </div>
 
@@ -208,18 +207,12 @@
     </div>
 
     <script>
-        // ==========================================================
-        //         هسته اصلی جاوا اسکریپت با معماری جدید
-        // ==========================================================
-        
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbytkAyQc5upTXzFsxCGEhdH42bU2HqUvGDc-DTo03Y5ZCbCicQo7fV7bDSfyEtQudeJ6Q/exec";
-        // کلید مخفی (باید با کلید در کد Apps Script یکسان باشد)
         const CAPTCHA_SECRET_KEY = "YOUR_VERY_SECRET_KEY_GOES_HERE_12345";
         
-        let fileBlob = null; // برای نگهداری فایل دانلود شده در حافظه مرورگر
-        let fileInfo = {};   // برای نگهداری نام و اطلاعات فایل
+        let fileBlob = null;
+        let fileInfo = {};
 
-        // گرفتن دسترسی به عناصر DOM
         const mainLoader = document.getElementById('main-loader-container');
         const loaderText = document.getElementById('loader-text');
         const certificateForm = document.getElementById('certificate-form');
@@ -233,24 +226,15 @@
         const viewBtn = document.getElementById('btn-view');
         const shareBtn = document.getElementById('btn-share');
         
-        /**
-         * تابع جدید برای ساخت کپچا در سمت کاربر
-         */
         function generateClientCaptcha() {
             const num1 = Math.floor(Math.random() * 10) + 1;
             const num2 = Math.floor(Math.random() * 10) + 1;
             const answer = num1 + num2;
-            
             captchaQuestionEl.textContent = `${num1} + ${num2} = ؟`;
-            
-            // ساخت توکن: SECRET_KEY-ANSWER و انکد کردن آن
             const token = btoa(`${CAPTCHA_SECRET_KEY}-${answer}`);
             captchaTokenInput.value = token;
         }
 
-        /**
-         * تابع برای فراخوانی API سرور
-         */
         async function apiCall(body) {
             try {
                 const response = await fetch(SCRIPT_URL, {
@@ -266,34 +250,34 @@
             }
         }
         
-        /**
-         * نمایش پیام به کاربر
-         */
         function showMessage(message, type) {
             messageArea.innerHTML = message;
             messageArea.className = `message-area message-${type}`;
             messageArea.style.display = 'block';
         }
 
-        function hideMessage() {
-            messageArea.style.display = 'none';
-        }
-
-        /**
-         * نمایش یا مخفی کردن لودر اصلی
-         */
+        function hideMessage() { messageArea.style.display = 'none'; }
         function showLoader(text = "لطفاً کمی صبر کنید...") {
             loaderText.textContent = text;
             mainLoader.style.display = 'flex';
         }
-
-        function hideLoader() {
-            mainLoader.style.display = 'none';
+        function hideLoader() { mainLoader.style.display = 'none'; }
+        
+        function b64toBlob(b64Data, contentType = '') {
+            const byteCharacters = atob(b64Data);
+            const byteArrays = [];
+            for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+                const slice = byteCharacters.slice(offset, offset + 512);
+                const byteNumbers = new Array(slice.length);
+                for (let i = 0; i < slice.length; i++) {
+                    byteNumbers[i] = slice.charCodeAt(i);
+                }
+                byteArrays.push(new Uint8Array(byteNumbers));
+            }
+            return new Blob(byteArrays, { type: contentType });
         }
 
-        /**
-         * رویداد اصلی ثبت فرم
-         */
+
         certificateForm.addEventListener('submit', async function(event) {
             event.preventDefault();
             hideMessage();
@@ -304,32 +288,33 @@
             const courseCodeValue = document.getElementById('courseCode').value;
             const combinedId = nationalIdValue + courseCodeValue;
 
-            const formData = {
+            // تماس اول: ارسال برای تایید
+            const verifyResponse = await apiCall({
                 action: 'verify',
                 nationalId: combinedId,
                 captchaAnswer: document.getElementById('captcha-answer').value,
                 captchaToken: captchaTokenInput.value
-            };
+            });
             
-            const response = await apiCall(formData);
-            
-            if (response && response.status === 'success') {
-                // مرحله 1: تایید موفقیت آمیز بود، حالا فایل را در پشت صحنه دانلود می‌کنیم
-                showMessage('گواهینامه شما یافت شد. در حال آماده‌سازی فایل...', 'success');
-                showLoader('در حال آماده‌سازی گواهینامه...');
+            if (verifyResponse && verifyResponse.status === 'verified') {
+                // تایید موفقیت آمیز بود، حالا محتوای فایل را درخواست می‌دهیم
+                showMessage('گواهینامه شما یافت شد. در حال دریافت فایل...', 'success');
+                showLoader('در حال دریافت گواهینامه...');
+                
+                // تماس دوم: درخواست محتوای فایل
+                const fileContentResponse = await apiCall({
+                    action: 'getFileContent',
+                    fileId: verifyResponse.fileId
+                });
 
-                try {
-                    // --- تغییر کلیدی: دانلود فایل از لینک دریافتی ---
-                    const fileResponse = await fetch(response.downloadUrl);
-                    if (!fileResponse.ok) throw new Error('خطا در دانلود فایل گواهینامه.');
-
-                    fileBlob = await fileResponse.blob(); // فایل را به صورت Blob ذخیره می‌کنیم
+                if (fileContentResponse && fileContentResponse.status === 'success') {
+                    // فایل با موفقیت دریافت شد
+                    fileBlob = b64toBlob(fileContentResponse.data, fileContentResponse.mimeType);
                     fileInfo = {
-                        name: response.fileName,
+                        name: verifyResponse.fileName,
                         nationalId: nationalIdValue
                     };
 
-                    // مرحله 2: فایل آماده شد، دکمه‌ها را فعال می‌کنیم
                     hideLoader();
                     certificateForm.style.display = 'none';
                     document.querySelector('.header').style.display = 'none';
@@ -341,24 +326,22 @@
                     viewBtn.disabled = false;
                     if (navigator.share) shareBtn.disabled = false;
 
-                } catch (e) {
-                    console.error("خطا در دریافت فایل:", e);
+                } else {
+                    // خطا در تماس دوم
                     hideLoader();
-                    showMessage('مشکلی در دریافت فایل گواهینامه رخ داد. لطفاً دوباره تلاش کنید.', 'error');
-                    generateClientCaptcha(); // کپچای جدید
+                    showMessage(fileContentResponse.message || 'مشکلی در دریافت فایل گواهینامه رخ داد. لطفاً دوباره تلاش کنید.', 'error');
                 }
 
             } else {
-                // اگر تایید اولیه ناموفق بود
+                // خطا در تماس اول
                 hideLoader();
-                showMessage(response.message || 'پاسخ نامعتبر از سرور دریافت شد.', 'error');
+                showMessage(verifyResponse.message || 'پاسخ نامعتبر از سرور.', 'error');
                 document.getElementById('captcha-answer').value = '';
-                generateClientCaptcha(); // کپچای جدید
+                generateClientCaptcha();
             }
             submitBtn.disabled = false;
         });
         
-        // --- رویدادهای جدید برای دکمه‌های عملیاتی ---
         downloadBtn.addEventListener('click', () => {
             if (!fileBlob) return;
             const url = URL.createObjectURL(fileBlob);
@@ -388,21 +371,27 @@
                     files: [file]
                 });
             } catch (err) {
-                if (err.name !== 'AbortError') {
-                    console.error('خطا در اشتراک‌گذاری:', err);
-                }
+                if (err.name !== 'AbortError') console.error('خطا در اشتراک‌گذاری:', err);
             }
         });
 
-        // رویداد برای رفرش کردن کپچا
         captchaContainer.addEventListener('click', generateClientCaptcha);
 
-        // اجرای اولیه هنگام بارگذاری صفحه
         document.addEventListener('DOMContentLoaded', () => {
-            if (!navigator.share) {
-                shareBtn.style.display = 'none'; // یا disabled کردن آن
+            // منطق داینامیک بودن فیلد کد ملی که خواسته بودید حفظ شود
+            const urlParams = new URLSearchParams(window.location.search);
+            const nationalIdFromUrl = urlParams.get('id');
+            if (nationalIdFromUrl) {
+                const nationalIdInput = document.getElementById('nationalId');
+                nationalIdInput.value = nationalIdFromUrl;
+                // این رویداد برای شناور شدن لیبل ضروری است
+                nationalIdInput.dispatchEvent(new Event('input', { bubbles: true })); 
             }
-            generateClientCaptcha(); // ساخت اولین کپچا به صورت فوری
+
+            if (!navigator.share) {
+                shareBtn.style.display = 'none';
+            }
+            generateClientCaptcha();
         });
     </script>
 </body>
