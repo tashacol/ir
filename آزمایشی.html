@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8" />
@@ -69,22 +69,25 @@
     .login-icon-wrapper i { font-size: 2.2rem; }
     h1 { font-size: 1.6rem; color: var(--text-dark); margin: 0 0 10px 0; }
     .login-header .divider { width: 40px; height: 2px; background: var(--accent-color); margin: 0 auto; border-radius: 1px; }
-    
-    /* ▼▼▼ استایل جدید برای متن تعهدنامه ▼▼▼ */
-    .commitment-box {
-      border: 1px solid var(--input-border-color);
-      border-radius: 12px;
-      padding: 15px;
-      font-size: 0.85rem;
-      text-align: justify;
-      line-height: 1.9;
-      max-height: 150px; /* ارتفاع حداکثر برای جلوگیری از شکستن طرح */
-      overflow-y: auto; /* فعال کردن اسکرول در صورت نیاز */
-      background-color: #f8f9fa;
+    .commitment-box { border: 1px solid var(--input-border-color); border-radius: 12px; padding: 15px; font-size: 0.85rem; text-align: justify; line-height: 1.9; max-height: 150px; overflow-y: auto; background-color: #f8f9fa; }
+    /* ▼▼▼ ویرایش: استایل لودر تمام صفحه ▼▼▼ */
+    .full-page-loader {
+        position: fixed; top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+        display: none; /* Initially hidden */
+        flex-direction: column; justify-content: center; align-items: center;
+        z-index: 9999; gap: 20px;
     }
+    .full-page-loader p { font-size: 1.2rem; color: var(--text-muted); font-weight: 500; }
   </style>
 </head>
 <body>
+  <!-- ▼▼▼ ویرایش: HTML لودر تمام صفحه ▼▼▼ -->
+  <div class="full-page-loader" id="fullPageLoader">
+      <p>در حال بررسی اطلاعات...</p>
+  </div>
+
   <div class="main-container" id="mainContainer">
     <!-- Step 1: Initial Check -->
     <div id="step1" class="step active">
@@ -101,7 +104,6 @@
     <div id="step2" class="step">
         <h1>درخواست گواهی</h1>
         <div class="info-box"><p><strong>نام:</strong> <span id="info-name"></span></p><p><strong>نام دوره:</strong> <span id="info-course"></span></p></div>
-        <!-- ▼▼▼ ویرایش: نمایش کامل متن تعهدنامه ▼▼▼ -->
         <div class="commitment-box">
             <p><strong>بسمه تعالی</strong></p>
             <p><strong>تأییدیه حضور و پذیرش شرایط دوره "<span id="commitment-course-name"></span>"</strong></p>
@@ -145,6 +147,7 @@
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbztip6fXkSuso5khpNp_TCsID6wS045x-bRu1x_XCdSscvbscyClUVRzhdXKuAoGvCH/exec';
 
     const mainContainer = document.getElementById('mainContainer');
+    const fullPageLoader = document.getElementById('fullPageLoader');
     const allViews = document.querySelectorAll('.step, .result-view');
     const idcodeInput = document.getElementById('idcode');
     const checkButton = document.getElementById('checkButton');
@@ -174,25 +177,31 @@
         button.classList.toggle('loading', isLoading);
     }
     
-    checkButton.addEventListener('click', async () => {
+    // ▼▼▼ ویرایش: تابع بررسی اصلی با قابلیت مدیریت لودر خودکار ▼▼▼
+    async function performCheck(nationalId, isAutoLoad = false) {
         messageBox.style.display = 'none';
-        const nationalId = idcodeInput.value.trim();
         if (!/^\d{10}$/.test(nationalId)) {
+            if (isAutoLoad) { fullPageLoader.style.display = 'none'; }
             return showMessage('کد ملی باید ۱۰ رقم و عددی باشد.');
         }
-        setButtonLoading(true, checkButton);
+
+        if (isAutoLoad) {
+            fullPageLoader.style.display = 'flex';
+        } else {
+            setButtonLoading(true, checkButton);
+        }
+        
         try {
             const response = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'checkStatus', nationalId: nationalId }), headers: {'Content-Type': 'text/plain'} });
             const result = await response.json();
             if (result.success) {
-                currentUserData = result.userData; 
+                currentUserData = result.userData;
                 switch(result.status) {
                     case 'approved':
                         document.getElementById('approved_viewPdfLink').href = result.pdfUrl;
                         showView('view_approved');
                         break;
                     case 'reviewing':
-                        // ▼▼▼ ویرایش: ساخت پیام شرطی بر اساس فلگ دریافتی از سرور ▼▼▼
                         let reviewMessage = `جناب آقای <strong>${currentUserData.name}</strong>، پروژه شما در تاریخ <strong>${currentUserData.requestDate}</strong> جهت صدور گواهی ثبت گردیده و در حال حاضر توسط معاونت آموزش در حال بررسی است.`;
                         if (currentUserData.isOverdue) {
                             reviewMessage += `<br><br><strong>توجه:</strong> بیش از 10 روز از درخواست شما گذشته است. جهت پیگیری با شماره 09136395562 تماس حاصل فرمایید.`;
@@ -204,7 +213,6 @@
                     case 'eligible_for_submission':
                         infoName.textContent = currentUserData.name;
                         infoCourse.textContent = currentUserData.courseName;
-                        // ▼▼▼ ویرایش: پر کردن اطلاعات در متن تعهدنامه کامل ▼▼▼
                         document.getElementById('commitment-course-name').textContent = currentUserData.courseName;
                         document.getElementById('commitment-user-name').textContent = currentUserData.name;
                         document.getElementById('commitment-national-id').textContent = currentUserData.nationalId;
@@ -219,8 +227,26 @@
             showMessage('خطا در ارتباط با سرور. لطفا اتصال اینترنت خود را بررسی کنید.');
             showView('step1');
         } finally {
-            setButtonLoading(false, checkButton);
+            if (isAutoLoad) {
+                fullPageLoader.style.display = 'none';
+            } else {
+                setButtonLoading(false, checkButton);
+            }
         }
+    }
+
+    // ▼▼▼ ویرایش: افزودن بررسی خودکار در زمان بارگذاری صفحه ▼▼▼
+    window.addEventListener('DOMContentLoaded', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const nationalId = urlParams.get('id');
+        if (nationalId) {
+            idcodeInput.value = nationalId;
+            performCheck(nationalId, true); // `true` indicates auto-load
+        }
+    });
+
+    checkButton.addEventListener('click', () => {
+        performCheck(idcodeInput.value.trim(), false); // `false` indicates manual button click
     });
 
     generateButton.addEventListener('click', async () => {
