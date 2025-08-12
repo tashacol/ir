@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="fa" dir="rtl">  
 <head>
     <meta charset="UTF-8">
@@ -234,16 +234,15 @@
             const token = btoa(`${CAPTCHA_SECRET_KEY}-${answer}`);
             captchaTokenInput.value = token;
         }
-
+        
+        // *** اصلاح کلیدی و دلیل اصلی خطا: هدر اضافه حذف شد ***
         async function apiCall(body) {
             try {
                 const response = await fetch(SCRIPT_URL, {
                     method: 'POST',
                     mode: 'cors',
-                    body: JSON.stringify(body),
-                    headers: {
-                        'Authorization': `Bearer ${google.script.history.token}`,
-                    }
+                    body: JSON.stringify(body)
+                    // هدر اشتباه از اینجا حذف شد
                 });
                 if (!response.ok) throw new Error(`خطای شبکه: ${response.status}`);
                 return await response.json();
@@ -266,12 +265,17 @@
         }
         function hideLoader() { mainLoader.style.display = 'none'; }
         
-        // تابع برای دانلود فایل از لینک گوگل و ذخیره آن در حافظه
         async function fetchAndCacheFile(url) {
             showLoader("در حال دریافت فایل...");
             try {
-                // برای دسترسی به لینک API گوگل، باید توکن دسترسی را بگیریم
-                const accessToken = await new Promise((resolve, reject) => google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getOAuthToken());
+                // برای دسترسی به لینک API گوگل، باید توکن دسترسی را از خود کاربر بگیریم
+                // این یک فرآیند استاندارد و امن است
+                const accessToken = await new Promise((resolve, reject) => {
+                    google.script.run
+                        .withSuccessHandler(resolve)
+                        .withFailureHandler(reject)
+                        .getOAuthToken();
+                });
                 
                 const response = await fetch(url, {
                     headers: {
@@ -279,16 +283,15 @@
                     }
                 });
 
-                if (!response.ok) {
-                    throw new Error('پاسخ شبکه برای دریافت فایل معتبر نبود.');
-                }
+                if (!response.ok) throw new Error('پاسخ شبکه برای دریافت فایل معتبر نبود.');
+                
                 fileBlob = await response.blob();
                 hideLoader();
                 return true;
             } catch (error) {
                 console.error('خطا در دانلود فایل از لینک:', error);
                 hideLoader();
-                showMessage('مشکلی در دریافت فایل گواهینامه از سرور گوگل رخ داد. لطفاً دوباره تلاش کنید.', 'error');
+                showMessage('مشکلی در دریافت فایل گواهینامه رخ داد. لطفاً مطمئن شوید که دسترسی‌های لازم را به اسکریپت داده‌اید و دوباره تلاش کنید.', 'error');
                 return false;
             }
         }
@@ -298,6 +301,9 @@
             hideMessage();
             showLoader("در حال بررسی اطلاعات...");
             submitBtn.disabled = true;
+            // پاک کردن اطلاعات فایل قبلی در هر بار تلاش جدید
+            fileBlob = null; 
+            fileInfo = {};
 
             const nationalIdValue = document.getElementById('nationalId').value.trim();
             const courseCodeValue = document.getElementById('courseCode').value;
@@ -322,11 +328,9 @@
                 certificateForm.style.display = 'none';
                 document.querySelector('.header').style.display = 'none';
                 
-                // نمایش پیغام تایید و اخذ اجازه دانلود
                 const successMessage = `قرآن آموز با کد ملی <strong>${fileInfo.nationalId}</strong> در دوره انتخابی شرکت کرده و گواهی دریافت نموده. آیا مایل به دانلود اطلاعات او هستید؟`;
                 showMessage(successMessage, 'success');
                 
-                // نمایش دکمه ها
                 actionsArea.style.display = 'flex';
                 
             } else {
@@ -337,13 +341,13 @@
             submitBtn.disabled = false;
         });
         
+        // تمام منطق‌های مربوط به دکمه‌ها بدون تغییر حفظ شده‌اند
         downloadBtn.addEventListener('click', async () => {
             if (!fileInfo.downloadUrl) return;
             if (!fileBlob) {
                 const success = await fetchAndCacheFile(fileInfo.downloadUrl);
-                if (!success) return; // اگر دانلود ناموفق بود، عملیات را متوقف کن
+                if (!success) return;
             }
-            
             const url = URL.createObjectURL(fileBlob);
             const a = document.createElement('a');
             a.href = url;
@@ -385,6 +389,7 @@
 
         captchaContainer.addEventListener('click', generateClientCaptcha);
 
+        // تمام منطق‌های مربوط به بارگذاری اولیه صفحه حفظ شده‌اند
         document.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
             const nationalIdFromUrl = urlParams.get('id');
@@ -400,7 +405,7 @@
             generateClientCaptcha();
         });
     </script>
-    <!-- این خط برای استفاده از google.script.run ضروری است -->
-    <script src="//apis.google.com/js/api.js"></script> 
+    <!-- این خط برای استفاده از google.script.run جهت گرفتن توکن ضروری است -->
+    <script src="https://apis.google.com/js/api.js"></script> 
 </body>
 </html>
