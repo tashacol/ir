@@ -24,7 +24,7 @@
             background-size: cover;
             background-position: center center;
             background-repeat: no-repeat;
-            background-attachment: fixed;
+            background-attachment: scroll; 
         }
         .hidden { display: none !important; }
 
@@ -38,7 +38,7 @@
             display: inline-block;
         }
         #login-form button[type="submit"] { width: 100%; }
-        .container { max-width: 1100px; margin: 40px auto; } /* کانتینر برای داشبورد */
+        .container { max-width: 1100px; margin: 40px auto; } 
         
         h1, h2, h3, h4 { color: var(--primary-color); text-align: center; font-weight: 700; }
         h1 { font-size: 2.2rem; margin-bottom: 30px;} h2 { font-size: 1.8rem; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; margin-bottom: 30px; }
@@ -165,10 +165,6 @@
         @keyframes flash { 50% { opacity: 0.2; } }
 
         .syllabus-modal-content { text-align: right; line-height: 2; }
-        .syllabus-modal-content h4 { text-align: right; margin-top: 20px; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
-        .syllabus-modal-content ul { list-style: none; padding-right: 15px; }
-        .syllabus-modal-content li { position: relative; padding-right: 25px; margin-bottom: 8px; }
-        .syllabus-modal-content li::before { content: '📖'; position: absolute; right: 0; top: -2px; }
     </style>
 </head>
 <body>
@@ -413,6 +409,7 @@
             const canAddStudent = diffDays < 25 && isApproved;
             const canDeleteCourse = diffDays < 20;
             const canEditDate = diffDays <= 0 && isApproved;
+            const canGrade = diffDays >= 25;
             
             let addStudentBtn = canAddStudent ? `<button class="icon-btn" onclick="showAddStudentModal(event, '${course.courseId}')"><svg class="icon"><use href="#icon-plus-circle"></use></svg><span class="btn-text">افزودن قرآن آموز</span></button>` : '';
             let editDateBtn = canEditDate ? `<button class="icon-btn" onclick="showEditDateModal(event, '${course.courseId}')"><svg class="icon"><use href="#icon-pencil"></use></svg><span class="btn-text">ویرایش تاریخ</span></button>` : '';
@@ -436,9 +433,16 @@
                 studentsHtml = `<table><thead><tr><th>ردیف</th><th>نام و نام خانوادگی</th><th>کد ملی</th><th>نمره کل</th><th>وضعیت گواهی</th><th>عملیات</th></tr></thead><tbody>
                     ${course.students.map((s, index) => {
                         const hasGrade = s.totalScore && s.totalScore != '0';
-                        // --- START: MODIFIED LINE ---
-                        let scoreDisplay = !hasGrade ? `<button class="icon-btn grade-btn" onclick="showGradingModal(event, '${course.courseId}', '${course.startDate}', '${s.name}', '${s.nationalId}', '${course.approvalStatus}', '${course.courseCode}')"><svg class="icon"><use href="#icon-grade"></use></svg><span class="btn-text">ثبت نمره</span></button>` : `<strong>${s.totalScore}</strong>`;
-                        // --- END: MODIFIED LINE ---
+                        let scoreDisplay;
+
+                        if (hasGrade) {
+                            scoreDisplay = `<strong>${s.totalScore}</strong>`;
+                        } else if (isApproved && canGrade) {
+                             scoreDisplay = `<button class="icon-btn grade-btn" onclick="showGradingModal(event, '${course.courseId}', '${s.name}', '${s.nationalId}', '${course.courseCode}')"><svg class="icon"><use href="#icon-grade"></use></svg><span class="btn-text">ثبت نمره</span></button>`;
+                        } else {
+                            scoreDisplay = `<span style="color: var(--light-text); font-size: 0.9em;">غیرفعال</span>`;
+                        }
+                        
                         let certStatusDisplay = ''; let studentActionsDisplay = '';
                         if (hasGrade) {
                             switch (s.certificateStatus) {
@@ -463,8 +467,9 @@
                             <span>شروع: <strong>${course.startDate}</strong></span>
                             <span>اتمام: <strong>${endDateJalali}</strong></span>
                         </div>
-                        <button class="icon-btn" onclick="showSyllabusModal()" title="مشاهده شیوه نامه">
+                        <button class="icon-btn" onclick="showSyllabusModal(event, '${course.courseCode}')" title="مشاهده شیوه نامه">
                             <svg class="icon" style="color: var(--accent-color); width: 1.4em; height: 1.4em;"><use href="#icon-info"></use></svg>
+                            <span class="btn-text">شیوه نامه</span>
                         </button>
                     </div>
                 </div>
@@ -495,7 +500,35 @@
     async function handleUpdateCourseDate(event) { hideModalError('modal-error-container'); const newDate = `${document.getElementById('edit-year').value}/${document.getElementById('edit-month').value.padStart(2, '0')}/${document.getElementById('edit-day').value.padStart(2, '0')}`; if (newDate < getTodayJalaliString()) { showModalError("modal-error-container", "تاریخ انتخابی نمی‌تواند در گذشته باشد."); return; } const res = await callAppsScript('updateCourseDate', { courseId: currentCourseId, newDate }, event.target); if (res.success) { closeAllModals(); showCustomAlert(res.message, 'success'); fetchDashboardData(); } else { showModalError("modal-error-container", "خطا: " + res.message); } }
     function showDeleteCourseModal(event, courseId) { currentCourseId = courseId; const content = `<p style="color:var(--danger-color); text-align:center;">آیا از حذف این دوره و تمام قرآن‌آموزان آن اطمینان دارید؟</p><div class="form-group"><label for="delete-password">برای تایید، رمز عبور را وارد کنید:</label><input type="password" id="delete-password"></div><div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div><div style="text-align:center;"><button class="danger" onclick="handleDeleteCourse(event)"><span class="btn-text">بله، حذف کن</span></button></div>`; renderModal('تایید حذف دوره', content); }
     async function handleDeleteCourse(event) { hideModalError('modal-error-container'); const password = document.getElementById('delete-password').value; if (!password) { showModalError("modal-error-container", "رمز عبور الزامی است."); return; } const res = await callAppsScript('deleteCourse', { courseId: currentCourseId, instructorId: loggedInInstructorId, password }, event.target); if (res.success) { closeAllModals(); showCustomAlert(res.message, 'success'); fetchDashboardData(); } else { showModalError("modal-error-container", "خطا: " + res.message); } }
-    function showSyllabusModal() { const content = `<div class="syllabus-modal-content"><h4>آموزش تئوری:</h4><ul><li>آموزش حروف عربی</li><li>آموزش حرکات کوتاه و کشیده</li><li>آموزش حروف ناخوانا</li><li>آموزش ابتدا از همزه وصل</li><li>آموزش وقف</li><li>آموزش التقاء ساکنین</li><li>آموزش بخش خوانی</li></ul><h4>آموزش عملی: <span style="font-weight:normal; font-size: 0.9rem; color: var(--light-text);">می‌توان از روش های زیر استفاده نمود</span></h4><ul><li>تمرین عملی روزانه به تشخیص استاد</li><li>گوش دادن به صوت قرآن</li><li>هم خوانی و جمع خوانی قرآن در کلاس و...</li><li>آموزش قرائت نماز</li></ul></div><div style="text-align:center; margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border-color);"><a href="YOUR_PDF_FILE_URL_HERE.pdf" download="روخوانی-روانخوانی-جزوه.pdf" class="btn-like"><svg class="icon" style="width: 1.2em; height: 1.2em; margin-left: 8px; vertical-align: middle;"><use href="#icon-download"></use></svg><span class="btn-text">جزوه پیشنهادی</span></a></div>`; renderModal('<strong>شیوه نامه کلاس های روخوانی و روانخوانی قرآن کریم</strong>', content); }
+    
+    // --- START: MODIFIED FUNCTION ---
+    async function showSyllabusModal(event, courseCode) {
+        const button = event.target.closest('button');
+        const res = await callAppsScript('getSyllabusInfo', { courseCode }, button);
+
+        if (!res.success) {
+            showCustomAlert(res.message || 'اطلاعات شیوه نامه یافت نشد.', 'error');
+            return;
+        }
+
+        const { courseName, syllabusText, pdfLink } = res.data;
+        const formattedSyllabusText = syllabusText.replace(/\n/g, '<br>');
+
+        const downloadButtonHTML = pdfLink
+            ? `<div style="text-align:center; margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+                   <a href="${pdfLink}" target="_blank" download class="btn-like">
+                       <svg class="icon" style="width: 1.2em; height: 1.2em; margin-left: 8px; vertical-align: middle;"><use href="#icon-download"></use></svg>
+                       <span class="btn-text">دریافت جزوه پیشنهادی</span>
+                   </a>
+               </div>`
+            : '';
+
+        const modalTitle = `<strong>شیوه نامه کلاس های ${courseName}</strong>`;
+        const modalContent = `<div class="syllabus-modal-content">${formattedSyllabusText}</div>${downloadButtonHTML}`;
+
+        renderModal(modalTitle, modalContent);
+    }
+    // --- END: MODIFIED FUNCTION ---
     
     function showAddStudentModal(event, courseId) {
         const existingStudentsCount = existingStudentsByCourse[courseId] ? existingStudentsByCourse[courseId].size : 0;
@@ -618,34 +651,18 @@
     function showDeleteStudentModal(event, courseId, studentName, studentNationalId) { currentCourseId = courseId; currentStudentOriginalId = studentNationalId; renderModal('تایید حذف قرآن‌آموز', `<p style="text-align:center;">آیا از حذف قرآن‌آموز <strong>${studentName}</strong> (کد ملی: ${studentNationalId}) اطمینان دارید؟</p><p style="color:var(--danger-color); text-align:center;">این عمل غیرقابل بازگشت است.</p><div style="text-align:center;"><button class="danger" onclick="handleDeleteStudent(event)"><span class="btn-text">بله، حذف کن</span></button></div>`); }
     async function handleDeleteStudent(event) { const res = await callAppsScript('deleteStudent', { courseId: currentCourseId, studentNationalId: currentStudentOriginalId }, event.target); if (res.success) { closeAllModals(); showCustomAlert(res.message, 'success'); fetchDashboardData(); } else { showCustomAlert("خطا: " + res.message, 'error'); } }
     
-    // --- START: MODIFIED FUNCTION ---
-    async function showGradingModal(event, courseId, courseStartDate, studentName, studentNationalId, approvalStatus, courseCode) {
-        if (approvalStatus !== '5') {
-            showCustomAlert('امکان نمره‌دهی وجود ندارد.\nاین دوره هنوز توسط معاون آموزشی تأیید نهایی نشده است.', 'error');
-            return;
-        }
-
-        const [year, month, day] = courseStartDate.split('/').map(Number);
-        const startDate = jalaliToGregorian(year, month, day);
-        const today = new Date();
-        startDate.setHours(0,0,0,0);
-        today.setHours(0,0,0,0);
-        const diffDays = Math.ceil((today - startDate) / (1000 * 60 * 60 * 24));
-        if (diffDays < 25) {
-            showCustomAlert(`امکان نمره‌دهی وجود ندارد.\nباید حداقل ۲۵ روز از تاریخ شروع دوره (${courseStartDate}) گذشته باشد.`, 'error');
-            return;
-        }
-
-        const criteriaRes = await callAppsScript('getGradingCriteria', { courseCode }, event.target.closest('button'));
-        if (!criteriaRes.success || !criteriaRes.data || criteriaRes.data.length === 0) {
-            showCustomAlert(criteriaRes.message || 'ساختار نمره‌دهی برای این دوره یافت نشد.', 'error');
+    async function showGradingModal(event, courseId, studentName, studentNationalId, courseCode) {
+        const res = await callAppsScript('getGradingCriteria', { courseCode }, event.target.closest('button'));
+        
+        if (!res.success || !res.data || res.data.length === 0) {
+            showCustomAlert(res.message || 'ساختار نمره‌دهی برای این دوره یافت نشد.', 'error');
             return;
         }
         
         currentCourseId = courseId;
         currentStudentOriginalId = studentNationalId;
 
-        let gradeInputsHTML = criteriaRes.data.map((item, index) => {
+        let gradeInputsHTML = res.data.map((item, index) => {
             return `<div class="form-group grade-input-group">
                         <label for="g${index + 1}">${item.title} (از ${item.maxScore})</label>
                         <input type="number" id="g${index + 1}" min="0" max="${item.maxScore}">
@@ -656,17 +673,17 @@
                             <div><span class="student-name">${studentName}</span></div>
                             <div style="font-size: 0.9rem; color: var(--light-text);">کد ملی: ${studentNationalId}</div>
                         </div>
-                        ${gradeInputsHTML}
-                        <div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div>
-                        <div style="text-align:center;">
-                            <button onclick="handleGradeSubmission(event, '${studentName}')"><span class="btn-text">تایید و ارسال نمرات</span></button>
+                        <div id="grading-form-content">
+                            ${gradeInputsHTML}
+                            <div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div>
+                            <div style="text-align:center;">
+                                <button onclick="handleGradeSubmission(event, '${studentName}')"><span class="btn-text">تایید و ارسال نمرات</span></button>
+                            </div>
                         </div>`;
         
         renderModal('ثبت نمره برای قرآن آموز', content, 'narrow');
     }
-    // --- END: MODIFIED FUNCTION ---
     
-    // --- START: MODIFIED FUNCTION ---
     async function handleGradeSubmission(event, studentName) {
         hideModalError('modal-error-container');
         const grades = {};
@@ -676,38 +693,50 @@
             const input = gradeInputs[i];
             const gradeVal = input.value;
             const maxScore = Number(input.max);
+            const labelText = input.previousElementSibling.textContent;
 
             if (gradeVal === '' || isNaN(gradeVal) || gradeVal < 0 || gradeVal > maxScore) {
-                const label = input.previousElementSibling.innerText;
-                showModalError('modal-error-container', `نمره برای "${label}" باید عددی بین 0 و ${maxScore} باشد.`);
+                showModalError('modal-error-container', `نمره برای "${labelText}" باید عددی بین 0 و ${maxScore} باشد.`);
                 return;
             }
             grades[`g${i + 1}`] = Number(gradeVal);
         }
 
-        // برای سازگاری با بک اند، فیلدهای خالی را نیز ارسال میکنیم
         for (let i = gradeInputs.length + 1; i <= 5; i++) {
             grades[`g${i}`] = '';
         }
 
         const confirmed = await showCustomConfirm("آیا از ثبت نمرات اطمینان دارید؟ نمرات پس از ثبت قابل ویرایش نیستند.");
         if (confirmed) {
+            const submissionButton = event.target.closest('button');
+            setButtonLoading(submissionButton, true);
+
             const res = await callAppsScript('submitStudentGrades', { 
                 courseId: currentCourseId, 
                 studentNationalId: currentStudentOriginalId, 
                 studentName: studentName, 
                 grades: grades 
-            }, document.querySelector('.modal button'));
+            });
+
+            setButtonLoading(submissionButton, false);
+
             if (res.success) {
-                closeAllModals();
-                showCustomAlert(res.message, 'success');
-                fetchDashboardData();
+                const modalContent = document.querySelector('#grading-form-content');
+                if (modalContent) {
+                    modalContent.innerHTML = `
+                        <div style="text-align:center;">
+                            <div class="alert-icon success" style="font-size: 3rem;"><svg class="icon"><use href="#icon-alert-success"></use></svg></div>
+                            <p class="alert-message" style="font-size: 1rem;">${res.message}</p>
+                            <div class="alert-buttons">
+                                <button onclick="closeAllModals(); fetchDashboardData();"><span class="btn-text">بسیار خب</span></button>
+                            </div>
+                        </div>`;
+                }
             } else {
-                showCustomAlert("خطا: " + res.message, 'error');
+                showModalError('modal-error-container', "خطا: " + res.message);
             }
         }
     }
-    // --- END: MODIFIED FUNCTION ---
 </script>
 </body>
 </html>
