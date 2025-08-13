@@ -24,9 +24,7 @@
             background-size: cover;
             background-position: center center;
             background-repeat: no-repeat;
-            /* --- START: REVERTED CHANGE --- */
-            background-attachment: fixed; /* بازگشت به حالت اولیه برای ثابت ماندن پس‌زمینه */
-            /* --- END: REVERTED CHANGE --- */
+            background-attachment: fixed; 
         }
         .hidden { display: none !important; }
 
@@ -503,6 +501,7 @@
     function showDeleteCourseModal(event, courseId) { currentCourseId = courseId; const content = `<p style="color:var(--danger-color); text-align:center;">آیا از حذف این دوره و تمام قرآن‌آموزان آن اطمینان دارید؟</p><div class="form-group"><label for="delete-password">برای تایید، رمز عبور را وارد کنید:</label><input type="password" id="delete-password"></div><div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div><div style="text-align:center;"><button class="danger" onclick="handleDeleteCourse(event)"><span class="btn-text">بله، حذف کن</span></button></div>`; renderModal('تایید حذف دوره', content); }
     async function handleDeleteCourse(event) { hideModalError('modal-error-container'); const password = document.getElementById('delete-password').value; if (!password) { showModalError("modal-error-container", "رمز عبور الزامی است."); return; } const res = await callAppsScript('deleteCourse', { courseId: currentCourseId, instructorId: loggedInInstructorId, password }, event.target); if (res.success) { closeAllModals(); showCustomAlert(res.message, 'success'); fetchDashboardData(); } else { showModalError("modal-error-container", "خطا: " + res.message); } }
     
+    // --- START: MODIFIED FUNCTION ---
     async function showSyllabusModal(event, courseCode) {
         const button = event.target.closest('button');
         const res = await callAppsScript('getSyllabusInfo', { courseCode }, button);
@@ -513,7 +512,8 @@
         }
 
         const { courseName, syllabusText, pdfLink } = res.data;
-        const formattedSyllabusText = syllabusText.replace(/\n/g, '<br>');
+
+        // این خط حذف شد تا HTML به درستی رندر شود: const formattedSyllabusText = syllabusText.replace(/\n/g, '<br>');
 
         const downloadButtonHTML = pdfLink
             ? `<div style="text-align:center; margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border-color);">
@@ -525,10 +525,12 @@
             : '';
 
         const modalTitle = `<strong>شیوه نامه کلاس های ${courseName}</strong>`;
-        const modalContent = `<div class="syllabus-modal-content">${formattedSyllabusText}</div>${downloadButtonHTML}`;
+        // متغیر syllabusText که حاوی کد HTML است، مستقیما در اینجا قرار میگیرد
+        const modalContent = `<div class="syllabus-modal-content">${syllabusText}</div>${downloadButtonHTML}`;
 
         renderModal(modalTitle, modalContent);
     }
+    // --- END: MODIFIED FUNCTION ---
     
     function showAddStudentModal(event, courseId) {
         const existingStudentsCount = existingStudentsByCourse[courseId] ? existingStudentsByCourse[courseId].size : 0;
@@ -686,13 +688,11 @@
         renderModal('ثبت نمره برای قرآن آموز', content, 'narrow');
     }
     
-    // --- START: MODIFIED FUNCTION (FIXED LOGIC) ---
     async function handleGradeSubmission(event, studentName) {
         const submissionButton = event.target.closest('button');
         const buttonText = submissionButton.querySelector('.btn-text');
         hideModalError('modal-error-container');
 
-        // مرحله اول: اعتبارسنجی و درخواست تایید
         if (submissionButton.dataset.step === 'initial') {
             const gradeInputs = document.querySelectorAll('.grade-input-group input[type="number"]');
             let isValid = true;
@@ -714,10 +714,9 @@
                 submissionButton.classList.add('danger');
                 buttonText.innerText = 'برای تایید نهایی مجدد کلیک کنید';
             }
-            return; // توقف اجرا تا کلیک دوم
+            return; 
         }
 
-        // مرحله دوم: ارسال نهایی پس از تایید
         if (submissionButton.dataset.step === 'confirm') {
             const grades = {};
             const gradeInputs = document.querySelectorAll('.grade-input-group input[type="number"]');
@@ -755,14 +754,12 @@
                 }
             } else {
                 showModalError('modal-error-container', "خطا: " + res.message);
-                // بازگرداندن دکمه به حالت اولیه
                 submissionButton.dataset.step = 'initial';
                 submissionButton.classList.remove('danger');
                 buttonText.innerText = 'تایید و ارسال نمرات';
             }
         }
     }
-    // --- END: MODIFIED FUNCTION (FIXED LOGIC) ---
 </script>
 </body>
 </html>
