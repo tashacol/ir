@@ -24,7 +24,9 @@
             background-size: cover;
             background-position: center center;
             background-repeat: no-repeat;
-            background-attachment: scroll; 
+            /* --- START: REVERTED CHANGE --- */
+            background-attachment: fixed; /* بازگشت به حالت اولیه برای ثابت ماندن پس‌زمینه */
+            /* --- END: REVERTED CHANGE --- */
         }
         .hidden { display: none !important; }
 
@@ -224,7 +226,7 @@
     </div>
     <div id="modal-container"></div>
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxj9p-ogf58R4MTbNEKEu13iNAj-Y8O4xNu0Y96Jsjr-teUSX7UoEHUj_-5HPrSau9P/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwVIXnMRKgVq46QK9dMMQcO8zylnrFUBhZdhYOo8HxKyvaSa7KfSXL0wfu3x1dRlMlQYg/exec";
     const sessionKey = 'quranTeacherSession';
     let loggedInInstructorId = null, loggedInInstructorName = null, loggedInInstructorEmail = null, tempStudents = []; 
     let currentCourseId = null, currentStudentOriginalId = null;
@@ -501,7 +503,6 @@
     function showDeleteCourseModal(event, courseId) { currentCourseId = courseId; const content = `<p style="color:var(--danger-color); text-align:center;">آیا از حذف این دوره و تمام قرآن‌آموزان آن اطمینان دارید؟</p><div class="form-group"><label for="delete-password">برای تایید، رمز عبور را وارد کنید:</label><input type="password" id="delete-password"></div><div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div><div style="text-align:center;"><button class="danger" onclick="handleDeleteCourse(event)"><span class="btn-text">بله، حذف کن</span></button></div>`; renderModal('تایید حذف دوره', content); }
     async function handleDeleteCourse(event) { hideModalError('modal-error-container'); const password = document.getElementById('delete-password').value; if (!password) { showModalError("modal-error-container", "رمز عبور الزامی است."); return; } const res = await callAppsScript('deleteCourse', { courseId: currentCourseId, instructorId: loggedInInstructorId, password }, event.target); if (res.success) { closeAllModals(); showCustomAlert(res.message, 'success'); fetchDashboardData(); } else { showModalError("modal-error-container", "خطا: " + res.message); } }
     
-    // --- START: MODIFIED FUNCTION ---
     async function showSyllabusModal(event, courseCode) {
         const button = event.target.closest('button');
         const res = await callAppsScript('getSyllabusInfo', { courseCode }, button);
@@ -528,7 +529,6 @@
 
         renderModal(modalTitle, modalContent);
     }
-    // --- END: MODIFIED FUNCTION ---
     
     function showAddStudentModal(event, courseId) {
         const existingStudentsCount = existingStudentsByCourse[courseId] ? existingStudentsByCourse[courseId].size : 0;
@@ -677,38 +677,59 @@
                             ${gradeInputsHTML}
                             <div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div>
                             <div style="text-align:center;">
-                                <button onclick="handleGradeSubmission(event, '${studentName}')"><span class="btn-text">تایید و ارسال نمرات</span></button>
+                                <button onclick="handleGradeSubmission(event, '${studentName}')" data-step="initial">
+                                    <span class="btn-text">تایید و ارسال نمرات</span>
+                                </button>
                             </div>
                         </div>`;
         
         renderModal('ثبت نمره برای قرآن آموز', content, 'narrow');
     }
     
+    // --- START: MODIFIED FUNCTION (FIXED LOGIC) ---
     async function handleGradeSubmission(event, studentName) {
+        const submissionButton = event.target.closest('button');
+        const buttonText = submissionButton.querySelector('.btn-text');
         hideModalError('modal-error-container');
-        const grades = {};
-        const gradeInputs = document.querySelectorAll('.grade-input-group input[type="number"]');
 
-        for (let i = 0; i < gradeInputs.length; i++) {
-            const input = gradeInputs[i];
-            const gradeVal = input.value;
-            const maxScore = Number(input.max);
-            const labelText = input.previousElementSibling.textContent;
+        // مرحله اول: اعتبارسنجی و درخواست تایید
+        if (submissionButton.dataset.step === 'initial') {
+            const gradeInputs = document.querySelectorAll('.grade-input-group input[type="number"]');
+            let isValid = true;
+            for (let i = 0; i < gradeInputs.length; i++) {
+                const input = gradeInputs[i];
+                const gradeVal = input.value;
+                const maxScore = Number(input.max);
+                const labelText = input.previousElementSibling.textContent;
 
-            if (gradeVal === '' || isNaN(gradeVal) || gradeVal < 0 || gradeVal > maxScore) {
-                showModalError('modal-error-container', `نمره برای "${labelText}" باید عددی بین 0 و ${maxScore} باشد.`);
-                return;
+                if (gradeVal === '' || isNaN(gradeVal) || gradeVal < 0 || gradeVal > maxScore) {
+                    showModalError('modal-error-container', `نمره برای "${labelText}" باید عددی بین 0 و ${maxScore} باشد.`);
+                    isValid = false;
+                    break;
+                }
             }
-            grades[`g${i + 1}`] = Number(gradeVal);
+
+            if (isValid) {
+                submissionButton.dataset.step = 'confirm';
+                submissionButton.classList.add('danger');
+                buttonText.innerText = 'برای تایید نهایی مجدد کلیک کنید';
+            }
+            return; // توقف اجرا تا کلیک دوم
         }
 
-        for (let i = gradeInputs.length + 1; i <= 5; i++) {
-            grades[`g${i}`] = '';
-        }
+        // مرحله دوم: ارسال نهایی پس از تایید
+        if (submissionButton.dataset.step === 'confirm') {
+            const grades = {};
+            const gradeInputs = document.querySelectorAll('.grade-input-group input[type="number"]');
 
-        const confirmed = await showCustomConfirm("آیا از ثبت نمرات اطمینان دارید؟ نمرات پس از ثبت قابل ویرایش نیستند.");
-        if (confirmed) {
-            const submissionButton = event.target.closest('button');
+            for (let i = 0; i < gradeInputs.length; i++) {
+                const input = gradeInputs[i];
+                grades[`g${i + 1}`] = Number(input.value);
+            }
+            for (let i = gradeInputs.length + 1; i <= 5; i++) {
+                grades[`g${i}`] = '';
+            }
+
             setButtonLoading(submissionButton, true);
 
             const res = await callAppsScript('submitStudentGrades', { 
@@ -717,7 +738,7 @@
                 studentName: studentName, 
                 grades: grades 
             });
-
+            
             setButtonLoading(submissionButton, false);
 
             if (res.success) {
@@ -734,9 +755,14 @@
                 }
             } else {
                 showModalError('modal-error-container', "خطا: " + res.message);
+                // بازگرداندن دکمه به حالت اولیه
+                submissionButton.dataset.step = 'initial';
+                submissionButton.classList.remove('danger');
+                buttonText.innerText = 'تایید و ارسال نمرات';
             }
         }
     }
+    // --- END: MODIFIED FUNCTION (FIXED LOGIC) ---
 </script>
 </body>
 </html>
