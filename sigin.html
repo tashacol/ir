@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -14,6 +14,8 @@
             --success-color: #16a34a;
             --danger-color: #dc2626;
             --warning-color: #f97316;
+            --info-color: #eef2ff;
+            --info-text-color: #3730a3;
             --bg-color: #f1f5f9;
             --container-bg: #ffffff;
             --dark-text: #1e293b;
@@ -73,7 +75,7 @@
         .status-message { font-size: 1.1rem; color: var(--light-text); line-height: 1.8; margin-bottom: 2rem; }
         .status-message strong { color: var(--dark-text); font-weight: 600; }
 
-        #countdown-timer { background-color: #eef2ff; border: 2px dashed #c7d2fe; border-radius: var(--radius-md); padding: 1.5rem; }
+        #countdown-timer { background-color: var(--info-color); border: 2px dashed #c7d2fe; border-radius: var(--radius-md); padding: 1.5rem; }
         #countdown-timer .label { font-size: 1rem; color: var(--secondary-color); margin-bottom: 1rem; font-weight: 500; }
         #countdown-timer .timer-blocks { display: flex; justify-content: center; gap: 1rem; }
         #countdown-timer .timer-block { background-color: var(--primary-color); color: white; padding: 0.8rem; border-radius: 8px; min-width: 70px; }
@@ -82,7 +84,18 @@
         
         /* Form View */
         #form-header { margin-bottom: 1.5rem; }
-        #capacity-info { background-color: #dcfce7; color: #166534; padding: 0.8rem; border-radius: 8px; font-weight: 500; margin-bottom: 1rem; }
+        .info-box {
+            padding: 0.8rem; border-radius: 8px; font-weight: 500; margin-bottom: 1rem;
+        }
+        #capacity-info { background-color: #dcfce7; color: #166534; }
+        
+        /* ++ START: ویرایش خواسته شده ۱ ++ */
+        #course-start-date-info {
+            background-color: var(--info-color);
+            color: var(--info-text-color);
+        }
+        /* ++ END: ویرایش خواسته شده ۱ ++ */
+
         .form-group { margin-bottom: 1.2rem; text-align: right; }
         .form-group label { display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--dark-text); }
         .form-control {
@@ -155,7 +168,10 @@
         <div id="form-view" class="view">
             <div id="form-header">
                 <h2>ثبت‌نام دوره تربیت مربی نوجوان</h2>
-                <div id="capacity-info"></div>
+                <!-- ++ START: ویرایش خواسته شده ۱ ++ -->
+                <div id="course-start-date-info" class="info-box" style="display: none;"></div>
+                <!-- ++ END: ویرایش خواسته شده ۱ ++ -->
+                <div id="capacity-info" class="info-box"></div>
             </div>
             <form id="registration-form">
                 <div class="form-group">
@@ -233,11 +249,6 @@
     </div>
 
 <script>
-// =========================================================================
-// !! توجه بسیار مهم !!
-// لینک زیر را با لینک "وب اپلیکیشن" خودتان که بعد از دیپلوی کردن اسکریپت
-// دریافت می‌کنید، جایگزین کنید.
-// =========================================================================
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwxWjvazyLpDXBe3NHvDKqAHkeTkp8Rx0foNldVtE2hpChoa0Xv9vsJANtpoAIcQDxt/exec"; 
 
 // --- DOM Elements ---
@@ -286,7 +297,6 @@ function startCountdown(targetDateStr, label) {
         if (distance < 0) {
             clearInterval(countdownInterval);
             Object.values(timerElements).forEach(el => el.textContent = '00');
-            // Optionally reload to get new status
             location.reload();
             return;
         }
@@ -296,7 +306,7 @@ function startCountdown(targetDateStr, label) {
         timerElements.minutes.textContent = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
         timerElements.seconds.textContent = Math.floor((distance % (1000 * 60)) / 1000).toString().padStart(2, '0');
     }, 1000);
-    document.getElementById('countdown-timer-form').innerHTML = ''; // Clear form countdown if status countdown is running
+    document.getElementById('countdown-timer-form').innerHTML = '';
 }
 
 function handleStatusResponse(response) {
@@ -320,14 +330,19 @@ function handleStatusResponse(response) {
         case 'CLOSED':
             statusIcon.className = 'fas fa-calendar-times status-icon icon-closed';
             statusTitle.textContent = 'مهلت ثبت‌نام به پایان رسید';
-            statusMessage.innerHTML = `دوره فعلی در تاریخ <strong>${response.courseStartDateFa}</strong> آغاز شده است. ثبت‌نام دوره بعدی در تاریخ <strong>${response.nextRegistrationStartDateFa}</strong> خواهد بود.`;
+            statusMessage.innerHTML = (response.message || `دوره در تاریخ <strong>${response.courseStartDateFa}</strong> به پایان رسیده است.`) + ` ثبت‌نام دوره بعدی در تاریخ <strong>${response.nextRegistrationStartDateFa}</strong> خواهد بود.`;
             startCountdown(response.nextTargetDate, 'شمارش معکوس تا ثبت‌نام دوره بعد');
             switchView('status');
             break;
 
         case 'OPEN':
+            // ++ START: ویرایش خواسته شده ۱ ++
+            const startDateEl = document.getElementById('course-start-date-info');
+            startDateEl.innerHTML = `تاریخ شروع این دوره: <strong>${response.courseStartDateFa}</strong>`;
+            startDateEl.style.display = 'block';
+            // ++ END: ویرایش خواسته شده ۱ ++
+            
             document.getElementById('capacity-info').innerHTML = `ظرفیت باقی‌مانده: <strong>${response.remainingCapacity} نفر</strong>`;
-            // Clone timer and append to form view
             const timerClone = document.getElementById('countdown-timer').cloneNode(true);
             document.getElementById('countdown-timer-form').appendChild(timerClone);
             startCountdown(response.targetDate, 'زمان باقی‌مانده تا پایان مهلت ثبت‌نام');
@@ -337,7 +352,7 @@ function handleStatusResponse(response) {
         default:
             statusIcon.className = 'fas fa-exclamation-triangle status-icon icon-danger';
             statusTitle.textContent = 'خطای سیستمی';
-            statusMessage.textContent = 'مشکلی در ارتباط با سرور رخ داده است. لطفاً صفحه را مجدداً بارگذاری کنید.';
+            statusMessage.innerHTML = `مشکلی در ارتباط با سرور رخ داده است. لطفاً صفحه را مجدداً بارگذاری کنید.<br><small>(${response.message || 'پاسخ نامشخص'})</small>`;
             switchView('status');
     }
 }
@@ -346,16 +361,9 @@ function populateDateFields() {
     const yearSelect = document.getElementById('dob-year');
     const monthSelect = document.getElementById('dob-month');
     const daySelect = document.getElementById('dob-day');
-
-    for (let y = 1385; y >= 1350; y--) {
-        yearSelect.add(new Option(y, y));
-    }
-    for (let m = 1; m <= 12; m++) {
-        monthSelect.add(new Option(m, m));
-    }
-    for (let d = 1; d <= 31; d++) {
-        daySelect.add(new Option(d, d));
-    }
+    for (let y = 1385; y >= 1350; y--) yearSelect.add(new Option(y, y));
+    for (let m = 1; m <= 12; m++) monthSelect.add(new Option(m, m));
+    for (let d = 1; d <= 31; d++) daySelect.add(new Option(d, d));
 }
 
 function generateCaptcha() {
@@ -373,10 +381,9 @@ async function initializePage() {
         switchView('status');
         return;
     }
-
     try {
         const response = await fetch(SCRIPT_URL, { method: 'GET', redirect: 'follow' });
-        if (!response.ok) throw new Error('Network response was not ok.');
+        if (!response.ok) throw new Error(`Network response was not ok. Status: ${response.status}`);
         const data = await response.json();
         handleStatusResponse(data);
     } catch (error) {
@@ -388,7 +395,6 @@ async function initializePage() {
     }
 }
 
-// --- Event Listeners ---
 document.addEventListener('DOMContentLoaded', () => {
     populateDateFields();
     initializePage();
@@ -402,8 +408,6 @@ acceptTermsBtn.addEventListener('click', () => {
 
 registrationForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    
-    // Client-side validation
     if (parseInt(document.getElementById('captcha').value) !== captchaAnswer) {
         alert('پاسخ سوال امنیتی اشتباه است.');
         generateCaptcha();
@@ -413,7 +417,6 @@ registrationForm.addEventListener('submit', async (e) => {
         alert('لطفاً تیک تأیید صحت اطلاعات را بزنید.');
         return;
     }
-
     submitBtn.disabled = true;
     submitBtn.querySelector('.btn-text').style.display = 'none';
     submitBtn.querySelector('.btn-loader').style.display = 'block';
@@ -433,6 +436,7 @@ registrationForm.addEventListener('submit', async (e) => {
     try {
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
+            mode: 'cors', // Explicitly set mode
             body: JSON.stringify(formData),
             headers: { 'Content-Type': 'application/json' },
             redirect: 'follow'
@@ -445,7 +449,6 @@ registrationForm.addEventListener('submit', async (e) => {
         } else {
             alert(`خطا در ثبت نام: ${result.message}`);
         }
-
     } catch (error) {
         console.error('Error submitting form:', error);
         alert('مشکلی در ارسال اطلاعات به وجود آمد. لطفاً دوباره تلاش کنید.');
