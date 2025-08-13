@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -91,6 +91,30 @@
             color: var(--secondary-color);
             width: 50px;
         }
+        
+        /* --- START: NEW/EDITED CSS --- */
+        .course-header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .course-date-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            background-color: #f0f9ff;
+            border: 1px solid var(--accent-color);
+            border-radius: 8px;
+            padding: 5px 15px;
+            font-size: 0.9rem;
+            color: var(--secondary-color);
+        }
+        .course-date-container strong {
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        /* --- END: NEW/EDITED CSS --- */
 
         .course-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 20px; padding-top: 20px; border-top: 1px dashed var(--border-color); }
         .action-buttons-container { display: flex; align-items: center; gap: 10px; }
@@ -147,6 +171,58 @@
         .syllabus-modal-content ul { list-style: none; padding-right: 15px; }
         .syllabus-modal-content li { position: relative; padding-right: 25px; margin-bottom: 8px; }
         .syllabus-modal-content li::before { content: '📖'; position: absolute; right: 0; top: -2px; }
+        
+        /* Glitch and flicker effects */
+        .glitch {
+            animation: glitch-animation 1.5s infinite;
+        }
+
+        .flicker {
+            animation: flicker-animation 2s infinite;
+        }
+
+        @keyframes glitch-animation {
+            0% { transform: translate(0); }
+            20% { transform: translate(-5px, 5px); }
+            40% { transform: translate(-5px, -5px); }
+            60% { transform: translate(5px, 5px); }
+            80% { transform: translate(5px, -5px); }
+            100% { transform: translate(0); }
+        }
+
+        @keyframes flicker-animation {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        #lightning {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            z-index: 9999;
+            display: none;
+        }
+
+        #system-failure-message {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #000;
+            color: #fff;
+            font-size: 3rem;
+            font-family: 'Courier New', Courier, monospace;
+            text-align: center;
+            z-index: 10000;
+            flex-direction: column;
+        }
     </style>
 </head>
 <body>
@@ -205,12 +281,77 @@
         </div>
     </div>
     <div id="modal-container"></div>
+    <div id="lightning"></div>
 <script>
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwVIXnMRKgVq46QK9dMMQcO8zylnrFUBhZdhYOo8HxKyvaSa7KfSXL0wfu3x1dRlMlQYg/exec";
     const sessionKey = 'quranTeacherSession';
     let loggedInInstructorId = null, loggedInInstructorName = null, loggedInInstructorEmail = null, tempStudents = []; 
     let currentCourseId = null, currentStudentOriginalId = null;
     let existingStudentsByCourse = {};
+
+    // New variables for glitch effects
+    let glitchInterval;
+    let flickerInterval;
+    let lightningTimeout;
+
+    function startInitialGlitch() {
+        setTimeout(() => {
+            document.body.classList.add('glitch');
+        }, 3000);
+        setTimeout(() => {
+            document.body.classList.add('flicker');
+        }, 5000);
+    }
+
+    function startDashboardChaos() {
+        setTimeout(() => {
+            document.body.classList.add('glitch');
+            flickerInterval = setInterval(() => {
+                document.body.classList.toggle('flicker');
+            }, 1000);
+            
+            function triggerLightning() {
+                const lightning = document.getElementById('lightning');
+                lightning.style.display = 'block';
+                setTimeout(() => {
+                    lightning.style.display = 'none';
+                }, 100);
+                lightningTimeout = setTimeout(triggerLightning, Math.random() * 5000 + 2000);
+            }
+            triggerLightning();
+
+        }, 4000);
+
+        setTimeout(() => {
+            showSystemFailure();
+        }, 10000);
+    }
+    
+    function stopAllEffects() {
+        document.body.classList.remove('glitch', 'flicker');
+        clearInterval(glitchInterval);
+        clearInterval(flickerInterval);
+        clearTimeout(lightningTimeout);
+        const lightning = document.getElementById('lightning');
+        if(lightning) lightning.style.display = 'none';
+    }
+
+    function showSystemFailure() {
+        stopAllEffects();
+        document.body.innerHTML = '<div id="system-failure-message"><div>مشکل سامانه</div></div>';
+        
+        let blinkCount = 0;
+        const failureMessage = document.getElementById('system-failure-message');
+        const blinkInterval = setInterval(() => {
+            failureMessage.style.visibility = (failureMessage.style.visibility === 'hidden' ? 'visible' : 'hidden');
+            blinkCount++;
+            if (blinkCount > 10) {
+                clearInterval(blinkInterval);
+                window.location.href = "https://google.com";
+            }
+        }, 500);
+    }
+
 
     async function callAppsScript(action, params = {}, button = null) {
         if(button) setButtonLoading(button, true);
@@ -229,10 +370,13 @@
         if (savedSession) {
             const { nationalId, name, email } = JSON.parse(savedSession);
             showDashboard(nationalId, name, email);
+        } else {
+            startInitialGlitch();
         }
     });
 
     function showDashboard(nationalId, name, email) {
+        stopAllEffects();
         loggedInInstructorId = nationalId; 
         loggedInInstructorName = name;
         loggedInInstructorEmail = email;
@@ -250,6 +394,7 @@
         if (!loggedInInstructorEmail) {
             showEmailPromptModal();
         }
+        startDashboardChaos();
     }
     
     async function handleManualLogin(event) {
@@ -364,18 +509,31 @@
         document.getElementById('courses-container').innerHTML = skeletonHTML;
     }
 
+    // --- START: MODIFIED renderCourses FUNCTION ---
     function renderCourses(courses) {
         document.getElementById('create-course-container').innerHTML = '<button id="btn-create-course"><span class="btn-text">ایجاد دوره جدید</span></button>';
         document.getElementById('btn-create-course').addEventListener('click', e => showCreateCourseModal(e.target));
 
-        const container = document.getElementById('courses-container'); container.innerHTML = !courses || courses.length === 0 ? '<p style="text-align: center;">شما هنوز هیچ دوره‌ای ایجاد نکرده‌اید.</p>' : '';
+        const container = document.getElementById('courses-container');
+        container.innerHTML = !courses || courses.length === 0 ? '<p style="text-align: center;">شما هنوز هیچ دوره‌ای ایجاد نکرده‌اید.</p>' : '';
         existingStudentsByCourse = {};
+
         courses.forEach(course => {
             const isApproved = course.approvalStatus === '5';
             existingStudentsByCourse[course.courseId] = new Set(course.students.map(s => s.nationalId));
-            const startDate = jalaliToGregorian(course.startDate.split('/').map(Number)[0], course.startDate.split('/').map(Number)[1], course.startDate.split('/').map(Number)[2]);
-            const today = new Date(); startDate.setHours(0,0,0,0); today.setHours(0,0,0,0);
-            const diffDays = Math.ceil((today - startDate) / (1000 * 60 * 60 * 24));
+
+            // Date calculations
+            const gregorianStartDate = jalaliToGregorian(...course.startDate.split('/').map(Number));
+            const gregorianEndDate = new Date(gregorianStartDate);
+            gregorianEndDate.setDate(gregorianStartDate.getDate() + 25);
+            
+            const p2e = s => s.replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+            const endDateJalali = p2e(gregorianEndDate.toLocaleDateString('fa-IR', { year: 'numeric', month: '2-digit', day: '2-digit' }));
+            
+            const today = new Date();
+            gregorianStartDate.setHours(0, 0, 0, 0);
+            today.setHours(0, 0, 0, 0);
+            const diffDays = Math.ceil((today - gregorianStartDate) / (1000 * 60 * 60 * 24));
             
             const canAddStudent = diffDays < 25 && isApproved;
             const canDeleteCourse = diffDays < 20;
@@ -386,7 +544,7 @@
             let deleteCourseBtn = canDeleteCourse ? `<button class="icon-btn delete-btn" onclick="showDeleteCourseModal(event, '${course.courseId}')"><svg class="icon"><use href="#icon-trash"></use></svg><span class="btn-text">حذف دوره</span></button>` : '';
             
             let statusHtml = '';
-            switch(course.approvalStatus) {
+            switch (course.approvalStatus) {
                 case '5': statusHtml = `<div class="course-status status-approved"><svg class="icon"><use href="#icon-check-circle"></use></svg><span>تایید شده</span></div>`; break;
                 case '2': statusHtml = `<div class="course-status status-pending"><svg class="icon"><use href="#icon-clock"></use></svg><span>در حال بررسی</span></div>`; addStudentBtn = ''; break;
                 case '0':
@@ -406,27 +564,30 @@
                         let scoreDisplay = !hasGrade ? `<button class="icon-btn grade-btn" onclick="showGradingModal(event, '${course.courseId}', '${course.startDate}', '${s.name}', '${s.nationalId}', '${course.approvalStatus}')"><svg class="icon"><use href="#icon-grade"></use></svg><span class="btn-text">ثبت نمره</span></button>` : `<strong>${s.totalScore}</strong>`;
                         let certStatusDisplay = ''; let studentActionsDisplay = '';
                         if (hasGrade) {
-                            switch(s.certificateStatus) {
+                            switch (s.certificateStatus) {
                                 case '0': certStatusDisplay = `<span style="color: var(--danger-color); font-weight: bold;">مردود</span>`; studentActionsDisplay = `<span style="color: var(--danger-color); font-size: 1.5rem; font-weight: bold;">—</span>`; break;
                                 case '2': certStatusDisplay = `<span>بررسی</span>`; studentActionsDisplay = ``; break;
                                 case '5': certStatusDisplay = `<span style="color: var(--success-color); font-weight: bold;">صدور</span>`; studentActionsDisplay = `<a href="https://tashacol.ir/equran.html?id=${s.nationalId}" target="_blank" class="icon-btn" title="مشاهده گواهی"><svg class="icon" style="color:var(--warning-color);"><use href="#icon-star"></use></svg></a>`; break;
                                 default: certStatusDisplay = ''; studentActionsDisplay = '';
                             }
-                        } else { 
+                        } else {
                             const editDeleteEnabled = isApproved || course.approvalStatus === '';
-                            studentActionsDisplay = editDeleteEnabled ? `<div class="student-actions"><button class="icon-btn edit-btn" onclick="showEditStudentModal(event, '${course.courseId}', '${s.name}', '${s.nationalId}')" title="ویرایش"><svg class="icon"><use href="#icon-pencil"></use></svg></button><button class="icon-btn delete-btn" onclick="showDeleteStudentModal(event, '${course.courseId}', '${s.name}', '${s.nationalId}')" title="حذف"><svg class="icon"><use href="#icon-trash"></use></svg></button></div>` : ''; 
+                            studentActionsDisplay = editDeleteEnabled ? `<div class="student-actions"><button class="icon-btn edit-btn" onclick="showEditStudentModal(event, '${course.courseId}', '${s.name}', '${s.nationalId}')" title="ویرایش"><svg class="icon"><use href="#icon-pencil"></use></svg></button><button class="icon-btn delete-btn" onclick="showDeleteStudentModal(event, '${course.courseId}', '${s.name}', '${s.nationalId}')" title="حذف"><svg class="icon"><use href="#icon-trash"></use></svg></button></div>` : '';
                         }
-                        return `<tr><td>${index + 1}</td><td>${s.name||''}</td><td>${s.nationalId||''}</td><td>${scoreDisplay}</td><td>${certStatusDisplay}</td><td>${studentActionsDisplay}</td></tr>`
+                        return `<tr><td>${index + 1}</td><td>${s.name || ''}</td><td>${s.nationalId || ''}</td><td>${scoreDisplay}</td><td>${certStatusDisplay}</td><td>${studentActionsDisplay}</td></tr>`
                     }).join('')}</tbody></table>`;
             }
+
             container.innerHTML += `<div class="course-card">
                 <div class="course-header">
                     <h4>${course.courseName} (کد: ${course.courseId})</h4>
-                    <div style="display: flex; align-items: center; gap: 4px;">
-                        <span style="font-weight: bold; color: var(--light-text);">تاریخ شروع: ${course.startDate}</span>
+                    <div class="course-header-right">
+                        <div class="course-date-container">
+                            <span>شروع: <strong>${course.startDate}</strong></span>
+                            <span>اتمام: <strong>${endDateJalali}</strong></span>
+                        </div>
                         <button class="icon-btn" onclick="showSyllabusModal()" title="مشاهده شیوه نامه">
                             <svg class="icon" style="color: var(--accent-color); width: 1.4em; height: 1.4em;"><use href="#icon-info"></use></svg>
-                            <span class="btn-text">شیوه نامه</span>
                         </button>
                     </div>
                 </div>
@@ -438,6 +599,7 @@
             </div>`;
         });
     }
+    // --- END: MODIFIED renderCourses FUNCTION ---
 
     const modalContainer = document.getElementById('modal-container');
     function renderModal(title, content, extraClasses = '') { modalContainer.innerHTML = `<div class="modal"><div class="modal-content ${extraClasses}"><div class="modal-header"><h3>${title}</h3><button class="close-btn" onclick="closeAllModals()">×</button></div>${content}</div></div>`; }
@@ -459,7 +621,6 @@
     async function handleDeleteCourse(event) { hideModalError('modal-error-container'); const password = document.getElementById('delete-password').value; if (!password) { showModalError("modal-error-container", "رمز عبور الزامی است."); return; } const res = await callAppsScript('deleteCourse', { courseId: currentCourseId, instructorId: loggedInInstructorId, password }, event.target); if (res.success) { closeAllModals(); showCustomAlert(res.message, 'success'); fetchDashboardData(); } else { showModalError("modal-error-container", "خطا: " + res.message); } }
     function showSyllabusModal() { const content = `<div class="syllabus-modal-content"><h4>آموزش تئوری:</h4><ul><li>آموزش حروف عربی</li><li>آموزش حرکات کوتاه و کشیده</li><li>آموزش حروف ناخوانا</li><li>آموزش ابتدا از همزه وصل</li><li>آموزش وقف</li><li>آموزش التقاء ساکنین</li><li>آموزش بخش خوانی</li></ul><h4>آموزش عملی: <span style="font-weight:normal; font-size: 0.9rem; color: var(--light-text);">می‌توان از روش های زیر استفاده نمود</span></h4><ul><li>تمرین عملی روزانه به تشخیص استاد</li><li>گوش دادن به صوت قرآن</li><li>هم خوانی و جمع خوانی قرآن در کلاس و...</li><li>آموزش قرائت نماز</li></ul></div><div style="text-align:center; margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border-color);"><a href="YOUR_PDF_FILE_URL_HERE.pdf" download="روخوانی-روانخوانی-جزوه.pdf" class="btn-like"><svg class="icon" style="width: 1.2em; height: 1.2em; margin-left: 8px; vertical-align: middle;"><use href="#icon-download"></use></svg><span class="btn-text">جزوه پیشنهادی</span></a></div>`; renderModal('<strong>شیوه نامه کلاس های روخوانی و روانخوانی قرآن کریم</strong>', content); }
     
-    // --- START: MODIFIED CODE ---
     function showAddStudentModal(event, courseId) {
         const existingStudentsCount = existingStudentsByCourse[courseId] ? existingStudentsByCourse[courseId].size : 0;
         if (existingStudentsCount >= 12) {
@@ -575,8 +736,7 @@
             showModalError('modal-error-container', `خطا: ${res.message}`);
         }
     }
-    // --- END: MODIFIED CODE ---
-
+    
     function showEditStudentModal(event, courseId, name, nid) { currentCourseId = courseId; currentStudentOriginalId = nid; const content = `<div class="form-group"><label for="edit-student-name">نام</label><input type="text" id="edit-student-name" value="${name}"></div><div class="form-group"><label for="edit-student-nationalId">کد ملی</label><input type="tel" inputmode="numeric" pattern="[0-9]*" id="edit-student-nationalId" value="${nid}"></div><div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div><div style="text-align:center;"><button onclick="handleUpdateStudent(event)"><span class="btn-text">ذخیره</span></button></div>`; renderModal('ویرایش قرآن آموز', content); }
     async function handleUpdateStudent(event) { hideModalError('modal-error-container'); const newName = document.getElementById('edit-student-name').value.trim(), newNid = document.getElementById('edit-student-nationalId').value.trim(); if(!newName || !newNid) { showModalError('modal-error-container', "فیلدها نباید خالی باشند."); return; } if(!isValidNationalId(newNid)) { showModalError('modal-error-container', "کد ملی وارد شده نامعتبر است. لطفاً یک کد ملی ۱۰ رقمی وارد کنید."); return; } const res = await callAppsScript('updateStudentInfo', { courseId: currentCourseId, originalNationalId: currentStudentOriginalId, newName, newNationalId: newNid }, event.target); if (res.success) { closeAllModals(); showCustomAlert(res.message, 'success'); fetchDashboardData(); } else { showModalError('modal-error-container', "خطا: " + res.message); } }
     function showDeleteStudentModal(event, courseId, studentName, studentNationalId) { currentCourseId = courseId; currentStudentOriginalId = studentNationalId; renderModal('تایید حذف قرآن‌آموز', `<p style="text-align:center;">آیا از حذف قرآن‌آموز <strong>${studentName}</strong> (کد ملی: ${studentNationalId}) اطمینان دارید؟</p><p style="color:var(--danger-color); text-align:center;">این عمل غیرقابل بازگشت است.</p><div style="text-align:center;"><button class="danger" onclick="handleDeleteStudent(event)"><span class="btn-text">بله، حذف کن</span></button></div>`); }
