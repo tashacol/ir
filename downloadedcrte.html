@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+      <!DOCTYPE html>
 <html lang="fa" dir="rtl"> 
 <head> 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>گواهی دوره تربیت نوجوان</title>
+    <title>دریافت گواهی دوره جامع تربیت نوجوان</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap');
@@ -88,7 +88,6 @@
         
         .input-wrapper { 
             position: relative; 
-            margin-bottom: 20px; 
         }
         .input-icon { 
             position: absolute; 
@@ -183,13 +182,13 @@
         </div>
         
         <div id="form-container">
-            <h2>دریافت گواهی دیجیتال</h2>
+            <h2>گواهی دوره تربیت نوجوان</h2>
             <form id="certificate-form">
                 <div class="form-group">
                     <label for="nationalId">کد ملی</label>
                     <div class="input-wrapper">
                          <i class="fas fa-id-card input-icon"></i>
-                         <input type="text" id="nationalId" class="form-input" inputmode="numeric" pattern="[0-9]*" required autocomplete="off" placeholder="کد ملی خود را وارد کنید">
+                         <input type="text" id="nationalId" class="form-input" inputmode="numeric" pattern="\d{10}" title="کد ملی باید ۱۰ رقم باشد" required autocomplete="off" placeholder="کد ملی خود را وارد کنید">
                     </div>
                 </div>
                 <div class="form-group">
@@ -213,13 +212,12 @@
         <div id="actions-area">
             <button id="btn-download" class="btn"><i class="fas fa-download"></i> دانلود</button>
             <button id="btn-view" class="btn" style="background-color: var(--success-color);"><i class="fas fa-eye"></i> مشاهده</button>
-            <!-- *** دکمه اشتراک‌گذاری که به اشتباه حذف شده بود، بازگردانده شد *** -->
             <button id="btn-share" class="btn" style="background-color: var(--info-color);"><i class="fas fa-share-alt"></i> اشتراک گذاری</button>
         </div>
     </div>
 
     <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwfLyqYKO7JdzALcoV2GTJpQNx9sin7DUNORaeC1WAFBbRgWANHpIxyTx_Tyr6NmvvsJg/exec";
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzW24IsCte0hvUcfh07y3uzweq0XNnG_Xe1EhS0Kh-2sIEotu6GRf5BXQs_pRav0FBeNw/exec";
         
         let fileToProcess = null;
 
@@ -236,7 +234,6 @@
         const actionsArea = document.getElementById('actions-area');
         const downloadBtn = document.getElementById('btn-download');
         const viewBtn = document.getElementById('btn-view');
-        // *** متغیر دکمه اشتراک‌گذاری که باید تعریف شود ***
         const shareBtn = document.getElementById('btn-share');
         
         function b64toBlob(b64Data, contentType = '', sliceSize = 512) {
@@ -252,42 +249,54 @@
         }
         
         async function apiCall(body) {
+            setLoadingState(true);
             try {
-                const response = await fetch(SCRIPT_URL, { method: 'POST', mode: 'cors', body: JSON.stringify(body) });
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const response = await fetch(SCRIPT_URL, { 
+                    method: 'POST', 
+                    mode: 'cors',
+                    body: JSON.stringify(body) 
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => null);
+                    throw new Error(errorData?.message || `خطای شبکه: ${response.status}`);
+                }
                 return await response.json();
             } catch (error) {
                 console.error("API Call failed:", error);
-                return { status: 'error', message: 'خطا در ارتباط با سرور. لطفاً اتصال اینترنت خود را بررسی کنید.' };
+                showMessage(error.message || 'خطا در ارتباط با سرور. لطفاً اتصال اینترنت خود را بررسی کنید.', 'error');
+                return null;
+            } finally {
+                setLoadingState(false);
             }
         }
 
         async function getNewCaptcha() {
-            captchaQuestionEl.textContent = 'درحال دریافت سوال امنیتی...';
+            captchaQuestionEl.textContent = 'درحال دریافت...';
             const response = await apiCall({ action: 'getCaptcha' });
             if (response && response.status === 'success') {
                 captchaQuestionEl.textContent = response.question;
-                fileToProcess = { ...fileToProcess, questionId: response.questionId };
+                fileToProcess = { questionId: response.questionId };
             } else {
-                captchaQuestionEl.textContent = 'خطا در بارگذاری سوال';
-                showMessage(response.message || 'مشکلی در دریافت سوال امنیتی پیش آمد.', 'error');
+                captchaQuestionEl.textContent = 'خطا';
+                if(response && response.message) showMessage(response.message, 'error');
             }
         }
         
         function showMessage(message, type) {
-            messageArea.textContent = message;
+            messageArea.innerHTML = message;
             messageArea.className = `message-${type}`;
             messageArea.style.display = 'block';
         }
 
         function setLoadingState(isLoading) {
             submitButton.disabled = isLoading;
-            buttonText.style.display = isLoading ? 'inline' : 'none';
+            buttonText.style.display = isLoading ? 'none' : 'inline';
             loader.style.display = isLoading ? 'inline-block' : 'none';
         }
         
         function triggerDownload() {
-            if (!fileToProcess) return;
+            if (!fileToProcess || !fileToProcess.data) return;
             const link = document.createElement('a');
             link.href = `data:${fileToProcess.type};base64,${fileToProcess.data}`;
             link.download = fileToProcess.name;
@@ -298,7 +307,6 @@
 
         certificateForm.addEventListener('submit', async function(event) {
             event.preventDefault();
-            setLoadingState(true);
             messageArea.style.display = 'none';
             actionsArea.style.display = 'none';
 
@@ -306,7 +314,7 @@
                 action: 'verify',
                 nationalId: nationalIdInput.value,
                 captchaAnswer: captchaAnswerInput.value,
-                questionId: fileToProcess.questionId
+                questionId: fileToProcess ? fileToProcess.questionId : null
             };
             
             const response = await apiCall(formData);
@@ -319,30 +327,28 @@
                 fileToProcess = {
                     name: response.fileName,
                     type: response.mimeType,
-                    data: response.data
+                    data: response.data,
+                    questionId: null
                 };
-            } else {
-                showMessage(response.message || 'پاسخ نامعتبر از سرور دریافت شد.', 'error');
+            } else if (response) {
                 await getNewCaptcha();
             }
             
             captchaAnswerInput.value = '';
-            setLoadingState(false);
         });
         
         downloadBtn.addEventListener('click', triggerDownload);
 
         viewBtn.addEventListener('click', () => {
-            if (fileToProcess) {
+            if (fileToProcess && fileToProcess.data) {
                 const blob = b64toBlob(fileToProcess.data, fileToProcess.type);
                 const url = URL.createObjectURL(blob);
                 window.open(url, '_blank');
             }
         });
 
-        // *** رویداد کلیک دکمه اشتراک‌گذاری که باید وجود داشته باشد ***
         shareBtn.addEventListener('click', async () => {
-            if (!fileToProcess || !navigator.share) return;
+            if (!fileToProcess || !fileToProcess.data || !navigator.share) return;
             try {
                 const blob = b64toBlob(fileToProcess.data, fileToProcess.type);
                 const file = new File([blob], fileToProcess.name, { type: fileToProcess.type });
@@ -353,14 +359,13 @@
                 });
             } catch (err) {
                 console.error('Error sharing file:', err);
+                showMessage('اشتراک‌گذاری فایل توسط شما لغو شد یا با خطا مواجه شد.', 'warning');
             }
         });
 
         document.addEventListener('DOMContentLoaded', () => {
-            // *** بررسی پشتیبانی مرورگر از اشتراک‌گذاری که باید وجود داشته باشد ***
-            if (typeof navigator.share === "undefined") {
-                shareBtn.disabled = true;
-                shareBtn.title = 'مرورگر شما از قابلیت اشتراک‌گذاری پشتیبانی نمی‌کند.';
+            if (typeof navigator.share === "undefined" || !navigator.canShare) {
+                shareBtn.style.display = 'none';
             }
             getNewCaptcha();
         });
