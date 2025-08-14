@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -335,7 +335,7 @@ async function initializePage() {
         return;
     }
     try {
-        const response = await fetch(SCRIPT_URL, { method: 'GET', redirect: 'follow' });
+        const response = await fetch(SCRIPT_URL);
         if (!response.ok) throw new Error(`Network response was not ok. Status: ${response.status}`);
         const data = await response.json();
         handleStatusResponse(data);
@@ -371,16 +371,10 @@ registrationForm.addEventListener('submit', async (e) => {
     submitBtn.querySelector('.btn-text').style.display = 'none';
     submitBtn.querySelector('.btn-loader').style.display = 'block';
     
-    // =========================================================================
-    //            *** مهم: تغییر اصلی برای حل مشکل ارسال اطلاعات ***
-    // =========================================================================
-    const formData = new FormData();
     const year = document.getElementById('dob-year').value;
     const month = document.getElementById('dob-month').value.padStart(2, '0');
     const day = document.getElementById('dob-day').value.padStart(2, '0');
     
-    // ما به جای ارسال JSON، داده‌ها را به صورت FormData ارسال می‌کنیم
-    // این کار سازگاری بیشتری با محدودیت‌های امنیتی گوگل دارد
     const dataObject = {
         fullName: document.getElementById('fullName').value,
         nationalId: document.getElementById('nationalId').value,
@@ -390,20 +384,22 @@ registrationForm.addEventListener('submit', async (e) => {
         captchaAnswer: document.getElementById('captcha').value,
         captchaToken: document.getElementById('captchaToken').value
     };
-    
-    // برای اینکه در سمت سرور به راحتی قابل خواندن باشد، آن را به رشته JSON تبدیل می‌کنیم
-    formData.append('postData', JSON.stringify(dataObject));
 
     try {
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
-            body: formData, // ارسال به صورت FormData
-            // header برای JSON دیگر لازم نیست
+            mode: 'cors',
+            headers: {
+              'Content-Type': 'text/plain;charset=utf-8',
+            },
+            body: JSON.stringify(dataObject) // ارسال آبجکت به صورت رشته متنی
         });
 
-        // گوگل ممکن است پاسخ را در قالب متن ساده برگرداند، پس ابتدا آن را به متن تبدیل می‌کنیم
-        const resultText = await response.text();
-        const result = JSON.parse(resultText); // سپس به JSON تبدیل می‌کنیم
+        if (!response.ok) {
+           throw new Error(`Network error: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
         
         if (result.status === 'success') {
             document.getElementById('success-message').innerHTML = result.message;
@@ -428,4 +424,4 @@ registrationForm.addEventListener('submit', async (e) => {
 </script>
 
 </body>
-</html>
+</html>```
