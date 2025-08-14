@@ -1,4 +1,4 @@
-   <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -371,11 +371,17 @@ registrationForm.addEventListener('submit', async (e) => {
     submitBtn.querySelector('.btn-text').style.display = 'none';
     submitBtn.querySelector('.btn-loader').style.display = 'block';
     
+    // =========================================================================
+    //            *** مهم: تغییر اصلی برای حل مشکل ارسال اطلاعات ***
+    // =========================================================================
+    const formData = new FormData();
     const year = document.getElementById('dob-year').value;
     const month = document.getElementById('dob-month').value.padStart(2, '0');
     const day = document.getElementById('dob-day').value.padStart(2, '0');
     
-    const formData = {
+    // ما به جای ارسال JSON، داده‌ها را به صورت FormData ارسال می‌کنیم
+    // این کار سازگاری بیشتری با محدودیت‌های امنیتی گوگل دارد
+    const dataObject = {
         fullName: document.getElementById('fullName').value,
         nationalId: document.getElementById('nationalId').value,
         dob: `${year}/${month}/${day}`,
@@ -384,13 +390,21 @@ registrationForm.addEventListener('submit', async (e) => {
         captchaAnswer: document.getElementById('captcha').value,
         captchaToken: document.getElementById('captchaToken').value
     };
+    
+    // برای اینکه در سمت سرور به راحتی قابل خواندن باشد، آن را به رشته JSON تبدیل می‌کنیم
+    formData.append('postData', JSON.stringify(dataObject));
 
     try {
         const response = await fetch(SCRIPT_URL, {
-            method: 'POST', body: JSON.stringify(formData),
-            headers: { 'Content-Type': 'application/json' }, redirect: 'follow'
+            method: 'POST',
+            body: formData, // ارسال به صورت FormData
+            // header برای JSON دیگر لازم نیست
         });
-        const result = await response.json();
+
+        // گوگل ممکن است پاسخ را در قالب متن ساده برگرداند، پس ابتدا آن را به متن تبدیل می‌کنیم
+        const resultText = await response.text();
+        const result = JSON.parse(resultText); // سپس به JSON تبدیل می‌کنیم
+        
         if (result.status === 'success') {
             document.getElementById('success-message').innerHTML = result.message;
             switchView('success');
