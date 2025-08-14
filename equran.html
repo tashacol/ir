@@ -71,6 +71,10 @@
         #main-loader-container { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(8px); z-index: 20; display: none; flex-direction: column; justify-content: center; align-items: center; color: white; }
         .loader { width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid var(--accent-color); border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
+        /* --- ویرایش درخواستی شما: افزودن کلاس برای چرخش آیکن --- */
+        .refresh-icon.spinning {
+            animation: spin 1s linear infinite;
+        }
         #main-loader-container p { margin-top: 1rem; font-size: 1.2rem; font-weight: 700; }
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); display: none; align-items: center; justify-content: center; z-index: 30; backdrop-filter: blur(5px); }
         .modal-content { background: white; padding: 2rem; border-radius: var(--radius-lg); width: 90%; max-width: 400px; text-align: center; box-shadow: 0 5px 25px rgba(0,0,0,0.2); }
@@ -129,7 +133,6 @@
                         <i class="fa-solid fa-arrows-rotate refresh-icon"></i>
                         <span id="captcha-question">در حال بارگذاری سوال...</span>
                     </div>
-                    <!-- این فیلد شناسه کپچا را برای ارسال به سرور نگه می‌دارد -->
                     <input type="hidden" id="captcha-id">
                 </div>
                 <div class="form-group">
@@ -164,24 +167,32 @@
         const certificateForm = document.getElementById('certificate-form');
         const submitBtn = document.getElementById('btn-submit');
         const captchaQuestionEl = document.getElementById('captcha-question');
-        const captchaIdInput = document.getElementById('captcha-id'); // تغییر نام از token به id
+        const captchaIdInput = document.getElementById('captcha-id');
         const captchaContainer = document.getElementById('captcha-container');
+        // --- ویرایش درخواستی شما: گرفتن رفرنس آیکن چرخش ---
+        const refreshIcon = captchaContainer.querySelector('.refresh-icon');
         const messageArea = document.getElementById('message-area');
         const actionsArea = document.getElementById('actions-area');
         const downloadBtn = document.getElementById('btn-download');
         const viewBtn = document.getElementById('btn-view');
         const shareBtn = document.getElementById('btn-share');
         
-        // --- تابع جدید برای دریافت کپچا از سرور ---
+        // --- ویرایش درخواستی شما: افزودن و حذف کلاس چرخش به آیکن ---
         async function fetchNewCaptcha() {
             captchaQuestionEl.textContent = 'در حال دریافت سوال...';
-            const response = await apiCall({ action: 'getCaptcha' });
-            if (response && response.status === 'success') {
-                captchaQuestionEl.textContent = response.question;
-                captchaIdInput.value = response.questionId; // ذخیره شناسه کپچا
-            } else {
-                captchaQuestionEl.textContent = 'خطا!';
-                showMessage('خطا در دریافت سوال امنیتی.', 'error');
+            refreshIcon.classList.add('spinning'); // شروع چرخش
+
+            try {
+                const response = await apiCall({ action: 'getCaptcha' });
+                if (response && response.status === 'success') {
+                    captchaQuestionEl.textContent = response.question;
+                    captchaIdInput.value = response.questionId;
+                } else {
+                    captchaQuestionEl.textContent = 'خطا!';
+                    showMessage('خطا در دریافت سوال امنیتی.', 'error');
+                }
+            } finally {
+                refreshIcon.classList.remove('spinning'); // توقف چرخش در هر حالتی
             }
         }
 
@@ -234,12 +245,11 @@
             const courseNameValue = courseSelect.options[courseSelect.selectedIndex].text;
             const combinedId = nationalIdValue + courseCodeValue;
 
-            // --- ارسال شناسه کپچا به جای توکن ---
             const verifyResponse = await apiCall({ 
                 action: 'verify', 
                 nationalId: combinedId, 
                 captchaAnswer: document.getElementById('captcha-answer').value, 
-                questionId: captchaIdInput.value // ارسال شناسه کپچا
+                questionId: captchaIdInput.value 
             });
             
             hideLoader();
@@ -250,7 +260,6 @@
                 modalMessage.innerHTML = `آقا/خانم با کد ملی <strong>${fileInfo.nationalId}</strong> در دوره <strong>${fileInfo.courseName}</strong> شرکت کرده و گواهی دریافت نموده. آیا مایل به بارگیری فایل او هستید؟`;
                 confirmModal.style.display = 'flex';
             } else {
-                // اگر کپچا یا کد ملی اشتباه باشد، یک کپچای جدید از سرور دریافت می‌کنیم
                 await fetchNewCaptcha();
                 if (verifyResponse && verifyResponse.status === 'not_found') {
                     const errorMessage = `کد ملی <strong>${nationalIdValue}</strong> در دوره <strong>${courseNameValue}</strong> گواهی اخذ نکرده است.<br>لطفا اطلاعات وارد شده را بررسی نمایید. اگر اشتباهی رخ داده با معاونت آموزش موسسه تماس حاصل نمایید.`;
@@ -288,7 +297,6 @@
         viewBtn.addEventListener('click', () => { if (!fileBlob) return; const url = URL.createObjectURL(fileBlob); window.open(url, '_blank'); });
         shareBtn.addEventListener('click', async () => { if (!fileBlob || !navigator.share) return; try { const file = new File([fileBlob], fileInfo.name, { type: fileBlob.type }); const shareText = `گواهينامه دوره آموزشی\nکدملی: ${fileInfo.nationalId}\n\nموفق و مؤید باشید`; await navigator.share({ title: 'گواهينامه آموزشی - موسسه تعالی اندیشه و رشد', text: shareText, files: [file] }); } catch (err) { if (err.name !== 'AbortError') console.error('خطا در اشتراک‌گذاری:', err); } });
         
-        // کلیک روی کپچا، یک سوال جدید از سرور می‌گیرد
         captchaContainer.addEventListener('click', fetchNewCaptcha);
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -300,7 +308,6 @@
                 nationalIdInput.dispatchEvent(new Event('input', { bubbles: true })); 
             }
             if (!navigator.share) { shareBtn.style.display = 'none'; }
-            // در ابتدای بارگذاری صفحه، یک کپچا از سرور دریافت می‌شود
             fetchNewCaptcha();
         });
     </script>
