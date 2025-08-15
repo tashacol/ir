@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+ <!DOCTYPE html> 
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -307,40 +307,74 @@ html.dark-mode .form-select { background-image: url("data:image/svg+xml,%3csvg x
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzetxDd-_gXOneW6DsG68W3nzGU1U5Ziz-7eC6Qh_nnetNUE5rBeAQ6Yi2r7volIBfE/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzNmYe-p-o-50zXf0K-YfQ9fF2JMKmsgDyz89hjxiFhF_R-rRD1ME7NqncEXMnHiSF5/exec";
     const SESSION_DURATION = 12 * 3600 * 1000;
     const LOCKOUT_DURATION = 24 * 3600 * 1000;
-    const FAILED_ATTEMPTS_KEY = 'financialFailedAttempts', SESSION_KEY = 'financialDeputySession', LOCKOUT_KEY = 'financialLockoutInfo';
+    const FAILED_ATTEMPTS_KEY = 'financialFailedAttempts', SESSION_KEY = 'financialDeputySession', LOCKOUT_KEY = 'financialLockoutInfo', AUTH_TOKEN_KEY = 'financialAuthToken';
 
-    // Login Elements
+    // Elements
     const loginView = document.getElementById('login-view'), loginForm = document.getElementById('login-form'), loginButton = document.getElementById('login-button'), loginErrorMsg = document.getElementById('login-error-msg');
     const captchaLabel = document.getElementById('captcha-label'), captchaInput = document.getElementById('login-captcha');
-    let currentCaptchaToken = null; // To store the unique token from the server
-
-    // Dashboard Elements
     const dashboardView = document.getElementById('dashboard-view');
-    // ... other dashboard variables
     const themeToggleBtn = document.getElementById('theme-toggle-btn'), htmlElement = document.documentElement, logoutBtn = document.getElementById('logout-btn');
     const userNameDisplay = document.getElementById('user-name-display'), userNidDisplay = document.getElementById('user-nid-display');
-    const transactionForm = document.getElementById('transaction-form'), step1 = document.getElementById('transaction-step-1'), step2 = document.getElementById('transaction-step-2'), continueBtn = document.getElementById('continue-btn'), submitBtn = document.getElementById('submit-btn'), descriptionText = document.getElementById('description-text'), wordCountDisplay = document.getElementById('word-count');
     const financialStatsContainer = document.getElementById('financial-stats-container'), transactionsTableBody = document.getElementById('transactions-table-body'), transactionsPagination = document.getElementById('transactions-pagination'), filterBtn = document.getElementById('filter-btn');
-    const contractForm = document.getElementById('contract-form'), contractStep1 = document.getElementById('contract-step-1'), contractContinueBtn = document.getElementById('contract-continue-btn'), contractDetailsSection = document.getElementById('contract-details-section'), submitContractBtn = document.getElementById('submit-contract-btn');
     const contractsTableBody = document.getElementById('contracts-table-body');
     const confirmationModal = document.getElementById('confirmation-modal'), confirmationMessage = document.getElementById('confirmation-message'), confirmLoginBtn = document.getElementById('confirm-login-btn'), cancelLoginBtn = document.getElementById('cancel-login-btn');
     const descriptionModal = document.getElementById('description-modal'), modalDescriptionText = document.getElementById('modal-description-text');
+    const transactionForm = document.getElementById('transaction-form'), step1 = document.getElementById('transaction-step-1'), step2 = document.getElementById('transaction-step-2'), continueBtn = document.getElementById('continue-btn'), submitBtn = document.getElementById('submit-btn'), descriptionText = document.getElementById('description-text'), wordCountDisplay = document.getElementById('word-count');
+    const contractForm = document.getElementById('contract-form'), contractStep1 = document.getElementById('contract-step-1'), contractContinueBtn = document.getElementById('contract-continue-btn'), contractDetailsSection = document.getElementById('contract-details-section'), submitContractBtn = document.getElementById('submit-contract-btn');
+
+    let currentCaptchaToken = null;
 
     // Utility Functions
-    const setCache = (key, data, duration) => localStorage.setItem(key, JSON.stringify({ data, timestamp: new Date().getTime(), duration }));
-    const getCache = (key, duration) => { const i = localStorage.getItem(key); if (!i) return null; const p = JSON.parse(i); if ((new Date().getTime() - p.timestamp) > (duration || p.duration)) { localStorage.removeItem(key); return null; } return p.data; };
+    const setCache = (key, data) => localStorage.setItem(key, JSON.stringify({ data, timestamp: new Date().getTime() }));
+    const getCache = (key, duration) => { const i = localStorage.getItem(key); if (!i) return null; const p = JSON.parse(i); if ((new Date().getTime() - p.timestamp) > duration) { localStorage.removeItem(key); return null; } return p.data; };
     const showToast = (message, type = 'info') => { const c = document.getElementById('toast-container'), t = document.createElement('div'); t.className = `toast ${type}`; let i = 'fa-info-circle'; if (type === 'success') i = 'fa-check-circle'; if (type === 'error') i = 'fa-times-circle'; t.innerHTML = `<i class="fas ${i} toast-icon"></i><span>${message}</span>`; c.appendChild(t); setTimeout(() => { t.classList.add('hide'); t.addEventListener('animationend', () => t.remove()); }, 5000); };
     const renderPagination = (c, p, t, n) => { if (t <= 1) { c.innerHTML = ''; return; } c.innerHTML = `<button class="prev-btn" ${p === 1 ? 'disabled' : ''}>قبلی</button><span class="pagination-info">صفحه ${p} از ${t}</span><button class="next-btn" ${p === t ? 'disabled' : ''}>بعدی</button>`; c.querySelector('.prev-btn').addEventListener('click', () => n(p - 1)); c.querySelector('.next-btn').addEventListener('click', () => n(p + 1)); };
     const loadTheme = () => { if (localStorage.getItem('theme') === 'dark') { htmlElement.classList.add('dark-mode'); themeToggleBtn.querySelector('i').classList.replace('fa-moon', 'fa-sun'); }};
     const toggleTheme = () => { htmlElement.classList.toggle('dark-mode'); const i = htmlElement.classList.contains('dark-mode'); localStorage.setItem('theme', i ? 'dark' : 'light'); themeToggleBtn.querySelector('i').classList.toggle('fa-moon', !i); themeToggleBtn.querySelector('i').classList.toggle('fa-sun', i); };
     
     /**
-     * ** NEW SECURE FUNCTION **
-     * Fetches a captcha challenge from the server and displays it.
+     * ** NEW SECURE API REQUEST FUNCTION **
+     * A centralized function to handle all authenticated API calls.
+     * It automatically attaches the auth token to every request.
      */
+    const apiRequest = async (params) => {
+        const token = sessionStorage.getItem(AUTH_TOKEN_KEY);
+        if (!token && params.action !== 'logout') {
+            showToast('نشست شما معتبر نیست. لطفاً وارد شوید.', 'error');
+            logout();
+            throw new Error("No auth token found.");
+        }
+
+        const url = new URL(SCRIPT_URL);
+        Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+        if (token) {
+            url.searchParams.append('authToken', token);
+        }
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('خطای شبکه در ارتباط با سرور.');
+            
+            const result = await response.json();
+
+            // Centralized handling of auth errors from the server
+            if (result.error && result.message.includes("نشست شما نامعتبر یا منقضی")) {
+                showToast(result.message, 'error');
+                setTimeout(logout, 2000);
+                throw new Error(result.message);
+            }
+            if (result.error) throw new Error(result.message);
+            
+            return result;
+        } catch (e) {
+            // Re-throw the error so the calling function can handle its UI state
+            throw e;
+        }
+    };
+
     const fetchAndDisplayCaptcha = async () => {
         try {
             captchaLabel.textContent = 'در حال دریافت سوال...';
@@ -357,11 +391,18 @@ document.addEventListener('DOMContentLoaded', () => {
             captchaLabel.textContent = 'خطا در ارتباط';
         }
     };
+    
+    const logout = async () => {
+        const token = sessionStorage.getItem(AUTH_TOKEN_KEY);
+        if (token) {
+            // Tell the server to invalidate the token (fire and forget)
+            apiRequest({ action: 'logout' }).catch(err => console.error("Logout notification failed:", err));
+        }
+        localStorage.clear();
+        sessionStorage.clear();
+        location.reload();
+    };
 
-    /**
-     * ** NEW SECURE IMPLEMENTATION **
-     * Handles the login request by sending the captcha answer and token.
-     */
     const handleLogin = async () => {
         loginErrorMsg.textContent = '';
         loginButton.classList.add('loading');
@@ -384,25 +425,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (result.success) {
                 localStorage.removeItem(FAILED_ATTEMPTS_KEY);
-                sessionStorage.setItem('pendingUser', JSON.stringify(result));
-                showConfirmationModal(result);
+                const userData = { name: result.name, nationalId: result.nationalId };
+                // Store user data and the critical auth token separately
+                sessionStorage.setItem('pendingUser', JSON.stringify(userData));
+                sessionStorage.setItem(AUTH_TOKEN_KEY, result.authToken); // ** NEW: Store the auth token **
+                showConfirmationModal(userData);
             } else {
                 attempts++;
-                setCache(FAILED_ATTEMPTS_KEY, { count: attempts }, LOCKOUT_DURATION);
+                setCache(FAILED_ATTEMPTS_KEY, { count: attempts });
                 loginErrorMsg.textContent = result.message;
-                fetchAndDisplayCaptcha(); // Get a new captcha on any error
+                fetchAndDisplayCaptcha();
                 
                 if (attempts === 2) {
-                    loginErrorMsg.textContent += "\nهشدار: در صورت ورود مجدد اطلاعات اشتباه، حساب شما قفل خواهد شد.";
+                    loginErrorMsg.textContent += "\nهشدار: با تلاش ناموفق بعدی، دسترسی شما مسدود می‌شود.";
                 } else if (attempts >= 3) {
-                    setCache(LOCKOUT_KEY, { locked: true }, LOCKOUT_DURATION);
+                    setCache(LOCKOUT_KEY, { locked: true });
                     checkLockoutState();
                     await fetch(`${SCRIPT_URL}?action=resetPasswordOnBruteForce`);
                 }
             }
         } catch (e) {
             loginErrorMsg.textContent = 'خطا در ارتباط با سرور.';
-            fetchAndDisplayCaptcha(); // Get a new captcha on network error
+            fetchAndDisplayCaptcha();
         } finally {
             loginButton.classList.remove('loading');
             if (!getCache(LOCKOUT_KEY, LOCKOUT_DURATION)) {
@@ -411,11 +455,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // (The rest of the script remains unchanged)
     const initDashboard = (userData) => { 
         loginView.style.display = 'none'; 
         dashboardView.style.display = 'block'; 
-        document.body.style.minWidth = 'initial'; 
         userNameDisplay.textContent = userData.name; 
         userNidDisplay.textContent = `کد ملی: ${userData.nationalId}`; 
         setupDateFields('transaction'); 
@@ -425,72 +467,102 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchFinancialData(); 
         fetchContracts(); 
     };
+    
     const checkLockoutState = () => { const lockout = getCache(LOCKOUT_KEY, LOCKOUT_DURATION); if (lockout) { document.getElementById('login-prompt').textContent = 'دسترسی شما مسدود شده است'; loginErrorMsg.textContent = 'به علت حفظ امنیت سامانه، دسترسی شما از این مرورگر به مدت ۲۴ ساعت مسدود شده است.'; [document.getElementById('login-nid'), document.getElementById('login-username'), document.getElementById('login-password'), loginButton, captchaInput].forEach(el => el.disabled = true); return true; } return false; };
     const showConfirmationModal = (userData) => { confirmationMessage.innerHTML = `<strong>${userData.name}</strong> با کد ملی <strong>${userData.nationalId}</strong>، شما به عنوان مسئول مالی موسسه تعالی اندیشه و رشد وارد شده اید. آیا تائید می‌کنید؟`; confirmationModal.classList.add('show'); };
-    loginForm.addEventListener('submit', (e) => { e.preventDefault(); handleLogin(); });
-    if (!checkLockoutState()) { const session = getCache(SESSION_KEY, SESSION_DURATION); if (session) { initDashboard(session); } else { loginView.style.display = 'flex'; fetchAndDisplayCaptcha(); } }
-    loadTheme();
-    
-    // All other functions and event listeners here...
+
     const fetchFinancialData = async (page = 1) => {
-        let url = new URL(SCRIPT_URL);
-        url.searchParams.append('action', 'getFinancialData'); url.searchParams.append('page', page);
+        const params = { action: 'getFinancialData', page };
         const [startY, startM, startD] = ['filter-year-start', 'filter-month-start', 'filter-day-start'].map(id => document.getElementById(id).value);
         const [endY, endM, endD] = ['filter-year-end', 'filter-month-end', 'filter-day-end'].map(id => document.getElementById(id).value);
-        if(startY && startM && startD) url.searchParams.append('startDate', `${startY}/${String(startM).padStart(2, '0')}/${String(startD).padStart(2, '0')}`);
-        if(endY && endM && endD) url.searchParams.append('endDate', `${endY}/${String(endM).padStart(2, '0')}/${String(endD).padStart(2, '0')}`);
+        if(startY && startM && startD) params.startDate = `${startY}/${String(startM).padStart(2, '0')}/${String(startD).padStart(2, '0')}`;
+        if(endY && endM && endD) params.endDate = `${endY}/${String(endM).padStart(2, '0')}/${String(endD).padStart(2, '0')}`;
+
         try {
-            const r = await fetch(url); if (!r.ok) throw new Error('خطا در ارتباط با سرور.');
-            const d = await r.json(); if (d.error) throw new Error(d.message);
+            const d = await apiRequest(params);
             renderFinancialSummary(d.summary); renderTransactions(d.transactions.data);
             renderPagination(transactionsPagination, d.transactions.currentPage, d.transactions.totalPages, fetchFinancialData);
         } catch (e) { showToast(e.message, 'error'); transactionsTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 40px 0; color:var(--danger);">${e.message}</td></tr>`; }
     };
-    const renderFinancialSummary = (d) => { financialStatsContainer.innerHTML = `<div class="stat-item income"><div class="label"><i class="fas fa-arrow-up"></i><span>درآمد کل</span></div><p class="value">${d.totalIncome}<small> ریال</small></p></div><div class="stat-item expense"><div class="label"><i class="fas fa-arrow-down"></i><span>هزینه کل</span></div><p class="value">${d.totalExpenses}<small> ریال</small></p></div><div class="stat-item"><div class="label"><i class="fas fa-chart-line"></i><span>سود کل</span></div><p class="value">${d.totalProfit}<small> ریال</small></p></div><div class="stat-item"><div class="label"><i class="fas fa-balance-scale-left"></i><span>ضرر کل</span></div><p class="value">${d.totalLoss}<small> ریال</small></p></div>`; };
-    const renderTransactions = (d) => { if (d.length === 0) { transactionsTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:40px 0; color:var(--text-light);">موردی یافت نشد.</td></tr>`; return; } transactionsTableBody.innerHTML = d.map(t => `<tr><td>${t.date}</td><td>${t.accountant}</td><td class="amount positive">${Number(t.income).toLocaleString('fa-IR')}</td><td class="amount negative">${Number(t.expenses).toLocaleString('fa-IR')}</td><td style="text-align:center;"><i class="fas fa-info-circle description-icon" data-text="${t.description}" title="نمایش توضیحات"></i></td></tr>`).join(''); };
+
     const fetchContracts = async () => {
-        const url = new URL(SCRIPT_URL);
-        url.searchParams.append('action', 'getContracts');
         try {
-            const response = await fetch(url); if (!response.ok) throw new Error('خطا در دریافت لیست قراردادها.');
-            const result = await response.json(); if (result.error) throw new Error(result.message);
+            const result = await apiRequest({ action: 'getContracts' });
             renderContracts(result.data);
         } catch (e) { showToast(e.message, 'error'); contractsTableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 40px 0; color:var(--danger);">${e.message}</td></tr>`; }
     };
-    const renderContracts = (data) => {
-        if (!data || data.length === 0) { contractsTableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:40px 0; color:var(--text-light);">قراردادی یافت نشد.</td></tr>`; return; }
-        contractsTableBody.innerHTML = data.map((c, index) => `<tr><td>${index + 1}</td><td>${c.subject}</td><td>${c.date}</td><td>${c.party1}</td><td>${c.party2}</td><td style="text-align:center;"><i class="fas fa-file-alt description-icon" data-text="${c.text}" title="نمایش متن قرارداد"></i></td></tr>`).join('');
-    };
-    const setupDateFields = (prefix) => {
-        const isFilter = prefix.startsWith('filter-'); const type = isFilter ? prefix.split('-')[1] : prefix;
-        const y = document.getElementById(isFilter ? `filter-year-${type}` : `${prefix}-year`), m = document.getElementById(isFilter ? `filter-month-${type}` : `${prefix}-month`), d = document.getElementById(isFilter ? `filter-day-${type}` : `${prefix}-day`);
-        if (!y || !m || !d) return;
-        const c = new Date().toLocaleDateString('fa-IR-u-nu-latn').split('/');
-        m.innerHTML = `<option value="">ماه</option>` + Array.from({length: 12}, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
-        d.innerHTML = `<option value="">روز</option>` + Array.from({length: 31}, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
-        let yearOptions = `<option value="">سال</option>`; for (let i = parseInt(c[0]); i >= 1395; i--) { yearOptions += `<option value="${i}">${i}</option>`; } y.innerHTML = yearOptions;
-        if (prefix === 'transaction' || prefix === 'contract') { y.value = c[0]; m.value = parseInt(c[1], 10); d.value = parseInt(c[2], 10); }
-    };
-    continueBtn.addEventListener('click', () => { const a = document.getElementById('accountant-name').value, y = document.getElementById('transaction-year').value; if (!a || !y) { showToast('لطفاً نام حسابدار و تاریخ را وارد کنید.', 'error'); return; } step1.style.display = 'none'; step2.style.display = 'block'; });
-    descriptionText.addEventListener('input', () => { wordCountDisplay.textContent = `تعداد کلمات: ${descriptionText.value.trim().split(/\s+/).filter(Boolean).length}`; });
-    contractContinueBtn.addEventListener('click', () => { const subject = document.getElementById('contract-subject').value; const year = document.getElementById('contract-year').value; if (!subject.trim() || !year) { showToast('لطفاً موضوع و تاریخ قرارداد را وارد کنید.', 'error'); return; } contractStep1.style.display = 'none'; contractDetailsSection.style.display = 'block'; });
+    
+    // --- Other rendering and helper functions (unchanged) ---
+    const renderFinancialSummary = (d) => { financialStatsContainer.innerHTML = `<div class="stat-item income"><div class="label"><i class="fas fa-arrow-up"></i><span>درآمد کل</span></div><p class="value">${d.totalIncome}<small> ریال</small></p></div><div class="stat-item expense"><div class="label"><i class="fas fa-arrow-down"></i><span>هزینه کل</span></div><p class="value">${d.totalExpenses}<small> ریال</small></p></div><div class="stat-item"><div class="label"><i class="fas fa-chart-line"></i><span>سود کل</span></div><p class="value">${d.totalProfit}<small> ریال</small></p></div><div class="stat-item"><div class="label"><i class="fas fa-balance-scale-left"></i><span>ضرر کل</span></div><p class="value">${d.totalLoss}<small> ریال</small></p></div>`; };
+    const renderTransactions = (d) => { if (d.length === 0) { transactionsTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:40px 0; color:var(--text-light);">موردی یافت نشد.</td></tr>`; return; } transactionsTableBody.innerHTML = d.map(t => `<tr><td>${t.date}</td><td>${t.accountant}</td><td class="amount positive">${Number(t.income).toLocaleString('fa-IR')}</td><td class="amount negative">${Number(t.expenses).toLocaleString('fa-IR')}</td><td style="text-align:center;"><i class="fas fa-info-circle description-icon" data-text="${t.description}" title="نمایش توضیحات"></i></td></tr>`).join(''); };
+    const renderContracts = (data) => { if (!data || data.length === 0) { contractsTableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:40px 0; color:var(--text-light);">قراردادی یافت نشد.</td></tr>`; return; } contractsTableBody.innerHTML = data.map((c, index) => `<tr><td>${index + 1}</td><td>${c.subject}</td><td>${c.date}</td><td>${c.party1}</td><td>${c.party2}</td><td style="text-align:center;"><i class="fas fa-file-alt description-icon" data-text="${c.text}" title="نمایش متن قرارداد"></i></td></tr>`).join(''); };
+    const setupDateFields = (prefix) => { const isFilter = prefix.startsWith('filter-'); const type = isFilter ? prefix.split('-')[1] : prefix; const y = document.getElementById(isFilter ? `filter-year-${type}` : `${prefix}-year`), m = document.getElementById(isFilter ? `filter-month-${type}` : `${prefix}-month`), d = document.getElementById(isFilter ? `filter-day-${type}` : `${prefix}-day`); if (!y || !m || !d) return; const c = new Date().toLocaleDateString('fa-IR-u-nu-latn').split('/'); m.innerHTML = `<option value="">ماه</option>` + Array.from({length: 12}, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join(''); d.innerHTML = `<option value="">روز</option>` + Array.from({length: 31}, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join(''); let yearOptions = `<option value="">سال</option>`; for (let i = parseInt(c[0]); i >= 1395; i--) { yearOptions += `<option value="${i}">${i}</option>`; } y.innerHTML = yearOptions; if (prefix === 'transaction' || prefix === 'contract') { y.value = c[0]; m.value = parseInt(c[1], 10); d.value = parseInt(c[2], 10); } };
+    
+    // --- Event Listeners ---
+    loginForm.addEventListener('submit', (e) => { e.preventDefault(); handleLogin(); });
+    logoutBtn.addEventListener('click', logout);
+    confirmLoginBtn.addEventListener('click', () => {
+        const pendingUser = JSON.parse(sessionStorage.getItem('pendingUser'));
+        if (pendingUser && sessionStorage.getItem(AUTH_TOKEN_KEY)) {
+            setCache(SESSION_KEY, pendingUser); // Store user details for display
+            initDashboard(pendingUser);
+            confirmationModal.classList.remove('show');
+            sessionStorage.removeItem('pendingUser');
+        }
+    });
+    cancelLoginBtn.addEventListener('click', async () => {
+        cancelLoginBtn.classList.add('loading'); cancelLoginBtn.disabled = true;
+        try {
+            await fetch(`${SCRIPT_URL}?action=resetPasswordOnCancel`);
+            showToast('برای امنیت، رمز عبور تغییر یافت. با مدیر سیستم تماس بگیرید.', 'info');
+            setTimeout(logout, 3000);
+        } catch (e) {
+            showToast('خطا در خروج امن.', 'error');
+            cancelLoginBtn.classList.remove('loading'); cancelLoginBtn.disabled = false;
+        }
+    });
+    transactionForm.addEventListener('submit', async (e) => {
+        e.preventDefault(); submitBtn.classList.add('loading'); submitBtn.disabled = true;
+        if (descriptionText.value.trim().split(/\s+/).filter(Boolean).length < 50) { showToast('توضیحات باید حداقل شامل ۵۰ کلمه باشد.', 'error'); submitBtn.classList.remove('loading'); submitBtn.disabled = false; return; }
+        const params = { action: 'addTransaction', accountantName: document.getElementById('accountant-name').value, date: `${document.getElementById('transaction-year').value}/${String(document.getElementById('transaction-month').value).padStart(2, '0')}/${String(document.getElementById('transaction-day').value).padStart(2, '0')}`, income: document.getElementById('income-value').value || '0', expenses: document.getElementById('expenses-value').value || '0', description: descriptionText.value };
+        try {
+            const result = await apiRequest(params);
+            showToast(result.message, 'success'); transactionForm.reset(); wordCountDisplay.textContent = 'تعداد کلمات: 0'; step2.style.display = 'none'; step1.style.display = 'block'; fetchFinancialData();
+        } catch(e) { showToast('خطا در ثبت تراکنش: ' + e.message, 'error'); } finally { submitBtn.classList.remove('loading'); submitBtn.disabled = false; }
+    });
     contractForm.addEventListener('submit', async (e) => {
         e.preventDefault(); submitContractBtn.classList.add('loading'); submitContractBtn.disabled = true;
-        const url = new URL(SCRIPT_URL); url.searchParams.append('action', 'addContract'); url.searchParams.append('subject', document.getElementById('contract-subject').value); url.searchParams.append('party1', document.getElementById('contract-party1').value); url.searchParams.append('party2', document.getElementById('contract-party2').value); url.searchParams.append('text', document.getElementById('contract-text').value);
-        const y = document.getElementById('contract-year').value, m = String(document.getElementById('contract-month').value).padStart(2, '0'), d = String(document.getElementById('contract-day').value).padStart(2, '0'); url.searchParams.append('date', `${y}/${m}/${d}`);
+        const params = { action: 'addContract', subject: document.getElementById('contract-subject').value, party1: document.getElementById('contract-party1').value, party2: document.getElementById('contract-party2').value, text: document.getElementById('contract-text').value, date: `${document.getElementById('contract-year').value}/${String(document.getElementById('contract-month').value).padStart(2, '0')}/${String(document.getElementById('contract-day').value).padStart(2, '0')}` };
         try {
-            const response = await fetch(url); const result = await response.json(); if (result.error) throw new Error(result.message);
-            showToast(result.message, 'success'); contractForm.reset(); contractDetailsSection.style.display = 'none'; contractStep1.style.display = 'block';
-            const c = new Date().toLocaleDateString('fa-IR-u-nu-latn').split('/'); document.getElementById('contract-year').value = c[0]; document.getElementById('contract-month').value = parseInt(c[1], 10); document.getElementById('contract-day').value = parseInt(c[2], 10); fetchContracts();
+            const result = await apiRequest(params);
+            showToast(result.message, 'success'); contractForm.reset(); contractDetailsSection.style.display = 'none'; contractStep1.style.display = 'block'; const c = new Date().toLocaleDateString('fa-IR-u-nu-latn').split('/'); document.getElementById('contract-year').value = c[0]; document.getElementById('contract-month').value = parseInt(c[1], 10); document.getElementById('contract-day').value = parseInt(c[2], 10); fetchContracts();
         } catch (err) { showToast('خطا در ثبت قرارداد: ' + err.message, 'error'); } finally { submitContractBtn.classList.remove('loading'); submitContractBtn.disabled = false; }
     });
+    // --- Other UI event listeners (unchanged) ---
     themeToggleBtn.addEventListener('click', toggleTheme); filterBtn.addEventListener('click', () => fetchFinancialData(1));
     document.body.addEventListener('click', e => { if (e.target.classList.contains('description-icon')) { modalDescriptionText.textContent = e.target.dataset.text; descriptionModal.classList.add('show'); } });
     [descriptionModal.querySelector('.modal-close-btn'), descriptionModal].forEach(el => el.addEventListener('click', e => { if (e.target === el) descriptionModal.classList.remove('show'); }));
-    logoutBtn.addEventListener('click', () => { localStorage.clear(); sessionStorage.clear(); location.reload(); });
-    confirmLoginBtn.addEventListener('click', () => { const session = getCache(SESSION_KEY, SESSION_DURATION); if(session) { initDashboard(session); confirmationModal.classList.remove('show'); } else { const pendingUser = JSON.parse(sessionStorage.getItem('pendingUser')); if(pendingUser) { setCache(SESSION_KEY, pendingUser, SESSION_DURATION); initDashboard(pendingUser); confirmationModal.classList.remove('show'); sessionStorage.removeItem('pendingUser'); } } });
-    cancelLoginBtn.addEventListener('click', async () => { cancelLoginBtn.classList.add('loading'); cancelLoginBtn.disabled = true; try { await fetch(`${SCRIPT_URL}?action=resetPasswordOnCancel`); showToast('برای امنیت، رمز عبور تغییر یافت. لطفاً با مدیر سیستم تماس بگیرید.', 'info'); setTimeout(() => location.reload(), 3000); } catch (e) { showToast('خطا در خروج امن.', 'error'); cancelLoginBtn.classList.remove('loading'); cancelLoginBtn.disabled = false; }});
-    transactionForm.addEventListener('submit', async (e) => { e.preventDefault(); submitBtn.classList.add('loading'); submitBtn.disabled = true; if (descriptionText.value.trim().split(/\s+/).filter(Boolean).length < 50) { showToast('توضیحات باید حداقل شامل ۵۰ کلمه باشد.', 'error'); submitBtn.classList.remove('loading'); submitBtn.disabled = false; return; } const y = document.getElementById('transaction-year').value, m = String(document.getElementById('transaction-month').value).padStart(2, '0'), d = String(document.getElementById('transaction-day').value).padStart(2, '0'); const url = new URL(SCRIPT_URL); url.searchParams.append('action', 'addTransaction'); url.searchParams.append('accountantName', document.getElementById('accountant-name').value); url.searchParams.append('date', `${y}/${m}/${d}`); url.searchParams.append('income', document.getElementById('income-value').value || '0'); url.searchParams.append('expenses', document.getElementById('expenses-value').value || '0'); url.searchParams.append('description', descriptionText.value); try { const r = await fetch(url); const d = await r.json(); if(d.error) throw new Error(d.message); showToast(d.message, 'success'); transactionForm.reset(); wordCountDisplay.textContent = 'تعداد کلمات: 0'; step2.style.display = 'none'; step1.style.display = 'block'; fetchFinancialData(); } catch(e) { showToast('خطا در ثبت تراکنش: ' + e.message, 'error'); } finally { submitBtn.classList.remove('loading'); submitBtn.disabled = false; }});
+    continueBtn.addEventListener('click', () => { const a = document.getElementById('accountant-name').value, y = document.getElementById('transaction-year').value; if (!a || !y) { showToast('لطفاً نام حسابدار و تاریخ را وارد کنید.', 'error'); return; } step1.style.display = 'none'; step2.style.display = 'block'; });
+    descriptionText.addEventListener('input', () => { wordCountDisplay.textContent = `تعداد کلمات: ${descriptionText.value.trim().split(/\s+/).filter(Boolean).length}`; });
+    contractContinueBtn.addEventListener('click', () => { const subject = document.getElementById('contract-subject').value; const year = document.getElementById('contract-year').value; if (!subject.trim() || !year) { showToast('لطفاً موضوع و تاریخ قرارداد را وارد کنید.', 'error'); return; } contractStep1.style.display = 'none'; contractDetailsSection.style.display = 'block'; });
+
+    // --- Initial Load ---
+    const checkActiveSession = () => {
+        const token = sessionStorage.getItem(AUTH_TOKEN_KEY);
+        const userData = getCache(SESSION_KEY, SESSION_DURATION);
+        if (token && userData) {
+            initDashboard(userData);
+            return true;
+        }
+        return false;
+    };
+    if (!checkLockoutState()) {
+        if (!checkActiveSession()) {
+            loginView.style.display = 'flex';
+            fetchAndDisplayCaptcha();
+        }
+    }
+    loadTheme();
 });
 </script>
 
