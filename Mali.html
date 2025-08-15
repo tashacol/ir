@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+ <!DOCTYPE html> 
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -168,6 +168,12 @@ html.dark-mode .form-select { background-image: url("data:image/svg+xml,%3csvg x
                 <label for="login-password" class="form-label">رمز عبور</label>
                 <i class="fas fa-lock input-icon"></i>
             </div>
+            <!-- NEW CAPTCHA FIELD -->
+            <div class="input-wrapper">
+                <input type="number" id="login-captcha" class="form-input" placeholder=" " required inputmode="numeric">
+                <label for="login-captcha" class="form-label" id="captcha-label">سوال امنیتی</label>
+                <i class="fas fa-question-circle input-icon"></i>
+            </div>
             <button class="btn-login" id="login-button"><span class="btn-text">ورود</span><div class="spinner"></div></button>
         </form>
         <p id="login-error-msg"></p>
@@ -217,7 +223,7 @@ html.dark-mode .form-select { background-image: url("data:image/svg+xml,%3csvg x
             </form>
         </div>
 
-        <!-- NEW CONTRACT FORM CARD -->
+        <!-- CONTRACT FORM CARD -->
         <div class="card">
             <div class="card-header"><i class="fas fa-file-signature icon"></i><h2>افزودن قرارداد</h2></div>
             <form id="contract-form">
@@ -277,7 +283,7 @@ html.dark-mode .form-select { background-image: url("data:image/svg+xml,%3csvg x
             <div class="pagination-controls" id="transactions-pagination"></div>
         </div>
         
-        <!-- NEW CONTRACTS LIST CARD -->
+        <!-- CONTRACTS LIST CARD -->
         <div class="card">
             <div class="card-header"><i class="fas fa-book-open icon"></i><h2>قراردادها و عقود</h2></div>
             <div class="table-responsive">
@@ -321,7 +327,7 @@ html.dark-mode .form-select { background-image: url("data:image/svg+xml,%3csvg x
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwVA2QmgAw5Vjjso0nMlpKF2hXa6QoodXDn7h0KrFbm8QsowI4e0ZIJQIOg-WxyKOrI/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwXADEbqSrP80zz8ecAKl0dsmQ8u-uYX-2gWX_u2NJhyzfpCyvEW5FmQxXDkWxLuCXB/exec";
     const SESSION_DURATION = 12 * 3600 * 1000;
     const LOCKOUT_DURATION = 24 * 3600 * 1000;
     const FAILED_ATTEMPTS_KEY = 'financialFailedAttempts', SESSION_KEY = 'financialDeputySession', LOCKOUT_KEY = 'financialLockoutInfo';
@@ -332,6 +338,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Login Elements
     const loginForm = document.getElementById('login-form'), loginButton = document.getElementById('login-button'), loginErrorMsg = document.getElementById('login-error-msg'), loginPrompt = document.getElementById('login-prompt');
     
+    // ** NEW ** Captcha Elements
+    const captchaLabel = document.getElementById('captcha-label');
+    const captchaInput = document.getElementById('login-captcha');
+    let captchaNum1, captchaNum2; // To store the generated numbers
+
     // Dashboard General Elements
     const themeToggleBtn = document.getElementById('theme-toggle-btn'), htmlElement = document.documentElement, logoutBtn = document.getElementById('logout-btn');
     const userNameDisplay = document.getElementById('user-name-display'), userNidDisplay = document.getElementById('user-nid-display');
@@ -342,14 +353,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Transaction List Elements
     const financialStatsContainer = document.getElementById('financial-stats-container'), transactionsTableBody = document.getElementById('transactions-table-body'), transactionsPagination = document.getElementById('transactions-pagination'), filterBtn = document.getElementById('filter-btn');
 
-    // ** NEW ** Contract Form Elements
+    // Contract Form Elements
     const contractForm = document.getElementById('contract-form');
     const contractStep1 = document.getElementById('contract-step-1');
     const contractContinueBtn = document.getElementById('contract-continue-btn');
     const contractDetailsSection = document.getElementById('contract-details-section');
     const submitContractBtn = document.getElementById('submit-contract-btn');
 
-    // ** NEW ** Contract List Elements
+    // Contract List Elements
     const contractsTableBody = document.getElementById('contracts-table-body');
 
     // Modals & Toasts
@@ -364,6 +375,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadTheme = () => { if (localStorage.getItem('theme') === 'dark') { htmlElement.classList.add('dark-mode'); themeToggleBtn.querySelector('i').classList.replace('fa-moon', 'fa-sun'); }};
     const toggleTheme = () => { htmlElement.classList.toggle('dark-mode'); const i = htmlElement.classList.contains('dark-mode'); localStorage.setItem('theme', i ? 'dark' : 'light'); themeToggleBtn.querySelector('i').classList.toggle('fa-moon', !i); themeToggleBtn.querySelector('i').classList.toggle('fa-sun', i); };
     
+    // ** NEW ** Captcha Generator
+    const generateCaptcha = () => {
+        captchaNum1 = Math.floor(Math.random() * 20); // Number between 0 and 19
+        captchaNum2 = Math.floor(Math.random() * 20); // Number between 0 and 19
+        captchaLabel.textContent = `جمع ${captchaNum1} + ${captchaNum2} چند می‌شود؟`;
+        captchaInput.value = ''; // Clear previous answer
+    };
+
     // Data Fetching and Rendering
     const fetchFinancialData = async (page = 1) => {
         let url = new URL(SCRIPT_URL);
@@ -382,7 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderFinancialSummary = (d) => { financialStatsContainer.innerHTML = `<div class="stat-item income"><div class="label"><i class="fas fa-arrow-up"></i><span>درآمد کل</span></div><p class="value">${d.totalIncome}<small> ریال</small></p></div><div class="stat-item expense"><div class="label"><i class="fas fa-arrow-down"></i><span>هزینه کل</span></div><p class="value">${d.totalExpenses}<small> ریال</small></p></div><div class="stat-item"><div class="label"><i class="fas fa-chart-line"></i><span>سود کل</span></div><p class="value">${d.totalProfit}<small> ریال</small></p></div><div class="stat-item"><div class="label"><i class="fas fa-balance-scale-left"></i><span>ضرر کل</span></div><p class="value">${d.totalLoss}<small> ریال</small></p></div>`; };
     const renderTransactions = (d) => { if (d.length === 0) { transactionsTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:40px 0; color:var(--text-light);">موردی یافت نشد.</td></tr>`; return; } transactionsTableBody.innerHTML = d.map(t => `<tr><td>${t.date}</td><td>${t.accountant}</td><td class="amount positive">${Number(t.income).toLocaleString('fa-IR')}</td><td class="amount negative">${Number(t.expenses).toLocaleString('fa-IR')}</td><td style="text-align:center;"><i class="fas fa-info-circle description-icon" data-text="${t.description}" title="نمایش توضیحات"></i></td></tr>`).join(''); };
 
-    // ** NEW ** Fetch and Render Contracts
+    // Fetch and Render Contracts
     const fetchContracts = async () => {
         const url = new URL(SCRIPT_URL);
         url.searchParams.append('action', 'getContracts');
@@ -414,12 +433,15 @@ document.addEventListener('DOMContentLoaded', () => {
             </tr>
         `).join('');
     };
+
+    // Login and Session Management
+    const checkLockoutState = () => { const lockout = getCache(LOCKOUT_KEY, LOCKOUT_DURATION); if (lockout) { loginPrompt.textContent = 'دسترسی شما مسدود شده است'; loginErrorMsg.textContent = 'به علت حفظ امنیت سامانه، دسترسی شما از این مرورگر به مدت ۲۴ ساعت مسدود شده است.'; [document.getElementById('login-nid'), document.getElementById('login-username'), document.getElementById('login-password'), loginButton, captchaInput].forEach(el => el.disabled = true); return true; } return false; };
+    const showConfirmationModal = (userData) => { confirmationMessage.innerHTML = `<strong>${userData.name}</strong> با کد ملی <strong>${userData.nationalId}</strong>، شما به عنوان مسئول مالی موسسه تعالی اندیشه و رشد وارد شده اید. آیا تائید می‌کنید؟`; confirmationModal.classList.add('show'); };
     
     // Date Fields Setup
     const setupDateFields = (prefix) => {
         const isFilter = prefix.startsWith('filter-');
         const type = isFilter ? prefix.split('-')[1] : prefix;
-        // Corrected IDs for filter date fields
         const y = document.getElementById(isFilter ? `filter-year-${type}` : `${prefix}-year`);
         const m = document.getElementById(isFilter ? `filter-month-${type}` : `${prefix}-month`);
         const d = document.getElementById(isFilter ? `filter-day-${type}` : `${prefix}-day`);
@@ -444,7 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
     continueBtn.addEventListener('click', () => { const a = document.getElementById('accountant-name').value, y = document.getElementById('transaction-year').value; if (!a || !y) { showToast('لطفاً نام حسابدار و تاریخ را وارد کنید.', 'error'); return; } step1.style.display = 'none'; step2.style.display = 'block'; });
     descriptionText.addEventListener('input', () => { wordCountDisplay.textContent = `تعداد کلمات: ${descriptionText.value.trim().split(/\s+/).filter(Boolean).length}`; });
 
-    // ** NEW ** Contract Form Logic
+    // Contract Form Logic
     contractContinueBtn.addEventListener('click', () => {
         const subject = document.getElementById('contract-subject').value;
         const year = document.getElementById('contract-year').value;
@@ -503,15 +525,14 @@ document.addEventListener('DOMContentLoaded', () => {
         setupDateFields('transaction'); 
         setupDateFields('filter-start'); 
         setupDateFields('filter-end'); 
-        setupDateFields('contract'); // ** NEW ** Setup contract date fields
+        setupDateFields('contract'); 
         fetchFinancialData(); 
-        fetchContracts(); // ** NEW ** Fetch contracts on load
+        fetchContracts(); 
     };
     
     themeToggleBtn.addEventListener('click', toggleTheme);
     filterBtn.addEventListener('click', () => fetchFinancialData(1));
     
-    // Combined event listener for all description icons
     document.body.addEventListener('click', e => {
         if (e.target.classList.contains('description-icon')) {
             modalDescriptionText.textContent = e.target.dataset.text;
@@ -520,17 +541,27 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     [descriptionModal.querySelector('.modal-close-btn'), descriptionModal].forEach(el => el.addEventListener('click', e => { if (e.target === el) descriptionModal.classList.remove('show'); }));
-    loginForm.addEventListener('submit', (e) => { e.preventDefault(); handleLogin(); });
     logoutBtn.addEventListener('click', () => { localStorage.clear(); sessionStorage.clear(); location.reload(); });
     
     confirmLoginBtn.addEventListener('click', () => { const session = getCache(SESSION_KEY, SESSION_DURATION); if(session) { initDashboard(session); confirmationModal.classList.remove('show'); } else { const pendingUser = JSON.parse(sessionStorage.getItem('pendingUser')); if(pendingUser) { setCache(SESSION_KEY, pendingUser, SESSION_DURATION); initDashboard(pendingUser); confirmationModal.classList.remove('show'); sessionStorage.removeItem('pendingUser'); } } });
     cancelLoginBtn.addEventListener('click', async () => { cancelLoginBtn.classList.add('loading'); cancelLoginBtn.disabled = true; try { await fetch(`${SCRIPT_URL}?action=resetPasswordOnCancel`); showToast('برای امنیت، رمز عبور تغییر یافت. لطفاً با مدیر سیستم تماس بگیرید.', 'info'); setTimeout(() => location.reload(), 3000); } catch (e) { showToast('خطا در خروج امن.', 'error'); cancelLoginBtn.classList.remove('loading'); cancelLoginBtn.disabled = false; }});
+    
+    // MODIFIED handleLogin to include Captcha
     const handleLogin = async () => {
         loginErrorMsg.textContent = ''; loginButton.classList.add('loading'); loginButton.disabled = true;
         const attemptsData = getCache(FAILED_ATTEMPTS_KEY, LOCKOUT_DURATION) || { count: 0 };
         let attempts = attemptsData.count;
+
         const url = new URL(SCRIPT_URL);
-        url.searchParams.append('action', 'financialLogin'); url.searchParams.append('nationalId', document.getElementById('login-nid').value); url.searchParams.append('username', document.getElementById('login-username').value); url.searchParams.append('password', document.getElementById('login-password').value);
+        url.searchParams.append('action', 'financialLogin');
+        url.searchParams.append('nationalId', document.getElementById('login-nid').value);
+        url.searchParams.append('username', document.getElementById('login-username').value);
+        url.searchParams.append('password', document.getElementById('login-password').value);
+        // Append captcha data to the request
+        url.searchParams.append('captchaAnswer', captchaInput.value);
+        url.searchParams.append('num1', captchaNum1);
+        url.searchParams.append('num2', captchaNum2);
+
         try {
             const response = await fetch(url);
             const result = await response.json();
@@ -540,21 +571,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 showConfirmationModal(result);
             } else {
                 attempts++; setCache(FAILED_ATTEMPTS_KEY, { count: attempts }, LOCKOUT_DURATION);
-                if (attempts === 2) { loginErrorMsg.textContent = "هشدار: در صورت ورود مجدد اطلاعات اشتباه، حساب شما به مدت ۲۴ ساعت از طریق این مرورگر قفل خواهد شد."; } 
-                else if (attempts >= 3) { setCache(LOCKOUT_KEY, { locked: true }, LOCKOUT_DURATION); checkLockoutState(); await fetch(`${SCRIPT_URL}?action=resetPasswordOnBruteForce`);
-                } else { loginErrorMsg.textContent = result.message; }
+                loginErrorMsg.textContent = result.message; // Show error from server
+                generateCaptcha(); // Regenerate captcha on any error
+                if (attempts === 2) { loginErrorMsg.textContent += "\nهشدار: در صورت ورود مجدد اطلاعات اشتباه، حساب شما به مدت ۲۴ ساعت از طریق این مرورگر قفل خواهد شد."; } 
+                else if (attempts >= 3) { setCache(LOCKOUT_KEY, { locked: true }, LOCKOUT_DURATION); checkLockoutState(); await fetch(`${SCRIPT_URL}?action=resetPasswordOnBruteForce`); }
             }
-        } catch (e) { loginErrorMsg.textContent = 'خطا در ارتباط با سرور.'; } 
-        finally { loginButton.classList.remove('loading'); if ((getCache(FAILED_ATTEMPTS_KEY, LOCKOUT_DURATION)?.count || 0) < 3) loginButton.disabled = false; }
+        } catch (e) { 
+            loginErrorMsg.textContent = 'خطا در ارتباط با سرور.'; 
+            generateCaptcha(); // Regenerate captcha on network error
+        } 
+        finally { 
+            loginButton.classList.remove('loading'); 
+            if (!getCache(LOCKOUT_KEY, LOCKOUT_DURATION)) {
+                loginButton.disabled = false;
+            }
+        }
     };
-    const checkLockoutState = () => { const lockout = getCache(LOCKOUT_KEY, LOCKOUT_DURATION); if (lockout) { loginPrompt.textContent = 'دسترسی شما مسدود شده است'; loginErrorMsg.textContent = 'به علت حفظ امنیت سامانه، دسترسی شما از این مرورگر به مدت ۲۴ ساعت مسدود شده است.'; [document.getElementById('login-nid'), document.getElementById('login-username'), document.getElementById('login-password'), loginButton].forEach(el => el.disabled = true); return true; } return false; };
-    const showConfirmationModal = (userData) => { confirmationMessage.innerHTML = `<strong>${userData.name}</strong> با کد ملی <strong>${userData.nationalId}</strong>، شما به عنوان مسئول مالی موسسه تعالی اندیشه و رشد وارد شده اید. آیا تائید می‌کنید؟`; confirmationModal.classList.add('show'); };
+    
+    loginForm.addEventListener('submit', (e) => { e.preventDefault(); handleLogin(); });
+
     const form = document.getElementById('transaction-form');
     form.addEventListener('submit', async (e) => { e.preventDefault(); submitBtn.classList.add('loading'); submitBtn.disabled = true; if (descriptionText.value.trim().split(/\s+/).filter(Boolean).length < 50) { showToast('توضیحات باید حداقل شامل ۵۰ کلمه باشد.', 'error'); submitBtn.classList.remove('loading'); submitBtn.disabled = false; return; } const y = document.getElementById('transaction-year').value, m = String(document.getElementById('transaction-month').value).padStart(2, '0'), d = String(document.getElementById('transaction-day').value).padStart(2, '0'); const url = new URL(SCRIPT_URL); url.searchParams.append('action', 'addTransaction'); url.searchParams.append('accountantName', document.getElementById('accountant-name').value); url.searchParams.append('date', `${y}/${m}/${d}`); url.searchParams.append('income', document.getElementById('income-value').value || '0'); url.searchParams.append('expenses', document.getElementById('expenses-value').value || '0'); url.searchParams.append('description', descriptionText.value); try { const r = await fetch(url); const d = await r.json(); if(d.error) throw new Error(d.message); showToast(d.message, 'success'); form.reset(); wordCountDisplay.textContent = 'تعداد کلمات: 0'; step2.style.display = 'none'; step1.style.display = 'block'; fetchFinancialData(); } catch(e) { showToast('خطا در ثبت تراکنش: ' + e.message, 'error'); } finally { submitBtn.classList.remove('loading'); submitBtn.disabled = false; }});
 
-
     // Initial Load
-    if (!checkLockoutState()) { const session = getCache(SESSION_KEY, SESSION_DURATION); if (session) initDashboard(session); else loginView.style.display = 'flex'; }
+    if (!checkLockoutState()) { 
+        const session = getCache(SESSION_KEY, SESSION_DURATION); 
+        if (session) {
+            initDashboard(session);
+        } else {
+            loginView.style.display = 'flex';
+            generateCaptcha(); // Generate first captcha
+        }
+    }
     loadTheme();
 });
 </script>
