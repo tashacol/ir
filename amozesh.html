@@ -46,6 +46,39 @@
         .btn-loading .btn-text { visibility: hidden; }
         .btn-loading::after { content: ''; position: absolute; width: 20px; height: 20px; top: 0; left: 0; right: 0; bottom: 0; margin: auto; border: 3px solid transparent; border-top-color: #ffffff; border-radius: 50%; animation: spin 1s ease infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        /* --- Styles for Captcha --- */
+        .captcha-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            gap: 10px;
+        }
+        .captcha-code {
+            background-color: #e2e8f0;
+            color: var(--primary-color);
+            padding: 10px 15px;
+            border-radius: var(--radius-md);
+            font-size: 1.2rem;
+            font-weight: 700;
+            letter-spacing: 5px;
+            user-select: none;
+            text-decoration: line-through;
+            flex-grow: 1;
+            text-align: center;
+        }
+        #captcha-refresh-btn {
+            background: none;
+            border: none;
+            color: var(--secondary-color);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: transform 0.3s;
+            padding: 5px;
+        }
+        #captcha-refresh-btn:hover {
+            transform: rotate(90deg);
+        }
         #dashboard-container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
         .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding: 20px; background-color: rgba(255,255,255,0.8); backdrop-filter: blur(5px); border-radius: var(--radius-lg); }
         .dashboard-header h1 { font-size: 2rem; margin: 0; color: var(--primary-color); }
@@ -84,6 +117,16 @@
             <form id="login-form">
                 <div class="input-wrapper"><i class="fas fa-user input-icon"></i><input type="text" id="username" class="form-input" placeholder="نام کاربری" required></div>
                 <div class="input-wrapper"><i class="fas fa-lock input-icon"></i><input type="password" id="password" class="form-input" placeholder="رمز عبور" required></div>
+                
+                <div class="captcha-wrapper">
+                    <span id="captcha-code" class="captcha-code">......</span>
+                    <button type="button" id="captcha-refresh-btn" title="بارگذاری کد جدید"><i class="fas fa-sync-alt"></i></button>
+                </div>
+                <div class="input-wrapper">
+                    <i class="fas fa-shield-alt input-icon"></i>
+                    <input type="text" id="captcha" class="form-input" placeholder="کد امنیتی را وارد کنید" required autocomplete="off">
+                </div>
+
                 <button type="submit" class="btn" style="width: 100%;"><span class="btn-text">ورود</span></button>
             </form>
             <p id="error-message" class="hidden" style="margin-top: 15px; color: var(--danger-color); min-height: 20px; font-weight: 500;"></p>
@@ -141,19 +184,38 @@
     </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzeTHmjJWAs4cxiXRSZW2lnZsxRiwK_2ruidFURKPKbOob2tjZ1X0ihkqzQAkvuhftw/exec";
-    const sessionKey = 'quranAdminSession';
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzNmYe-p-o-50zXf0K-YfQ9fF2JMKmsgDyz89hjxiFhF_R-rRD1ME7NqncEXMnHiSF5/exec";
+    const sessionKey = 'quranAdminSessionToken'; // Key for storing the secure token
     const ITEMS_PER_PAGE = 5;
 
     let fullData = { students: { '2': {}, '5': {}, '0': {} }, pendingCourses: [] };
     let currentPages = { 'pending': 1, 'issued': 1, 'rejected': 1 };
+    
+    const captchaCodeEl = document.getElementById('captcha-code');
 
     async function callAppsScript(action, params = {}, button = null) {
         if(button) button.classList.add('btn-loading');
+        
+        // Add the session token to every request automatically if it exists
+        const token = localStorage.getItem(sessionKey);
+        if (token) {
+            params.token = token;
+        }
+
         try { 
             const res = await fetch(SCRIPT_URL, { method: 'POST', mode: 'cors', headers: {'Content-Type': 'text/plain;charset=utf-8'}, body: JSON.stringify({ action, params }) }); 
             if (!res.ok) throw new Error('Network error'); 
-            return await res.json();
+            
+            const data = await res.json();
+            
+            // SECURITY CHECK: If server says session is invalid, force logout
+            if (data.reauth) {
+                alert(data.message || 'نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
+                handleLogout();
+                return { success: false }; // Stop further processing
+            }
+            
+            return data;
         } catch (error) { 
             alert('خطا در ارتباط با سرور.'); 
             return { success: false, message: error.message };
@@ -162,15 +224,31 @@
         }
     }
     
+    async function loadCaptcha() {
+        captchaCodeEl.textContent = '...';
+        const res = await callAppsScript('getCaptcha');
+        if (res.success) {
+            captchaCodeEl.textContent = res.captcha;
+        } else {
+            captchaCodeEl.textContent = 'خطا';
+            alert('خطا در بارگذاری کپچا. لطفاً صفحه را رفرش کنید.');
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('login-form').addEventListener('submit', handleManualLogin);
         document.getElementById('logout-btn').addEventListener('click', handleLogout);
+        document.getElementById('captcha-refresh-btn').addEventListener('click', loadCaptcha);
         document.getElementById('pending-search-btn').addEventListener('click', () => { currentPages.pending = 1; displayData('2', 'pending'); });
         document.getElementById('issued-search-btn').addEventListener('click', () => { currentPages.issued = 1; displayData('5', 'issued'); });
         document.getElementById('rejected-search-btn').addEventListener('click', () => { currentPages.rejected = 1; displayData('0', 'rejected'); });
-        const savedSession = localStorage.getItem(sessionKey);
-        if (savedSession === 'loggedIn') {
+        
+        // Check for a session token instead of a simple flag
+        const savedToken = localStorage.getItem(sessionKey);
+        if (savedToken) {
             showDashboard();
+        } else {
+            loadCaptcha();
         }
     });
 
@@ -184,18 +262,26 @@
         event.preventDefault();
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
-        const res = await callAppsScript('checkLogin', { username, password }, event.target.querySelector('button'));
-        if (res.success) {
-            localStorage.setItem(sessionKey, 'loggedIn');
+        const captcha = document.getElementById('captcha').value;
+        const res = await callAppsScript('checkLogin', { username, password, captcha }, event.target.querySelector('button'));
+        
+        if (res.success && res.token) {
+            // Store the secure token received from the server
+            localStorage.setItem(sessionKey, res.token);
             showDashboard();
         } else {
             const errorP = document.getElementById('error-message');
             errorP.innerText = res.message || "خطای ورود.";
             errorP.classList.remove('hidden');
+            loadCaptcha();
+            document.getElementById('captcha').value = '';
         }
     }
 
     function handleLogout() {
+        // Inform the server to invalidate the token
+        callAppsScript('logout', {}); 
+        // Clear local token and reload the page
         localStorage.removeItem(sessionKey);
         window.location.reload();
     }
@@ -203,7 +289,7 @@
     async function fetchDashboardData() {
         renderSkeletonLoader();
         const res = await callAppsScript('getDashboardData');
-        if (res.success) {
+        if (res && res.success) { // Check if res is not null
             renderPublicCertificateRequests(res.data.publicCertificateRequests);
 
             fullData.students = res.data.students;
@@ -212,8 +298,8 @@
             displayData('0', 'rejected');
             displayData('5', 'issued');
             renderPendingCourses(fullData.pendingCourses);
-        } else {
-            alert('خطا در دریافت اطلاعات: ' + (res.message || 'Unknown error'));
+        } else if (res && !res.reauth) { // Only show alert if it's not an auth error
+             alert('خطا در دریافت اطلاعات: ' + (res.message || 'Unknown error'));
         }
     }
     
@@ -281,10 +367,10 @@
             
             const res = await callAppsScript('issuePublicCertificate', { studentData });
             
-            if (res.success) {
+            if (res && res.success) {
                 alert(res.message);
                 fetchDashboardData(); 
-            } else {
+            } else if (res) {
                 alert('خطا در صدور گواهی عمومی: \n' + (res.message || 'خطای نامشخص'));
                 element.className = originalIconClass;
                 element.style.pointerEvents = 'auto';
@@ -392,8 +478,8 @@
         if (confirm('آیا از تایید این دوره اطمینان دارید؟')) {
             element.parentElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             const res = await callAppsScript('approveCourse', { courseId });
-            if (res.success) { alert(res.message); fetchDashboardData(); } 
-            else {
+            if (res && res.success) { alert(res.message); fetchDashboardData(); } 
+            else if(res) {
                 alert('خطا: ' + res.message);
                 element.parentElement.innerHTML = `<i class="fas fa-check-circle action-icon approve" title="تایید دوره" onclick="handleApproveCourse(this, '${courseId}')"></i><i class="fas fa-times-circle action-icon reject" title="رد دوره" onclick="handleRejectCourse(this, '${courseId}')"></i>`;
             }
@@ -406,8 +492,8 @@
         if (!reason.trim()) { alert('وارد کردن دلیل برای رد کردن دوره الزامی است.'); return; }
         element.parentElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         const res = await callAppsScript('rejectCourse', { courseId, reason });
-        if (res.success) { alert(res.message); fetchDashboardData(); } 
-        else {
+        if (res && res.success) { alert(res.message); fetchDashboardData(); } 
+        else if (res) {
             alert('خطا: ' + res.message);
             element.parentElement.innerHTML = `<i class="fas fa-check-circle action-icon approve" title="تایید دوره" onclick="handleApproveCourse(this, '${courseId}')"></i><i class="fas fa-times-circle action-icon reject" title="رد دوره" onclick="handleRejectCourse(this, '${courseId}')"></i>`;
         }
@@ -417,16 +503,16 @@
         if (confirm(`آیا از صدور گواهی برای این قرآن‌آموز اطمینان دارید؟ این عملیات ممکن است کمی طول بکشد.`)) {
             element.classList.remove('fa-check-circle'); element.classList.add('fa-spinner', 'fa-spin');
             const res = await callAppsScript('approveCertificate', { nationalId, courseId });
-            if (res.success) { alert(res.message); fetchDashboardData(); } 
-            else { alert('خطا: ' + res.message); element.classList.add('fa-check-circle'); element.classList.remove('fa-spinner', 'fa-spin'); }
+            if (res && res.success) { alert(res.message); fetchDashboardData(); } 
+            else if (res) { alert('خطا: ' + res.message); element.classList.add('fa-check-circle'); element.classList.remove('fa-spinner', 'fa-spin'); }
         }
     }
     async function handleReset(element, nationalId, courseId) {
         if (confirm(`آیا از حذف تمام نمرات این قرآن‌آموز اطمینان دارید؟`)) {
             element.classList.remove('fa-trash-alt'); element.classList.add('fa-spinner', 'fa-spin');
             const res = await callAppsScript('resetGrades', { nationalId, courseId });
-            if (res.success) { alert(res.message); fetchDashboardData(); } 
-            else { alert('خطا: ' + res.message); element.classList.add('fa-trash-alt'); element.classList.remove('fa-spinner', 'fa-spin'); }
+            if (res && res.success) { alert(res.message); fetchDashboardData(); } 
+            else if (res) { alert('خطا: ' + res.message); element.classList.add('fa-trash-alt'); element.classList.remove('fa-spinner', 'fa-spin'); }
         }
     }
 </script>
