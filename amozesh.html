@@ -110,7 +110,7 @@
 </head>
 <body>
     <div id="login-container">
-        <div class="login-box" id="login-box">
+        <div class="login-box" id="login-section">
             <i class="fas fa-university logo"></i>
             <h1>پنل معاونت آموزش</h1>
             <p>برای ورود به سامانه اطلاعات خود را وارد کنید.</p>
@@ -235,58 +235,20 @@
         }
     }
 
-    /**
-     * @description تابع بررسی موقعیت جغرافیایی کاربر. فقط به IP های ایران اجازه دسترسی می‌دهد.
-     */
-    async function checkGeoLocation() {
-        const loginBox = document.getElementById('login-box');
-        try {
-            // از یک سرویس رایگان برای دریافت اطلاعات IP استفاده می‌کنیم
-            const response = await fetch('https://ipapi.co/json/');
-            if (!response.ok) throw new Error('Geo API failed');
-            const data = await response.json();
-
-            // اگر کد کشور ایران نبود، دسترسی را مسدود کن
-            if (data.country_code !== 'IR') {
-                 loginBox.innerHTML = `
-                    <i class="fas fa-ban logo" style="color: var(--danger-color);"></i>
-                    <h1>دسترسی غیرمجاز</h1>
-                    <p style="margin-bottom: 0;">دسترسی به این سامانه از موقعیت جغرافیایی شما امکان‌پذیر نمی‌باشد.</p>`;
-                return false; // دسترسی رد شد
-            }
-            return true; // دسترسی مجاز است
-
-        } catch (error) {
-            console.error('Geo-location check failed:', error);
-            // در صورت بروز خطا در سرویس موقعیت‌یابی، برای امنیت بیشتر، دسترسی را مسدود می‌کنیم
-            loginBox.innerHTML = `
-                <i class="fas fa-shield-alt logo" style="color: var(--warning-color);"></i>
-                <h1>خطا در بررسی امنیتی</h1>
-                <p style="margin-bottom: 0;">امکان تایید موقعیت جغرافیایی شما وجود ندارد. لطفاً بعداً تلاش کنید.</p>`;
-            return false; // دسترسی رد شد
-        }
-    }
-
-
-    document.addEventListener('DOMContentLoaded', async () => {
-        // مرحله ۱: ابتدا موقعیت جغرافیایی کاربر را بررسی کن
-        const isAccessGranted = await checkGeoLocation();
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('login-form').addEventListener('submit', handleManualLogin);
+        document.getElementById('logout-btn').addEventListener('click', handleLogout);
+        document.getElementById('captcha-refresh-btn').addEventListener('click', loadCaptcha);
+        document.getElementById('pending-search-btn').addEventListener('click', () => { currentPages.pending = 1; displayData('2', 'pending'); });
+        document.getElementById('issued-search-btn').addEventListener('click', () => { currentPages.issued = 1; displayData('5', 'issued'); });
+        document.getElementById('rejected-search-btn').addEventListener('click', () => { currentPages.rejected = 1; displayData('0', 'rejected'); });
         
-        // مرحله ۲: اگر دسترسی مجاز بود، بقیه برنامه را اجرا کن
-        if (isAccessGranted) {
-            document.getElementById('login-form').addEventListener('submit', handleManualLogin);
-            document.getElementById('logout-btn').addEventListener('click', handleLogout);
-            document.getElementById('captcha-refresh-btn').addEventListener('click', loadCaptcha);
-            document.getElementById('pending-search-btn').addEventListener('click', () => { currentPages.pending = 1; displayData('2', 'pending'); });
-            document.getElementById('issued-search-btn').addEventListener('click', () => { currentPages.issued = 1; displayData('5', 'issued'); });
-            document.getElementById('rejected-search-btn').addEventListener('click', () => { currentPages.rejected = 1; displayData('0', 'rejected'); });
-            
-            const savedToken = localStorage.getItem(sessionKey);
-            if (savedToken) {
-                showDashboard();
-            } else {
-                loadCaptcha();
-            }
+        // Check for a session token instead of a simple flag
+        const savedToken = localStorage.getItem(sessionKey);
+        if (savedToken) {
+            showDashboard();
+        } else {
+            loadCaptcha();
         }
     });
 
@@ -301,9 +263,7 @@
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
         const captcha = document.getElementById('captcha').value;
-        const submitButton = event.target.querySelector('button');
-
-        const res = await callAppsScript('checkLogin', { username, password, captcha }, submitButton);
+        const res = await callAppsScript('checkLogin', { username, password, captcha }, event.target.querySelector('button'));
         
         if (res.success && res.token) {
             // Store the secure token received from the server
@@ -313,15 +273,8 @@
             const errorP = document.getElementById('error-message');
             errorP.innerText = res.message || "خطای ورود.";
             errorP.classList.remove('hidden');
-            
-            // اگر سرور اعلام کرد که کاربر مسدود شده است، فرم را غیرفعال کن
-            if (res.blocked) {
-                document.getElementById('login-form').querySelectorAll('input, button').forEach(el => el.disabled = true);
-                document.getElementById('captcha-refresh-btn').disabled = true;
-            } else {
-                 loadCaptcha();
-                 document.getElementById('captcha').value = '';
-            }
+            loadCaptcha();
+            document.getElementById('captcha').value = '';
         }
     }
 
