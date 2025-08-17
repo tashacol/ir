@@ -217,7 +217,7 @@ function startCountdown(targetDateStr, label) {
             clearInterval(countdownInterval);
             Object.values(timerElements).forEach(el => el.textContent = '00');
             countdownTimerEl.style.display = 'none';
-            updateStatus();
+            updateStatusFromServer();
             return;
         }
         timerElements.days.textContent = String(Math.floor(distance / (1000 * 60 * 60 * 24))).padStart(2, '0');
@@ -237,15 +237,16 @@ function moveCountdownTimer(destinationContainerId) {
 function handleStatusResponse(response) {
     switch (response.status) {
         case 'PENDING':
+            switchView('status');
             statusIcon.className = 'fas fa-hourglass-start status-icon icon-pending';
             statusTitle.textContent = 'ثبت‌نام به زودی آغاز می‌شود';
             statusMessage.innerHTML = `ثبت‌نام دوره <strong>${response.courseName || 'جامع تربیت نوجوان'}</strong> در تاریخ <strong>${response.registrationStartDateFa}</strong> آغاز خواهد شد.`;
             moveCountdownTimer('status-countdown-container');
             startCountdown(response.targetDate, 'شمارش معکوس تا آغاز ثبت‌نام');
-            switchView('status');
             break;
         case 'CAPACITY_FULL':
         case 'CLOSED':
+            switchView('status');
             statusIcon.className = response.status === 'CAPACITY_FULL' ? 'fas fa-users-slash status-icon icon-full' : 'fas fa-calendar-times status-icon icon-closed';
             statusTitle.textContent = response.status === 'CAPACITY_FULL' ? 'ظرفیت این دوره تکمیل شد' : 'مهلت ثبت‌نام به پایان رسید';
             statusMessage.innerHTML = response.message;
@@ -256,7 +257,6 @@ function handleStatusResponse(response) {
             } else {
                 countdownTimerEl.style.display = 'none';
             }
-            switchView('status');
             break;
         case 'OPEN':
             document.getElementById('form-title').innerHTML = `فرم ثبت‌نام ${response.courseName}`;
@@ -267,17 +267,15 @@ function handleStatusResponse(response) {
             document.getElementById('securityToken').value = response.securityToken;
             moveCountdownTimer('form-countdown-container');
             startCountdown(response.targetDate, 'زمان باقی‌مانده تا پایان مهلت ثبت‌نام');
-            if (views.form.classList.contains('active')) {
-                // do nothing if form is already visible
-            } else {
+            if (!views.form.classList.contains('active')) {
                 termsModal.style.display = 'flex';
             }
             break;
         default:
+            switchView('status');
             statusIcon.className = 'fas fa-exclamation-triangle status-icon icon-danger';
             statusTitle.textContent = 'خطای سیستمی';
             statusMessage.innerHTML = 'پاسخ دریافت شده از سرور قابل پردازش نیست. لطفاً صفحه را مجدداً بارگذاری کنید. <br><small>' + (response.message || '') + '</small>';
-            switchView('status');
     }
 }
 
@@ -290,12 +288,14 @@ function populateDateFields() {
     for (let d = 1; d <= 31; d++) daySelect.add(new Option(d, d));
 }
 
-async function updateStatus(isRefresh = false) {
-    if (isRefresh) {
-        captchaLoader.classList.add('visible');
-    } else {
+async function updateStatusFromServer() {
+    const isInitialLoad = !captchaLoader.classList.contains('visible');
+    if (isInitialLoad) {
         switchView('loader');
+    } else {
+        captchaLoader.classList.add('visible');
     }
+
     try {
         const response = await fetch(SCRIPT_URL);
         if (!response.ok) throw new Error(`Network response was not ok. Status: ${response.status}`);
@@ -303,16 +303,16 @@ async function updateStatus(isRefresh = false) {
         handleStatusResponse(data);
     } catch (error) {
         console.error('Error fetching status:', error);
-        if (!isRefresh) {
+        if (isInitialLoad) {
+            switchView('status');
             statusIcon.className = 'fas fa-server status-icon icon-danger';
             statusTitle.textContent = 'خطای ارتباط';
             statusMessage.textContent = 'قادر به برقراری ارتباط با سرور ثبت‌نام نیستیم. لطفاً اتصال اینترنت خود را بررسی کرده و صفحه را دوباره بارگذاری کنید.';
-            switchView('status');
         } else {
             alert('خطا در دریافت تصویر جدید. لطفاً اتصال اینترنت خود را بررسی کنید.');
         }
     } finally {
-        if (isRefresh) {
+        if (!isInitialLoad) {
             captchaLoader.classList.remove('visible');
         }
     }
@@ -320,8 +320,8 @@ async function updateStatus(isRefresh = false) {
 
 document.addEventListener('DOMContentLoaded', () => {
     populateDateFields();
-    updateStatus();
-    captchaImageContainer.addEventListener('click', () => updateStatus(true));
+    updateStatusFromServer();
+    captchaImageContainer.addEventListener('click', () => updateStatusFromServer());
 });
 
 acceptTermsBtn.addEventListener('click', () => {
@@ -378,7 +378,7 @@ registrationForm.addEventListener('submit', async (e) => {
             formError.innerHTML = result.message || 'خطایی رخ داده است. لطفاً دوباره تلاش کنید.';
             formError.style.display = 'block';
             if (result.message && (result.message.includes("امنیتی") || result.message.includes("اشتباه است"))) {
-                updateStatus(true);
+                updateStatusFromServer();
             }
         }
     } catch (error) {
