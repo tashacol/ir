@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -20,7 +20,7 @@
         @keyframes loader-wave{0%,60%,100%{transform:scale(.4)}30%{transform:scale(1)}}
         #loader-view p{font-size:1.2rem;font-weight:500;color:var(--dark-text);margin-top:1rem}
         .status-icon{font-size:4.5rem;margin-bottom:1.5rem;animation:popIn .5s ease}
-        @keyframes popIn{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+        @keyframes popIn{from{transform:scale(.5);opacity:0}to{opacity:1;transform:scale(1)}}
         .icon-pending{color:var(--accent-color)}.icon-full{color:var(--warning-color)}.icon-closed{color:var(--danger-color)}.icon-success{color:var(--success-color)}
         h2{font-size:1.9rem;font-weight:800;color:var(--secondary-color);margin-bottom:1rem}
         .status-message{font-size:1.1rem;color:var(--light-text);line-height:1.8;margin-bottom:2rem}
@@ -179,6 +179,8 @@
     </div>
 <script>
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwPnxlenJnhLhc30hV0XvkjPKILied2OeVTr82FR9HOf-fwXHIU6SoyEsSUi_jcFcKk7Q/exec";
+const REFRESH_URL = SCRIPT_URL + "?action=refreshCaptcha";
+
 const views = {loader: document.getElementById('loader-view'),status: document.getElementById('status-view'),form: document.getElementById('form-view'),success: document.getElementById('success-view')};
 const statusIcon = document.getElementById('status-icon');
 const statusTitle = document.getElementById('status-title');
@@ -218,7 +220,7 @@ function startCountdown(targetDateStr, label) {
             clearInterval(countdownInterval);
             Object.values(timerElements).forEach(el => el.textContent = '00');
             countdownTimerEl.style.display = 'none';
-            updateStatus();
+            getInitialStatus();
             return;
         }
         timerElements.days.textContent = String(Math.floor(distance / (1000 * 60 * 60 * 24))).padStart(2, '0');
@@ -235,53 +237,6 @@ function moveCountdownTimer(destinationContainerId) {
     if (destination) destination.appendChild(countdownTimerEl);
 }
 
-function handleStatusResponse(response, isRefresh) {
-    switch (response.status) {
-        case 'PENDING':
-            switchView('status');
-            statusIcon.className = 'fas fa-hourglass-start status-icon icon-pending';
-            statusTitle.textContent = 'ثبت‌نام به زودی آغاز می‌شود';
-            statusMessage.innerHTML = `ثبت‌نام دوره <strong>${response.courseName || 'جامع تربیت نوجوان'}</strong> در تاریخ <strong>${response.registrationStartDateFa}</strong> آغاز خواهد شد.`;
-            moveCountdownTimer('status-countdown-container');
-            startCountdown(response.targetDate, 'شمارش معکوس تا آغاز ثبت‌نام');
-            break;
-        case 'CAPACITY_FULL':
-        case 'CLOSED':
-            switchView('status');
-            statusIcon.className = response.status === 'CAPACITY_FULL' ? 'fas fa-users-slash status-icon icon-full' : 'fas fa-calendar-times status-icon icon-closed';
-            statusTitle.textContent = response.status === 'CAPACITY_FULL' ? 'ظرفیت این دوره تکمیل شد' : 'مهلت ثبت‌نام به پایان رسید';
-            statusMessage.innerHTML = response.message;
-            if (response.nextTargetDate) {
-                statusMessage.innerHTML += ` ثبت‌نام دوره بعدی (<strong>جامع تربیت نوجوان</strong>) در تاریخ <strong>${response.nextRegistrationStartDateFa}</strong> آغاز خواهد شد.`;
-                moveCountdownTimer('status-countdown-container');
-                startCountdown(response.nextTargetDate, 'شمارش معکوس تا ثبت‌نام دوره بعد');
-            } else {
-                countdownTimerEl.style.display = 'none';
-            }
-            break;
-        case 'OPEN':
-            document.getElementById('form-title').innerHTML = `فرم ثبت‌نام ${response.courseName}`;
-            document.getElementById('course-start-date-info').innerHTML = `تاریخ شروع دوره: <strong>${response.courseStartDateFa}</strong>`;
-            document.getElementById('capacity-info').innerHTML = `ظرفیت باقی‌مانده: <strong>${response.remainingCapacity} نفر</strong>`;
-            captchaImage.src = response.captchaImage;
-            document.getElementById('captchaToken').value = response.captchaToken;
-            document.getElementById('securityToken').value = response.securityToken;
-            moveCountdownTimer('form-countdown-container');
-            startCountdown(response.targetDate, 'زمان باقی‌مانده تا پایان مهلت ثبت‌نام');
-            if (!isRefresh && !views.form.classList.contains('active')) {
-                termsModal.style.display = 'flex';
-            } else {
-                switchView('form');
-            }
-            break;
-        default:
-            switchView('status');
-            statusIcon.className = 'fas fa-exclamation-triangle status-icon icon-danger';
-            statusTitle.textContent = 'خطای سیستمی';
-            statusMessage.innerHTML = 'پاسخ دریافت شده از سرور قابل پردازش نیست. لطفاً صفحه را مجدداً بارگذاری کنید. <br><small>' + (response.message || '') + '</small>';
-    }
-}
-
 function populateDateFields() {
     const yearSelect = document.getElementById('dob-year');
     const monthSelect = document.getElementById('dob-month');
@@ -291,41 +246,77 @@ function populateDateFields() {
     for (let d = 1; d <= 31; d++) daySelect.add(new Option(d, d));
 }
 
-async function updateStatus(isRefresh = false) {
-    if (isRefreshingCaptcha) return;
-    if (isRefresh) {
-        isRefreshingCaptcha = true;
-        captchaLoader.classList.add('visible');
-    } else {
-        switchView('loader');
-    }
+async function getInitialStatus() {
+    switchView('loader');
     try {
         const response = await fetch(SCRIPT_URL);
-        if (!response.ok) throw new Error(`Network response was not ok. Status: ${response.status}`);
+        if (!response.ok) throw new Error(`Network Error: ${response.status}`);
         const data = await response.json();
-        handleStatusResponse(data, isRefresh);
+        
+        switch(data.status) {
+            case 'OPEN':
+                document.getElementById('form-title').innerHTML = `فرم ثبت‌نام ${data.courseName}`;
+                document.getElementById('course-start-date-info').innerHTML = `تاریخ شروع دوره: <strong>${data.courseStartDateFa}</strong>`;
+                document.getElementById('capacity-info').innerHTML = `ظرفیت باقی‌مانده: <strong>${data.remainingCapacity} نفر</strong>`;
+                captchaImage.src = data.captchaImage;
+                document.getElementById('captchaToken').value = data.captchaToken;
+                document.getElementById('securityToken').value = data.securityToken;
+                moveCountdownTimer('form-countdown-container');
+                startCountdown(data.targetDate, 'زمان باقی‌مانده تا پایان مهلت ثبت‌نام');
+                termsModal.style.display = 'flex';
+                break;
+            case 'PENDING':
+            case 'CAPACITY_FULL':
+            case 'CLOSED':
+            default:
+                switchView('status');
+                statusIcon.className = {'PENDING': 'fas fa-hourglass-start status-icon icon-pending', 'CAPACITY_FULL': 'fas fa-users-slash status-icon icon-full', 'CLOSED': 'fas fa-calendar-times status-icon icon-closed'}[data.status] || 'fas fa-exclamation-triangle status-icon icon-danger';
+                statusTitle.textContent = {'PENDING': 'ثبت‌نام به زودی آغاز می‌شود', 'CAPACITY_FULL': 'ظرفیت این دوره تکمیل شد', 'CLOSED': 'مهلت ثبت‌نام به پایان رسید'}[data.status] || 'خطای سیستمی';
+                statusMessage.innerHTML = data.message || 'پاسخ دریافت شده از سرور قابل پردازش نیست.';
+                if (data.nextTargetDate || data.targetDate) {
+                    const nextDate = data.nextTargetDate || data.targetDate;
+                    const nextLabel = data.status === 'PENDING' ? 'شمارش معکوس تا آغاز ثبت‌نام' : 'شمارش معکوس تا ثبت‌نام دوره بعد';
+                    moveCountdownTimer('status-countdown-container');
+                    startCountdown(nextDate, nextLabel);
+                } else {
+                    countdownTimerEl.style.display = 'none';
+                }
+        }
     } catch (error) {
-        console.error('Error fetching status:', error);
-        if (!isRefresh) {
-            switchView('status');
-            statusIcon.className = 'fas fa-server status-icon icon-danger';
-            statusTitle.textContent = 'خطای ارتباط';
-            statusMessage.textContent = 'قادر به برقراری ارتباط با سرور ثبت‌نام نیستیم. لطفاً اتصال اینترنت خود را بررسی کرده و صفحه را دوباره بارگذاری کنید.';
+        switchView('status');
+        statusIcon.className = 'fas fa-server status-icon icon-danger';
+        statusTitle.textContent = 'خطای ارتباط';
+        statusMessage.textContent = 'قادر به برقراری ارتباط با سرور ثبت‌نام نیستیم. لطفاً اتصال اینترنت خود را بررسی کرده و صفحه را دوباره بارگذاری کنید.';
+    }
+}
+
+async function refreshCaptcha() {
+    if (isRefreshingCaptcha) return;
+    isRefreshingCaptcha = true;
+    captchaLoader.classList.add('visible');
+    try {
+        const response = await fetch(REFRESH_URL);
+        if (!response.ok) throw new Error(`Network Error: ${response.status}`);
+        const data = await response.json();
+        if (data.imageDataUrl && data.token) {
+            captchaImage.src = data.imageDataUrl;
+            document.getElementById('captchaToken').value = data.token;
         } else {
-            alert('خطا در دریافت تصویر جدید. لطفاً اتصال اینترنت خود را بررسی کنید.');
+            throw new Error('Invalid captcha data from server');
         }
+    } catch (error) {
+        console.error('Error refreshing captcha:', error);
+        alert('خطا در دریافت تصویر جدید. لطفاً اتصال اینترنت خود را بررسی کنید.');
     } finally {
-        if (isRefresh) {
-            captchaLoader.classList.remove('visible');
-            isRefreshingCaptcha = false;
-        }
+        captchaLoader.classList.remove('visible');
+        isRefreshingCaptcha = false;
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     populateDateFields();
-    updateStatus();
-    captchaImageContainer.addEventListener('click', () => updateStatus(true));
+    getInitialStatus();
+    captchaImageContainer.addEventListener('click', refreshCaptcha);
 });
 
 acceptTermsBtn.addEventListener('click', () => {
@@ -369,10 +360,7 @@ registrationForm.addEventListener('submit', async (e) => {
             body: JSON.stringify(dataObject)
         });
         
-        if (!response.ok) {
-            throw new Error(`Network error: ${response.statusText}`);
-        }
-
+        if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
         const result = await response.json();
         
         if (result.status === 'success') {
@@ -382,7 +370,7 @@ registrationForm.addEventListener('submit', async (e) => {
             formError.innerHTML = result.message || 'خطایی رخ داده است. لطفاً دوباره تلاش کنید.';
             formError.style.display = 'block';
             if (result.message && (result.message.includes("امنیتی") || result.message.includes("اشتباه است"))) {
-                updateStatus(true);
+                refreshCaptcha();
             }
         }
     } catch (error) {
