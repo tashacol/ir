@@ -217,7 +217,7 @@ function startCountdown(targetDateStr, label) {
             clearInterval(countdownInterval);
             Object.values(timerElements).forEach(el => el.textContent = '00');
             countdownTimerEl.style.display = 'none';
-            initializePage();
+            updateStatus();
             return;
         }
         timerElements.days.textContent = String(Math.floor(distance / (1000 * 60 * 60 * 24))).padStart(2, '0');
@@ -267,7 +267,11 @@ function handleStatusResponse(response) {
             document.getElementById('securityToken').value = response.securityToken;
             moveCountdownTimer('form-countdown-container');
             startCountdown(response.targetDate, 'زمان باقی‌مانده تا پایان مهلت ثبت‌نام');
-            termsModal.style.display = 'flex';
+            if (views.form.classList.contains('active')) {
+                // do nothing if form is already visible
+            } else {
+                termsModal.style.display = 'flex';
+            }
             break;
         default:
             statusIcon.className = 'fas fa-exclamation-triangle status-icon icon-danger';
@@ -286,7 +290,7 @@ function populateDateFields() {
     for (let d = 1; d <= 31; d++) daySelect.add(new Option(d, d));
 }
 
-async function initializePage(isRefresh = false) {
+async function updateStatus(isRefresh = false) {
     if (isRefresh) {
         captchaLoader.classList.add('visible');
     } else {
@@ -296,13 +300,7 @@ async function initializePage(isRefresh = false) {
         const response = await fetch(SCRIPT_URL);
         if (!response.ok) throw new Error(`Network response was not ok. Status: ${response.status}`);
         const data = await response.json();
-        if (isRefresh) {
-            captchaImage.src = data.captchaImage;
-            document.getElementById('captchaToken').value = data.captchaToken;
-            document.getElementById('securityToken').value = data.securityToken;
-        } else {
-            handleStatusResponse(data);
-        }
+        handleStatusResponse(data);
     } catch (error) {
         console.error('Error fetching status:', error);
         if (!isRefresh) {
@@ -322,8 +320,8 @@ async function initializePage(isRefresh = false) {
 
 document.addEventListener('DOMContentLoaded', () => {
     populateDateFields();
-    initializePage();
-    captchaImageContainer.addEventListener('click', () => initializePage(true));
+    updateStatus();
+    captchaImageContainer.addEventListener('click', () => updateStatus(true));
 });
 
 acceptTermsBtn.addEventListener('click', () => {
@@ -380,7 +378,7 @@ registrationForm.addEventListener('submit', async (e) => {
             formError.innerHTML = result.message || 'خطایی رخ داده است. لطفاً دوباره تلاش کنید.';
             formError.style.display = 'block';
             if (result.message && (result.message.includes("امنیتی") || result.message.includes("اشتباه است"))) {
-                initializePage(true);
+                updateStatus(true);
             }
         }
     } catch (error) {
