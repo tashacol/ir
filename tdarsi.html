@@ -82,6 +82,17 @@
         margin: 0 auto 10px auto;
       }
       @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      .hijri-anchor-row {
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px dashed var(--border-color);
+        align-items: center;
+      }
+      .hijri-anchor-row:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+      }
       #interHolidaysContainer .form-check { margin-bottom: 5px; }
     </style>
 </head>
@@ -143,17 +154,16 @@
           </div>
         </div>
         
-        <!-- STEP 3: Hijri Anchor -->
+        <!-- STEP 3: Hijri Anchors -->
         <div class="card" id="step3">
           <div class="card-header collapsed" data-toggle="collapse" data-target="#collapseThree">
-            <h5>مرحله ۳: تطبیق تاریخ قمری (مهم)</h5>
+            <h5>مرحله ۳: تطبیق ماه‌های قمری (مهم)</h5>
           </div>
           <div id="collapseThree" class="collapse">
             <div class="card-body">
-              <p class="text-muted">برای محاسبه دقیق تعطیلات مذهبی، لطفاً تاریخ قمری معادل <b>اولین روز تقویم آموزشی</b> خود را از روی یک تقویم رسمی وارد کنید.</p>
-              <div id="hijriAnchorContainer" class="mt-3 form-row align-items-center">
-                  <!-- Dynamic content will be inserted here -->
-              </div>
+              <p class="text-muted">برای محاسبه دقیق تعطیلات مذهبی، ابتدا ماه‌های شمسی دوره را شناسایی کرده و سپس تاریخ قمری معادل <strong>روز اول هر ماه</strong> را وارد کنید.</p>
+              <button type="button" id="findMonthsBtn" class="btn btn-info" onclick="findMonthsInRange()">شناسایی ماه‌های شمسی</button>
+              <div id="hijriAnchorsContainer" class="mt-3"></div>
             </div>
           </div>
         </div>
@@ -166,7 +176,7 @@
           <div id="collapseFour" class="collapse">
             <div class="card-body">
               <p class="text-muted">پس از تنظیم تمام تعطیلات در مراحل قبل، روی دکمه زیر کلیک کنید تا روزهای "ساندویچی" بین تعطیلات شناسایی شوند.</p>
-              <button type="button" id="findInterBtn" class="btn btn-info" onclick="findInterHolidays()">یافتن روزهای بین‌التعطیلین</button>
+              <button type="button" id="findInterBtn" class="btn btn-info" onclick="findInterHolidays()" disabled>یافتن روزهای بین‌التعطیلین</button>
               <div id="interHolidaysContainer" class="mt-3"></div>
             </div>
           </div>
@@ -175,7 +185,7 @@
       </div>
 
       <!-- Action Button and Status -->
-      <button type="button" id="generateBtn" class="btn btn-primary btn-lg btn-block mt-4" onclick="generate()">ایجاد تقویم و دانلود فایل اکسل</button>
+      <button type="button" id="generateBtn" class="btn btn-primary btn-lg btn-block mt-4" onclick="generate()" disabled>ایجاد تقویم و دانلود فایل اکسل</button>
       <div id="loader-container" class="loader-container">
           <div class="loader"></div>
           <p id="loader-message"></p>
@@ -224,16 +234,18 @@
               return new Date(gy, gm - 1, gd);
           }
           
-          function g2d(year, month, day) { const GREGORIAN_EPOCH = 1721425.5; return (GREGORIAN_EPOCH - 1) + (365 * (year - 1)) + Math.floor((year - 1) / 4) - Math.floor((year - 1) / 100) + Math.floor((year - 1) / 400) + Math.floor((((367 * month) - 362) / 12) + ((month <= 2) ? 0 : (((year % 4 === 0) && (year % 100 !== 0)) || (year % 400 === 0)) ? -1 : -2) + day); }
-          function jdToHijri(jd) { const ISLAMIC_EPOCH = 1948439.5; const year = Math.floor(((30 * (jd - ISLAMIC_EPOCH)) + 10646) / 10631); const month = Math.min(12, Math.ceil((jd - (29 + (islamicToJd(year, 1, 1)))) / 29.5) + 1); const day = (jd - islamicToJd(year, month, 1)) + 1; return { year, month, day }; }
-          function islamicToJd(year, month, day) { const ISLAMIC_EPOCH = 1948439.5; return (day + Math.ceil(29.5 * (month - 1)) + (year - 1) * 354 + Math.floor((3 + (11 * year)) / 30) + ISLAMIC_EPOCH) - 1; }
-          
-          function calculateHijriDate(gregorianDate, anchor) {
-              const anchorJd = islamicToJd(anchor.hYear, anchor.hMonth, anchor.hDay);
-              const anchorGDate = CalendarUtils.jalaliToGregorian(anchor.sYear, anchor.sMonth, anchor.sDay);
-              const dayDiff = Math.round((gregorianDate.getTime() - anchorGDate.getTime()) / (1000 * 60 * 60 * 24));
-              const targetJd = anchorJd + dayDiff;
-              return jdToHijri(targetJd);
+          function calculateHijriDate(startHD, startHM, startHY, currentJD) {
+              const dayOffset = currentJD - 1;
+              const hijriMonthsLength = { 1: 30, 2: 29, 3: 30, 4: 29, 5: 30, 6: 29, 7: 30, 8: 29, 9: 30, 10: 29, 11: 30, 12: 30 };
+              let newDay = startHD + dayOffset;
+              let newMonth = startHM;
+              let newYear = startHY;
+              while (true) {
+                  let len = hijriMonthsLength[newMonth] || 29;
+                  if (newDay > len) { newDay -= len; newMonth++; if (newMonth > 12) { newMonth = 1; newYear++; }} 
+                  else { break; }
+              }
+              return { day: newDay, month: newMonth, year: newYear };
           }
           
           function getOfficialHolidays() {
@@ -268,41 +280,23 @@
       // ===================================================================================
       let customHolidays = [];
 
-      document.addEventListener("DOMContentLoaded", function() {
-        updateHijriAnchorLabel();
-        ['startDay', 'startMonth', 'startYear'].forEach(id => {
-            document.getElementById(id).addEventListener('change', updateHijriAnchorLabel);
-        });
-      });
-      
-      function updateHijriAnchorLabel() {
-        const day = document.getElementById('startDay').value;
-        const month = document.getElementById('startMonth').value;
-        const year = document.getElementById('startYear').value;
-        const container = document.getElementById('hijriAnchorContainer');
-        container.innerHTML = `<div class="col-md-5"><label class="col-form-label">تاریخ قمری معادل <b class="text-danger">${day} / ${month} / ${year}</b></label></div><div class="col-md-3"><input type="number" id="hDay" class="form-control" placeholder="روز قمری"></div><div class="col-md-3"><input type="number" id="hMonth" class="form-control" placeholder="ماه قمری"></div><div class="col-md-1"><input type="number" id="hYear" class="form-control" placeholder="سال"></div>`;
-      }
-
-      function getFormData(includeInterHolidays = false) {
-        const sDay = parseInt(document.getElementById('startDay').value);
-        const sMonth = parseInt(document.getElementById('startMonth').value);
-        const sYear = parseInt(document.getElementById('startYear').value);
-        const hijriAnchor = {
-            sDay, sMonth, sYear,
-            hDay: parseInt(document.getElementById('hDay').value),
-            hMonth: parseInt(document.getElementById('hMonth').value),
-            hYear: parseInt(document.getElementById('hYear').value)
-        };
-
+      function getFormData(includeAnchors = false, includeInterHolidays = false) {
         const data = {
           headerInfo: { name: document.getElementById('headerName').value, term: document.getElementById('headerTerm').value, other: document.getElementById('headerOther').value },
-          startDate: { day: sDay, month: sMonth, year: sYear },
+          startDate: { day: parseInt(document.getElementById('startDay').value), month: parseInt(document.getElementById('startMonth').value), year: parseInt(document.getElementById('startYear').value) },
           endDate: { day: parseInt(document.getElementById('endDay').value), month: parseInt(document.getElementById('endMonth').value), year: parseInt(document.getElementById('endYear').value) },
           thursdayOption: document.getElementById('thursdayOption').value,
-          customHolidays: customHolidays,
-          hijriAnchor: hijriAnchor
+          customHolidays: customHolidays
         };
-        
+        if(includeAnchors){
+          const hijriAnchors = [];
+          document.querySelectorAll('.hijri-anchor-row').forEach(row => {
+            const year = parseInt(row.dataset.year); const month = parseInt(row.dataset.month);
+            const hDay = parseInt(row.querySelector('.h-day').value); const hMonth = parseInt(row.querySelector('.h-month').value); const hYear = parseInt(row.querySelector('.h-year').value);
+            if (!isNaN(hDay) && !isNaN(hMonth) && !isNaN(hYear)) hijriAnchors.push({ year, month, hDay, hMonth, hYear });
+          });
+          data.hijriAnchors = hijriAnchors;
+        }
         if(includeInterHolidays){
           const selectedInterHolidays = [];
           document.querySelectorAll('.inter-holiday-check:checked').forEach(checkbox => { selectedInterHolidays.push(checkbox.value); });
@@ -324,21 +318,58 @@
         ['customDay', 'customMonth', 'customYear', 'customReason'].forEach(id => document.getElementById(id).value = '');
       }
       
+      function findMonthsInRange() {
+        try {
+            setLoading(true, "در حال شناسایی ماه‌ها...");
+            const data = getFormData();
+            const gStart = CalendarUtils.jalaliToGregorian(data.startDate.year, data.startDate.month, data.startDate.day);
+            const gEnd = CalendarUtils.jalaliToGregorian(data.endDate.year, data.endDate.month, data.endDate.day);
+            let months = []; let processedMonths = new Set();
+            for (let d = new Date(gStart.getTime()); d <= gEnd; d.setDate(d.getDate() + 1)) {
+              const jDate = CalendarUtils.gregorianToJalali(d);
+              const monthKey = `${jDate.jy}-${jDate.jm}`;
+              if (!processedMonths.has(monthKey)) {
+                months.push({ year: jDate.jy, month: jDate.jm, monthName: CalendarUtils.getJalaliMonthName(jDate.jm) });
+                processedMonths.add(monthKey);
+              }
+            }
+            onMonthsFound(months);
+        } catch(e) { onFailure(e); }
+      }
+
+      function onMonthsFound(months) {
+        setLoading(false);
+        const container = document.getElementById('hijriAnchorsContainer');
+        container.innerHTML = '<p>لطفا برای <b>روز اول</b> هر ماه شمسی، تاریخ قمری معادل آن را از روی تقویم رسمی وارد کنید:</p>';
+        if (months.length > 0) {
+          months.forEach(m => {
+            const row = document.createElement('div'); row.className = 'form-row hijri-anchor-row';
+            row.dataset.year = m.year; row.dataset.month = m.month;
+            row.innerHTML = `<div class="col-md-4"><label class="col-form-label">۱ ${m.monthName} ${m.year}</label></div><div class="col-md-3"><input type="number" class="form-control h-day" placeholder="روز قمری"></div><div class="col-md-3"><input type="number" class="form-control h-month" placeholder="ماه قمری"></div><div class="col-md-2"><input type="number" class="form-control h-year" placeholder="سال ق"></div>`;
+            container.appendChild(row);
+          });
+          document.getElementById('findInterBtn').disabled = false;
+        } else { onFailure({message: "هیچ ماهی یافت نشد."}); }
+      }
+
       function findInterHolidays() {
         try {
             setLoading(true, "در حال یافتن...");
-            const data = getFormData();
-            if (isNaN(data.hijriAnchor.hDay)) { throw new Error('لطفا ابتدا تاریخ قمری معادل روز شروع را در مرحله ۳ وارد کنید.'); }
-
+            const data = getFormData(true);
+            if (data.hijriAnchors.length === 0) { throw new Error('لطفا ابتدا ماه‌های شمسی را شناسایی کرده و اطلاعات قمری را در مرحله ۲ وارد کنید.'); }
+            
             const gStart = CalendarUtils.jalaliToGregorian(data.startDate.year, data.startDate.month, data.startDate.day);
             const gEnd = CalendarUtils.jalaliToGregorian(data.endDate.year, data.endDate.month, data.endDate.day);
             const customHolidaysMap = new Map(data.customHolidays.map(h => [`${h.year}-${h.month}-${h.day}`, h.reason]));
             const officialHolidays = CalendarUtils.getOfficialHolidays();
+            const hijriAnchorMap = new Map(data.hijriAnchors.map(a => [`${a.year}-${a.month}`, { day: a.hDay, month: a.hMonth, year: a.hYear }]));
             
             let dayInfo = []; let isThisThursdayOff = (data.thursdayOption === 'alternate_off');
             for (let d = new Date(gStart.getTime()); d <= gEnd; d.setDate(d.getDate() + 1)) {
               const jDate = CalendarUtils.gregorianToJalali(d);
-              const hDate = CalendarUtils.calculateHijriDate(d, data.hijriAnchor);
+              const anchor = hijriAnchorMap.get(`${jDate.jy}-${jDate.jm}`);
+              if (!anchor) throw new Error(`اطلاعات قمری برای ماه ${CalendarUtils.getJalaliMonthName(jDate.jm)} ${jDate.jy} وارد نشده است.`);
+              const hDate = CalendarUtils.calculateHijriDate(anchor.day, anchor.month, anchor.year, jDate.jd);
               const dayOfWeek = d.getDay(); const isThursday = dayOfWeek === 4;
               let isHoliday = false;
               if (dayOfWeek === 5) isHoliday = true;
@@ -384,26 +415,58 @@
             container.appendChild(div);
           });
         } else { container.innerHTML = '<div class="alert alert-success">هیچ روز بین‌التعطیلینی یافت نشد.</div>'; }
+        document.getElementById('generateBtn').disabled = false;
       }
 
       function generate() {
         try {
             setLoading(true, "در حال ساخت تقویم...");
-            const data = getFormData(true);
+            const data = getFormData(true, true);
             if (!data.startDate.day || !data.startDate.month || !data.startDate.year || !data.endDate.day || !data.endDate.month || !data.endDate.year || !data.headerInfo.name || !data.headerInfo.term) throw new Error('لطفا تمام فیلدهای لازم را در مرحله ۱ پر کنید.');
-            if (isNaN(data.hijriAnchor.hDay) || isNaN(data.hijriAnchor.hMonth) || isNaN(data.hijriAnchor.hYear)) throw new Error('لطفا تاریخ قمری معادل روز شروع را در مرحله ۳ به طور کامل وارد کنید.');
+            if (data.hijriAnchors.length === 0) throw new Error('لطفا ابتدا ماه‌های شمسی را شناسایی کرده و اطلاعات قمری را در مرحله ۲ وارد کنید.');
             
-            const { sheetData, fileName } = processAndPrepareExcelData(data);
+            const { sheetData, fileName, excelData } = processAndPrepareExcelData(data);
             
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(sheetData);
 
             ws['!merges'] = [ { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } }, { s: { r: 2, c: 0 }, e: { r: 2, c: 6 } }];
-            ws['!cols'] = [ {wch:12}, {wch:12}, {wch:15}, {wch:35}, {wch:12}, {wch:8}, {wch:8} ];
+            ws['!cols'] = [ {wch:12}, {wch:12}, {wch:15}, {wch:35}, {wch:12}, {wch:8}, {wch:8} ].reverse();
             ws['!rows'] = [{hpt: 25}, {hpt: 20}, {hpt: 18}];
             ws['!autofilter'] = { ref: "A8:G8" };
             ws['!view'] = { rtl: true };
             
+            // اعمال فونت، وسط‌چینی و رنگ‌ها
+            Object.keys(ws).forEach(cellAddress => {
+                if(cellAddress[0] === '!') return;
+                const cell = ws[cellAddress];
+                if(!cell.s) cell.s = {};
+                if(!cell.s.font) cell.s.font = {};
+                if(!cell.s.alignment) cell.s.alignment = {};
+                
+                cell.s.font.name = "Vazirmatn";
+                cell.s.alignment.vertical = "center";
+                cell.s.alignment.horizontal = "center";
+                
+                const rowIndex = XLSX.utils.decode_cell(cellAddress).r;
+                if(rowIndex < 8) return; // Skip header and stats
+
+                const dataIndex = rowIndex - 9; // Adjust for header rows
+                if (!cell.s.fill) cell.s.fill = { fgColor: {} };
+
+                if(excelData.holidayRowGroups.fridays.includes(dataIndex)) cell.s.fill.fgColor.rgb = "EEEEEE";
+                else if(excelData.holidayRowGroups.official.includes(dataIndex)) cell.s.fill.fgColor.rgb = "F4CCCC";
+                else if(excelData.holidayRowGroups.educationalAndCustom.includes(dataIndex)) cell.s.fill.fgColor.rgb = "CFE2F3";
+
+                if(excelData.firstOfMonthRows.shamsi.includes(dataIndex)) {
+                    cell.s.fill.fgColor.rgb = "D9EAD3";
+                    cell.s.font.bold = true;
+                }
+                if(excelData.firstOfMonthRows.hijri.includes(dataIndex) && XLSX.utils.decode_cell(cellAddress).c === 2) { // ستون قمری
+                    cell.s.font.bold = true;
+                }
+            });
+
             XLSX.utils.book_append_sheet(wb, ws, "تقویم آموزشی");
             XLSX.writeFile(wb, fileName);
             
@@ -417,11 +480,14 @@
           const customHolidaysMap = new Map(data.customHolidays.map(h => [`${h.year}-${h.month}-${h.day}`, h.reason]));
           const interHolidaysSet = new Set(data.selectedInterHolidays);
           const officialHolidays = CalendarUtils.getOfficialHolidays();
+          const hijriAnchorMap = new Map(data.hijriAnchors.map(a => [`${a.year}-${a.month}`, { day: a.hDay, month: a.hMonth, year: a.hYear }]));
           
           let allDaysData = []; let isThisThursdayOff = (data.thursdayOption === 'alternate_off');
           for (let d = new Date(gStart.getTime()); d <= gEnd; d.setDate(d.getDate() + 1)) {
             const jDate = CalendarUtils.gregorianToJalali(d);
-            const hDate = CalendarUtils.calculateHijriDate(d, data.hijriAnchor);
+            const anchor = hijriAnchorMap.get(`${jDate.jy}-${jDate.jm}`);
+            if (!anchor) throw new Error(`اطلاعات قمری برای ماه ${CalendarUtils.getJalaliMonthName(jDate.jm)} ${jDate.jy} وارد نشده است.`);
+            const hDate = CalendarUtils.calculateHijriDate(anchor.day, anchor.month, anchor.year, jDate.jd);
             const jDateString = `${jDate.jy}-${jDate.jm}-${jDate.jd}`;
             const dayOfWeek = d.getDay(); const isThursday = dayOfWeek === 4;
             let dayInfo = { date: new Date(d.getTime()), jDate, hDate, holidayReason: "", isHoliday: false, holidayType: null };
@@ -439,9 +505,12 @@
           }
 
           let stats = { totalDays: allDaysData.length, workDays: 0, totalHolidays: 0, fridays: 0, official: 0, educational: 0, custom: 0 };
-          allDaysData.forEach(dayInfo => {
+          let firstOfMonthRows = { shamsi: [], hijri: [] };
+          let holidayRowGroups = { fridays: [], official: [], educationalAndCustom: [] };
+          allDaysData.forEach((dayInfo, index) => {
               if (dayInfo.isHoliday) {
                   stats.totalHolidays++;
+                  if(dayInfo.holidayType) holidayRowGroups[dayInfo.holidayType].push(index);
                   if (dayInfo.holidayType === 'fridays') stats.fridays++;
                   else if (dayInfo.holidayType === 'official') stats.official++;
                   else {
@@ -449,16 +518,23 @@
                       else stats.educational++;
                   }
               } else stats.workDays++;
+              if (dayInfo.jDate.jd === 1) firstOfMonthRows.shamsi.push(index);
+              if (dayInfo.hDate.day === 1) firstOfMonthRows.hijri.push(index);
           });
           
           const sheetData = [];
+          // Header and stats
+          const startDateString = `${data.startDate.day} / ${data.startDate.month} / ${data.startDate.year}`;
+          const endDateString = `${data.endDate.day} / ${data.endDate.month} / ${data.endDate.year}`;
           sheetData.push([data.headerInfo.name]); sheetData.push([data.headerInfo.term]); sheetData.push([data.headerInfo.other]);
           sheetData.push([]);
-          sheetData.push([null, "تعداد کل روزهای دوره", stats.totalDays, null, "تعداد کل روزهای تعطیل", stats.totalHolidays]);
-          sheetData.push([null, "تعداد روزهای کاری/آموزشی", stats.workDays, null, "تعداد جمعه‌ها", stats.fridays]);
-          sheetData.push([null, "تعطیلات افزوده (سفارشی)", stats.custom, null, "تعطیلات رسمی", stats.official]);
-          sheetData.push([null, null, null, null, "سایر تعطیلات آموزشی", stats.educational]);
-          sheetData.push(["مانده", "گذشته", "توضیحات", "دلیل تعطیلی", "تاریخ قمری", "تاریخ شمسی", "ایام هفته"]);
+          sheetData.push([null, "تاریخ شروع دوره", startDateString, null, "تعداد کل روزهای دوره", stats.totalDays]);
+          sheetData.push([null, "تاریخ اتمام دوره", endDateString, null, "تعداد روزهای کاری/آموزشی", stats.workDays]);
+          sheetData.push([null, "تعطیلات افزوده (سفارشی)", stats.custom, null, "تعداد کل روزهای تعطیل", stats.totalHolidays]);
+          sheetData.push([null, null, null, null, "  - جمعه‌ها", stats.fridays]);
+          sheetData.push([null, null, null, null, "  - رسمی", stats.official]);
+          sheetData.push([null, null, null, null, "  - سایر", stats.educational]);
+          sheetData.push(["ایام هفته", "تاریخ شمسی", "تاریخ قمری", "دلیل تعطیلی", "توضیحات", "گذشته", "مانده"].reverse());
           
           let ascendingCounter = 1; let descendingCounter = stats.workDays;
           allDaysData.forEach(dayInfo => {
@@ -467,19 +543,19 @@
               const shamsiDisplay = (dayInfo.jDate.jd === 1) ? CalendarUtils.getJalaliMonthName(dayInfo.jDate.jm) : dayInfo.jDate.jd;
               const hijriDisplay = (dayInfo.hDate.day === 1) ? CalendarUtils.getHijriMonthName(dayInfo.hDate.month) : dayInfo.hDate.day;
               const row = [ 
-                  dayInfo.isHoliday ? "" : descendingCounter,
-                  dayInfo.isHoliday ? "" : ascendingCounter,
-                  "", // توضیحات
-                  dayInfo.holidayReason,
-                  hijriDisplay,
+                  dayOfWeekName,
                   shamsiDisplay,
-                  dayOfWeekName
-              ];
+                  hijriDisplay,
+                  dayInfo.holidayReason,
+                  "", // توضیحات
+                  dayInfo.isHoliday ? "" : ascendingCounter,
+                  dayInfo.isHoliday ? "" : descendingCounter
+              ].reverse();
               if (!dayInfo.isHoliday) { ascendingCounter++; descendingCounter--; }
               sheetData.push(row);
           });
 
-          return { sheetData, fileName: `تقویم ${data.headerInfo.term}.xlsx` };
+          return { sheetData, fileName: `تقویم ${data.headerInfo.term}.xlsx`, excelData: { holidayRowGroups, firstOfMonthRows } };
       }
 
       function onSuccess(fileName) {
@@ -506,7 +582,7 @@
             loaderMessage.textContent = message;
         }
         document.getElementById('status').style.display = 'none';
-        ['generateBtn', 'findInterBtn'].forEach(id => document.getElementById(id).disabled = isLoading);
+        ['generateBtn', 'findMonthsBtn', 'findInterBtn'].forEach(id => document.getElementById(id).disabled = isLoading);
       }
     </script>
 </body>
