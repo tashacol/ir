@@ -1,4 +1,4 @@
-  <!DOCTYPE html> 
+<!DOCTYPE html> 
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -335,11 +335,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadTheme = () => { if (localStorage.getItem('theme') === 'dark') { htmlElement.classList.add('dark-mode'); themeToggleBtn.querySelector('i').classList.replace('fa-moon', 'fa-sun'); }};
     const toggleTheme = () => { htmlElement.classList.toggle('dark-mode'); const i = htmlElement.classList.contains('dark-mode'); localStorage.setItem('theme', i ? 'dark' : 'light'); themeToggleBtn.querySelector('i').classList.toggle('fa-moon', !i); themeToggleBtn.querySelector('i').classList.toggle('fa-sun', i); };
     
-    /**
-     * ** NEW SECURE API REQUEST FUNCTION **
-     * A centralized function to handle all authenticated API calls.
-     * It automatically attaches the auth token to every request.
-     */
     const apiRequest = async (params) => {
         const token = sessionStorage.getItem(AUTH_TOKEN_KEY);
         if (!token && params.action !== 'logout') {
@@ -360,7 +355,6 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const result = await response.json();
 
-            // Centralized handling of auth errors from the server
             if (result.error && result.message.includes("نشست شما نامعتبر یا منقضی")) {
                 showToast(result.message, 'error');
                 setTimeout(logout, 2000);
@@ -370,7 +364,6 @@ document.addEventListener('DOMContentLoaded', () => {
             
             return result;
         } catch (e) {
-            // Re-throw the error so the calling function can handle its UI state
             throw e;
         }
     };
@@ -395,7 +388,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const logout = async () => {
         const token = sessionStorage.getItem(AUTH_TOKEN_KEY);
         if (token) {
-            // Tell the server to invalidate the token (fire and forget)
             apiRequest({ action: 'logout' }).catch(err => console.error("Logout notification failed:", err));
         }
         localStorage.clear();
@@ -426,9 +418,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (result.success) {
                 localStorage.removeItem(FAILED_ATTEMPTS_KEY);
                 const userData = { name: result.name, nationalId: result.nationalId };
-                // Store user data and the critical auth token separately
                 sessionStorage.setItem('pendingUser', JSON.stringify(userData));
-                sessionStorage.setItem(AUTH_TOKEN_KEY, result.authToken); // ** NEW: Store the auth token **
+                sessionStorage.setItem(AUTH_TOKEN_KEY, result.authToken);
                 showConfirmationModal(userData);
             } else {
                 attempts++;
@@ -439,10 +430,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (attempts === 2) {
                     loginErrorMsg.textContent += "\nهشدار: با تلاش ناموفق بعدی، دسترسی شما مسدود می‌شود.";
                 } else if (attempts >= 3) {
-                    // SECURITY FIX: The server now handles the password reset. The client just needs to lock itself.
                     setCache(LOCKOUT_KEY, { locked: true });
                     checkLockoutState();
-                    // The fetch call to resetPasswordOnBruteForce is REMOVED from here.
                 }
             }
         } catch (e) {
@@ -493,7 +482,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) { showToast(e.message, 'error'); contractsTableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 40px 0; color:var(--danger);">${e.message}</td></tr>`; }
     };
     
-    // --- Other rendering and helper functions (unchanged) ---
     const renderFinancialSummary = (d) => { financialStatsContainer.innerHTML = `<div class="stat-item income"><div class="label"><i class="fas fa-arrow-up"></i><span>درآمد کل</span></div><p class="value">${d.totalIncome}<small> ریال</small></p></div><div class="stat-item expense"><div class="label"><i class="fas fa-arrow-down"></i><span>هزینه کل</span></div><p class="value">${d.totalExpenses}<small> ریال</small></p></div><div class="stat-item"><div class="label"><i class="fas fa-chart-line"></i><span>سود کل</span></div><p class="value">${d.totalProfit}<small> ریال</small></p></div><div class="stat-item"><div class="label"><i class="fas fa-balance-scale-left"></i><span>ضرر کل</span></div><p class="value">${d.totalLoss}<small> ریال</small></p></div>`; };
     const renderTransactions = (d) => { if (d.length === 0) { transactionsTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:40px 0; color:var(--text-light);">موردی یافت نشد.</td></tr>`; return; } transactionsTableBody.innerHTML = d.map(t => `<tr><td>${t.date}</td><td>${t.accountant}</td><td class="amount positive">${Number(t.income).toLocaleString('fa-IR')}</td><td class="amount negative">${Number(t.expenses).toLocaleString('fa-IR')}</td><td style="text-align:center;"><i class="fas fa-info-circle description-icon" data-text="${t.description}" title="نمایش توضیحات"></i></td></tr>`).join(''); };
     const renderContracts = (data) => { if (!data || data.length === 0) { contractsTableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:40px 0; color:var(--text-light);">قراردادی یافت نشد.</td></tr>`; return; } contractsTableBody.innerHTML = data.map((c, index) => `<tr><td>${index + 1}</td><td>${c.subject}</td><td>${c.date}</td><td>${c.party1}</td><td>${c.party2}</td><td style="text-align:center;"><i class="fas fa-file-alt description-icon" data-text="${c.text}" title="نمایش متن قرارداد"></i></td></tr>`).join(''); };
@@ -505,19 +493,17 @@ document.addEventListener('DOMContentLoaded', () => {
     confirmLoginBtn.addEventListener('click', () => {
         const pendingUser = JSON.parse(sessionStorage.getItem('pendingUser'));
         if (pendingUser && sessionStorage.getItem(AUTH_TOKEN_KEY)) {
-            setCache(SESSION_KEY, pendingUser); // Store user details for display
+            setCache(SESSION_KEY, pendingUser);
             initDashboard(pendingUser);
             confirmationModal.classList.remove('show');
             sessionStorage.removeItem('pendingUser');
         }
     });
 
-    // SECURITY FIX: The cancel button no longer resets the password. It performs a secure logout.
     cancelLoginBtn.addEventListener('click', () => {
         cancelLoginBtn.classList.add('loading');
         cancelLoginBtn.disabled = true;
         showToast('خروج امن از سیستم انجام می‌شود...', 'info');
-        // The server-side call is removed. We just log out locally.
         setTimeout(logout, 1500); 
     });
 
@@ -538,10 +524,23 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast(result.message, 'success'); contractForm.reset(); contractDetailsSection.style.display = 'none'; contractStep1.style.display = 'block'; const c = new Date().toLocaleDateString('fa-IR-u-nu-latn').split('/'); document.getElementById('contract-year').value = c[0]; document.getElementById('contract-month').value = parseInt(c[1], 10); document.getElementById('contract-day').value = parseInt(c[2], 10); fetchContracts();
         } catch (err) { showToast('خطا در ثبت قرارداد: ' + err.message, 'error'); } finally { submitContractBtn.classList.remove('loading'); submitContractBtn.disabled = false; }
     });
-    // --- Other UI event listeners (unchanged) ---
+
     themeToggleBtn.addEventListener('click', toggleTheme); filterBtn.addEventListener('click', () => fetchFinancialData(1));
     document.body.addEventListener('click', e => { if (e.target.classList.contains('description-icon')) { modalDescriptionText.textContent = e.target.dataset.text; descriptionModal.classList.add('show'); } });
-    [descriptionModal.querySelector('.modal-close-btn'), descriptionModal].forEach(el => el.addEventListener('click', e => { if (e.target === el) descriptionModal.classList.remove('show'); }));
+    
+    // *** BUGFIX START ***
+    // Correctly handle modal closing for the description modal.
+    // This now works even if you click on the 'i' icon inside the button.
+    descriptionModal.querySelector('.modal-close-btn').addEventListener('click', () => {
+        descriptionModal.classList.remove('show');
+    });
+    descriptionModal.addEventListener('click', e => {
+        if (e.target === descriptionModal) { // This part handles clicking on the background overlay
+            descriptionModal.classList.remove('show');
+        }
+    });
+    // *** BUGFIX END ***
+
     continueBtn.addEventListener('click', () => { const a = document.getElementById('accountant-name').value, y = document.getElementById('transaction-year').value; if (!a || !y) { showToast('لطفاً نام حسابدار و تاریخ را وارد کنید.', 'error'); return; } step1.style.display = 'none'; step2.style.display = 'block'; });
     descriptionText.addEventListener('input', () => { wordCountDisplay.textContent = `تعداد کلمات: ${descriptionText.value.trim().split(/\s+/).filter(Boolean).length}`; });
     contractContinueBtn.addEventListener('click', () => { const subject = document.getElementById('contract-subject').value; const year = document.getElementById('contract-year').value; if (!subject.trim() || !year) { showToast('لطفاً موضوع و تاریخ قرارداد را وارد کنید.', 'error'); return; } contractStep1.style.display = 'none'; contractDetailsSection.style.display = 'block'; });
@@ -567,4 +566,4 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 </body>
-</html>```
+</html>
