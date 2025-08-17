@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -195,6 +195,7 @@ const captchaImageContainer = document.getElementById('captcha-image-container')
 const captchaImage = document.getElementById('captcha-image');
 const captchaLoader = document.getElementById('captcha-loader');
 let countdownInterval;
+let isRefreshingCaptcha = false;
 
 function switchView(viewName) {
     Object.values(views).forEach(v => v.classList.remove('active'));
@@ -217,7 +218,7 @@ function startCountdown(targetDateStr, label) {
             clearInterval(countdownInterval);
             Object.values(timerElements).forEach(el => el.textContent = '00');
             countdownTimerEl.style.display = 'none';
-            updateStatusFromServer();
+            updateStatus();
             return;
         }
         timerElements.days.textContent = String(Math.floor(distance / (1000 * 60 * 60 * 24))).padStart(2, '0');
@@ -234,7 +235,7 @@ function moveCountdownTimer(destinationContainerId) {
     if (destination) destination.appendChild(countdownTimerEl);
 }
 
-function handleStatusResponse(response) {
+function handleStatusResponse(response, isRefresh) {
     switch (response.status) {
         case 'PENDING':
             switchView('status');
@@ -267,8 +268,10 @@ function handleStatusResponse(response) {
             document.getElementById('securityToken').value = response.securityToken;
             moveCountdownTimer('form-countdown-container');
             startCountdown(response.targetDate, 'زمان باقی‌مانده تا پایان مهلت ثبت‌نام');
-            if (!views.form.classList.contains('active')) {
+            if (!isRefresh && !views.form.classList.contains('active')) {
                 termsModal.style.display = 'flex';
+            } else {
+                switchView('form');
             }
             break;
         default:
@@ -288,22 +291,22 @@ function populateDateFields() {
     for (let d = 1; d <= 31; d++) daySelect.add(new Option(d, d));
 }
 
-async function updateStatusFromServer() {
-    const isInitialLoad = !captchaLoader.classList.contains('visible');
-    if (isInitialLoad) {
-        switchView('loader');
-    } else {
+async function updateStatus(isRefresh = false) {
+    if (isRefreshingCaptcha) return;
+    if (isRefresh) {
+        isRefreshingCaptcha = true;
         captchaLoader.classList.add('visible');
+    } else {
+        switchView('loader');
     }
-
     try {
         const response = await fetch(SCRIPT_URL);
         if (!response.ok) throw new Error(`Network response was not ok. Status: ${response.status}`);
         const data = await response.json();
-        handleStatusResponse(data);
+        handleStatusResponse(data, isRefresh);
     } catch (error) {
         console.error('Error fetching status:', error);
-        if (isInitialLoad) {
+        if (!isRefresh) {
             switchView('status');
             statusIcon.className = 'fas fa-server status-icon icon-danger';
             statusTitle.textContent = 'خطای ارتباط';
@@ -312,16 +315,17 @@ async function updateStatusFromServer() {
             alert('خطا در دریافت تصویر جدید. لطفاً اتصال اینترنت خود را بررسی کنید.');
         }
     } finally {
-        if (!isInitialLoad) {
+        if (isRefresh) {
             captchaLoader.classList.remove('visible');
+            isRefreshingCaptcha = false;
         }
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     populateDateFields();
-    updateStatusFromServer();
-    captchaImageContainer.addEventListener('click', () => updateStatusFromServer());
+    updateStatus();
+    captchaImageContainer.addEventListener('click', () => updateStatus(true));
 });
 
 acceptTermsBtn.addEventListener('click', () => {
@@ -378,7 +382,7 @@ registrationForm.addEventListener('submit', async (e) => {
             formError.innerHTML = result.message || 'خطایی رخ داده است. لطفاً دوباره تلاش کنید.';
             formError.style.display = 'block';
             if (result.message && (result.message.includes("امنیتی") || result.message.includes("اشتباه است"))) {
-                updateStatusFromServer();
+                updateStatus(true);
             }
         }
     } catch (error) {
