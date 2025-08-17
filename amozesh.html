@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl"> 
 <head>  
     <meta charset="UTF-8">
@@ -79,6 +79,9 @@
         #captcha-refresh-btn:hover {
             transform: rotate(90deg);
         }
+        #captcha-refresh-btn.spinning { /* New style for spinning captcha icon */
+            animation: spin 1s linear infinite;
+        }
         #dashboard-container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
         .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding: 20px; background-color: rgba(255,255,255,0.8); backdrop-filter: blur(5px); border-radius: var(--radius-lg); }
         .dashboard-header h1 { font-size: 2rem; margin: 0; color: var(--primary-color); }
@@ -127,7 +130,7 @@
                     <input type="text" id="captcha" class="form-input" placeholder="کد امنیتی را وارد کنید" required autocomplete="off">
                 </div>
 
-                <button type="submit" class="btn" style="width: 100%;"><span class="btn-text">ورود</span></button>
+                <button type="submit" id="login-btn" class="btn" style="width: 100%;"><span class="btn-text">ورود</span></button>
             </form>
             <p id="error-message" class="hidden" style="margin-top: 15px; color: var(--danger-color); min-height: 20px; font-weight: 500;"></p>
         </div>
@@ -145,7 +148,7 @@
         </div>
 
         <div class="admin-card" id="pending-section">
-            <h2><i class="fas fa-clock" style="margin-left: 10px; color: var(--warning-color);"></i>صدور گواهی دوره عمومی</h2>
+            <h2><i class="fas fa-clock" style="margin-left: 10px; color: var(--warning-color);"></i>صدور گواهی عمومی</h2>
             <div class="search-controls">
                 <input type="text" id="pending-teacher-search" class="form-input" placeholder="جستجوی کد ملی استاد...">
                 <input type="text" id="pending-student-search" class="form-input" placeholder="جستجوی کد ملی دانشجو...">
@@ -161,7 +164,7 @@
         </div>
         
         <div class="admin-card" id="rejected-section">
-            <h2><i class="fas fa-times-circle" style="margin-left: 10px; color: var(--danger-color);"></i>کسری معدل دوره عمومی</h2>
+            <h2><i class="fas fa-times-circle" style="margin-left: 10px; color: var(--danger-color);"></i>کسری معدل دوره</h2>
             <div class="search-controls">
                 <input type="text" id="rejected-teacher-search" class="form-input" placeholder="جستجوی کد ملی استاد...">
                 <input type="text" id="rejected-student-search" class="form-input" placeholder="جستجوی کد ملی دانشجو...">
@@ -185,7 +188,7 @@
 
 <script>
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxyfPkLHmcIM1E-zz2-GvkQaeDZUdxKkfV_Q2xBUwcQrmsTPzgVvoPUqzFSOUE2zZu8/exec";
-    const sessionKey = 'generalAdminSessionToken'; // Key for storing the secure token
+    const sessionKey = 'generalAdminSessionToken'; // Renamed for consistency
     const ITEMS_PER_PAGE = 5;
 
     let fullData = { students: { '2': {}, '5': {}, '0': {} }, pendingCourses: [] };
@@ -196,7 +199,6 @@
     async function callAppsScript(action, params = {}, button = null) {
         if(button) button.classList.add('btn-loading');
         
-        // Add the session token to every request automatically if it exists
         const token = localStorage.getItem(sessionKey);
         if (token) {
             params.token = token;
@@ -208,11 +210,10 @@
             
             const data = await res.json();
             
-            // SECURITY CHECK: If server says session is invalid, force logout
             if (data.reauth) {
                 alert(data.message || 'نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
                 handleLogout();
-                return { success: false }; // Stop further processing
+                return { success: false }; 
             }
             
             return data;
@@ -225,13 +226,19 @@
     }
     
     async function loadCaptcha() {
+        const refreshBtn = document.getElementById('captcha-refresh-btn');
         captchaCodeEl.textContent = '...';
-        const res = await callAppsScript('getCaptcha');
-        if (res.success) {
-            captchaCodeEl.textContent = res.captcha;
-        } else {
-            captchaCodeEl.textContent = 'خطا';
-            alert('خطا در بارگذاری کپچا. لطفاً صفحه را رفرش کنید.');
+        refreshBtn.classList.add('spinning'); // Start spinning
+        try {
+            const res = await callAppsScript('getCaptcha');
+            if (res.success) {
+                captchaCodeEl.textContent = res.captcha;
+            } else {
+                captchaCodeEl.textContent = 'خطا';
+                alert('خطا در بارگذاری کپچا. لطفاً صفحه را رفرش کنید.');
+            }
+        } finally {
+            refreshBtn.classList.remove('spinning'); // Stop spinning regardless of outcome
         }
     }
 
@@ -243,7 +250,6 @@
         document.getElementById('issued-search-btn').addEventListener('click', () => { currentPages.issued = 1; displayData('5', 'issued'); });
         document.getElementById('rejected-search-btn').addEventListener('click', () => { currentPages.rejected = 1; displayData('0', 'rejected'); });
         
-        // Check for a session token instead of a simple flag
         const savedToken = localStorage.getItem(sessionKey);
         if (savedToken) {
             showDashboard();
@@ -260,13 +266,13 @@
     
     async function handleManualLogin(event) {
         event.preventDefault();
+        const loginButton = document.getElementById('login-btn'); // Get button by ID
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
         const captcha = document.getElementById('captcha').value;
-        const res = await callAppsScript('checkLogin', { username, password, captcha }, event.target.querySelector('button'));
+        const res = await callAppsScript('checkLogin', { username, password, captcha }, loginButton); // Pass button element directly
         
         if (res.success && res.token) {
-            // Store the secure token received from the server
             localStorage.setItem(sessionKey, res.token);
             showDashboard();
         } else {
@@ -279,9 +285,7 @@
     }
 
     function handleLogout() {
-        // Inform the server to invalidate the token
         callAppsScript('logout', {}); 
-        // Clear local token and reload the page
         localStorage.removeItem(sessionKey);
         window.location.reload();
     }
@@ -289,16 +293,15 @@
     async function fetchDashboardData() {
         renderSkeletonLoader();
         const res = await callAppsScript('getDashboardData');
-        if (res && res.success) { // Check if res is not null
+        if (res && res.success) {
             renderPublicCertificateRequests(res.data.publicCertificateRequests);
-
             fullData.students = res.data.students;
             fullData.pendingCourses = res.data.pendingCourses;
             displayData('2', 'pending');
             displayData('0', 'rejected');
             displayData('5', 'issued');
             renderPendingCourses(fullData.pendingCourses);
-        } else if (res && !res.reauth) { // Only show alert if it's not an auth error
+        } else if (res && !res.reauth) {
              alert('خطا در دریافت اطلاعات: ' + (res.message || 'Unknown error'));
         }
     }
