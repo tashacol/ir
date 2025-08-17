@@ -324,7 +324,7 @@ acceptTermsBtn.addEventListener('click', () => {
     switchView('form');
 });
 
-// ========== شروع بلوک کد اصلاح شده ==========
+// ========== شروع بلوک کد بازنویسی و اصلاح شده ==========
 registrationForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     formError.style.display = 'none';
@@ -341,8 +341,7 @@ registrationForm.addEventListener('submit', async (e) => {
     const month = String(document.getElementById('dob-month').value).padStart(2, '0');
     const day = String(document.getElementById('dob-day').value).padStart(2, '0');
 
-    // تغییر کلیدی: به جای ساختن یک آبجکت JSON، یک FormData می‌سازیم.
-    // این روش استاندارد برای ارسال اطلاعات فرم است.
+    // استفاده از FormData: این روش استاندارد و مطمئن برای ارسال فرم به Apps Script است
     const formData = new FormData();
     formData.append('fullName', document.getElementById('fullName').value);
     formData.append('nationalId', document.getElementById('nationalId').value);
@@ -355,23 +354,26 @@ registrationForm.addEventListener('submit', async (e) => {
     formData.append('honeypot', document.getElementById('email_confirm').value);
 
     try {
-        // تغییر کلیدی: در درخواست fetch دیگر نیازی به headers و JSON.stringify نیست.
-        // مرورگر به صورت خودکار Content-Type صحیح را تنظیم می‌کند.
+        // ارسال FormData بدون نیاز به تنظیم هدرهای پیچیده
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: formData
         });
         
-        if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
+        if (!response.ok) {
+            throw new Error(`خطای شبکه: ${response.statusText} (${response.status})`);
+        }
+
         const result = await response.json();
         
         if (result.status === 'success') {
             document.getElementById('success-message').innerHTML = result.message;
             switchView('success');
         } else {
-            formError.innerHTML = result.message || 'خطایی رخ داده است. لطفاً دوباره تلاش کنید.';
+            formError.innerHTML = result.message || 'خطایی نامشخص رخ داده است.';
             formError.style.display = 'block';
-            if (result.message && (result.message.includes("امنیتی") || result.message.includes("اشتباه است"))) {
+            // اگر خطا مربوط به کپچا یا توکن باشد، کپچا را رفرش می‌کنیم
+            if (result.message && (result.message.includes("امنیتی") || result.message.includes("اشتباه است") || result.message.includes("منقضی"))) {
                 refreshCaptcha();
             }
         }
@@ -385,7 +387,7 @@ registrationForm.addEventListener('submit', async (e) => {
         submitBtn.querySelector('.btn-loader').style.display = 'none';
     }
 });
-// ========== پایان بلوک کد اصلاح شده ==========
+// ========== پایان بلوک کد بازنویسی و اصلاح شده ==========
 </script>
 </body>
 </html>
