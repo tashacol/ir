@@ -1,1 +1,261 @@
 
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>استعلام گواهی دوره</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    <style>
+        :root {
+            --font-main: 'Vazirmatn', sans-serif;
+            --primary-color: #0c4a6e;
+            --secondary-color: #075985;
+            --bg-glass: rgba(255, 255, 255, 0.85);
+            --border-glass: rgba(255, 255, 255, 0.9);
+            --shadow-light: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+            --text-dark: #1e293b;
+            --text-light: #64748b;
+            --border-color: #cbd5e1;
+            --radius: 20px;
+            --transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: var(--font-main);
+            background-color: #f1f5f9;
+            color: var(--text-dark);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 4rem 1rem;
+        }
+        .container { 
+            width: 100%; 
+            max-width: 700px; 
+        }
+        .search-box, .result-card {
+            background: var(--bg-glass);
+            padding: 2.5rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-light);
+            border: 1px solid var(--border-glass);
+            margin-bottom: 2rem;
+            backdrop-filter: blur(12px);
+        }
+        .header { text-align: center; margin-bottom: 2rem; }
+        .header h1 { font-size: 2rem; font-weight: 800; color: var(--text-dark); }
+        .input-group { position: relative; margin-bottom: 1.5rem; }
+        .form-input {
+            width: 100%; padding: 14px 50px 14px 16px; font-size: 1rem;
+            font-family: var(--font-main);
+            border: 1px solid var(--border-color); border-radius: 12px;
+            outline: none; transition: var(--transition);
+            background: rgba(255, 255, 255, 0.6);
+            text-align: right;
+        }
+        .form-input[readonly] { cursor: pointer; }
+        .form-input:focus {
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+        }
+        .form-icon { position: absolute; top: 50%; right: 18px; transform: translateY(-50%); color: var(--text-light); }
+        .action-btn {
+            position: relative; width: 100%; padding: 14px;
+            font-size: 1.1rem; font-weight: 700;
+            font-family: var(--font-main);
+            background: linear-gradient(45deg, var(--secondary-color), var(--primary-color)); color: #fff;
+            border: none; border-radius: 12px; cursor: pointer;
+            transition: var(--transition); height: 50px;
+        }
+        .action-btn:hover:not(:disabled) { transform: translateY(-3px); }
+        .action-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+        .action-btn.loading .btn-text { opacity: 0; }
+        .action-btn .spinner { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0; width: 24px; height: 24px; border: 3px solid rgba(255, 255, 255, 0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        .action-btn.loading .spinner { opacity: 1; }
+        @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+        #statusMessage { text-align: center; margin-top: 1.5rem; font-weight: 500; display: none; padding: 12px; border-radius: 12px; border: 1px solid transparent;}
+        #statusMessage.error { color: #b91c1c; background-color: #fee2e2; border-color: #fca5a5; }
+        .result-card { display: none; }
+        .result-header { padding-bottom: 1rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 12px; }
+        .result-header .fa-check-circle { font-size: 1.8rem; color: #16a34a; }
+        .result-header h2 { font-size: 1.5rem; font-weight: 700; color: #16a34a; }
+        .result-item { margin-bottom: 1.25rem; }
+        .result-item strong { display: block; margin-bottom: 0.5rem; color: var(--text-dark); font-weight: 700; }
+        .result-item span { color: var(--text-light); font-weight: 500; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { background: #fff; padding: 2rem; border-radius: var(--radius); text-align: center; width: 90%; max-width: 400px; }
+        .modal-content h3 { margin-bottom: 1.5rem; color: var(--text-dark); }
+        .picker-container { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
+        .picker-container select { width: 100%; padding: 12px; font-size: 1rem; border: 1px solid var(--border-color); border-radius: 12px; }
+        .modal-actions { display: flex; gap: 1rem; }
+        .modal-actions button { flex: 1; padding: 12px; border-radius: 12px; border: none; font-size: 1rem; cursor: pointer; font-family: var(--font-main); font-weight: 700; }
+        #confirmDateBtn { background: var(--secondary-color); color: #fff; }
+        #cancelDateBtn { background: #e2e8f0; color: var(--text-dark); }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="search-box">
+            <div class="header">
+                <h1>استعلام گواهی دوره</h1>
+            </div>
+            <div class="input-group">
+                <input type="text" id="nationalIdInput" class="form-input" placeholder="کد ملی را وارد کنید" inputmode="numeric">
+                <i class="fa-solid fa-id-card form-icon"></i>
+            </div>
+            <div class="input-group">
+                <input type="text" id="dateInput" class="form-input" placeholder="تاریخ صدور را انتخاب کنید" readonly>
+                <i class="fa-solid fa-calendar-day form-icon"></i>
+            </div>
+            <div class="input-group">
+                <input type="text" id="numberInput" class="form-input" placeholder="شماره گواهی را وارد کنید" inputmode="numeric">
+                <i class="fa-solid fa-hashtag form-icon"></i>
+            </div>
+            <button id="searchButton" class="action-btn">
+                <span class="btn-text"><i class="fa-solid fa-search"></i> بررسی</span>
+                <div class="spinner"></div>
+            </button>
+            <div id="statusMessage"></div>
+        </div>
+
+        <div id="resultCard" class="result-card">
+            <div class="result-header">
+                <i class="fa-solid fa-check-circle"></i>
+                <h2>گواهی با موفقیت یافت شد</h2>
+            </div>
+            <div id="resultBody">
+                <p>آقای/خانم <b id="resultFullName"></b> با کد ملی <b id="resultNationalId"></b> در دوره <b id="resultCourseName"></b> گواهی اخذ نموده است.</p>
+                <hr style="margin: 1rem 0;">
+                <div class="result-item">
+                    <strong>تاریخ صدور گواهی:</strong>
+                    <span id="resultDate"></span>
+                </div>
+                <div class="result-item">
+                    <strong>شماره گواهی:</strong>
+                    <span id="resultNumber"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="datePickerModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>انتخاب تاریخ</h3>
+            <div class="picker-container">
+                <select id="dayPicker"></select>
+                <select id="monthPicker"></select>
+                <select id="yearPicker"></select>
+            </div>
+            <div class="modal-actions">
+                <button id="cancelDateBtn">انصراف</button>
+                <button id="confirmDateBtn">تائید</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzPsuga6emq5F31-rkNsHvubYyVXWPwG1cY6DK8b1YrMbOXsRvGsOis4Nk-KOHEzCUO3A/exec"; // URL کپی شده از مرحله قبل را اینجا قرار دهید
+
+        const nationalIdInput = document.getElementById('nationalIdInput');
+        const dateInput = document.getElementById('dateInput');
+        const numberInput = document.getElementById('numberInput');
+        const searchButton = document.getElementById('searchButton');
+        const statusMessage = document.getElementById('statusMessage');
+        const resultCard = document.getElementById('resultCard');
+        
+        const datePickerModal = document.getElementById('datePickerModal');
+        const yearPicker = document.getElementById('yearPicker');
+        const monthPicker = document.getElementById('monthPicker');
+        const dayPicker = document.getElementById('dayPicker');
+        const confirmDateBtn = document.getElementById('confirmDateBtn');
+        const cancelDateBtn = document.getElementById('cancelDateBtn');
+
+        const setButtonLoading = (isLoading) => {
+            searchButton.disabled = isLoading;
+            searchButton.classList.toggle('loading', isLoading);
+        };
+
+        const showMessage = (message, type) => {
+            statusMessage.textContent = message;
+            statusMessage.className = type;
+            statusMessage.style.display = 'block';
+        };
+
+        function populatePickers() {
+            yearPicker.innerHTML = '<option value="" disabled selected>سال</option>';
+            for (let year = 1404; year >= 1400; year--) {
+                yearPicker.add(new Option(year, year));
+            }
+            monthPicker.innerHTML = '<option value="" disabled selected>ماه</option>';
+            for (let month = 1; month <= 12; month++) {
+                monthPicker.add(new Option(month, month));
+            }
+            dayPicker.innerHTML = '<option value="" disabled selected>روز</option>';
+            for (let day = 1; day <= 31; day++) {
+                dayPicker.add(new Option(day, day));
+            }
+        }
+
+        dateInput.addEventListener('click', () => datePickerModal.style.display = 'flex');
+        cancelDateBtn.addEventListener('click', () => datePickerModal.style.display = 'none');
+        
+        confirmDateBtn.addEventListener('click', () => {
+            const year = yearPicker.value;
+            const month = monthPicker.value;
+            const day = dayPicker.value;
+            if (year && month && day) {
+                const formattedMonth = String(month).padStart(2, '0');
+                const formattedDay = String(day).padStart(2, '0');
+                dateInput.value = `${year}/${formattedMonth}/${formattedDay}`;
+                datePickerModal.style.display = 'none';
+            }
+        });
+
+        searchButton.addEventListener('click', () => {
+            statusMessage.style.display = 'none';
+            resultCard.style.display = 'none';
+            const nationalId = nationalIdInput.value.trim();
+            const issueDate = dateInput.value;
+            const certificateNumber = numberInput.value.trim();
+
+            if (!nationalId || !issueDate || !certificateNumber) {
+                showMessage('لطفاً تمام فیلدها را تکمیل کنید.', 'error');
+                return;
+            }
+            setButtonLoading(true);
+            const url = `${SCRIPT_URL}?nationalId=${encodeURIComponent(nationalId)}&date=${encodeURIComponent(issueDate)}&number=${encodeURIComponent(certificateNumber)}`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(res => {
+                    if (res.status === 'success') {
+                        const data = res.data;
+                        document.getElementById('resultFullName').textContent = data.fullName;
+                        document.getElementById('resultNationalId').textContent = data.nationalId;
+                        document.getElementById('resultCourseName').textContent = data.courseName;
+                        document.getElementById('resultDate').textContent = data.issueDate;
+                        document.getElementById('resultNumber').textContent = data.certificateNumber;
+                        resultCard.style.display = 'block';
+                    } else {
+                        showMessage(res.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showMessage('خطا در ارتباط با سرور. لطفاً اتصال اینترنت خود را بررسی کنید.', 'error');
+                    console.error('Fetch Error:', error);
+                })
+                .finally(() => {
+                    setButtonLoading(false);
+                });
+        });
+        
+        populatePickers();
+    </script>
+</body>
+</html>
