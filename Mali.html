@@ -1,10 +1,12 @@
-<!DOCTYPE html> 
+  <!DOCTYPE html> 
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <title>پنل معاونت مالی و اداری- موسسه تعالی</title>
     <meta name="robots" content="noindex, nofollow">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <!-- افزودن اسکریپت Google reCAPTCHA -->
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap');
     :root {
@@ -47,6 +49,8 @@
 .btn-login.loading .spinner { opacity: 1; }
 .btn-login .spinner { width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.3); border-top-color: var(--text-on-dark); border-radius: 50%; animation: spin 0.8s linear infinite; position: absolute; opacity: 0; }
 #login-error-msg { margin-top: 15px; color: var(--danger); min-height: 20px; font-weight: 500; }
+/* استایل برای قرارگیری کپچا در مرکز */
+.captcha-wrapper { display: flex; justify-content: center; margin-bottom: 25px; }
 
 #dashboard-view { display: none; }
 .dashboard-header { background: var(--bg-card); padding: 0 15px; height: 70px; display: flex; align-items: center; justify-content: space-between; box-shadow: var(--shadow); position: sticky; top: 0; z-index: 100; }
@@ -152,11 +156,12 @@ html.dark-mode .form-select { background-image: url("data:image/svg+xml,%3csvg x
                 <label for="login-password" class="form-label">رمز عبور</label>
                 <i class="fas fa-lock input-icon"></i>
             </div>
-            <div class="input-wrapper">
-                <input type="number" id="login-captcha" class="form-input" placeholder=" " required inputmode="numeric">
-                <label for="login-captcha" class="form-label" id="captcha-label">در حال بارگذاری سوال...</label>
-                <i class="fas fa-question-circle input-icon"></i>
+            
+            <!-- بخش کپچای عددی حذف و با Google reCAPTCHA جایگزین شد -->
+            <div class="captcha-wrapper">
+                <div class="g-recaptcha" data-sitekey="6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq"></div>
             </div>
+
             <button class="btn-login" id="login-button"><span class="btn-text">ورود</span><div class="spinner"></div></button>
         </form>
         <p id="login-error-msg"></p>
@@ -307,14 +312,13 @@ html.dark-mode .form-select { background-image: url("data:image/svg+xml,%3csvg x
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzTaJbQu2nivAxb_rcXJyR9pmyU_Zpn-Q5LI4FnzVuGHeUE81ojjvH1zioeNHN2jRw/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzw6SmAdynDlTdcObET4l-0XqBeZBxXEA6nKiBzR3MUJueE6vusk7t6TUxGx6HX6JXL/exec";
     const SESSION_DURATION = 12 * 3600 * 1000;
     const LOCKOUT_DURATION = 24 * 3600 * 1000;
     const FAILED_ATTEMPTS_KEY = 'financialFailedAttempts', SESSION_KEY = 'financialDeputySession', LOCKOUT_KEY = 'financialLockoutInfo', AUTH_TOKEN_KEY = 'financialAuthToken';
 
     // Elements
     const loginView = document.getElementById('login-view'), loginForm = document.getElementById('login-form'), loginButton = document.getElementById('login-button'), loginErrorMsg = document.getElementById('login-error-msg');
-    const captchaLabel = document.getElementById('captcha-label'), captchaInput = document.getElementById('login-captcha');
     const dashboardView = document.getElementById('dashboard-view');
     const themeToggleBtn = document.getElementById('theme-toggle-btn'), htmlElement = document.documentElement, logoutBtn = document.getElementById('logout-btn');
     const userNameDisplay = document.getElementById('user-name-display'), userNidDisplay = document.getElementById('user-nid-display');
@@ -324,9 +328,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const descriptionModal = document.getElementById('description-modal'), modalDescriptionText = document.getElementById('modal-description-text');
     const transactionForm = document.getElementById('transaction-form'), step1 = document.getElementById('transaction-step-1'), step2 = document.getElementById('transaction-step-2'), continueBtn = document.getElementById('continue-btn'), submitBtn = document.getElementById('submit-btn'), descriptionText = document.getElementById('description-text'), wordCountDisplay = document.getElementById('word-count');
     const contractForm = document.getElementById('contract-form'), contractStep1 = document.getElementById('contract-step-1'), contractContinueBtn = document.getElementById('contract-continue-btn'), contractDetailsSection = document.getElementById('contract-details-section'), submitContractBtn = document.getElementById('submit-contract-btn');
-
-    let currentCaptchaToken = null;
-
+    
+    // متغیرهای مربوط به کپچای عددی حذف شدند
+    
     // Utility Functions
     const setCache = (key, data) => localStorage.setItem(key, JSON.stringify({ data, timestamp: new Date().getTime() }));
     const getCache = (key, duration) => { const i = localStorage.getItem(key); if (!i) return null; const p = JSON.parse(i); if ((new Date().getTime() - p.timestamp) > duration) { localStorage.removeItem(key); return null; } return p.data; };
@@ -368,23 +372,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const fetchAndDisplayCaptcha = async () => {
-        try {
-            captchaLabel.textContent = 'در حال دریافت سوال...';
-            const response = await fetch(`${SCRIPT_URL}?action=getCaptchaChallenge`);
-            const result = await response.json();
-            if (result.success) {
-                captchaLabel.textContent = result.question;
-                currentCaptchaToken = result.token;
-                captchaInput.value = '';
-            } else {
-                captchaLabel.textContent = 'خطا در دریافت سوال';
-            }
-        } catch (error) {
-            captchaLabel.textContent = 'خطا در ارتباط';
-        }
-    };
-    
+    // تابع `fetchAndDisplayCaptcha` دیگر مورد نیاز نیست و حذف شد.
+
     const logout = async () => {
         const token = sessionStorage.getItem(AUTH_TOKEN_KEY);
         if (token) {
@@ -400,16 +389,24 @@ document.addEventListener('DOMContentLoaded', () => {
         loginButton.classList.add('loading');
         loginButton.disabled = true;
 
+        const recaptchaResponse = grecaptcha.getResponse();
+        if (!recaptchaResponse) {
+            loginErrorMsg.textContent = 'لطفاً تأیید کنید که ربات نیستید.';
+            loginButton.classList.remove('loading');
+            loginButton.disabled = false;
+            return;
+        }
+
         const attemptsData = getCache(FAILED_ATTEMPTS_KEY, LOCKOUT_DURATION) || { count: 0 };
         let attempts = attemptsData.count;
 
         const url = new URL(SCRIPT_URL);
         url.searchParams.append('action', 'financialLogin');
         url.searchParams.append('nationalId', document.getElementById('login-nid').value);
-        url.searchParams.append('username', document.getElementById('login-username').value);
-        url.searchParams.append('password', document.getElementById('login-password').value);
-        url.searchParams.append('captchaAnswer', captchaInput.value);
-        url.searchParams.append('captchaToken', currentCaptchaToken);
+        url.search_params.append('username', document.getElementById('login-username').value);
+        url.search_params.append('password', document.getElementById('login-password').value);
+        // ارسال توکن reCAPTCHA به جای پاسخ عددی
+        url.search_params.append('recaptchaToken', recaptchaResponse);
 
         try {
             const response = await fetch(url);
@@ -425,7 +422,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 attempts++;
                 setCache(FAILED_ATTEMPTS_KEY, { count: attempts });
                 loginErrorMsg.textContent = result.message;
-                fetchAndDisplayCaptcha();
+                // ریست کردن ویجت reCAPTCHA پس از تلاش ناموفق
+                grecaptcha.reset();
                 
                 if (attempts === 2) {
                     loginErrorMsg.textContent += "\nهشدار: با تلاش ناموفق بعدی، دسترسی شما مسدود می‌شود.";
@@ -436,7 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (e) {
             loginErrorMsg.textContent = 'خطا در ارتباط با سرور.';
-            fetchAndDisplayCaptcha();
+            grecaptcha.reset();
         } finally {
             loginButton.classList.remove('loading');
             if (!getCache(LOCKOUT_KEY, LOCKOUT_DURATION)) {
@@ -458,7 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchContracts(); 
     };
     
-    const checkLockoutState = () => { const lockout = getCache(LOCKOUT_KEY, LOCKOUT_DURATION); if (lockout) { document.getElementById('login-prompt').textContent = 'دسترسی شما مسدود شده است'; loginErrorMsg.textContent = 'به علت حفظ امنیت سامانه، دسترسی شما از این مرورگر به مدت ۲۴ ساعت مسدود شده است.'; [document.getElementById('login-nid'), document.getElementById('login-username'), document.getElementById('login-password'), loginButton, captchaInput].forEach(el => el.disabled = true); return true; } return false; };
+    const checkLockoutState = () => { const lockout = getCache(LOCKOUT_KEY, LOCKOUT_DURATION); if (lockout) { document.getElementById('login-prompt').textContent = 'دسترسی شما مسدود شده است'; loginErrorMsg.textContent = 'به علت حفظ امنیت سامانه، دسترسی شما از این مرورگر به مدت ۲۴ ساعت مسدود شده است.'; [document.getElementById('login-nid'), document.getElementById('login-username'), document.getElementById('login-password'), loginButton].forEach(el => el.disabled = true); return true; } return false; };
     const showConfirmationModal = (userData) => { confirmationMessage.innerHTML = `<strong>${userData.name}</strong> با کد ملی <strong>${userData.nationalId}</strong>، شما به عنوان مسئول مالی موسسه تعالی اندیشه و رشد وارد شده اید. آیا تائید می‌کنید؟`; confirmationModal.classList.add('show'); };
 
     const fetchFinancialData = async (page = 1) => {
@@ -528,18 +526,14 @@ document.addEventListener('DOMContentLoaded', () => {
     themeToggleBtn.addEventListener('click', toggleTheme); filterBtn.addEventListener('click', () => fetchFinancialData(1));
     document.body.addEventListener('click', e => { if (e.target.classList.contains('description-icon')) { modalDescriptionText.textContent = e.target.dataset.text; descriptionModal.classList.add('show'); } });
     
-    // *** BUGFIX START ***
-    // Correctly handle modal closing for the description modal.
-    // This now works even if you click on the 'i' icon inside the button.
     descriptionModal.querySelector('.modal-close-btn').addEventListener('click', () => {
         descriptionModal.classList.remove('show');
     });
     descriptionModal.addEventListener('click', e => {
-        if (e.target === descriptionModal) { // This part handles clicking on the background overlay
+        if (e.target === descriptionModal) {
             descriptionModal.classList.remove('show');
         }
     });
-    // *** BUGFIX END ***
 
     continueBtn.addEventListener('click', () => { const a = document.getElementById('accountant-name').value, y = document.getElementById('transaction-year').value; if (!a || !y) { showToast('لطفاً نام حسابدار و تاریخ را وارد کنید.', 'error'); return; } step1.style.display = 'none'; step2.style.display = 'block'; });
     descriptionText.addEventListener('input', () => { wordCountDisplay.textContent = `تعداد کلمات: ${descriptionText.value.trim().split(/\s+/).filter(Boolean).length}`; });
@@ -558,7 +552,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!checkLockoutState()) {
         if (!checkActiveSession()) {
             loginView.style.display = 'flex';
-            fetchAndDisplayCaptcha();
+            // دیگر نیازی به فراخوانی کپچای اولیه نیست
         }
     }
     loadTheme();
