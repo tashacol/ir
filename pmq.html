@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+     <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -316,7 +316,7 @@
 
         courses.forEach(course => {
             const isApproved = course.approvalStatus === '5';
-            const hasFinalExam = course.hasFinalExam === '5'; // Check if the course has a final exam
+            const hasFinalExam = course.hasFinalExam === '5';
             existingStudentsByCourse[course.courseId] = new Set(course.students.map(s => s.nationalId));
 
             const gregorianStartDate = jalaliToGregorian(...course.startDate.split('/').map(Number));
@@ -353,25 +353,31 @@
                 default: statusHtml = '';
             }
             
-            const scoreColumnHeader = hasFinalExam ? 'نمره کل' : 'تائید حضور';
+            const actionColumnHeader = hasFinalExam ? 'نمره کل' : 'تائید حضور';
 
             let studentsHtml = '<p style="text-align: center; color: var(--light-text);">هنوز قرآن‌آموزی ثبت نشده است.</p>';
             if (course.students.length > 0) {
-                studentsHtml = `<table><thead><tr><th>ردیف</th><th>نام و نام خانوادگی</th><th>کد ملی</th><th>${scoreColumnHeader}</th><th>وضعیت گواهی</th><th>عملیات</th></tr></thead><tbody>
+                studentsHtml = `<table><thead><tr><th>ردیف</th><th>نام و نام خانوادگی</th><th>کد ملی</th><th>${actionColumnHeader}</th><th>وضعیت گواهی</th><th>عملیات</th></tr></thead><tbody>
                     ${course.students.map((s, index) => {
                         const hasGrade = s.totalScore && s.totalScore != '0';
-                        let actionCellDisplay;
+                        const isConfirmed = s.certificateStatus === '2' || s.certificateStatus === '5';
+                        const isActionDone = hasGrade || isConfirmed;
+                        
+                        let actionCellDisplay; // Cell for grade / confirm button
+                        let certStatusDisplay = ''; // Cell for certificate status text
+                        let studentActionsDisplay = ''; // Cell for edit/delete buttons or star icon
 
-                        if (hasFinalExam) { // Course WITH final exam (Original logic)
+                        // --- Logic for the 4th column (Action Cell) ---
+                        if (hasFinalExam) {
                             if (hasGrade) {
                                 actionCellDisplay = `<strong>${s.totalScore}</strong>`;
                             } else if (isApproved && canGradeOrConfirm) {
-                                actionCellDisplay = `<button class="icon-btn grade-btn" onclick="showGradingModal(event, '${course.courseId}', '${s.name}', '${s.nationalId}', '${course.courseCode}')"><svg class="icon"><use href="#icon-grade"></use></svg><span class="btn-text">ثبت نمره</span></button>`;
+                                 actionCellDisplay = `<button class="icon-btn grade-btn" onclick="showGradingModal(event, '${course.courseId}', '${s.name}', '${s.nationalId}', '${course.courseCode}')"><svg class="icon"><use href="#icon-grade"></use></svg><span class="btn-text">ثبت نمره</span></button>`;
                             } else {
                                 actionCellDisplay = `<span style="color: var(--light-text); font-size: 0.9em;">غیرفعال</span>`;
                             }
-                        } else { // Course WITHOUT final exam (Attendance Confirmation logic)
-                            if (s.certificateStatus === '2') { // Attendance already confirmed
+                        } else {
+                            if (isConfirmed) {
                                 actionCellDisplay = `<div style="display: flex; align-items: center; justify-content: center; color: var(--success-color); gap: 5px;"><svg class="icon" style="width: 1.5em; height: 1.5em;"><use href="#icon-check-circle"></use></svg><strong>تائید شد</strong></div>`;
                             } else if (isApproved && canGradeOrConfirm) {
                                 actionCellDisplay = `<button class="icon-btn grade-btn" onclick="confirmAttendance(event, '${course.courseId}', '${s.nationalId}', '${s.name}')"><svg class="icon"><use href="#icon-check-circle"></use></svg><span class="btn-text">تائید حضور</span></button>`;
@@ -380,18 +386,24 @@
                             }
                         }
                         
-                        let certStatusDisplay = ''; 
-                        let studentActionsDisplay = '';
-                        const isActionDone = hasGrade || s.certificateStatus === '2'; // If grade is entered or attendance is confirmed
-                        
+                        // --- Logic for the 5th & 6th columns (Status and Final Action) ---
                         if (isActionDone) {
-                             if(hasFinalExam){ // Only show certificate status for courses with grades
-                                switch (s.certificateStatus) {
-                                    case '0': certStatusDisplay = `<span style="color: var(--danger-color); font-weight: bold;">مردود</span>`; studentActionsDisplay = `<span style="color: var(--danger-color); font-size: 1.5rem; font-weight: bold;">—</span>`; break;
-                                    case '2': certStatusDisplay = `<span>بررسی</span>`; studentActionsDisplay = ``; break;
-                                    case '5': certStatusDisplay = `<span style="color: var(--success-color); font-weight: bold;">صدور</span>`; studentActionsDisplay = `<a href="https://tashacol.ir/equran.html?id=${s.nationalId}" target="_blank" class="icon-btn" title="مشاهده گواهی"><svg class="icon" style="color:var(--warning-color);"><use href="#icon-star"></use></svg></a>`; break;
-                                    default: certStatusDisplay = ''; studentActionsDisplay = '';
-                                }
+                            switch (s.certificateStatus) {
+                                case '0': 
+                                    certStatusDisplay = `<span style="color: var(--danger-color); font-weight: bold;">مردود</span>`; 
+                                    studentActionsDisplay = `<span style="color: var(--danger-color); font-size: 1.5rem; font-weight: bold;">—</span>`; 
+                                    break;
+                                case '2': 
+                                    certStatusDisplay = `<span>بررسی</span>`; 
+                                    studentActionsDisplay = ``; 
+                                    break;
+                                case '5': 
+                                    certStatusDisplay = `<span style="color: var(--success-color); font-weight: bold;">صدور</span>`; 
+                                    studentActionsDisplay = `<a href="https://tashacol.ir/equran.html?id=${s.nationalId}" target="_blank" class="icon-btn" title="مشاهده گواهی"><svg class="icon" style="color:var(--warning-color);"><use href="#icon-star"></use></svg></a>`; 
+                                    break;
+                                default: 
+                                    certStatusDisplay = ''; 
+                                    studentActionsDisplay = '';
                             }
                         } else {
                             const editDeleteEnabled = isApproved || course.approvalStatus === '';
@@ -463,7 +475,7 @@
         if (confirmed) {
             const res = await callAppsScript('confirmStudentAttendance', { courseId, studentNationalId }, button);
             if (res.success) {
-                showCustomAlert(res.message, 'success');
+                // Do not show an alert, just refresh the data to show the updated status
                 fetchDashboardData();
             } else {
                 showCustomAlert(res.message, 'error');
