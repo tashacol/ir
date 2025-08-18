@@ -1,4 +1,4 @@
- <!DOCTYPE html> 
+<!DOCTYPE html> 
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -139,7 +139,7 @@ html.dark-mode .form-select { background-image: url("data:image/svg+xml,%3csvg x
     <div class="login-container">
         <img src="https://tashacol.ir/1754843708220.png" alt="لوگو موسسه تعالی" class="logo-image">
         <h1>معاونت مالی و اداری</h1>
-        <p id="login-prompt">لطفاً برای ورود اطلاعات خود را وارد کنید</p>
+        <p>لطفاً برای ورود اطلاعات خود را وارد کنید</p>
         <form id="login-form">
             <div class="input-wrapper">
                 <input type="text" id="login-nid" class="form-input" placeholder=" " required inputmode="numeric">
@@ -311,10 +311,10 @@ html.dark-mode .form-select { background-image: url("data:image/svg+xml,%3csvg x
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzw6SmAdynDlTdcObET4l-0XqBeZBxXEA6nKiBzR3MUJueE6vusk7t6TUxGx6HX6JXL/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzkV7RS2r5TM081ZPtLV_qrFx_YOuSjUrcxNEI2KEuh4TXwO4eI2k7sUJ-4IskxcFv5/exec";
     const SESSION_DURATION = 12 * 3600 * 1000;
-    const LOCKOUT_DURATION = 24 * 3600 * 1000;
-    const FAILED_ATTEMPTS_KEY = 'financialFailedAttempts', SESSION_KEY = 'financialDeputySession', LOCKOUT_KEY = 'financialLockoutInfo', AUTH_TOKEN_KEY = 'financialAuthToken';
+    // --- Client-side security keys removed. Server is now the single source of truth. ---
+    const SESSION_KEY = 'financialDeputySession', AUTH_TOKEN_KEY = 'financialAuthToken';
 
     // Elements
     const loginView = document.getElementById('login-view'), loginForm = document.getElementById('login-form'), loginButton = document.getElementById('login-button'), loginErrorMsg = document.getElementById('login-error-msg');
@@ -338,6 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const apiRequest = async (params) => {
         const token = sessionStorage.getItem(AUTH_TOKEN_KEY);
+        // Logout action is public and does not need a token for the initial call.
         if (!token && params.action !== 'logout') {
             showToast('نشست شما معتبر نیست. لطفاً وارد شوید.', 'error');
             logout();
@@ -391,51 +392,37 @@ document.addEventListener('DOMContentLoaded', () => {
             loginButton.disabled = false;
             return;
         }
-
-        const attemptsData = getCache(FAILED_ATTEMPTS_KEY, LOCKOUT_DURATION) || { count: 0 };
-        let attempts = attemptsData.count;
+        
+        // --- Client-side attempt tracking is removed. Server handles everything. ---
 
         const url = new URL(SCRIPT_URL);
         url.searchParams.append('action', 'financialLogin');
         url.searchParams.append('nationalId', document.getElementById('login-nid').value);
-        
-        // --- شروع بخش اصلاح شده ---
         url.searchParams.append('username', document.getElementById('login-username').value);
-        url.searchParams.append('password', document.getElementById('login-password').value);
+        url.search_params.append('password', document.getElementById('login-password').value);
         url.searchParams.append('recaptchaToken', recaptchaResponse);
-        // --- پایان بخش اصلاح شده ---
 
         try {
             const response = await fetch(url);
             const result = await response.json();
 
             if (result.success) {
-                localStorage.removeItem(FAILED_ATTEMPTS_KEY);
                 const userData = { name: result.name, nationalId: result.nationalId };
                 sessionStorage.setItem('pendingUser', JSON.stringify(userData));
                 sessionStorage.setItem(AUTH_TOKEN_KEY, result.authToken);
                 showConfirmationModal(userData);
             } else {
-                attempts++;
-                setCache(FAILED_ATTEMPTS_KEY, { count: attempts });
+                // Display the exact error from the server (e.g., "invalid credentials" or "account locked").
                 loginErrorMsg.textContent = result.message;
                 grecaptcha.reset();
-                
-                if (attempts === 2) {
-                    loginErrorMsg.textContent += "\nهشدار: با تلاش ناموفق بعدی، دسترسی شما مسدود می‌شود.";
-                } else if (attempts >= 3) {
-                    setCache(LOCKOUT_KEY, { locked: true });
-                    checkLockoutState();
-                }
             }
         } catch (e) {
             loginErrorMsg.textContent = 'خطا در ارتباط با سرور.';
             grecaptcha.reset();
         } finally {
             loginButton.classList.remove('loading');
-            if (!getCache(LOCKOUT_KEY, LOCKOUT_DURATION)) {
-                loginButton.disabled = false;
-            }
+            // The button is re-enabled unless the server indicates a lockout.
+            loginButton.disabled = false;
         }
     };
 
@@ -452,7 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchContracts(); 
     };
     
-    const checkLockoutState = () => { const lockout = getCache(LOCKOUT_KEY, LOCKOUT_DURATION); if (lockout) { document.getElementById('login-prompt').textContent = 'دسترسی شما مسدود شده است'; loginErrorMsg.textContent = 'به علت حفظ امنیت سامانه، دسترسی شما از این مرورگر به مدت ۲۴ ساعت مسدود شده است.'; [document.getElementById('login-nid'), document.getElementById('login-username'), document.getElementById('login-password'), loginButton].forEach(el => el.disabled = true); return true; } return false; };
+    // --- checkLockoutState function removed. ---
     const showConfirmationModal = (userData) => { confirmationMessage.innerHTML = `<strong>${userData.name}</strong> با کد ملی <strong>${userData.nationalId}</strong>، شما به عنوان مسئول مالی موسسه تعالی اندیشه و رشد وارد شده اید. آیا تائید می‌کنید؟`; confirmationModal.classList.add('show'); };
 
     const fetchFinancialData = async (page = 1) => {
@@ -545,10 +532,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return false;
     };
-    if (!checkLockoutState()) {
-        if (!checkActiveSession()) {
-            loginView.style.display = 'flex';
-        }
+    
+    // Logic is simpler now. Just check for an active session. If none, show login.
+    // Server will handle any locked-out state.
+    if (!checkActiveSession()) {
+        loginView.style.display = 'flex';
     }
     loadTheme();
 });
