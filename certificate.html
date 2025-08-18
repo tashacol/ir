@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+   <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -7,12 +7,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    
-    <!-- افزوده شده: اسکریپت reCAPTCHA API -->
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-
+    <!-- استایل‌ها بدون تغییر باقی می‌مانند -->
     <style>
-        /* استایل‌ها بدون هیچ تغییری باقی می‌مانند */
         :root {
             --font-main: 'Vazirmatn', sans-serif;
             --primary-color: #0c4a6e;
@@ -71,8 +67,6 @@
             box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
         }
         .form-icon { position: absolute; top: 50%; right: 18px; transform: translateY(-50%); color: var(--text-light); }
-        /* استایل برای قرارگیری صحیح reCAPTCHA */
-        .g-recaptcha-wrapper { display: flex; justify-content: center; margin-bottom: 1.5rem; }
         .action-btn {
             position: relative; width: 100%; padding: 14px;
             font-size: 1.1rem; font-weight: 700;
@@ -105,7 +99,11 @@
         .modal-actions button { flex: 1; padding: 12px; border-radius: 12px; border: none; font-size: 1rem; cursor: pointer; font-family: var(--font-main); font-weight: 700; }
         #confirmDateBtn { background: var(--secondary-color); color: #fff; }
         #cancelDateBtn { background: #e2e8f0; color: var(--text-dark); }
+        /* استایل جدید برای کادر reCAPTCHA */
+        .g-recaptcha { margin-bottom: 1.5rem; transform: scale(0.95); transform-origin: center right;}
     </style>
+    <!-- لایه امنیتی ۱: اسکریپت Google reCAPTCHA -->
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
     <div class="container">
@@ -123,11 +121,9 @@
                 <input type="text" id="numberInput" class="form-input" placeholder="شماره گواهی را وارد کنید" inputmode="numeric">
                 <i class="fa-solid fa-hashtag form-icon"></i>
             </div>
-            
-            <!-- افزوده شده: ویجت reCAPTCHA -->
-            <div class="g-recaptcha-wrapper">
-                <div class="g-recaptcha" data-sitekey="6Lc_uKkrAAAAAHIgeTyUVFb5mjwQsMFFDucn4LWl"></div>
-            </div>
+
+            <!-- لایه امنیتی ۱: ویجت Google reCAPTCHA -->
+            <div class="g-recaptcha" data-sitekey="6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq"></div>
 
             <button id="searchButton" class="action-btn">
                 <span class="btn-text"><i class="fa-solid fa-search"></i> بررسی</span>
@@ -164,8 +160,10 @@
     </div>
 
     <script>
-        // آدرس وب اپلیکیشن شما که پس از انتشار (Deploy) دریافت می‌کنید
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzPsuga6emq5F31-rkNsHvubYyVXWPwG1cY6DK8b1YrMbOXsRvGsOis4Nk-KOHEzCUO3A/exec"; 
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzPsuga6emq5F31-rkNsHvubYyVXWPwG1cY6DK8b1YrMbOXsRvGsOis4Nk-KOHEzCUO3A/exec"; // URL جدید را اینجا قرار دهید
+
+        // متغیر برای نگهداری توکن امنیتی CSRF
+        let csrfToken = null;
 
         const nationalIdInput = document.getElementById('nationalIdInput');
         const dateInput = document.getElementById('dateInput');
@@ -180,6 +178,35 @@
         const confirmDateBtn = document.getElementById('confirmDateBtn');
         const cancelDateBtn = document.getElementById('cancelDateBtn');
 
+        /**
+         * @function fetchCsrfToken
+         * @description هنگام بارگذاری صفحه، یک توکن امنیتی یکبار مصرف از سرور دریافت می‌کند.
+         */
+        function fetchCsrfToken() {
+            setButtonLoading(true); // دکمه غیرفعال تا زمان دریافت توکن
+            fetch(`${SCRIPT_URL}?action=getToken`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.csrfToken) {
+                        csrfToken = data.csrfToken;
+                    } else {
+                        showMessage('خطا در برقراری ارتباط امن. لطفاً صفحه را دوباره بارگیری کنید.', 'error');
+                    }
+                })
+                .catch(() => {
+                    showMessage('خطا در اتصال به سرور برای دریافت توکن امنیتی.', 'error');
+                })
+                .finally(() => {
+                    setButtonLoading(false);
+                });
+        }
+
+        /**
+         * @function isValidMelliCode
+         * @description اعتبارسنجی کد ملی ایرانی در سمت کاربر. (بدون تغییر)
+         * @param {string} code - کد ملی ۱۰ رقمی.
+         * @returns {boolean}
+         */
         function isValidMelliCode(code) {
             if (!/^\d{10}$/.test(code)) return false;
             const check = parseInt(code.slice(9, 10));
@@ -239,22 +266,38 @@
                 showMessage('کد ملی وارد شده معتبر نیست.', 'error');
                 return;
             }
-            
-            // --- ویرایش امنیتی: بررسی توکن reCAPTCHA قبل از ارسال ---
+
+            // لایه امنیتی ۱: بررسی توکن reCAPTCHA در سمت کاربر
             const recaptchaResponse = grecaptcha.getResponse();
             if (recaptchaResponse.length === 0) {
                 showMessage('لطفاً تأیید کنید که ربات نیستید.', 'error');
                 return;
             }
+
+            // لایه امنیتی ۲: بررسی وجود توکن CSRF
+            if (!csrfToken) {
+                showMessage('خطای امنیتی. لطفاً صفحه را مجدداً بارگیری کنید.', 'error');
+                return;
+            }
             
             setButtonLoading(true);
 
-            // --- ویرایش امنیتی: حذف توکن سمت کاربر و ارسال توکن reCAPTCHA ---
-            const url = `${SCRIPT_URL}?nationalId=${encodeURIComponent(nationalId)}&date=${encodeURIComponent(issueDate)}&number=${encodeURIComponent(certificateNumber)}&captcha=${encodeURIComponent(recaptchaResponse)}`;
+            // ساخت URL با تمام پارامترهای امنیتی
+            const params = new URLSearchParams({
+                nationalId: nationalId,
+                date: issueDate,
+                number: certificateNumber,
+                csrfToken: csrfToken,
+                'g-recaptcha-response': recaptchaResponse
+            });
 
-            fetch(url)
+            fetch(`${SCRIPT_URL}?${params.toString()}`)
                 .then(response => response.json())
                 .then(res => {
+                    // پس از هر درخواست موفق یا ناموفق، یک توکن جدید درخواست می‌کنیم.
+                    // این کار امنیت را بالاتر می‌برد چون توکن قبلی در سرور باطل شده است.
+                    fetchCsrfToken();
+                    
                     if (res.status === 'success') {
                         const data = res.data;
                         document.getElementById('resultFullName').textContent = data.fullName;
@@ -270,15 +313,21 @@
                 .catch(error => {
                     showMessage('خطا در ارتباط با سرور. لطفاً اتصال اینترنت خود را بررسی کنید.', 'error');
                     console.error('Fetch Error:', error);
+                    // در صورت خطا نیز یک توکن جدید درخواست می‌شود.
+                    fetchCsrfToken();
                 })
                 .finally(() => {
-                    setButtonLoading(false);
-                    // --- افزوده شده: ریست کردن ویجت reCAPTCHA پس از هر بار تلاش ---
+                    // ریست کردن reCAPTCHA پس از هر تلاش
                     grecaptcha.reset();
+                    setButtonLoading(false);
                 });
         });
         
-        populatePickers();
+        // اجرای توابع اولیه هنگام بارگذاری کامل صفحه
+        document.addEventListener('DOMContentLoaded', () => {
+            populatePickers();
+            fetchCsrfToken(); // دریافت توکن امنیتی اولیه
+        });
     </script>
 </body>
 </html>
