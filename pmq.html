@@ -189,7 +189,7 @@
     let existingStudentsByCourse = {};
 
     async function callAppsScript(action, params = {}, button = null) {
-        if(button) setButtonLoading(button, true);
+        if (button) setButtonLoading(button, true);
         const requestBody = { action, params, token: sessionToken };
         try {
             const res = await fetch(SCRIPT_URL, { 
@@ -197,15 +197,13 @@
             });
             if (!res.ok) throw new Error(`Network error: ${res.statusText}`);
             const data = await res.json();
-            if (data && data.unauthorized) {
-                handleLogout(); return null;
-            }
+            if (data && data.unauthorized) { handleLogout(); return null; }
             return data;
         } catch (error) {
             showCustomAlert('خطا در ارتباط با سرور.', 'error');
             return { success: false, message: error.message };
         } finally {
-            if(button) setButtonLoading(button, false);
+            if (button) setButtonLoading(button, false);
         }
     }
     
@@ -213,12 +211,8 @@
     function isValidNationalId(nid) { return /^\d{10}$/.test(nid); }
     function isValidEmail(email) { return /\S+@\S+\.\S+/.test(email); }
 
-    document.addEventListener('DOMContentLoaded', () => { /* No auto-login for security */ });
-
     function showDashboard(name, email, token) {
-        loggedInInstructorName = name;
-        loggedInInstructorEmail = email;
-        sessionToken = token;
+        loggedInInstructorName = name; loggedInInstructorEmail = email; sessionToken = token;
         document.getElementById('login-container').classList.add('hidden'); 
         document.getElementById('dashboard-section').classList.remove('hidden');
         document.getElementById('welcome-message').innerHTML = `استاد <strong>${name}</strong>، خوش آمدید.`;
@@ -226,9 +220,7 @@
         document.getElementById('logout-btn').addEventListener('click', handleLogout);
         document.getElementById('edit-email-btn').addEventListener('click', showEditEmailModal);
         fetchDashboardData();
-        if (!loggedInInstructorEmail) {
-            showEmailPromptModal();
-        }
+        if (!loggedInInstructorEmail) { showEmailPromptModal(); }
     }
 
     function handleManualLogin(event) {
@@ -236,9 +228,7 @@
         const nationalIdInput = document.getElementById('nationalId');
         const errorP = document.getElementById('error-message');
         if (!isValidNationalId(nationalIdInput.value)) {
-            errorP.innerText = "کد ملی باید یک عدد ۱۰ رقمی صحیح باشد.";
-            errorP.classList.remove('hidden');
-            return;
+            errorP.innerText = "کد ملی باید یک عدد ۱۰ رقمی صحیح باشد."; errorP.classList.remove('hidden'); return;
         }
         errorP.classList.add('hidden');
         setButtonLoading(document.getElementById('login-button'), true);
@@ -253,12 +243,13 @@
         const loginButton = document.getElementById('login-button');
         const res = await callAppsScript('checkLogin', { nationalId, username, password, recaptchaToken });
         grecaptcha.reset();
-        setButtonLoading(loginButton, false);
         if (res && res.success) {
+            // دکمه لودینگ با موفقیت ورود توسط callAppsScript غیرفعال می‌شود
             showDashboard(res.name, res.email, res.token);
-        } else if(res) {
-            errorP.innerText = res.message || "خطای ورود.";
-            errorP.classList.remove('hidden');
+        } else {
+            // --- [اصلاح شد] --- اطمینان از غیرفعال شدن لودینگ در صورت خطا
+            setButtonLoading(loginButton, false);
+            if (res) { errorP.innerText = res.message || "خطای ورود."; errorP.classList.remove('hidden'); }
         }
     }
 
@@ -268,59 +259,10 @@
         grecaptcha.reset();
     }
     
-    async function handleLogout() {
-        if (sessionToken) { await callAppsScript('logout', {}); }
-        sessionToken = null; window.location.reload();
-    }
+    async function handleLogout() { if (sessionToken) { await callAppsScript('logout', {}); } sessionToken = null; window.location.reload(); }
     
-    function showEmailPromptModal() {
-        const content = `<p style="text-align: center; margin-bottom: 20px;">لطفا ایمیل خود را جهت اطلاع از وضعیت دوره‌ها و قرآن آموزان وارد کنید.</p><div class="form-group"><label for="prompt-email">آدرس ایمیل</label><div class="input-icon"><svg class="icon"><use href="#icon-email"></use></svg></div><input type="email" id="prompt-email" required class="has-icon" style="direction: ltr;"></div><div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div><div style="text-align:center;"><button onclick="handleEmailPromptSubmit(event)"><span class="btn-text">ذخیره ایمیل</span></button></div>`;
-        renderModal('ثبت ایمیل', content, 'narrow');
-    }
-
-    async function handleEmailPromptSubmit(event) {
-        const email = document.getElementById('prompt-email').value.trim();
-        hideModalError('modal-error-container');
-        if (!isValidEmail(email)) { showModalError('modal-error-container', 'لطفا یک آدرس ایمیل معتبر وارد کنید.'); return; }
-        const res = await callAppsScript('updateTeacherEmail', { newEmail: email }, event.target);
-        if (res && res.success) {
-            loggedInInstructorEmail = email; closeAllModals(); showCustomAlert('ایمیل شما با موفقیت ثبت شد!', 'success');
-        } else if(res) {
-            showModalError('modal-error-container', res.message);
-        }
-    }
-
-    function showEditEmailModal() {
-        const content = `<div class="form-group"><label for="edit-email">ایمیل جدید</label><div class="input-icon"><svg class="icon"><use href="#icon-email"></use></svg></div><input type="email" id="edit-email" required class="has-icon" style="direction: ltr;" value="${loggedInInstructorEmail || ''}"></div><div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div><div style="text-align:center;"><button onclick="handleUpdateEmail(event)"><span class="btn-text">ذخیره تغییرات</span></button></div>`;
-        renderModal('ویرایش ایمیل', content, 'narrow');
-    }
-
-    async function handleUpdateEmail(event) {
-        const email = document.getElementById('edit-email').value.trim();
-        hideModalError('modal-error-container');
-        if (!isValidEmail(email)) { showModalError('modal-error-container', 'لطفا یک آدرس ایمیل معتبر وارد کنید.'); return; }
-        const res = await callAppsScript('updateTeacherEmail', { newEmail: email }, event.target);
-        if (res && res.success) {
-            loggedInInstructorEmail = email; closeAllModals(); showCustomAlert(res.message, 'success');
-        } else if (res) {
-            showModalError('modal-error-container', res.message);
-        }
-    }
-
-    async function fetchDashboardData() {
-        renderSkeletonLoader();
-        document.querySelector('.dashboard-header').classList.add('loading');
-        const res = await callAppsScript('getInstructorDashboardData', {});
-        document.querySelector('.dashboard-header').classList.remove('loading');
-        if(res && res.success) renderCourses(res.data); else if(res) showCustomAlert("خطا در دریافت اطلاعات: " + res.message, 'error');
-    }
+    async function fetchDashboardData() { renderSkeletonLoader(); document.querySelector('.dashboard-header').classList.add('loading'); const res = await callAppsScript('getInstructorDashboardData', {}); document.querySelector('.dashboard-header').classList.remove('loading'); if(res && res.success) renderCourses(res.data); else if(res) showCustomAlert("خطا در دریافت اطلاعات: " + res.message, 'error'); }
     
-    function renderSkeletonLoader() { 
-        document.getElementById('create-course-container').innerHTML = '<div class="skeleton button shimmer"></div>';
-        let skeletonHTML = ''; for (let i = 0; i < 2; i++) { skeletonHTML += `<div class="skeleton-card shimmer"><div class="skeleton title"></div><div class="skeleton text"></div><div class="skeleton table-head"></div><div class="skeleton table-row"></div><div class="skeleton table-row"></div></div>`; } 
-        document.getElementById('courses-container').innerHTML = skeletonHTML;
-    }
-
     function renderCourses(courses) {
         document.getElementById('create-course-container').innerHTML = '<button id="btn-create-course"><span class="btn-text">ایجاد دوره جدید</span></button>';
         document.getElementById('btn-create-course').addEventListener('click', e => showCreateCourseModal(e.target));
@@ -331,15 +273,6 @@
             const { canAddStudent, canDeleteCourse, canEditDate, canGradeOrConfirm } = course.permissions;
             const hasFinalExam = course.hasFinalExam === '5';
             existingStudentsByCourse[course.courseId] = new Set(course.students.map(s => s.nationalId));
-            let endDateJalali = 'نامشخص';
-            if (course.startDate !== 'نامشخص') {
-                const [year, month, day] = course.startDate.split('/').map(Number);
-                const gregorianStartDate = jalaliToGregorian(year, month, day);
-                const gregorianEndDate = new Date(gregorianStartDate);
-                gregorianEndDate.setDate(gregorianStartDate.getDate() + 25);
-                const p2e = s => s.replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
-                endDateJalali = p2e(gregorianEndDate.toLocaleDateString('fa-IR', { year: 'numeric', month: '2-digit', day: '2-digit' }));
-            }
             let addStudentBtn = canAddStudent ? `<button class="icon-btn" onclick="showAddStudentModal(event, '${course.courseId}')"><svg class="icon"><use href="#icon-plus-circle"></use></svg><span class="btn-text">افزودن قرآن آموز</span></button>` : '';
             let editDateBtn = canEditDate ? `<button class="icon-btn" onclick="showEditDateModal(event, '${course.courseId}')"><svg class="icon"><use href="#icon-pencil"></use></svg><span class="btn-text">ویرایش تاریخ</span></button>` : '';
             let deleteCourseBtn = canDeleteCourse ? `<button class="icon-btn delete-btn" onclick="showDeleteCourseModal(event, '${course.courseId}')"><svg class="icon"><use href="#icon-trash"></use></svg><span class="btn-text">حذف دوره</span></button>` : '';
@@ -362,24 +295,14 @@
                         const isConfirmed = s.certificateStatus === '2' || s.certificateStatus === '5';
                         const isActionDone = hasGrade || isConfirmed;
                         let actionCellDisplay, certStatusDisplay = '', studentActionsDisplay = '';
-                        if (hasFinalExam) {
-                            actionCellDisplay = hasGrade ? `<strong>${s.totalScore}</strong>` : (canGradeOrConfirm ? `<button class="icon-btn grade-btn" onclick="showGradingModal(event, '${course.courseId}', '${s.name}', '${s.nationalId}', '${course.courseCode}')"><svg class="icon"><use href="#icon-grade"></use></svg><span class="btn-text">ثبت نمره</span></button>` : `<span style="color: var(--light-text); font-size: 0.9em;">غیرفعال</span>`);
-                        } else {
-                            actionCellDisplay = isConfirmed ? `<div style="display: flex; align-items: center; justify-content: center; color: var(--success-color); gap: 5px;"><svg class="icon" style="width: 1.5em; height: 1.5em;"><use href="#icon-check-circle"></use></svg><strong>تائید شد</strong></div>` : (canGradeOrConfirm ? `<button class="icon-btn grade-btn" onclick="confirmAttendance(event, '${course.courseId}', '${s.nationalId}', '${s.name}')"><svg class="icon"><use href="#icon-check-circle"></use></svg><span class="btn-text">تائید حضور</span></button>` : `<span style="color: var(--light-text); font-size: 0.9em;">غیرفعال</span>`);
-                        }
-                        if (isActionDone) {
-                            switch (s.certificateStatus) {
-                                case '0': certStatusDisplay = `<span style="color: var(--danger-color); font-weight: bold;">مردود</span>`; studentActionsDisplay = `<span style="color: var(--danger-color); font-size: 1.5rem; font-weight: bold;">—</span>`; break;
-                                case '2': certStatusDisplay = `<span>بررسی</span>`; break;
-                                case '5': certStatusDisplay = `<span style="color: var(--success-color); font-weight: bold;">صدور</span>`; studentActionsDisplay = `<a href="https://tashacol.ir/equran.html?id=${s.nationalId}" target="_blank" class="icon-btn" title="مشاهده گواهی"><svg class="icon" style="color:var(--warning-color);"><use href="#icon-star"></use></svg></a>`; break;
-                            }
-                        } else {
-                            studentActionsDisplay = `<div class="student-actions"><button class="icon-btn edit-btn" onclick="showEditStudentModal(event, '${course.courseId}', '${s.name}', '${s.nationalId}')" title="ویرایش"><svg class="icon"><use href="#icon-pencil"></use></svg></button><button class="icon-btn delete-btn" onclick="showDeleteStudentModal(event, '${course.courseId}', '${s.name}', '${s.nationalId}')" title="حذف"><svg class="icon"><use href="#icon-trash"></use></svg></button></div>`;
-                        }
+                        if (hasFinalExam) { actionCellDisplay = hasGrade ? `<strong>${s.totalScore}</strong>` : (canGradeOrConfirm ? `<button class="icon-btn grade-btn" onclick="showGradingModal(event, '${course.courseId}', '${s.name}', '${s.nationalId}', '${course.courseCode}')"><svg class="icon"><use href="#icon-grade"></use></svg><span class="btn-text">ثبت نمره</span></button>` : `<span style="color: var(--light-text); font-size: 0.9em;">غیرفعال</span>`);
+                        } else { actionCellDisplay = isConfirmed ? `<div style="display: flex; align-items: center; justify-content: center; color: var(--success-color); gap: 5px;"><svg class="icon" style="width: 1.5em; height: 1.5em;"><use href="#icon-check-circle"></use></svg><strong>تائید شد</strong></div>` : (canGradeOrConfirm ? `<button class="icon-btn grade-btn" onclick="confirmAttendance(event, '${course.courseId}', '${s.nationalId}', '${s.name}')"><svg class="icon"><use href="#icon-check-circle"></use></svg><span class="btn-text">تائید حضور</span></button>` : `<span style="color: var(--light-text); font-size: 0.9em;">غیرفعال</span>`); }
+                        if (isActionDone) { switch (s.certificateStatus) { case '0': certStatusDisplay = `<span style="color: var(--danger-color); font-weight: bold;">مردود</span>`; studentActionsDisplay = `<span style="color: var(--danger-color); font-size: 1.5rem; font-weight: bold;">—</span>`; break; case '2': certStatusDisplay = `<span>بررسی</span>`; break; case '5': certStatusDisplay = `<span style="color: var(--success-color); font-weight: bold;">صدور</span>`; studentActionsDisplay = `<a href="https://tashacol.ir/equran.html?id=${s.nationalId}" target="_blank" class="icon-btn" title="مشاهده گواهی"><svg class="icon" style="color:var(--warning-color);"><use href="#icon-star"></use></svg></a>`; break; }
+                        } else { studentActionsDisplay = `<div class="student-actions"><button class="icon-btn edit-btn" onclick="showEditStudentModal(event, '${course.courseId}', '${s.name}', '${s.nationalId}')" title="ویرایش"><svg class="icon"><use href="#icon-pencil"></use></svg></button><button class="icon-btn delete-btn" onclick="showDeleteStudentModal(event, '${course.courseId}', '${s.name}', '${s.nationalId}')" title="حذف"><svg class="icon"><use href="#icon-trash"></use></svg></button></div>`; }
                         return `<tr><td>${index + 1}</td><td>${s.name || ''}</td><td>${s.nationalId || ''}</td><td>${actionCellDisplay}</td><td>${certStatusDisplay}</td><td>${studentActionsDisplay}</td></tr>`
                     }).join('')}</tbody></table>`;
             }
-            container.innerHTML += `<div class="course-card"><div class="course-header"><h4>${course.courseName} (کد: ${course.courseId})</h4><div class="course-header-right"><div class="course-date-container"><span>شروع: <strong>${course.startDate}</strong></span><span>اتمام: <strong>${endDateJalali}</strong></span></div><button class="icon-btn" onclick="showSyllabusModal(event, '${course.courseCode}')" title="مشاهده شیوه نامه"><svg class="icon" style="color: var(--accent-color); width: 1.4em; height: 1.4em;"><use href="#icon-info"></use></svg><span class="btn-text">شیوه نامه</span></button></div></div>${studentsHtml}<div class="course-actions"><div class="action-buttons-container">${addStudentBtn}${editDateBtn}${deleteCourseBtn}</div><div class="course-status-container">${statusHtml}</div></div></div>`;
+            container.innerHTML += `<div class="course-card"><div class="course-header"><h4>${course.courseName} (کد: ${course.courseId})</h4><div class="course-header-right"><div class="course-date-container"><span>شروع: <strong>${course.startDate}</strong></span><span>اتمام: <strong>${course.endDate}</strong></span></div><button class="icon-btn" onclick="showSyllabusModal(event, '${course.courseCode}')" title="مشاهده شیوه نامه"><svg class="icon" style="color: var(--accent-color); width: 1.4em; height: 1.4em;"><use href="#icon-info"></use></svg><span class="btn-text">شیوه نامه</span></button></div></div>${studentsHtml}<div class="course-actions"><div class="action-buttons-container">${addStudentBtn}${editDateBtn}${deleteCourseBtn}</div><div class="course-status-container">${statusHtml}</div></div></div>`;
         });
     }
 
@@ -392,7 +315,6 @@
     function hideModalError(containerId) { const errorContainer = document.getElementById(containerId); if (errorContainer) { errorContainer.classList.add('hidden'); errorContainer.innerHTML = ''; } }
     function getTodayJalaliString() { const p2e = s => s.replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)); return p2e(new Date().toLocaleDateString('fa-IR', {year: 'numeric', month: '2-digit', day: '2-digit'})); }
     function populateDatePicker(prefix = 'start', defaultDateStr) { let defaultDay, defaultMonth, defaultYear; if (defaultDateStr) { [defaultYear, defaultMonth, defaultDay] = defaultDateStr.split('/').map(Number); } let opts = { d: '', m: '', y: ''}; for (let i = 1; i <= 31; i++) opts.d += `<option value="${i}" ${i === defaultDay ? 'selected' : ''}>${i}</option>`; ["فروردین","اردیبهشت","خرداد","تیر","مرداد","شهریور","مهر","آبان","آذر","دی","بهمن","اسفند"].forEach((m, i) => opts.m += `<option value="${i+1}" ${i + 1 === defaultMonth ? 'selected' : ''}>${m}</option>`); const currentYear = new Date().toLocaleDateString('fa-IR-u-nu-latn').split('/')[0]; opts.y = `<option value="${currentYear}">${currentYear}</option>`; return `<select id="${prefix}-day">${opts.d}</select><select id="${prefix}-month">${opts.m}</select><select id="${prefix}-year" disabled>${opts.y}</select>`; }
-    function jalaliToGregorian(jy, jm, jd) { var sal_a, gy, gm, gd, days; jy += 1595; days = -355668 + (365 * jy) + (~~(jy / 33) * 8) + ~~(((jy % 33) + 3) / 4) + jd + ((jm < 7) ? (jm - 1) * 31 : ((jm - 7) * 30) + 186); gy = 400 * ~~(days / 146097); days %= 146097; if (days > 36524) { gy += 100 * ~~(--days / 36524); days %= 36524; if (days >= 365) days++; } gy += 4 * ~~(days / 1461); days %= 1461; if (days > 365) { gy += ~~((days - 1) / 365); days = (days - 1) % 365; } gd = days + 1; sal_a = [0, 31, ((gy % 4 === 0 && gy % 100 !== 0) || (gy % 400 === 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]; for (gm = 0; gm < 13 && gd > sal_a[gm]; gm++) gd -= sal_a[gm]; return new Date(gy, gm - 1, gd); }
     async function showCreateCourseModal(button) { const res = await callAppsScript('getCourseDefinitions', {}, button); if (!res || !res.success || !res.data || res.data.length === 0) { showCustomAlert(res ? res.message : 'هیچ دوره تعریف شده‌ای یافت نشد.', 'error'); return; } const courseOptions = res.data.map(course => `<option value="${course.code}">${course.name}</option>`).join(''); const content = `<div class="form-group"><label for="course-definition-select">نام دوره</label><select id="course-definition-select" style="text-align-last: center;">${courseOptions}</select></div><div class="form-group"><label>تاریخ شروع</label>${populateDatePicker('start')}</div><div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div><div style="text-align:center;"><button onclick="handleCreateCourse(event)"><span class="btn-text">ایجاد دوره</span></button></div>`; renderModal('ایجاد دوره جدید', content, 'narrow'); }
     async function handleCreateCourse(event) { hideModalError('modal-error-container'); const selectedCourseCode = document.getElementById('course-definition-select').value; const date = `${document.getElementById('start-year').value}/${document.getElementById('start-month').value.padStart(2,'0')}/${document.getElementById('start-day').value.padStart(2,'0')}`; if (!selectedCourseCode) { showModalError("modal-error-container", "لطفا یک دوره را انتخاب کنید."); return; } if (date < getTodayJalaliString()) { showModalError("modal-error-container", "تاریخ انتخابی نمی‌تواند در گذشته باشد."); return; } const res = await callAppsScript('createNewCourse', { startDate: date, courseCode: selectedCourseCode, instructorName: loggedInInstructorName }, event.target); if (res && res.success) { closeAllModals(); showCustomAlert('دوره با موفقیت ایجاد و برای تایید ارسال شد.', 'success'); fetchDashboardData(); } else if(res) { showModalError("modal-error-container", 'خطا: ' + res.message); } }
     async function showEditRejectedCourseModal(event, courseId, originalStartDate, originalCourseCode) { const button = event.target.closest('button'); const res = await callAppsScript('getCourseDefinitions', {}, button); if (!res || !res.success || !res.data || res.data.length === 0) { showCustomAlert(res ? res.message : 'هیچ دوره تعریف شده‌ای یافت نشد.', 'error'); return; } const courseOptions = res.data.map(course => `<option value="${course.code}" ${course.code === originalCourseCode ? 'selected' : ''}>${course.name}</option>`).join(''); const content = `<div class="form-group"><label for="edit-course-definition-select">نام دوره</label><select id="edit-course-definition-select" style="text-align-last: center;">${courseOptions}</select></div><div class="form-group"><label>تاریخ شروع</label>${populateDatePicker('edit-start', originalStartDate)}</div><div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div><div style="text-align:center;"><button onclick="handleUpdateRejectedCourse(event, '${courseId}', '${originalStartDate}')"><span class="btn-text">ثبت ویرایش و ارسال مجدد</span></button></div>`; renderModal('ویرایش دوره', content, 'narrow'); }
@@ -431,11 +353,13 @@
             for (let i = gradeInputs.length + 1; i <= 5; i++) { grades[`g${i}`] = ''; }
             setButtonLoading(submissionButton, true);
             const res = await callAppsScript('submitStudentGrades', { courseId: currentCourseId, studentNationalId: currentStudentOriginalId, studentName: studentName, grades: grades });
-            setButtonLoading(submissionButton, false);
-            if (res && res.success) {
+            if (res && res.success) { // دکمه لودینگ اینجا توسط callAppsScript غیرفعال می‌شود
                 const modalContent = document.querySelector('#grading-form-content');
                 if (modalContent) modalContent.innerHTML = `<div style="text-align:center;"><div class="alert-icon success" style="font-size: 3rem;"><svg class="icon"><use href="#icon-alert-success"></use></svg></div><p class="alert-message" style="font-size: 1rem;">${res.message}</p><div class="alert-buttons"><button onclick="closeAllModals(); fetchDashboardData();"><span class="btn-text">بسیار خب</span></button></div></div>`;
-            } else if (res) { showModalError('modal-error-container', "خطا: " + res.message); submissionButton.dataset.step = 'initial'; submissionButton.classList.remove('danger'); buttonText.innerText = 'تایید و ارسال نمرات'; }
+            } else if (res) { 
+                setButtonLoading(submissionButton, false); // در صورت خطا، لودینگ را دستی غیرفعال کن
+                showModalError('modal-error-container', "خطا: " + res.message); submissionButton.dataset.step = 'initial'; submissionButton.classList.remove('danger'); buttonText.innerText = 'تایید و ارسال نمرات'; 
+            }
         }
     }
 </script>
