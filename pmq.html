@@ -135,7 +135,7 @@
         <div id="login-section">
             <img src="https://tashacol.ir/1754843708220.png" alt="لوگو" class="login-header-icon">
             <h1>پرتال اساتید</h1>
-            <form id="login-form">
+            <form id="login-form" onsubmit="handleManualLogin(event)">
                 <div class="form-group">
                     <label for="nationalId">کد ملی</label>
                     <div class="input-icon"><svg class="icon"><use href="#icon-id-card"></use></svg></div>
@@ -151,7 +151,16 @@
                     <div class="input-icon"><svg class="icon"><use href="#icon-lock"></use></svg></div>
                     <input type="password" id="password" required class="has-icon">
                 </div>
-                <button id="login-button" type="submit"><span class="btn-text">ورود</span></button>
+                <button 
+                    id="login-button"
+                    class="g-recaptcha" 
+                    data-sitekey="6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq" 
+                    data-callback="onRecaptchaSuccess"
+                    data-error-callback="onRecaptchaError"
+                    data-size="invisible"
+                    type="submit">
+                    <span class="btn-text">ورود</span>
+                </button>
                 <p id="error-message" class="hidden modal-error-message" style="margin-top: 15px;"></p>
             </form>
         </div>
@@ -175,7 +184,7 @@
 <script>
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw4D3RTHBLUwIx_gDIC0Dl0GOmyOlH0w6ku19CnfuOEsuCZCRw2g3sHqgneXNqPg6HWbw/exec";
     let sessionToken = null; 
-    let loggedInInstructorId = null, loggedInInstructorName = null, loggedInInstructorEmail = null, tempStudents = []; 
+    let loggedInInstructorName = null, loggedInInstructorEmail = null, tempStudents = []; 
     let currentCourseId = null, currentStudentOriginalId = null;
     let existingStudentsByCourse = {};
 
@@ -204,13 +213,9 @@
     function isValidNationalId(nid) { return /^\d{10}$/.test(nid); }
     function isValidEmail(email) { return /\S+@\S+\.\S+/.test(email); }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        // *** اصلاحیه لودینگ: رویداد به فرم اضافه شد و دکمه کپچا حذف شد ***
-        document.getElementById('login-form').addEventListener('submit', handleManualLogin);
-    });
+    document.addEventListener('DOMContentLoaded', () => { /* No auto-login for security */ });
 
     function showDashboard(name, email, token) {
-        loggedInInstructorId = token.split('_')[0]; // Extract ID from token for internal use
         loggedInInstructorName = name;
         loggedInInstructorEmail = email;
         sessionToken = token;
@@ -226,7 +231,6 @@
         }
     }
 
-    // *** اصلاحیه لودینگ: تابع handleManualLogin بازنویسی شد ***
     function handleManualLogin(event) {
         event.preventDefault();
         const nationalIdInput = document.getElementById('nationalId');
@@ -237,15 +241,8 @@
             return;
         }
         errorP.classList.add('hidden');
-        const loginButton = document.getElementById('login-button');
-        setButtonLoading(loginButton, true);
-        
-        // اجرای کپچا به صورت programmatically
-        grecaptcha.ready(function() {
-            grecaptcha.execute('6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq', {action: 'login'}).then(function(token) {
-                onRecaptchaSuccess(token);
-            }).catch(onRecaptchaError);
-        });
+        // *** اصلاحیه لودینگ: دکمه را در همینجا به سرور پاس می‌دهیم ***
+        grecaptcha.execute();
     }
 
     async function onRecaptchaSuccess(recaptchaToken) {
@@ -254,10 +251,10 @@
         const password = document.getElementById('password').value;
         const errorP = document.getElementById('error-message');
         const loginButton = document.getElementById('login-button');
-        const res = await callAppsScript('checkLogin', { nationalId, username, password, recaptchaToken });
+        // *** اصلاحیه لودینگ: دکمه را به callAppsScript پاس می‌دهیم تا مدیریت شود ***
+        const res = await callAppsScript('checkLogin', { nationalId, username, password, recaptchaToken }, loginButton);
+        grecaptcha.reset();
         
-        // نیازی به ریست نیست چون هر بار execute فراخوانی می‌شود
-        setButtonLoading(loginButton, false);
         if (res && res.success) {
             showDashboard(res.name, res.email, res.token);
         } else if(res) {
@@ -269,6 +266,7 @@
     function onRecaptchaError() {
         showCustomAlert('خطا در اجرای کپچا. لطفاً اتصال اینترنت خود را بررسی کرده و دوباره تلاش کنید.', 'error');
         setButtonLoading(document.getElementById('login-button'), false);
+        grecaptcha.reset();
     }
     
     async function handleLogout() {
