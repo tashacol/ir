@@ -241,15 +241,13 @@
         const password = document.getElementById('password').value;
         const errorP = document.getElementById('error-message');
         const loginButton = document.getElementById('login-button');
-        const res = await callAppsScript('checkLogin', { nationalId, username, password, recaptchaToken });
+        // --- [اصلاح شد] --- دکمه به عنوان پارامتر سوم به درستی ارسال می‌شود
+        const res = await callAppsScript('checkLogin', { nationalId, username, password, recaptchaToken }, loginButton);
         grecaptcha.reset();
         if (res && res.success) {
-            // دکمه لودینگ با موفقیت ورود توسط callAppsScript غیرفعال می‌شود
             showDashboard(res.name, res.email, res.token);
-        } else {
-            // --- [اصلاح شد] --- اطمینان از غیرفعال شدن لودینگ در صورت خطا
-            setButtonLoading(loginButton, false);
-            if (res) { errorP.innerText = res.message || "خطای ورود."; errorP.classList.remove('hidden'); }
+        } else if (res) {
+            errorP.innerText = res.message || "خطای ورود."; errorP.classList.remove('hidden');
         }
     }
 
@@ -263,6 +261,8 @@
     
     async function fetchDashboardData() { renderSkeletonLoader(); document.querySelector('.dashboard-header').classList.add('loading'); const res = await callAppsScript('getInstructorDashboardData', {}); document.querySelector('.dashboard-header').classList.remove('loading'); if(res && res.success) renderCourses(res.data); else if(res) showCustomAlert("خطا در دریافت اطلاعات: " + res.message, 'error'); }
     
+    function renderSkeletonLoader() { document.getElementById('create-course-container').innerHTML = '<div class="skeleton button shimmer"></div>'; let skeletonHTML = ''; for (let i = 0; i < 2; i++) { skeletonHTML += `<div class="skeleton-card shimmer"><div class="skeleton title"></div><div class="skeleton text"></div><div class="skeleton table-head"></div><div class="skeleton table-row"></div><div class="skeleton table-row"></div></div>`; } document.getElementById('courses-container').innerHTML = skeletonHTML; }
+
     function renderCourses(courses) {
         document.getElementById('create-course-container').innerHTML = '<button id="btn-create-course"><span class="btn-text">ایجاد دوره جدید</span></button>';
         document.getElementById('btn-create-course').addEventListener('click', e => showCreateCourseModal(e.target));
@@ -338,12 +338,11 @@
     async function showGradingModal(event, courseId, studentName, studentNationalId, courseCode) { const res = await callAppsScript('getGradingCriteria', { courseCode }, event.target.closest('button')); if (!res || !res.success || !res.data || res.data.length === 0) { showCustomAlert(res ? res.message : 'ساختار نمره‌دهی یافت نشد.', 'error'); return; } currentCourseId = courseId; currentStudentOriginalId = studentNationalId; let gradeInputsHTML = res.data.map((item, index) => `<div class="form-group grade-input-group"><label for="g${index + 1}">${item.title} (از ${item.maxScore})</label><input type="number" id="g${index + 1}" min="0" max="${item.maxScore}"></div>`).join(''); const content = `<div class="grading-modal-header"><div><span class="student-name">${studentName}</span></div><div style="font-size: 0.9rem; color: var(--light-text);">کد ملی: ${studentNationalId}</div></div><div id="grading-form-content">${gradeInputsHTML}<div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div><div style="text-align:center;"><button onclick="handleGradeSubmission(event, '${studentName}')" data-step="initial"><span class="btn-text">تایید و ارسال نمرات</span></button></div></div>`; renderModal('ثبت نمره برای قرآن آموز', content, 'narrow'); }
     async function handleGradeSubmission(event, studentName) {
         const submissionButton = event.target.closest('button');
-        const buttonText = submissionButton.querySelector('.btn-text');
         hideModalError('modal-error-container');
         if (submissionButton.dataset.step === 'initial') {
             const gradeInputs = document.querySelectorAll('.grade-input-group input[type="number"]');
             for (let input of gradeInputs) { const gradeVal = input.value, maxScore = Number(input.max), labelText = input.previousElementSibling.textContent; if (gradeVal === '' || isNaN(gradeVal) || gradeVal < 0 || gradeVal > maxScore) { showModalError('modal-error-container', `نمره برای "${labelText}" باید عددی بین 0 و ${maxScore} باشد.`); return; } }
-            submissionButton.dataset.step = 'confirm'; submissionButton.classList.add('danger'); buttonText.innerText = 'برای تایید نهایی مجدد کلیک کنید';
+            submissionButton.dataset.step = 'confirm'; submissionButton.classList.add('danger'); submissionButton.querySelector('.btn-text').innerText = 'برای تایید نهایی مجدد کلیک کنید';
             return; 
         }
         if (submissionButton.dataset.step === 'confirm') {
@@ -351,14 +350,12 @@
             const gradeInputs = document.querySelectorAll('.grade-input-group input[type="number"]');
             for (let i = 0; i < gradeInputs.length; i++) { grades[`g${i + 1}`] = Number(gradeInputs[i].value); }
             for (let i = gradeInputs.length + 1; i <= 5; i++) { grades[`g${i}`] = ''; }
-            setButtonLoading(submissionButton, true);
-            const res = await callAppsScript('submitStudentGrades', { courseId: currentCourseId, studentNationalId: currentStudentOriginalId, studentName: studentName, grades: grades });
-            if (res && res.success) { // دکمه لودینگ اینجا توسط callAppsScript غیرفعال می‌شود
+            const res = await callAppsScript('submitStudentGrades', { courseId: currentCourseId, studentNationalId: currentStudentOriginalId, studentName: studentName, grades: grades }, submissionButton);
+            if (res && res.success) {
                 const modalContent = document.querySelector('#grading-form-content');
                 if (modalContent) modalContent.innerHTML = `<div style="text-align:center;"><div class="alert-icon success" style="font-size: 3rem;"><svg class="icon"><use href="#icon-alert-success"></use></svg></div><p class="alert-message" style="font-size: 1rem;">${res.message}</p><div class="alert-buttons"><button onclick="closeAllModals(); fetchDashboardData();"><span class="btn-text">بسیار خب</span></button></div></div>`;
             } else if (res) { 
-                setButtonLoading(submissionButton, false); // در صورت خطا، لودینگ را دستی غیرفعال کن
-                showModalError('modal-error-container', "خطا: " + res.message); submissionButton.dataset.step = 'initial'; submissionButton.classList.remove('danger'); buttonText.innerText = 'تایید و ارسال نمرات'; 
+                showModalError('modal-error-container', "خطا: " + res.message); submissionButton.dataset.step = 'initial'; submissionButton.classList.remove('danger'); submissionButton.querySelector('.btn-text').innerText = 'تایید و ارسال نمرات'; 
             }
         }
     }
