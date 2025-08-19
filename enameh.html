@@ -10,6 +10,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
+    <!-- Google reCAPTCHA Script -->
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+
     <style>
         :root {
             --font-main: 'Vazirmatn', sans-serif;
@@ -144,10 +147,18 @@
                 <input type="text" id="numberInput" class="form-input" placeholder="شماره نامه را وارد کنید" inputmode="numeric">
                 <i class="fa-solid fa-hashtag form-icon"></i>
             </div>
-            <button id="searchButton" class="action-btn">
+            
+            <!-- دکمه‌ای که reCAPTCHA را فعال می‌کند -->
+            <button id="searchButton" 
+                    class="action-btn g-recaptcha"
+                    data-sitekey="6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq"
+                    data-callback="onRecaptchaSuccess"
+                    data-error-callback="onRecaptchaError"
+                    data-expired-callback="onRecaptchaExpired">
                 <span class="btn-text"><i class="fa-solid fa-search"></i>بررسی</span>
                 <div class="spinner"></div>
             </button>
+
             <div id="statusMessage"></div>
         </div>
 
@@ -194,9 +205,9 @@
 
     <script>
         // ==========================================================
-        // هسته اصلی جاوا اسکریپت - بدون هیچ تغییری در منطق
+        //         جاوا اسکریپت امن شده سمت کاربر
         // ==========================================================
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx9pjO9fhuJnQ7YotinMfKAgwCmw0IV1uZ7uj0O2yn55vTmFm1gdukYtFON9EPdnvI2hw/exec"; 
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw4dyNG5rF7JBjnj3rSarPmxB-XYL9R-Juk2N64Ueo1JFnl_Vn58dycC7hpoIeOI265Ag/exec"; 
 
         const dateInput = document.getElementById('dateInput');
         const numberInput = document.getElementById('numberInput');
@@ -222,27 +233,89 @@
             statusMessage.style.display = 'block';
         };
 
+        // این تابع زمانی فراخوانی می‌شود که کاربر با موفقیت کپچا را حل کند
+        function onRecaptchaSuccess(token) {
+            statusMessage.style.display = 'none';
+            resultCard.style.display = 'none';
+            const issueDate = dateInput.value.trim();
+            const letterNumber = numberInput.value.trim();
+
+            if (!issueDate || !letterNumber) {
+                showMessage('لطفاً هر دو فیلد را تکمیل کنید.', 'error');
+                grecaptcha.reset(); // ریست کردن کپچا
+                return;
+            }
+
+            setButtonLoading(true);
+
+            const requestBody = {
+                date: issueDate,
+                number: letterNumber,
+                recaptchaToken: token
+            };
+
+            // ارسال درخواست به سرور با متد POST
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify(requestBody),
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8', // Apps Script POST requires text/plain
+                },
+            })
+            .then(response => response.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    const data = res.data;
+                    document.getElementById('resultSubject').textContent = `موضوع: ${data.subject}`;
+                    document.getElementById('resultDate').textContent = data.issueDate;
+                    document.getElementById('resultNumber').textContent = data.letterNumber;
+                    document.getElementById('resultDepartment').textContent = data.department;
+                    document.getElementById('resultText').textContent = data.letterText;
+                    resultCard.style.display = 'block';
+                } else {
+                    showMessage(res.message, 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('خطا در ارتباط با سرور. لطفاً اتصال اینترنت خود را بررسی کنید.', 'error');
+                console.error('Fetch Error:', error);
+            })
+            .finally(() => {
+                setButtonLoading(false);
+                grecaptcha.reset(); // ریست کردن کپچا پس از اتمام درخواست
+            });
+        }
+
+        // توابع مدیریت خطای کپچا
+        function onRecaptchaError() {
+            showMessage('خطا در بارگذاری کپچا. لطفاً صفحه را مجدداً بارگذاری کنید.', 'error');
+        }
+
+        function onRecaptchaExpired() {
+            showMessage('اعتبار کپچا منقضی شده است. لطفاً دوباره تلاش کنید.', 'error');
+        }
+
+        // ==========================================================
+        //   توابع مربوط به رابط کاربری (بدون تغییر در منطق)
+        // ==========================================================
         function populatePickers() {
             const yearPlaceholder = new Option('سال', '', true, true);
             yearPlaceholder.disabled = true;
             yearPicker.add(yearPlaceholder);
             for (let year = 1430; year >= 1398; year--) {
-                const option = new Option(year, year);
-                yearPicker.add(option);
+                yearPicker.add(new Option(year, year));
             }
             const monthPlaceholder = new Option('ماه', '', true, true);
             monthPlaceholder.disabled = true;
             monthPicker.add(monthPlaceholder);
             for (let month = 1; month <= 12; month++) {
-                const option = new Option(month, month);
-                monthPicker.add(option);
+                monthPicker.add(new Option(month, month));
             }
             const dayPlaceholder = new Option('روز', '', true, true);
             dayPlaceholder.disabled = true;
             dayPicker.add(dayPlaceholder);
             for (let day = 1; day <= 31; day++) {
-                const option = new Option(day, day);
-                dayPicker.add(option);
+                dayPicker.add(new Option(day, day));
             }
         }
 
@@ -260,47 +333,11 @@
                 datePickerModal.style.display = 'none';
             }
         });
-
-        searchButton.addEventListener('click', () => {
-            statusMessage.style.display = 'none';
-            resultCard.style.display = 'none';
-            const issueDate = dateInput.value;
-            let letterNumber = numberInput.value.trim();
-
-            if (!issueDate || !letterNumber) {
-                showMessage('لطفاً هر دو فیلد را تکمیل کنید.', 'error');
-                return;
-            }
-            letterNumber = parseInt(letterNumber, 10).toString();
-            setButtonLoading(true);
-            const englishDate = issueDate.replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
-            const url = `${SCRIPT_URL}?date=${encodeURIComponent(englishDate)}&number=${encodeURIComponent(letterNumber)}`;
-
-            fetch(url)
-                .then(response => response.json())
-                .then(res => {
-                    if (res.status === 'success') {
-                        const data = res.data;
-                        document.getElementById('resultSubject').textContent = `موضوع: ${data.subject}`;
-                        document.getElementById('resultDate').textContent = data.issueDate;
-                        document.getElementById('resultNumber').textContent = data.letterNumber;
-                        document.getElementById('resultDepartment').textContent = data.department;
-                        document.getElementById('resultText').textContent = data.letterText;
-                        resultCard.style.display = 'block';
-                    } else {
-                        showMessage(res.message, 'error');
-                    }
-                })
-                .catch(error => {
-                    showMessage('خطا در ارتباط با سرور. لطفاً اتصال اینترنت خود را بررسی کنید.', 'error');
-                    console.error('Fetch Error:', error);
-                })
-                .finally(() => {
-                    setButtonLoading(false);
-                });
-        });
         
         populatePickers();
+
+        // **نکته**: رویداد کلیک مستقیم روی دکمه حذف شده است.
+        // reCAPTCHA اکنون فرآیند را آغاز می‌کند.
     </script>
 
 </body>
