@@ -8,6 +8,9 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700&display=swap">
   
+  <!-- ▼▼▼ ویرایش: افزودن اسکریپت Google reCAPTCHA ▼▼▼ -->
+  <script src="https://www.google.com/recaptcha/api.js?render=6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq"></script>
+
   <style>
     :root {
       --primary-color: #0052cc; --accent-color: #0065ff; --success-color: #28a745;
@@ -70,8 +73,6 @@
     h1 { font-size: 1.6rem; color: var(--text-dark); margin: 0 0 10px 0; }
     .login-header .divider { width: 40px; height: 2px; background: var(--accent-color); margin: 0 auto; border-radius: 1px; }
     .commitment-box { border: 1px solid var(--input-border-color); border-radius: 12px; padding: 15px; font-size: 0.85rem; text-align: justify; line-height: 1.9; max-height: 150px; overflow-y: auto; background-color: #f8f9fa; }
-    
-    /* ▼▼▼ ویرایش: بازگردانی استایل لودر اتمی اولیه ▼▼▼ */
     .full-page-loader {
         position: fixed; top: 0; left: 0;
         width: 100%; height: 100%;
@@ -88,10 +89,11 @@
     .loader-line:nth-child(2) { transform: rotateX(70deg) rotateY(20deg); border-top-color: var(--accent-color); animation-duration: 1.2s; }
     .loader-line:nth-child(3) { transform: rotateX(70deg) rotateY(-50deg); animation-duration: 2s; }
     @keyframes spin-loader { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+    /* مخفی کردن بج reCAPTCHA - می‌توان با استایل زیر آن را شفاف کرد اگر نیاز به دیده شدن لوگوی گوگل باشد */
+    .grecaptcha-badge { visibility: hidden; }
   </style>
 </head>
 <body>
-  <!-- ▼▼▼ ویرایش: بازگردانی HTML لودر اتمی اولیه ▼▼▼ -->
   <div class="full-page-loader" id="fullPageLoader">
       <div class="loader-atom"><div class="loader-line"></div><div class="loader-line"></div><div class="loader-line"></div></div>
       <p>در حال بررسی اطلاعات...</p>
@@ -153,7 +155,8 @@
   <div id="signatureModal"><div class="modal-content"><canvas id="signatureCanvas" width="350" height="150"></canvas><div class="modal-buttons"><button class="btn btn-primary" id="save-signature-btn">تایید</button><button class="btn btn-secondary" id="clear-signature-btn">پاک کردن</button></div></div></div>
 
   <script>
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyKAJ1rVy0lYaJKKm3aSajuvGCCVWlZLfk3aVibz4ceKc5txvvHxwyqKqdjl-CMZdjt/exec';
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxl2CVoigpORrBkw992TIE9l7AVwm2egpChRgIhT9A_66fV7hA-iFOzndmYzLcpz4i3/exec';
+    const RECAPTCHA_SITE_KEY = '6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq';
 
     const mainContainer = document.getElementById('mainContainer');
     const fullPageLoader = document.getElementById('fullPageLoader');
@@ -170,7 +173,9 @@
     const infoName = document.getElementById('info-name');
     const infoCourse = document.getElementById('info-course');
 
+    // ▼▼▼ ویرایش: تعریف متغیر برای ذخیره اطلاعات کاربر و توکن امنیتی ▼▼▼
     let currentUserData = null;
+    let sessionToken = null; // این توکن فقط از سرور دریافت و برای ثبت نهایی ارسال می‌شود
 
     function showView(viewId) {
       allViews.forEach(view => view.classList.remove('active'));
@@ -186,6 +191,7 @@
         button.classList.toggle('loading', isLoading);
     }
     
+    // ▼▼▼ ویرایش: تابع بررسی وضعیت با افزودن reCAPTCHA ▼▼▼
     async function performCheck(nationalId, isAutoLoad = false) {
         messageBox.style.display = 'none';
         if (!/^\d{10}$/.test(nationalId)) {
@@ -198,12 +204,29 @@
         } else {
             setButtonLoading(true, checkButton);
         }
-        
+
         try {
-            const response = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'checkStatus', nationalId: nationalId }), headers: {'Content-Type': 'text/plain'} });
+            // دریافت توکن reCAPTCHA قبل از ارسال درخواست
+            const recaptchaToken = await grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'checkStatus' });
+            
+            const response = await fetch(SCRIPT_URL, { 
+                method: 'POST', 
+                body: JSON.stringify({ 
+                    action: 'checkStatus', 
+                    nationalId: nationalId,
+                    recaptchaToken: recaptchaToken // ارسال توکن به سرور
+                }), 
+                headers: {'Content-Type': 'text/plain'} 
+            });
+
             const result = await response.json();
             if (result.success) {
                 currentUserData = result.userData;
+                // اگر کاربر مجاز بود، توکن جلسه را ذخیره می‌کنیم
+                if (result.sessionToken) {
+                    sessionToken = result.sessionToken;
+                }
+                
                 switch(result.status) {
                     case 'approved':
                         document.getElementById('approved_viewPdfLink').href = result.pdfUrl;
@@ -244,28 +267,46 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const nationalId = urlParams.get('id');
-        if (nationalId) {
-            idcodeInput.value = nationalId;
-            performCheck(nationalId, true);
-        }
+        grecaptcha.ready(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const nationalId = urlParams.get('id');
+            if (nationalId) {
+                idcodeInput.value = nationalId;
+                performCheck(nationalId, true);
+            }
+        });
     });
 
     checkButton.addEventListener('click', () => {
         performCheck(idcodeInput.value.trim(), false);
     });
 
+    // ▼▼▼ ویرایش: تابع ثبت پروژه با افزودن reCAPTCHA و توکن امنیتی ▼▼▼
     generateButton.addEventListener('click', async () => {
       if (signatureImage.style.display === 'none' || isCanvasBlank()) { return alert('لطفا ابتدا امضای خود را ثبت کنید.'); }
+      
+      // بررسی وجود توکن امنیتی قبل از ارسال
+      if (!sessionToken) { return alert('جلسه شما منقضی شده است. لطفا صفحه را رفرش کنید.'); }
+
       setButtonLoading(true, generateButton);
       const signatureDataUrl = canvas.toDataURL('image/png');
+
       try {
+        // دریافت توکن reCAPTCHA قبل از ارسال درخواست
+        const recaptchaToken = await grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'submitProject' });
+
         const response = await fetch(SCRIPT_URL, {
           method: 'POST',
-          body: JSON.stringify({ action: 'submitProject', nationalId: currentUserData.nationalId, signatureDataUrl: signatureDataUrl }),
+          body: JSON.stringify({ 
+              action: 'submitProject', 
+              nationalId: currentUserData.nationalId, 
+              signatureDataUrl: signatureDataUrl,
+              sessionToken: sessionToken, // ارسال توکن امنیتی به سرور
+              recaptchaToken: recaptchaToken // ارسال توکن کپچا به سرور
+          }),
           headers: {'Content-Type': 'text/plain'}
         });
+
         const result = await response.json();
         if (result.success) {
             document.getElementById('submitted_message').innerHTML = `جناب آقای <strong>${result.userData.name}</strong> با کد ملی <strong>${result.userData.nationalId}</strong>،<br>پروژه شما در تاریخ <strong>${result.userData.submissionDate}</strong> ساعت <strong>${result.userData.submissionTime}</strong> جهت بررسی و صدور گواهی به معاونت آموزش ارسال شد. صدور گواهی بین ۷ تا ۱۰ روز به طول می‌انجامد.`;
@@ -276,12 +317,13 @@
         }
       } catch (error) {
         alert(error.message);
-        showView('step2');
+        showView('step2'); // در صورت خطا به مرحله قبل برمی‌گردد
       } finally {
         setButtonLoading(false, generateButton);
       }
     });
     
+    // --- توابع مربوط به امضا (بدون تغییر) ---
     let drawing = false;
     signatureBtn.addEventListener('click', () => { signatureModal.style.display = 'flex'; setTimeout(() => signatureModal.classList.add('show'), 10); });
     function closeSignatureModal() { signatureModal.classList.remove('show'); setTimeout(() => signatureModal.style.display = 'none', 300); }
