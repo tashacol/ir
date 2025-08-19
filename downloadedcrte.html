@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>دریافت گواهی دوره جامع تربیت نوجوان</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <!-- افزودن اسکریپت Google reCAPTCHA -->
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     <style>
         :root {
             --font-main: 'Vazirmatn', sans-serif;
@@ -24,8 +26,6 @@
             --radius-lg: 16px;
             --radius-md: 12px;
             --transition: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            --captcha-bg: #E8F5E9;
-            --captcha-text: #2E7D32;
         }
         @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -63,7 +63,6 @@
         .input-icon { position: absolute; top: 50%; right: 15px; transform: translateY(-50%); color: var(--light-text); }
         .form-input { width: 100%; text-align: center; padding: 12px 15px; border: 1px solid #a8b3c2; border-radius: var(--radius-md); font-size: 1rem; font-family: var(--font-main); outline: none; transition: var(--transition); }
         .form-input:focus { border-color: var(--secondary-color); box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.3); }
-        .captcha-label { font-size: 1.2rem; font-weight: bold; color: var(--captcha-text); display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.75rem; padding: 12px; background-color: var(--captcha-bg); border-radius: var(--radius-md); }
         .btn { position:relative; background-color: var(--secondary-color); color: white; padding: 12px 30px; border: none; border-radius: var(--radius-md); cursor: pointer; font-size: 1rem; font-family: var(--font-main); transition: all 0.3s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; width: 100%; }
         .btn:hover:not(:disabled) { background-color: var(--primary-color); transform: translateY(-2px); }
         .btn:disabled { background-color: #94a3b8; cursor: not-allowed; }
@@ -93,16 +92,7 @@
                      <input type="text" id="nationalId" class="form-input" inputmode="numeric" pattern="[0-9]*" required autocomplete="off" placeholder="کد ملی خود را وارد کنید">
                 </div>
             </div>
-            <div class="form-group">
-                <label class="captcha-label" for="captcha-answer" id="captcha-question">
-                    <i class="fas fa-shield-halved"></i>
-                    <span>در حال دریافت سوال امنیتی...</span>
-                </label>
-                <div class="input-wrapper">
-                    <i class="fas fa-calculator input-icon"></i>
-                    <input type="number" id="captcha-answer" class="form-input" required placeholder="پاسخ را اینجا وارد کنید" autocomplete="off">
-                </div>
-            </div>
+             <!-- دکمه ارسال که reCAPTCHA به آن متصل می‌شود -->
             <button type="submit" id="btn-submit" class="btn">
                 <span id="button-text">بررسی وجود گواهی</span>
                 <div class="loader" id="loader-submit"></div>
@@ -127,17 +117,24 @@
     </div>
 </div>
 
-<script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx6u7mPz5EBh6ZG58o97w7NY8pnc3XOgLcm-XEvia21Vrlsx7IAqHc1OapbFLFojfbhbA/exec";
-    
-    let fileToProcess = null;
-    let verifiedNationalId = null;
+<!-- عنصر reCAPTCHA نامرئی -->
+<div id="recaptcha-container"></div>
 
+
+<script>
+    // آدرس وب اپلیکیشن شما در Google Apps Script
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxVlFUJ90SyDxwJshRQ1MQMM06DKb10bj6I_sJmMtNQCyj2_SfLekocmAeTzmL0p-LGxg/exec";
+    // کلید سایت (Site Key) مربوط به Google reCAPTCHA
+    const RECAPTCHA_SITE_KEY = "6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq";
+    
+    // متغیرهایی برای نگهداری اطلاعات فایل و توکن امن
+    let fileToProcess = null;
+    let secureToken = null; // برای نگهداری توکن JWT دریافتی از سرور
+
+    // دریافت عناصر DOM
     const formContainer = document.getElementById('form-container');
     const certificateForm = document.getElementById('certificate-form');
     const nationalIdInput = document.getElementById('nationalId');
-    const captchaAnswerInput = document.getElementById('captcha-answer');
-    const captchaQuestionEl = document.getElementById('captcha-question').querySelector('span');
     const submitButton = document.getElementById('btn-submit');
     const buttonText = document.getElementById('button-text');
     const loaderSubmit = document.getElementById('loader-submit');
@@ -154,102 +151,97 @@
     const viewBtn = document.getElementById('btn-view');
     const shareBtn = document.getElementById('btn-share');
 
-    function b64toBlob(b64Data, contentType = '', sliceSize = 512) {
-        const byteCharacters = atob(b64Data);
-        const byteArrays = [];
-        for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
-            const slice = byteCharacters.slice(offset, offset + sliceSize);
-            const byteNumbers = new Array(slice.length);
-            for (let i = 0; i < slice.length; i++) { byteNumbers[i] = slice.charCodeAt(i); }
-            byteArrays.push(new Uint8Array(byteNumbers));
-        }
-        return new Blob(byteArrays, { type: contentType });
-    }
-
+    /**
+     * تابع عمومی برای ارسال درخواست به API سمت سرور
+     */
     async function apiCall(body) {
         try {
-            const response = await fetch(SCRIPT_URL, { method: 'POST', mode: 'cors', body: JSON.stringify(body) });
+            const response = await fetch(SCRIPT_URL, { 
+                method: 'POST', 
+                mode: 'cors', 
+                // برای جلوگیری از مشکلات CORS، هدر زیر را حذف می‌کنیم
+                // headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body) 
+            });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             return await response.json();
         } catch (error) {
             console.error("API Call failed:", error);
-            return { status: 'error', message: 'خطا در ارتباط با سرور. لطفاً اتصال اینترنت خود را بررسی کنید.' };
-        }
-    }
-
-    async function getNewCaptcha() {
-        captchaQuestionEl.textContent = 'در حال دریافت سوال امنیتی...';
-        const response = await apiCall({ action: 'getCaptcha' });
-        if (response && response.status === 'success') {
-            captchaQuestionEl.textContent = response.question;
-            fileToProcess = { ...fileToProcess, questionId: response.questionId };
-        } else {
-            captchaQuestionEl.textContent = 'خطا در بارگذاری سوال';
-            showMessage(response.message || 'مشکلی در دریافت سوال امنیتی پیش آمد.', 'error');
+            showMessage('خطا در ارتباط با سرور. لطفاً اتصال اینترنت خود را بررسی کنید و دوباره تلاش نمایید.', 'error');
+            return null; // بازگرداندن null در صورت خطا
         }
     }
     
+    /**
+     * نمایش پیام به کاربر
+     */
     function showMessage(message, type) {
         messageArea.textContent = message;
         messageArea.className = `message-${type}`;
         messageArea.style.display = 'block';
     }
 
+    /**
+     * مدیریت وضعیت لودینگ دکمه ارسال فرم
+     */
     function setSubmitLoadingState(isLoading) {
         submitButton.disabled = isLoading;
         buttonText.style.display = isLoading ? 'none' : 'inline';
         loaderSubmit.style.display = isLoading ? 'inline-block' : 'none';
     }
 
+    /**
+     * مدیریت وضعیت لودینگ دکمه تایید دریافت فایل
+     */
     function setConfirmLoadingState(isLoading) {
         confirmFetchBtn.disabled = isLoading;
         confirmButtonText.style.display = isLoading ? 'none' : 'inline';
         loaderConfirm.style.display = isLoading ? 'inline-block' : 'none';
     }
 
-    function triggerDownload() {
-        if (!fileToProcess) return;
-        const link = document.createElement('a');
-        link.href = `data:${fileToProcess.type};base64,${fileToProcess.data}`;
-        link.download = fileToProcess.name;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-
-    // مرحله 1: بررسی وجود گواهی
-    certificateForm.addEventListener('submit', async function(event) {
-        event.preventDefault();
+    /**
+     * تابع callback که پس از موفقیت‌آمیز بودن reCAPTCHA اجرا می‌شود
+     * این تابع توکن reCAPTCHA را به سرور برای اعتبارسنجی ارسال می‌کند
+     */
+    async function onRecaptchaSuccess(recaptchaToken) {
         setSubmitLoadingState(true);
         messageArea.style.display = 'none';
-        actionsArea.style.display = 'none';
-        confirmationArea.style.display = 'none';
 
         const formData = {
             action: 'checkExistence',
             nationalId: nationalIdInput.value,
-            captchaAnswer: captchaAnswerInput.value,
-            questionId: fileToProcess.questionId
+            recaptchaToken: recaptchaToken // ارسال توکن reCAPTCHA
         };
         
         const response = await apiCall(formData);
         
         if (response && response.status === 'exists') {
-            verifiedNationalId = nationalIdInput.value;
+            secureToken = response.token; // ذخیره توکن امن دریافتی از سرور
             formContainer.style.display = 'none';
             messageArea.style.display = 'none';
             confirmationMessage.textContent = response.message;
             confirmationArea.style.display = 'flex';
-        } else {
+        } else if(response) {
             showMessage(response.message || 'پاسخ نامعتبر از سرور دریافت شد.', 'error');
-            await getNewCaptcha();
         }
         
-        captchaAnswerInput.value = '';
         setSubmitLoadingState(false);
+        // ریست کردن reCAPTCHA برای تلاش بعدی
+        grecaptcha.reset(recaptchaWidgetId);
+    }
+    
+    /**
+     * رویداد ارسال فرم اصلی
+     */
+    certificateForm.addEventListener('submit', function(event) {
+        event.preventDefault();
+        // اجرای reCAPTCHA به صورت برنامه‌نویسی
+        grecaptcha.execute(recaptchaWidgetId);
     });
 
-    // مرحله 2: دریافت فایل گواهی پس از تایید کاربر
+    /**
+     * مرحله 2: دریافت فایل گواهی پس از تایید کاربر با استفاده از توکن امن
+     */
     confirmFetchBtn.addEventListener('click', async () => {
         setConfirmLoadingState(true);
         confirmationArea.style.display = 'none';
@@ -257,7 +249,7 @@
 
         const formData = {
             action: 'getFile',
-            nationalId: verifiedNationalId
+            token: secureToken // ارسال توکن امن به جای کد ملی
         };
 
         const response = await apiCall(formData);
@@ -282,6 +274,31 @@
         setConfirmLoadingState(false);
     });
     
+    // --- توابع مربوط به عملیات روی فایل (دانلود، مشاهده، اشتراک‌گذاری) ---
+
+    function b64toBlob(b64Data, contentType = '', sliceSize = 512) {
+        const byteCharacters = atob(b64Data);
+        const byteArrays = [];
+        for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+            const slice = byteCharacters.slice(offset, offset + sliceSize);
+            const byteNumbers = new Array(slice.length);
+            for (let i = 0; i < slice.length; i++) { byteNumbers[i] = slice.charCodeAt(i); }
+            byteArrays.push(new Uint8Array(byteNumbers));
+        }
+        return new Blob(byteArrays, { type: contentType });
+    }
+
+    function triggerDownload() {
+        if (!fileToProcess) return;
+        const link = document.createElement('a');
+        const blob = b64toBlob(fileToProcess.data, fileToProcess.type);
+        link.href = URL.createObjectURL(blob);
+        link.download = fileToProcess.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
     downloadBtn.addEventListener('click', triggerDownload);
 
     viewBtn.addEventListener('click', () => {
@@ -307,13 +324,26 @@
             showMessage('خطا در هنگام اشتراک گذاری فایل.', 'error');
         }
     });
+    
+    // --- آماده‌سازی reCAPTCHA پس از بارگذاری کامل صفحه ---
+    let recaptchaWidgetId;
+    var onloadCallback = function() {
+        recaptchaWidgetId = grecaptcha.render('recaptcha-container', {
+            'sitekey': RECAPTCHA_SITE_KEY,
+            'callback': onRecaptchaSuccess, // تابع callback برای موفقیت
+            'size': 'invisible' // استفاده از نوع نامرئی
+        });
+    };
+    
+    // فراخوانی تابع آماده‌سازی reCAPTCHA
+    window.onload = onloadCallback;
 
     document.addEventListener('DOMContentLoaded', () => {
         if (typeof navigator.share === "undefined") {
             shareBtn.style.display = 'none';
         }
-        getNewCaptcha();
     });
+
 </script>
 
 </body>
