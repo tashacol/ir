@@ -1,4 +1,4 @@
-      <!DOCTYPE html>
+   <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -51,18 +51,15 @@
     <!-- END: پایان بخش تگ‌های سئو                                           -->
     <!-- =================================================================== -->
 
-    <!-- فونت وزیرمتن از گوگل -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap" rel="stylesheet">
-
-    <!-- کتابخانه آیکن‌ها -->
     <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jalali-moment/dist/jalali-moment.browser.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css">
 
     <!-- START: اسکریپت Google reCAPTCHA -->
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <script src="https://www.google.com/recaptcha/api.js"></script>
     <!-- END: اسکریپت Google reCAPTCHA -->
 
     <style>
@@ -104,7 +101,7 @@
         .login-footer{display:flex;justify-content:space-around;align-items:center;margin-top:35px;padding-top:20px;border-top:1px solid var(--card-border)}
         .login-footer a{display:flex;flex-direction:column;align-items:center;text-decoration:none;color:var(--text-muted);font-size:.8rem;font-weight:500;transition:color .3s,transform .3s}
         .login-footer a i{font-size:1.6rem;margin-bottom:8px;width:28px}
-        .login-footer a:hover:not(.disabled-link){color:var(--primary-blue);transform:translateY(-3px)}
+        .login-footer a:hover:not(:disabled-link){color:var(--primary-blue);transform:translateY(-3px)}
         .login-footer .disabled-link{opacity:.6;cursor:not-allowed}
         .dashboard-header{display:flex;align-items:center;padding-bottom:25px;margin-bottom:25px;border-bottom:1px solid var(--card-border)}
         .dashboard-header .avatar{width:65px;height:65px;border-radius:50%;background:linear-gradient(135deg,var(--primary-blue),var(--accent-blue));display:flex;align-items:center;justify-content:center;margin-left:20px;font-size:2.2rem;color:#fff;flex-shrink:0;box-shadow:0 4px 12px rgba(0,82,204,0.3)}
@@ -139,14 +136,21 @@
             <div class="header-divider"></div>
         </div>
         
+        <!-- فرم ورود دیگر تابع onsubmit ندارد -->
         <form id="login-form">
             <div class="form-group">
                 <i class="fas fa-id-card form-icon"></i>
                 <input type="tel" id="national-id-input" class="form-input" placeholder=" " maxlength="10" autocomplete="off" />
                 <label for="national-id-input" class="form-label">کد ملی خود را وارد کنید</label>
             </div>
-            <!-- دکمه ورود اکنون به صورت programatic با کپچا در ارتباط است -->
-            <button type="submit" id="login-btn" class="form-button">
+            
+            <!-- دکمه ورود اکنون به reCAPTCHA متصل شده است -->
+            <button 
+                id="login-btn"
+                class="g-recaptcha form-button" 
+                data-sitekey="6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq" 
+                data-callback="onLogin"
+                data-error-callback="onRecaptchaError">
                 <span class="btn-text">ورود به پنل</span>
                 <div class="loading-dots">
                     <div></div><div></div><div></div>
@@ -188,10 +192,9 @@
 </div>
 
 <script>
-    // --- START: کدهای جاوا اسکریپت امن شده ---
+    // --- START: کدهای جاوا اسکریپت امن شده و اصلاح شده ---
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby__7dvprKAZe14Ibwl1ITmwxztdq1HRGkVCkYDJla4MumQhCb1Z2BJvWwRu7EWS2U/exec'; 
-    const RECAPTCHA_SITE_KEY = '6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq';
-
+    
     const mainContainer = document.querySelector('.main-container');
     const loginView = document.getElementById('login-view');
     const dashboardView = document.getElementById('dashboard-view');
@@ -214,15 +217,12 @@
         loginBtn.classList.toggle('loading', isLoading);
     };
 
-    /**
-     * تابع اصلی برای ارسال درخواست به سرور Apps Script
-     * تمام ارتباطات به صورت امن و با متد POST انجام می‌شود.
-     */
     const callApi = async (payload) => {
         try {
             const response = await fetch(SCRIPT_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                mode: 'cors', // Explicitly set mode for clarity
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Use text/plain for Apps Script web apps
                 body: JSON.stringify(payload)
             });
             if (!response.ok) throw new Error(`خطای شبکه: ${response.status}`);
@@ -232,27 +232,33 @@
             return { success: false, error: 'خطا در ارتباط با سرور. اتصال اینترنت را بررسی کنید.' };
         }
     };
-
+    
     /**
-     * فرآیند ورود دو مرحله‌ای امن را مدیریت می‌کند.
+     * این تابع توسط reCAPTCHA پس از اعتبارسنجی موفق فراخوانی می‌شود.
+     * @param {string} recaptchaToken - توکن تولید شده توسط گوگل.
      */
-    const handleLogin = async (recaptchaToken) => {
+    async function onLogin(recaptchaToken) {
         const nationalId = input.value.trim();
         msgBox.style.display = 'none';
+        
+        if (!/^\d{10}$/.test(nationalId)) {
+            showMessage('کد ملی باید ۱۰ رقم و فقط شامل عدد باشد.');
+            grecaptcha.reset(); // ریست کردن کپچا
+            return;
+        }
 
         setLoadingState(true);
 
-        // --- مرحله ۱: ارسال کد ملی و توکن کپچا برای دریافت توکن دسترسی ---
         const loginPayload = { action: 'login', nationalId, recaptchaToken };
         const loginResult = await callApi(loginPayload);
 
         if (!loginResult.success) {
             showMessage(loginResult.error || 'خطای ناشناخته در مرحله اول ورود.');
             setLoadingState(false);
+            grecaptcha.reset();
             return;
         }
 
-        // --- مرحله ۲: ارسال توکن دسترسی برای دریافت اطلاعات کاربر ---
         const userDataPayload = { action: 'getUserData', accessToken: loginResult.accessToken };
         const userDataResult = await callApi(userDataPayload);
 
@@ -262,13 +268,18 @@
             displayDashboard(userDataResult.record, userDataResult.nationalId);
         } else {
             showMessage(userDataResult.error || 'خطای ناشناخته در دریافت اطلاعات کاربر.');
+            grecaptcha.reset();
         }
-    };
-
+    }
+    
     /**
-     * داشبورد کاربر را با اطلاعات دریافتی از سرور نمایش می‌دهد.
-     * این تابع هیچ تغییری نکرده است.
+     * این تابع در صورت بروز خطا در reCAPTCHA فراخوانی می‌شود.
      */
+    function onRecaptchaError() {
+        showMessage("خطا در اعتبارسنجی امنیتی. لطفاً اتصال اینترنت خود را بررسی کرده و دوباره تلاش کنید.");
+        setLoadingState(false);
+    }
+    
     const displayDashboard = (record, originalNationalId) => {
         document.getElementById('student-name').textContent = record.name || 'نامشخص';
         document.getElementById('national-id').textContent = `کد ملی: ${originalNationalId}`;
@@ -306,10 +317,6 @@
         dashboardView.classList.add('active');
     };
 
-    /**
-     * نشست (session) ذخیره شده در حافظه محلی مرورگر را بررسی می‌کند.
-     * این تابع هیچ تغییری نکرده است.
-     */
     const checkSession = () => {
         const sessionDataString = localStorage.getItem('loggedInUserData');
         if (!sessionDataString) {
@@ -330,10 +337,6 @@
         }
     };
     
-    /**
-     * فرآیند خروج از حساب کاربری را مدیریت می‌کند.
-     * این تابع هیچ تغییری نکرده است.
-     */
     const handleLogout = () => {
         localStorage.removeItem('loggedInUserData');
         mainContainer.dataset.view = 'login';
@@ -341,40 +344,20 @@
         loginView.classList.add('active');
         input.value = '';
         msgBox.style.display = 'none';
-    };
-
-    /**
-     * رویداد کلیک روی دکمه ورود را مدیریت کرده و reCAPTCHA را اجرا می‌کند.
-     */
-    const triggerLogin = (event) => {
-        event.preventDefault();
-        msgBox.style.display = 'none';
-        
-        // اعتبارسنجی اولیه فرمت کد ملی در سمت کاربر برای تجربه کاربری بهتر
-        if (!/^\d{10}$/.test(input.value.trim())) {
-            return showMessage('کد ملی باید ۱۰ رقم و فقط شامل عدد باشد.');
+        // ریست کردن کپچا در زمان خروج برای ورود بعدی
+        if (typeof grecaptcha !== 'undefined') {
+            grecaptcha.reset();
         }
-
-        setLoadingState(true);
-
-        grecaptcha.ready(function() {
-            grecaptcha.execute(RECAPTCHA_SITE_KEY, {action: 'login'}).then(function(token) {
-                // پس از دریافت توکن کپچا، فرآیند اصلی ورود را صدا می‌زنیم
-                handleLogin(token);
-            }).catch(error => {
-                console.error("reCAPTCHA execution error:", error);
-                showMessage("خطا در اجرای اعتبارسنجی امنیتی. لطفاً دوباره تلاش کنید.");
-                setLoadingState(false);
-            });
-        });
     };
 
     // --- ثبت Event Listeners ---
     logoutBtn.addEventListener('click', handleLogout);
-    loginForm.addEventListener('submit', triggerLogin);
     document.addEventListener('DOMContentLoaded', checkSession);
+
+    // جلوگیری از ارسال فرم به روش سنتی
+    loginForm.addEventListener('submit', (e) => e.preventDefault());
 
 </script>
 
 </body>
-</html>   
+</html>
