@@ -9,9 +9,11 @@
     <!-- کتابخانه‌های مورد نیاز -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <!-- شروع ویرایش: افزودن کتابخانه QR کد -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <!-- پایان ویرایش -->
+    
+    <!-- شروع ویرایش امنیتی: افزودن اسکریپت Google reCAPTCHA -->
+    <script src="https://www.google.com/recaptcha/api.js?render=6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq"></script>
+    <!-- پایان ویرایش امنیتی -->
 
 
     <style>
@@ -142,7 +144,6 @@
             height: auto; 
         }
 
-        /* --- شروع ویرایش CSS کیوآر کد --- */
         .cert-qrcode-container {
             position: absolute;
             bottom: 0;
@@ -167,8 +168,6 @@
             width: 100% !important;
             height: 100% !important;
         }
-        /* --- پایان ویرایش CSS کیوآر کد --- */
-
 
         #certificateForPrint, #certificateForPrint * { font-family: 'Amiri', serif; font-size: 12px; line-height: 1.5; }
         #certificateForPrint .cert-main-paragraph { line-height: 2 !important; }
@@ -247,8 +246,10 @@
 </div>
 
 <script>
-    // URL وب اپلیکیشن جدید خود را در اینجا قرار دهید
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx7NiQ12lR3jqlzYzC116KMeOy3-F1iik8s2M326pseQpYQDfsReQO_3gcRGHgRf5JXiw/exec'; 
+    // --- شروع ویرایش امنیتی: کلید سایت reCAPTCHA ---
+    const RECAPTCHA_SITE_KEY = '6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq';
+    // --- پایان ویرایش امنیتی ---
     
     let lastGeneratedPdfBlob = null;
     let certificateShareData = {};
@@ -287,7 +288,6 @@
         return result;
     }
     
-    // --- شروع ویرایش: افزودن جایگاه QR کد به HTML ---
     function getCertificateHTML(data) {
         const userInfo = data.user;
         const activities = data.activities;
@@ -345,21 +345,34 @@
                 </div>
             </div>`;
     }
-    // --- پایان ویرایش ---
 
+    // --- شروع ویرایش امنیتی: تغییر کامل تابع ارسال فرم ---
     certificateForm.addEventListener("submit", function(event) {
         event.preventDefault();
         hideMessage();
-        setButtonLoading(generateButton, true);
 
         const nationalId = document.getElementById("nationalIdInput").value;
         const verificationCode = document.getElementById("verificationCode").value;
 
         if (!nationalId || !verificationCode) {
-            showMessage("لطفاً کد ملی و کد تائید را وارد کنید.", 'error');
-            setButtonLoading(generateButton, false);
+            showMessage("لطفاً کد ملی و رمز عبور را وارد کنید.", 'error');
             return;
         }
+
+        setButtonLoading(generateButton, true);
+
+        // اجرای reCAPTCHA برای دریافت توکن امنیتی
+        grecaptcha.ready(function() {
+            grecaptcha.execute(RECAPTCHA_SITE_KEY, {action: 'submit'}).then(function(token) {
+                // پس از دریافت توکن، اطلاعات به سرور ارسال می‌شود
+                submitDataToServer(token);
+            });
+        });
+    });
+
+    function submitDataToServer(recaptchaToken) {
+        const nationalId = document.getElementById("nationalIdInput").value;
+        const verificationCode = document.getElementById("verificationCode").value;
 
         const now = new Date();
         const jalaliDate = now.toLocaleDateString('fa-IR');
@@ -369,15 +382,25 @@
             nationalId: toEnglishDigits(nationalId),
             verificationCode: toEnglishDigits(verificationCode),
             issueDate: toEnglishDigits(jalaliDate),
-            certificateNumber: certificateNumber
+            certificateNumber: certificateNumber,
+            recaptchaToken: recaptchaToken // افزودن توکن به درخواست
         };
 
         fetch(SCRIPT_URL, {
             method: 'POST',
             mode: 'cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
             body: JSON.stringify(payload)
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                // اگر سرور خطای غیر JSON برگرداند (مثلا خطای 500)
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(res => {
             if (res.status === 'success') {
                 showMessage("اطلاعات با موفقیت تائید و ذخیره شد. در حال تولید PDF...", 'success');
@@ -398,23 +421,16 @@
                 document.getElementById('certificatePreview').innerHTML = certificateHTML;
                 document.getElementById('certificateForPrint').innerHTML = certificateHTML;
         
-                // --- شروع ویرایش: ساخت QR کد ---
                 const qrCodeUrl = "https://tashacol.ir/enameh.html";
                 const qrCodeOptions = {
                     text: qrCodeUrl,
-                    width: 70,
-                    height: 70,
-                    colorDark : "#000000",
-                    colorLight : "#ffffff",
+                    width: 70, height: 70,
+                    colorDark : "#000000", colorLight : "#ffffff",
                     correctLevel : QRCode.CorrectLevel.H
                 };
                 
-                // ساخت QR کد برای نسخه پیش‌نمایش
                 new QRCode(document.querySelector("#certificatePreview .qrcode-placeholder-container"), qrCodeOptions);
-                
-                // ساخت QR کد برای نسخه چاپی
                 new QRCode(document.querySelector("#certificateForPrint .qrcode-placeholder-container"), qrCodeOptions);
-                // --- پایان ویرایش ---
 
                 certificateForm.style.display = "none";
                 resultDiv.style.display = "block";
@@ -426,11 +442,12 @@
             }
         })
         .catch(error => {
-            showMessage('خطا در ارتباط با سرور. از اتصال اینترنت خود مطمئن شوید.', 'error');
+            showMessage('خطا در ارتباط با سرور. لطفاً از اتصال اینترنت خود مطمئن شوید و دوباره تلاش کنید.', 'error');
             console.error('Fetch Error:', error);
             setButtonLoading(generateButton, false);
         });
-    });
+    }
+    // --- پایان ویرایش امنیتی ---
 
     function downloadPdf() {
         setButtonLoading(downloadPdfBtn, true);
@@ -438,13 +455,9 @@
             const certificateToPrint = document.getElementById("certificateForPrint");
             const { jsPDF } = window.jspdf;
             
-            // افزایش چشمگیر scale برای تولید تصویر با رزولوشن بسیار بالا
             html2canvas(certificateToPrint, { scale: 5, useCORS: true }).then(canvas => {
-                // استفاده از بالاترین کیفیت ممکن برای فرمت JPEG
                 const imgData = canvas.toDataURL("image/jpeg", 1.0); 
-                
                 const pdf = new jsPDF('portrait', 'mm', 'a5'); 
-                
                 pdf.addImage(imgData, 'JPEG', 0, 0, 148, 210);
                 
                 lastGeneratedPdfBlob = pdf.output('blob');
@@ -473,14 +486,8 @@
         if (lastGeneratedPdfBlob && certificateShareData.name) {
             const nationalId = document.getElementById("nationalIdInput").value;
             const file = new File([lastGeneratedPdfBlob], `سوابق_موسسه_${nationalId}.pdf`, { type: 'application/pdf' });
-
             const shareText = `نامه تائید سوابق فعالیت سرکار خانم/جناب آقا ${certificateShareData.name} با کد ملی(${certificateShareData.nationalId}) در مؤسسه تعالی اندیشه\n\nتاریخ: ${certificateShareData.date}\nشماره:${certificateShareData.number}`;
-
-            const sharePayload = {
-                files: [file],
-                title: 'گواهی سوابق فعالیت',
-                text: shareText
-            };
+            const sharePayload = { files: [file], title: 'گواهی سوابق فعالیت', text: shareText };
 
             if (navigator.canShare && navigator.canShare(sharePayload)) {
                 try { 
