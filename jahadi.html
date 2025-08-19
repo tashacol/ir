@@ -1,4 +1,4 @@
-<!DOCTYPE html>  
+   <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -6,11 +6,10 @@
     <title>درخواست سوابق جهادی</title>
 
     <!-- کتابخانه‌های مورد نیاز -->
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <!-- شروع ویرایش: افزودن کتابخانه QR کد -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <!-- پایان ویرایش -->
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700&display=swap');
@@ -111,12 +110,11 @@
             height: auto;
         }
 
-        /* --- شروع ویرایش CSS کیوآر کد --- */
         #letterPreview .qrcode-container, 
         #letterForPrint .qrcode-container {
             position: absolute;
-            bottom: 10mm; /* هماهنگ با پدینگ پایین */
-            left: 10mm;   /* هماهنگ با پدینگ چپ */
+            bottom: 10mm;
+            left: 10mm;
             text-align: center;
         }
         #letterPreview .qrcode-container p, 
@@ -138,8 +136,6 @@
             width: 100% !important;
             height: 100% !important;
         }
-        /* --- پایان ویرایش CSS کیوآر کد --- */
-
 
         #letterForPrint { display: block; position: absolute; left: -9999px; top: -9999px; width: 148mm; height: 210mm; padding: 10mm; border: 1px solid #000; box-sizing: border-box; background-color: #fff; }
 
@@ -166,11 +162,11 @@
             <label for="fullName" class="form-label">نام و نام خانوادگی</label>
         </div>
         <div class="input-group">
-            <input type="text" id="nationalID" class="form-input" placeholder=" " pattern="\d*" required>
+            <input type="text" id="nationalID" class="form-input" placeholder=" " pattern="\d{10}" title="کد ملی باید ۱۰ رقم باشد" required>
             <label for="nationalID" class="form-label">کد ملی</label>
         </div>
         <div class="input-group">
-            <input type="text" id="startYear" class="form-input" placeholder=" " pattern="\d*" required>
+            <input type="text" id="startYear" class="form-input" placeholder=" " pattern="\d{4}" title="سال باید ۴ رقم باشد" required>
             <label for="startYear" class="form-label">تاریخ شروع فعالیت</label>
         </div>
         <div class="input-group">
@@ -188,9 +184,17 @@
             <label for="department" class="form-label">نام اداره</label>
         </div>
         <div class="input-group">
-            <input type="tel" id="verificationCode" class="form-input" inputmode="numeric" pattern="[0-9]*" placeholder=" " required>
+            <input type="password" id="verificationCode" class="form-input" placeholder=" " required>
             <label for="verificationCode" class="form-label">رمز عبور</label>
         </div>
+        
+        <!-- المان reCAPTCHA نامرئی -->
+        <div class="g-recaptcha"
+            data-sitekey="6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq"
+            data-callback="onRecaptchaSuccess"
+            data-size="invisible">
+        </div>
+
         <button type="button" id="generateBtn" class="action-btn">
             <span class="btn-text">تولید و ذخیره نامه</span>
             <span class="spinner">...</span>
@@ -227,10 +231,12 @@
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzBp8mh_9sRUA5QG9LqH6G9xo_EXr4mRCnvMlexXYmEGkWtV_Oavg5Es2peyiJWNduL/exec";
+    // URL وب اپلیکیشن شما که بعد از هر بار Deploy باید به‌روز شود
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxO2q6FmZHS0vZ8ev1HZ1mGkjsJ2rS0qa1N3dnxw_uc8HQwA86NXtBHSID3ivnTEwd5/exec";
 
     let lastGeneratedPdfBlob = null;
     let letterDataForShare = null;
+    const form = document.getElementById('letterForm');
     const generateBtn = document.getElementById('generateBtn');
     const downloadBtn = document.getElementById('downloadBtn');
     const statusMessage = document.getElementById('statusMessage');
@@ -281,7 +287,6 @@
         }
     }
     
-    // --- شروع ویرایش: افزودن جایگاه QR کد به HTML ---
     function getLetterHTML(data) {
         const signatureImageHTML = data.signatureImageBase64 
             ? `<img src="data:image/png;base64,${data.signatureImageBase64}" class="signature-image" alt="مهر و امضا">` 
@@ -313,9 +318,9 @@
                 <div class="qrcode-placeholder"></div>
             </div>`;
     }
-    // --- پایان ویرایش ---
-
-    generateBtn.addEventListener('click', function () {
+    
+    // تابع اصلی که بعد از تأیید reCAPTCHA اجرا می‌شود
+    function onRecaptchaSuccess(token) {
         hideMessage();
         
         const formData = {
@@ -326,19 +331,15 @@
             department: document.getElementById('department').value,
             verificationCode: document.getElementById('verificationCode').value
         };
-
-        if (Object.values(formData).some(val => !val)) {
-            showMessage('لطفاً تمام فیلدها را تکمیل کنید.', 'error');
-            return;
-        }
         
-        setButtonLoading(generateBtn, true, "در حال بررسی کد...");
+        setButtonLoading(generateBtn, true, "در حال ارسال...");
         
         const now = new Date();
         const jalaliDate = now.toLocaleDateString('fa-IR');
         const letterNumberForSheet = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
 
         const payload = {
+            'g-recaptcha-response': token, // توکن کپچا به سرور ارسال می‌شود
             issueDate: toEnglishDigits(jalaliDate),
             letterNumber: letterNumberForSheet,
             fullName: formData.fullName,
@@ -352,12 +353,15 @@
         fetch(SCRIPT_URL, {
             method: 'POST',
             mode: 'cors',
+            headers: {
+              'Content-Type': 'application/json',
+            },
             body: JSON.stringify(payload)
         })
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
-                showMessage('کد تائید شد. در حال تولید نامه...', 'success');
+                showMessage('اطلاعات تأیید شد. در حال تولید نامه...', 'success');
                 
                 const durationSelect = document.getElementById('duration');
                 const durationText = durationSelect.options[durationSelect.selectedIndex].text;
@@ -365,27 +369,15 @@
                 const displayData = { ...payload, issueDate: jalaliDate, durationText: durationText };
                 
                 letterDataForShare = { ...displayData };
-
                 displayData.signatureImageBase64 = data.signatureImageBase64;
                 
                 const letterHTML = getLetterHTML(displayData);
                 document.getElementById('letterPreview').innerHTML = letterHTML;
                 document.getElementById('letterForPrint').innerHTML = letterHTML;
 
-                // --- شروع ویرایش: ساخت QR کد ---
                 const qrCodeUrl = "https://tashacol.ir/enameh.html";
-                const qrCodeOptions = {
-                    text: qrCodeUrl,
-                    width: 100,
-                    height: 100,
-                    colorDark : "#000000",
-                    colorLight : "#ffffff",
-                    correctLevel : QRCode.CorrectLevel.H
-                };
-                
-                new QRCode(document.querySelector("#letterPreview .qrcode-placeholder"), qrCodeOptions);
-                new QRCode(document.querySelector("#letterForPrint .qrcode-placeholder"), qrCodeOptions);
-                // --- پایان ویرایش ---
+                new QRCode(document.querySelector("#letterPreview .qrcode-placeholder"), { text: qrCodeUrl, width: 100, height: 100 });
+                new QRCode(document.querySelector("#letterForPrint .qrcode-placeholder"), { text: qrCodeUrl, width: 100, height: 100 });
 
                 document.getElementById('letterForm').style.display = 'none';
                 document.getElementById('result').style.display = 'block';
@@ -403,7 +395,23 @@
             showMessage('خطا در ارتباط با سرور. از اتصال اینترنت خود مطمئن شوید.', 'error');
             console.error('Fetch Error:', error);
             setButtonLoading(generateBtn, false, "تولید و ذخیره نامه");
+        })
+        .finally(() => {
+            grecaptcha.reset(); // ریست کردن کپچا برای تلاش بعدی
         });
+    }
+
+    generateBtn.addEventListener('click', function () {
+        hideMessage();
+        // اعتبارسنجی اولیه در سمت کاربر برای بهبود تجربه کاربری
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            showMessage('لطفاً تمام فیلدها را به درستی تکمیل کنید.', 'error');
+            return;
+        }
+        
+        setButtonLoading(generateBtn, true, "در حال تأیید هویت...");
+        grecaptcha.execute(); // اجرای reCAPTCHA
     });
     
     function downloadPdf() {
@@ -436,20 +444,13 @@
         e.preventDefault();
         if (lastGeneratedPdfBlob && letterDataForShare) {
             const file = new File([lastGeneratedPdfBlob], 'نامه-جهادی.pdf', { type: 'application/pdf' });
-
             const shareText = `نامه تائید سوابق فعالیت جهادی (${letterDataForShare.fullName}) با کدملی (${toPersianDigits(letterDataForShare.nationalID)}) به اداره (${letterDataForShare.department})\n\nتاریخ: (${toPersianDigits(letterDataForShare.issueDate)})\nشماره:(${toPersianDigits(letterDataForShare.letterNumber)})`;
 
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 try {
-                    await navigator.share({
-                        files: [file],
-                        title: 'نامه سوابق جهادی',
-                        text: shareText
-                    });
+                    await navigator.share({ files: [file], title: 'نامه سوابق جهادی', text: shareText });
                 }
-                catch (err) {
-                    console.log('Share failed', err);
-                }
+                catch (err) { console.log('Share failed', err); }
             } else {
                 alert("مرورگر شما از قابلیت اشتراک گذاری فایل پشتیبانی نمی کند.");
             }
@@ -460,4 +461,4 @@
     successModal.addEventListener('click', (e) => { if (e.target === successModal) successModal.style.display = 'none'; });
 </script>
 </body>
-</html>
+</html>  
