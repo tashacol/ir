@@ -11,6 +11,8 @@
   <script src="https://cdn.jsdelivr.net/npm/jalali-moment/dist/jalali-moment.browser.js"></script>
   <!-- کتابخانه آیکن‌های Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <!-- **مهم: اسکریپت Google reCAPTCHA** -->
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 
   <style>
     /* 
@@ -26,7 +28,7 @@
       --text-dark: #172b4d;
       --text-light: #42526E;
       --text-muted: #6b778c;
-      --card-bg: #ffffff; /* پس‌زمینه کاملا سفید طبق درخواست */
+      --card-bg: #ffffff;
       --card-border: #dfe1e6;
       --input-bg: #fafbfc;
       --danger-color: #de350b;
@@ -46,12 +48,10 @@
       min-height: 100vh;
       padding: 20px;
       font-family: 'Vazirmatn', 'Tahoma', sans-serif;
-      /* START: پس‌زمینه جدید */
       background-image: url('https://tashacol.ir/1l5jlse9%20(1).jpeg');
       background-size: cover;
       background-position: center;
       background-attachment: fixed;
-      /* END: پس‌زمینه جدید */
       color: var(--text-dark);
     }
 
@@ -74,7 +74,6 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* استایل جدید برای لوگو */
     .page-logo {
       text-align: center;
       margin-bottom: 25px;
@@ -97,11 +96,6 @@
       margin-bottom: 30px;
     }
 
-    /* 
-      ===================================================
-      *   نوار پیشرفت (بدون تغییر در عملکرد طبق درخواست)   *
-      ===================================================
-    */
     .inline-progress-bar {
         height: 8px;
         background-color: var(--accent-blue);
@@ -132,7 +126,6 @@
     #loginForm { transition: opacity 0.4s ease; }
     .input-group { position: relative; margin-bottom: 25px; }
 
-    /* آیکن جدید و حرفه‌ای */
     .form-icon {
       position: absolute;
       top: 50%;
@@ -267,7 +260,13 @@
           <label for="searchInput" class="form-label">کد ملی</label>
           <i class="fas fa-id-card form-icon"></i>
         </div>
-        <button type="submit" id="searchBtn">
+        <!-- **مهم: دکمه اکنون reCAPTCHA را اجرا می‌کند** -->
+        <button 
+          id="searchBtn"
+          class="g-recaptcha" 
+          data-sitekey="6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq" 
+          data-callback="onSubmitWithRecaptcha"
+          data-error-callback="onRecaptchaError">
           <i class="fas fa-search"></i>
           <span class="btn-text">بررسی</span>
         </button>
@@ -284,7 +283,7 @@
 
   <script>
     // ==========================================================
-    // هسته اصلی جاوا اسکریپت
+    // هسته اصلی جاوا اسکریپت (نسخه امن با reCAPTCHA)
     // ==========================================================
 
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxpYXfxUsSKvQ8Ot3zmHfE1YhhvBI1xLfx0zCQRRtBwevthrKaaV4oCqnwMsIYd8CBD/exec';
@@ -305,72 +304,25 @@
     const loadingProgressBar = document.getElementById('loadingProgressBar');
     const pageSubtitle = document.querySelector('.page-subtitle');
 
-    const CACHE_KEY = 'courseStatusDataCache';
-    const CACHE_EXPIRATION = 6 * 60 * 60 * 1000;
-
+    // تابع جدید برای مدیریت خطای reCAPTCHA
+    function onRecaptchaError() {
+      showMessage('خطا در اجرای reCAPTCHA. لطفا اتصال اینترنت را بررسی و صفحه را رفرش کنید.');
+      btn.disabled = false;
+    }
+    
     const showMessage = (message) => {
         errorMsg.textContent = message;
         errorMsg.style.display = 'block';
     };
 
-    function setCache(data) {
-        const cachePayload = { timestamp: new Date().getTime(), data: data };
-        localStorage.setItem(CACHE_KEY, JSON.stringify(cachePayload));
-    }
-    function getCache() {
-        const cachedData = localStorage.getItem(CACHE_KEY);
-        if (!cachedData) return null;
-        const cache = JSON.parse(cachedData);
-        const isExpired = (new Date().getTime() - cache.timestamp) > CACHE_EXPIRATION;
-        if (isExpired) {
-            localStorage.removeItem(CACHE_KEY);
-            return null;
-        }
-        return cache.data;
-    }
-    
-    async function fetchCourseStatusData(nationalId) {
-        const cachedData = getCache();
-        if (cachedData && cachedData.nationalId === nationalId) {
-            console.log('Data retrieved from cache.');
-            await new Promise(resolve => setTimeout(resolve, 300)); 
-            return cachedData.result;
-        }
-
-        const url = `${SCRIPT_URL}?id=${nationalId}`; // پارامتر action دیگر نیاز نیست
-        try {
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`Network response was not ok: ${response.status}`);
-            }
-            const result = await response.json();
-            if (result.error) {
-                throw new Error(result.message);
-            }
-            if (result.found) {
-                setCache({ nationalId: nationalId, result: result });
-            }
-            return result;
-        } catch (err) {
-            console.error('Fetch Error:', err);
-            return { error: true, message: 'خطا در بارگذاری اطلاعات. اتصال اینترنت را بررسی کنید.' };
-        }
-    }
-
-    async function performSearch() {
+    /**
+     * **تابع جدید**: این تابع به صورت خودکار توسط reCAPTCHA پس از تایید موفقیت آمیز فراخوانی می شود
+     * @param {string} token - توکن تایید که باید به سرور ارسال شود.
+     */
+    async function onSubmitWithRecaptcha(token) {
         const userInput = input.value.trim();
         
-        resultsContainer.style.display = 'none';
-        mainContainer.classList.remove('results-active');
-        errorMsg.style.display = 'none';
-
-        if (!/^\d{10}$/.test(userInput)) {
-            showMessage("کد ملی باید ۱۰ رقم و فقط شامل عدد باشد.");
-            return;
-        }
-
-        btn.disabled = true;
-        
+        // نمایش انیمیشن لودینگ بلافاصله بعد از کلیک
         loadingProgressBar.style.transition = 'none';
         loadingProgressBar.style.width = '0%';
         void loadingProgressBar.offsetWidth;
@@ -380,7 +332,8 @@
         loadingProgressBar.style.transition = 'width 1.5s cubic-bezier(0.22, 0.61, 0.36, 1)';
         loadingProgressBar.style.width = '90%';
 
-        const apiResult = await fetchCourseStatusData(userInput);
+        // اکنون اطلاعات را به سرور ارسال می‌کنیم
+        const apiResult = await fetchCourseStatusData(userInput, token);
 
         loadingProgressBar.style.transition = 'width 0.4s ease-out';
         loadingProgressBar.style.width = '100%';
@@ -397,6 +350,7 @@
                 loginForm.style.display = 'none';
                 displayResults(apiResult, userInput);
             }
+            // ریست کردن نوار پیشرفت
             setTimeout(() => {
                 loadingProgressBar.style.transition = 'none';
                 loadingProgressBar.style.width = '0%';
@@ -404,7 +358,57 @@
 
         }, 500); 
     }
+    
+    /**
+     * **تابع ویرایش شده**: اکنون توکن را دریافت کرده و درخواست POST ارسال می کند
+     */
+    async function fetchCourseStatusData(nationalId, token) {
+        try {
+            const response = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'cors', // مورد نیاز برای درخواست های بین دامنه ای
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8', // Apps Script معمولا با text/plain بهتر کار می‌کند
+                },
+                body: JSON.stringify({ id: nationalId, token: token })
+            });
+            if (!response.ok) {
+                throw new Error(`Network response was not ok: ${response.status}`);
+            }
+            const result = await response.json();
+            if (result.error) {
+                throw new Error(result.message);
+            }
+            return result;
+        } catch (err) {
+            console.error('Fetch Error:', err);
+            return { error: true, message: 'خطا در بارگذاری اطلاعات. اتصال اینترنت را بررسی کنید.' };
+        }
+    }
 
+    /**
+     * **تابع ویرایش شده**: اکنون فقط ورودی را چک کرده و reCAPTCHA را اجرا می کند
+     */
+    function performSearch() {
+        const userInput = input.value.trim();
+        
+        resultsContainer.style.display = 'none';
+        mainContainer.classList.remove('results-active');
+        errorMsg.style.display = 'none';
+
+        if (!/^\d{10}$/.test(userInput)) {
+            showMessage("کد ملی باید ۱۰ رقم و فقط شامل عدد باشد.");
+            // reCAPTCHA را ریست می‌کنیم تا در تلاش بعدی دوباره اجرا شود
+            grecaptcha.reset();
+            return;
+        }
+
+        btn.disabled = true;
+        // در این مرحله، reCAPTCHA به صورت خودکار اجرا می‌شود چون دکمه کلیک شده است.
+        // تابع onSubmitWithRecaptcha بقیه کارها را انجام خواهد داد.
+    }
+    
+    // تابع نمایش نتایج (بدون تغییر در منطق اصلی)
     function displayResults(apiResult, nationalId) {
         const regInfo = apiResult.registrationInfo;
         const projInfo = apiResult.projectInfo;
@@ -413,21 +417,16 @@
         const courseName = regInfo?.courseName || projInfo?.courseName || 'نامشخص';
         const courseId = regInfo?.courseId;
         const startDate = regInfo?.startDate;
-        // دریافت طول دوره از API
         const courseDuration = regInfo?.courseDurationDays;
 
         let calculatedEndDate = null;
         let hasFinishedCourse = false;
         const driveFolderLink = 'https://drive.google.com/drive/folders/1-pUvCoHflHaLVIcSZJ3nR471I-HEEbn-';
         
-        // **بخش ویرایش شده**
-        // محاسبه تاریخ پایان بر اساس طول دوره دریافت شده
         if (startDate && courseDuration) {
             const startMoment = moment(startDate, 'jYYYY/jMM/jDD');
             if(startMoment.isValid()){
-                // محاسبه تاریخ پایان با اضافه کردن تعداد روزهای دوره
                 calculatedEndDate = startMoment.clone().add(courseDuration, 'days').format('jYYYY/jMM/jDD');
-                // بررسی اینکه آیا امروز بعد از تاریخ پایان دوره است یا خیر
                 hasFinishedCourse = moment().diff(startMoment, 'days') >= courseDuration;
             } else {
                 console.warn('Invalid startDate from API:', startDate);
@@ -442,7 +441,6 @@
         courseInfo.innerHTML = `<h2>${courseName}</h2><p>${studentName} - کد ملی: ${nationalId}</p>${courseId ? `<p>شناسه دوره: ${courseId}</p>` : ''}`;
 
         let buttonsHTML = '';
-        // استفاده از متغیر hasFinishedCourse برای نمایش دکمه‌ها
         if (hasFinishedCourse) {
             buttonsHTML += `<a href="${driveFolderLink}" target="_blank" class="lessons-link"><i class="fas fa-folder-open"></i>مشاهده دروس</a>`;
             if (projectLink) buttonsHTML += `<a href="${projectLink}" target="_blank" class="project-link"><i class="fas fa-file-alt"></i>مشاهده پروژه</a>`;
@@ -460,7 +458,6 @@
         const hasSentProject = !!projectLink;
         const hasCertificate = !!certLink;
 
-        // استفاده از hasFinishedCourse برای نمایش وضعیت اتمام دوره
         statusChecklist.innerHTML = `
             <li><span class="status-label"><i class="fas fa-user-check label-icon"></i>ثبت نام</span><span class="status-value">${hasRegistered ? checkIconSVG : crossIconSVG}</span></li>
             <li><span class="status-label"><i class="fas fa-flag-checkered label-icon"></i>اتمام دوره</span><span class="status-value">${hasFinishedCourse ? checkIconSVG : crossIconSVG}</span></li>
@@ -480,13 +477,15 @@
         mainContainer.classList.add('results-active');
     }
     
+    // تابع برای بارگذاری اولیه با پارامتر URL (بدون تغییر)
     window.addEventListener('DOMContentLoaded', () => {
         const urlParams = new URLSearchParams(window.location.search);
         const nationalId = urlParams.get('id');
 
         if (nationalId && /^\d{10}$/.test(nationalId)) {
             input.value = nationalId;
-            performSearch(); 
+            // برای اجرای خودکار، باید دکمه را شبیه‌سازی کنیم
+            document.getElementById('searchBtn').click();
         }
     });
 
