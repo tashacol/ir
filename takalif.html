@@ -1,4 +1,4 @@
-   <!DOCTYPE html> 
+<!DOCTYPE html> 
 <html lang="fa">
 <head>
   <meta charset="UTF-8" />
@@ -155,7 +155,6 @@
     </div>
   </div>
 
-  <!-- ▼▼▼ ویرایش کلیدی: مودال جدید برای نمایش تکلیف تایید شده ▼▼▼ -->
   <div id="approvedSubmissionModalOverlay" class="overlay">
     <div id="approvedSubmissionModal" class="popup-base">
       <div class="popup-header"><i class="fas fa-check-circle"></i> متن تکلیف تایید شده</div>
@@ -177,7 +176,7 @@
   </div>
 
   <script>
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzZ3HkRaa970tEkVzxmS_FHFKQYarvxc-nDFVXb7cB46J8QCy9XQJh8IxP1ksY2MNXd/exec";
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwM6QPomqlgoIvgPq7CsWhTBAhgB-EbsIyOnPLClRzFFS2rhvzo89jh7AsW8znGAe9s/exec";
 
     const nationalCodeInput = document.getElementById('nationalCodeInput');
     const loader = document.getElementById('loader');
@@ -192,7 +191,6 @@
     const messageModalOverlay = document.getElementById('messageModalOverlay');
     const nationalCodeSection = document.getElementById('nationalCodeSection');
     const linearLoader = document.getElementById('linearLoader');
-    // ▼▼▼ ویرایش کلیدی: دسترسی به مودال جدید ▼▼▼
     const approvedSubmissionModalOverlay = document.getElementById('approvedSubmissionModalOverlay');
     
     let userData = {};
@@ -218,8 +216,8 @@
 
     function showSubmissionModal(term) {
       document.getElementById('termNumber').value = term;
-      document.getElementById('submissionModalHeader').innerHTML = `<i class="fas fa-upload"></i> ارسال تکلیف ترم ${term}`;
-      document.getElementById('submissionModalQuestion').textContent = userData.questions[term] || 'سوالی برای این ترم تعریف نشده است.';
+      document.getElementById('submissionModalHeader').innerHTML = `<i class="fas fa-upload"></i> ارسال تکلیف هفته ${term}`;
+      document.getElementById('submissionModalQuestion').textContent = userData.questions[term] || 'سوالی برای این هفته تعریف نشده است.';
       answerTextarea.value = userData.submissions[term]?.answer || '';
       answerTextarea.dispatchEvent(new Event('input'));
       submissionModalOverlay.classList.add('active');
@@ -238,7 +236,6 @@
     }
     function closeMessageModal() { messageModalOverlay.classList.remove('active'); }
 
-    // ▼▼▼ ویرایش کلیدی: تابع جدید برای نمایش و بستن مودال تکلیف تایید شده ▼▼▼
     function showApprovedSubmissionModal(term) {
       const answer = userData.submissions[term]?.answer || 'متن تکلیفی یافت نشد.';
       document.getElementById('approvedSubmissionContent').textContent = answer;
@@ -292,22 +289,23 @@
       userInfo.style.display = 'block';
       termsGrid.innerHTML = '';
       
-      // ▼▼▼ ویرایش کلیدی: حلقه از حالت ثابت 8 تایی به حالت پویا تغییر کرد ▼▼▼
-      // 1. لیست شماره ترم‌ها را از اطلاعات دریافت شده می‌گیریم و مرتب می‌کنیم
-      const allTermNumbers = Object.keys(data.termDetails).map(Number).sort((a, b) => a - b);
-      // 2. آخرین ترمی که تایید شده را پیدا می‌کنیم
+      if (!data.termOrder || data.termOrder.length === 0) {
+        termsGrid.innerHTML = "<p>هیچ تکلیف درسی برای این دوره تعریف نشده است.</p>";
+        termsGrid.style.display = 'block';
+        return;
+      }
+      
       const lastApprovedTerm = Math.max(0, ...Object.keys(data.submissions).filter(t => data.submissions[t].status == 5).map(Number));
 
-      // 3. به ازای هر ترمی که از سرور آمده، یک باکس می‌سازیم
-      for (const term of allTermNumbers) {
+      // ▼▼▼ ویرایش کلیدی: حلقه به جای ثابت بودن، بر اساس آرایه دریافتی از سرور کار می‌کند ▼▼▼
+      data.termOrder.forEach(term => {
         const submission = data.submissions[term];
         const details = data.termDetails[term];
-
-        // 4. منطق بررسی ترم قبل با توجه به لیست داینامیک ترم‌ها
-        const currentIndex = allTermNumbers.indexOf(term);
-        const isFirstTerm = (currentIndex === 0);
-        const prevTermNumber = isFirstTerm ? 0 : allTermNumbers[currentIndex - 1];
-        const prevTermApproved = (isFirstTerm || lastApprovedTerm >= prevTermNumber);
+        
+        // منطق جدید برای پیدا کردن ترم قبلی در دنباله
+        const currentTermIndex = data.termOrder.indexOf(term);
+        const prevTermId = (currentTermIndex > 0) ? data.termOrder[currentTermIndex - 1] : 0;
+        const prevTermApproved = (currentTermIndex === 0 || lastApprovedTerm >= prevTermId);
         
         let statusIcon, statusText, statusClass, buttonsHTML;
         let dueDateHTML = '';
@@ -317,10 +315,8 @@
             const canSubmit = prevTermApproved;
 
             if (submission) {
-                // ▼▼▼ ویرایش کلیدی: منطق نمایش دکمه‌ها برای وضعیت‌های مختلف ▼▼▼
                 if (submission.status == 5) {
                     statusIcon = 'fa-check-circle'; statusText = 'تأیید شده'; statusClass = 'status-approved';
-                    // دکمه غیرفعال تایید شده و دکمه جدید برای مشاهده
                     buttonsHTML = `<button class="term-btn" disabled><i class="fas fa-check"></i> تأیید شده</button>`;
                     buttonsHTML += `<button class="term-btn btn-reason" style="margin-top: 10px;" onclick="showApprovedSubmissionModal(${term})"><i class="fas fa-eye"></i> مشاهده تکلیف</button>`;
                 } else if (submission.status == 0) {
@@ -336,8 +332,8 @@
                     statusIcon = 'fa-clock'; statusText = 'آماده ارسال'; statusClass = 'status-pending';
                     buttonsHTML = `<button class="term-btn btn-submit" onclick="showSubmissionModal(${term})"><i class="fas fa-paper-plane"></i> ارسال تکلیف</button>`;
                 } else {
-                    statusIcon = 'fa-lock'; statusText = 'منتظر تأیید ترم قبل'; statusClass = 'status-locked';
-                    buttonsHTML = `<button class="term-btn" disabled><i class="fas fa-lock"></i> منتظر تأیید ترم قبل</button>`;
+                    statusIcon = 'fa-lock'; statusText = `منتظر تأیید هفته ${prevTermId}`; statusClass = 'status-locked';
+                    buttonsHTML = `<button class="term-btn" disabled><i class="fas fa-lock"></i> منتظر تأیید هفته قبل</button>`;
                 }
             }
         } else {
@@ -349,13 +345,13 @@
         termBox.className = 'term-box';
         termBox.innerHTML = `
           <div class="term-header">
-            <h3 class="term-title">ترم ${term}</h3>
+            <h3 class="term-title">تکلیف هفته ${term}</h3>
             ${dueDateHTML}
           </div>
           <div class="term-body"><div class="status-badge ${statusClass}"><i class="fas ${statusIcon}"></i><span>${statusText}</span></div></div>
           <div class="term-footer">${buttonsHTML}</div>`;
         termsGrid.appendChild(termBox);
-      }
+      });
       termsGrid.style.display = 'grid';
     }
     
@@ -412,7 +408,6 @@
       return html.replace(/\n/g, '<br>');
     }
 
-    // ▼▼▼ ویرایش کلیدی: افزودن مودال جدید به کنترلر کلیک صفحه ▼▼▼
     window.onclick = (event) => {
       if (event.target == submissionModalOverlay) closeSubmissionModal();
       if (event.target == reasonModalOverlay) closeReasonModal();
