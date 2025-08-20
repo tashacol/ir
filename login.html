@@ -9,8 +9,11 @@
     <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jalali-moment/dist/jalali-moment.browser.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <!-- [جدید] اسکریپت مورد نیاز برای Google reCAPTCHA -->
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 
     <style>
+        /* استایل‌ها بدون تغییر باقی می‌مانند */
         /* ================================
         [بهبود یافته] متغیرها و استایل‌های پایه
         =================================== */
@@ -233,7 +236,16 @@
     <div id="login-box">
         <h2><i class="fas fa-chalkboard-teacher"></i><br>ورود به پنل آموزشی</h2>
         <input type="tel" id="nationalCodeInput" placeholder="کد ملی خود را وارد کنید" maxlength="10">
-        <button id="verifyButton"><span class="button-text">ورود</span><div class="button-loader"></div></button>
+        <!-- [ویرایش شده] دکمه ورود اکنون به reCAPTCHA متصل است -->
+        <button id="verifyButton" 
+                class="g-recaptcha" 
+                data-sitekey="6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq" 
+                data-callback="onRecaptchaSuccess"
+                data-error-callback="onRecaptchaError"
+                data-size="invisible">
+            <span class="button-text">ورود</span>
+            <div class="button-loader"></div>
+        </button>
     </div>
 </div>
 
@@ -264,7 +276,7 @@
     </main>
 </div>
 
-<!-- Modal ویدیو -->
+<!-- Modals (بدون تغییر) -->
 <div id="videoModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -274,8 +286,6 @@
         <video controls id="termVideo" controlsList="nodownload"></video>
     </div>
 </div>
-
-<!-- Modal درخواست گواهی -->
 <div id="certificateModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -290,8 +300,6 @@
         </div>
     </div>
 </div>
-
-<!-- Modal نصب گوگل میت -->
 <div id="meetInstallModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -322,22 +330,21 @@
     </div>
 </div>
 
-<!-- [حذف شد] پاپ آپ مربوط به تکلیف دستی به طور کامل حذف شد -->
-
 <script>
+// [بازنویسی کامل بخش اسکریپت برای افزایش امنیت]
 document.addEventListener('DOMContentLoaded', function() {
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyfhxEEpSdWTvDXIXIvEnpMX8Q7BUKdI3hUEGxJtiPYRxu0nfUyB1b-0vKUH937rd5lTw/exec';
+    // آدرس اسکریپت شما بدون تغییر
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcmhqdf1PfxrL0q3uvZrLPOfgYXHVLqZNfdVUCQnzi2pRKTdr11Vf4JA7gcPxqFs2Pzw/exec';
 
+    // متغیرهای سراسری برای نگهداری اطلاعات
     let currentUser = null;
-    let courseData = {
-        layout: []
-    };
+    let courseData = null;
     let countdownInterval;
 
-    const CACHE_KEY = 'coursePanelDataCache';
-    const LOGGED_IN_USER_KEY = 'loggedInUserNationalId';
-    const CACHE_EXPIRATION = 24 * 60 * 60 * 1000;
+    // [جدید] کلید برای ذخیره توکن امن در حافظه محلی
+    const SESSION_TOKEN_KEY = 'secureSessionToken';
 
+    // تعریف عناصر DOM (بدون تغییر)
     const DOM = {
         loginContainer: document.getElementById('login-container'),
         loginBox: document.getElementById('login-box'),
@@ -356,28 +363,119 @@ document.addEventListener('DOMContentLoaded', function() {
         videoTitle: document.getElementById('videoTitle'),
         warningBanner: document.getElementById('warning-banner'),
     };
-
-    function setCache(data) {
-        const cachePayload = { timestamp: new Date().getTime(), data: data };
-        localStorage.setItem(CACHE_KEY, JSON.stringify(cachePayload));
-    }
-    function clearCache() { localStorage.removeItem(CACHE_KEY); }
-
-    const formatDatePersian = (date) => new Date(date).toLocaleDateString("fa-IR", { year: 'numeric', month: 'long', day: 'numeric' });
-
-    const showOverlay = (element, show) => { element.style.display = show ? 'flex' : 'none'; };
     
+    // [جدید] تابع مرکزی برای ارسال درخواست‌های امن به سرور
+    async function serverRequest(action, payload) {
+        try {
+            const response = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // برای سازگاری با Apps Script
+                body: JSON.stringify({ action, ...payload })
+            });
+            if (!response.ok) throw new Error('خطای شبکه در ارتباط با سرور.');
+            return await response.json();
+        } catch (err) {
+            console.error(`Server request failed for action "${action}":`, err);
+            return { error: true, message: err.message || "خطا در ارتباط با سرور." };
+        }
+    }
+    
+    // [جدید] تابع ورود که توسط reCAPTCHA فراخوانی می‌شود
+    window.onRecaptchaSuccess = async function(captchaToken) {
+        const nationalId = DOM.nationalCodeInput.value.trim();
+        DOM.verifyButton.classList.add('loading');
+        DOM.verifyButton.disabled = true;
+
+        // مرحله ۱: ارسال کد ملی و توکن کپچا برای دریافت توکن امن جلسه
+        const loginResult = await serverRequest('login', { nationalId, captchaToken });
+
+        if (loginResult.error) {
+            alert(loginResult.message);
+            stopLoading();
+            return;
+        }
+
+        // ذخیره توکن امن در حافظه محلی
+        localStorage.setItem(SESSION_TOKEN_KEY, loginResult.token);
+        
+        // مرحله ۲: استفاده از توکن امن برای دریافت اطلاعات کاربر
+        await fetchAndDisplayUserData(loginResult.token);
+        stopLoading();
+    };
+    
+    // [جدید] تابع مدیریت خطا در reCAPTCHA
+    window.onRecaptchaError = function() {
+        alert('خطا در اعتبارسنجی کپچا. لطفاً اتصال اینترنت خود را بررسی کرده و مجدداً تلاش کنید.');
+        stopLoading();
+        grecaptcha.reset(); // ریست کردن کپچا
+    };
+    
+    // [جدید] تابع اصلی برای تلاش برای ورود
+    function handleLoginAttempt() {
+        const nationalId = DOM.nationalCodeInput.value.trim();
+        if (!nationalId || !/^\d{10}$/.test(nationalId)) {
+            alert("کد ملی نامعتبر است.");
+            return;
+        }
+        DOM.verifyButton.classList.add('loading');
+        DOM.verifyButton.disabled = true;
+        // اجرای کپچای نامرئی
+        grecaptcha.execute();
+    }
+
+    // [جدید] واکشی اطلاعات کاربر با استفاده از توکن و نمایش داشبورد
+    async function fetchAndDisplayUserData(token) {
+        if (DOM.contentLoader) DOM.contentLoader.style.display = 'block';
+
+        const dataResult = await serverRequest('getData', { token });
+
+        if (dataResult.error) {
+            // اگر نشست منقضی شده بود، کاربر را خارج کن
+            if (dataResult.sessionExpired) {
+                alert(dataResult.message);
+                logout();
+            } else {
+                alert(dataResult.message);
+            }
+            if (DOM.contentLoader) DOM.contentLoader.style.display = 'none';
+            return;
+        }
+
+        if (dataResult.found) {
+            currentUser = {
+                name: dataResult.name,
+                nationalId: dataResult.nationalId,
+                certificateLink: dataResult.certificateLink
+            };
+            courseData = {
+                name: dataResult.courseName,
+                startDate: dataResult.startDate,
+                layout: dataResult.layout
+            };
+            initDashboard();
+        } else {
+            alert("اطلاعات شما در سیستم یافت نشد. لطفاً مجدداً وارد شوید.");
+            logout();
+        }
+        if (DOM.contentLoader) DOM.contentLoader.style.display = 'none';
+    }
+    
+    // توابع کمکی (بدون تغییرات عمده)
+    const formatDatePersian = (date) => new Date(date).toLocaleDateString("fa-IR", { year: 'numeric', month: 'long', day: 'numeric' });
+    const showOverlay = (element, show) => { element.style.display = show ? 'flex' : 'none'; };
+    const stopLoading = () => {
+        DOM.verifyButton.classList.remove('loading');
+        DOM.verifyButton.disabled = false;
+        // مهم: ریست کردن کپچا برای تلاش بعدی
+        grecaptcha.reset();
+    };
     window.openModal = (id) => { document.getElementById(id).style.display = 'flex'; };
     window.closeModal = (id) => {
         document.getElementById(id).style.display = 'none';
-        if (id === 'videoModal') { 
-            DOM.termVideo.pause(); 
-            DOM.termVideo.src = ''; 
-        }
+        if (id === 'videoModal') { DOM.termVideo.pause(); DOM.termVideo.src = ''; }
     };
-    
     window.openVideoModal = (url, title) => {
-        if(url && url.trim() !== '') {
+        if (url && url.trim() !== '') {
             DOM.videoTitle.innerText = `ویدیوی آموزشی: ${title}`;
             DOM.termVideo.src = url;
             openModal('videoModal');
@@ -385,115 +483,76 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('لینک ویدیو برای این بخش تعریف نشده است.');
         }
     };
-    
-    window.openPdfModal = (url) => {
-        if (url && url.trim() !== '') {
-            window.open(url, '_blank');
-        } else {
-            alert('لینک جزوه برای این بخش تعریف نشده است.');
-        }
-    };
-    
+    window.openPdfModal = (url) => { if (url && url.trim() !== '') { window.open(url, '_blank'); } else { alert('لینک جزوه برای این بخش تعریف نشده است.'); } };
     window.openCertificateModal = () => {
         const linkBtn = document.getElementById('certificateLinkBtn');
         if (linkBtn && currentUser && currentUser.nationalId) { linkBtn.href = `https://tashacol.github.io/ir/emza.html?id=${currentUser.nationalId}`; }
         openModal('certificateModal');
     };
-
-    window.tryOpenMeet = function (meetLink) {
+    window.tryOpenMeet = function(meetLink) {
         if (!meetLink || meetLink.trim() === '') {
             alert('لینک کلاس آنلاین هنوز مشخص نشده است. لطفاً بعداً تلاش کنید.');
             return;
         }
-
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         if (isMobile) {
             window.open(meetLink, '_blank');
-            const timer = setTimeout(() => {
-                openModal('meetInstallModal');
-            }, 2500);
-            window.addEventListener('blur', () => {
-                clearTimeout(timer);
-            }, { once: true });
+            const timer = setTimeout(() => { openModal('meetInstallModal'); }, 2500);
+            window.addEventListener('blur', () => { clearTimeout(timer); }, { once: true });
         } else {
             window.open(meetLink, '_blank');
         }
     };
 
-    // [ویرایش شده] این تابع اکنون چیدمان را از courseData.layout می‌خواند و دکمه تکلیف را با لینک مستقیم مدیریت می‌کند
+    // توابع رندر کردن صفحه (منطق داخلی بدون تغییر)
     function renderCourseTimeline() {
-        if (!courseData.layout || courseData.layout.length === 0) {
-            renderSpecialState('fa-exclamation-circle', 'محتوا یافت نشد', 'ساختار دوره در دسترس نیست. لطفاً با پشتیبانی تماس بگیرید.');
-            return;
-        }
-
+        if (!courseData.layout || courseData.layout.length === 0) { renderSpecialState('fa-exclamation-circle', 'محتوا یافت نشد', 'ساختار دوره در دسترس نیست. لطفاً با پشتیبانی تماس بگیرید.'); return; }
         let timelineHTML = '';
         const now = new Date();
-
         courseData.layout.forEach((box, index) => {
             const weekStart = new Date(courseData.startDate.getTime() + index * 7 * 24 * 60 * 60 * 1000);
             const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
             const isLocked = now < weekStart;
             const isCurrent = now >= weekStart && now < weekEnd;
             let statusClass = isLocked ? 'locked' : (isCurrent ? 'current' : 'completed');
-            
             let headerHTML = '', contentHTML = '';
-
             switch(box.type) {
-                case 1: // باکس درسی
-                    headerHTML = `<div class="accordion-icon"><i class="fas ${isLocked ? 'fa-lock' : 'fa-book-open'}"></i></div>
-                                  <div class="accordion-title"><h3>${box.title || 'درس'}</h3><span>شروع از: ${formatDatePersian(weekStart)}</span></div>`;
-                    
+                case 1:
+                    headerHTML = `<div class="accordion-icon"><i class="fas ${isLocked ? 'fa-lock' : 'fa-book-open'}"></i></div><div class="accordion-title"><h3>${box.title || 'درس'}</h3><span>شروع از: ${formatDatePersian(weekStart)}</span></div>`;
                     const videoBtn = box.videoLink ? `<button class="action-button" onclick="openVideoModal('${box.videoLink}', '${box.title ? box.title.replace(/'/g, "\\'") : ''}')"><i class="fas fa-video"></i> مشاهده ویدیو</button>` : '';
                     const pdfBtn = box.pdfLink ? `<button class="action-button" onclick="openPdfModal('${box.pdfLink}')"><i class="fas fa-file-pdf"></i> مشاهده جزوه</button>` : '';
                     const homeworkBtn = box.homeworkLink ? `<a href="${box.homeworkLink}" target="_blank" class="action-button homework"><i class="fas fa-paper-plane"></i> ارسال تکلیف</a>` : '';
-
                     contentHTML = `<div class="accordion-content-inner">${videoBtn}${pdfBtn}${homeworkBtn}</div>`;
                     break;
-                
-                case 2: // باکس استراحت
+                case 2:
                     statusClass += ' rest-week';
-                    headerHTML = `<div class="accordion-icon"><i class="fas fa-mug-hot"></i></div>
-                                  <div class="accordion-title"><h3>${box.title || 'استراحت'}</h3><span>شروع از: ${formatDatePersian(weekStart)}</span></div>`;
+                    headerHTML = `<div class="accordion-icon"><i class="fas fa-mug-hot"></i></div><div class="accordion-title"><h3>${box.title || 'استراحت'}</h3><span>شروع از: ${formatDatePersian(weekStart)}</span></div>`;
                     contentHTML = `<div class="accordion-content-inner"><p>${box.guidanceText || 'این هفته برای استراحت و مرور در نظر گرفته شده است.'}</p></div>`;
                     break;
-
-                case 3: // باکس کلاس آنلاین
+                case 3:
                     statusClass += ' online-class';
-                    headerHTML = `<div class="accordion-icon"><i class="fas fa-chalkboard-teacher"></i></div>
-                                  <div class="accordion-title"><h3>${box.title || 'کلاس آنلاین'}</h3><span>شروع از: ${formatDatePersian(weekStart)}</span></div>`;
-                    
+                    headerHTML = `<div class="accordion-icon"><i class="fas fa-chalkboard-teacher"></i></div><div class="accordion-title"><h3>${box.title || 'کلاس آنلاین'}</h3><span>شروع از: ${formatDatePersian(weekStart)}</span></div>`;
                     const redText = box.redText ? `<p style="color: var(--danger-color); font-weight: bold; display: flex; align-items: center; gap: 8px; text-align: right;"><i class="fas fa-exclamation-triangle fa-lg"></i><span>${box.redText}</span></p>` : '';
                     const greenText = box.greenText ? `<p style="color: var(--success-color); font-weight: bold; display: flex; align-items: center; gap: 8px; text-align: right;"><i class="fas fa-info-circle fa-lg"></i><span>${box.greenText}</span></p>` : '';
                     const professor = box.professor ? `<p style="text-align: right;"><strong>استاد مدعو:</strong> ${box.professor}</p>` : '';
                     const topic = box.classTopic ? `<p style="margin-top:15px; text-align: right;"><strong>موضوع کلاس:</strong> ${box.classTopic}</p>` : '';
-
-                    contentHTML = `<div class="accordion-content-inner">
-                                    ${redText}${greenText}
-                                    <div style="padding-top: 15px; margin-top: 15px; border-top: 1px solid var(--border-color);">${professor}${topic}</div>
-                                    <button class="action-button homework" onclick="tryOpenMeet('${box.classLink}')"><i class="fas fa-laptop-house"></i> ورود به کلاس</button>
-                                  </div>`;
+                    contentHTML = `<div class="accordion-content-inner">${redText}${greenText}<div style="padding-top: 15px; margin-top: 15px; border-top: 1px solid var(--border-color);">${professor}${topic}</div><button class="action-button homework" onclick="tryOpenMeet('${box.classLink}')"><i class="fas fa-laptop-house"></i> ورود به کلاس</button></div>`;
                     break;
             }
             timelineHTML += `<div class="accordion-item ${statusClass}" data-week="${index + 1}"><div class="accordion-header" ${isLocked ? '' : 'onclick="toggleAccordion(this)"'}>${headerHTML}${!isLocked ? '<i class="fas fa-chevron-down accordion-toggle-icon"></i>' : ''}</div><div class="accordion-content">${contentHTML}</div></div>`;
         });
         DOM.dynamicContent.innerHTML = `<div class="content-loader-bar" id="contentLoader" style="display: ${DOM.contentLoader.style.display};"></div>` + timelineHTML;
     }
-
     window.toggleAccordion = (header) => {
         const item = header.parentElement;
         const isAlreadyActive = item.classList.contains('active');
         const currentlyActiveItem = document.querySelector('.accordion-item.active');
-        if (currentlyActiveItem && currentlyActiveItem !== item) {
-            currentlyActiveItem.classList.remove('active');
-        }
+        if (currentlyActiveItem && currentlyActiveItem !== item) { currentlyActiveItem.classList.remove('active'); }
         item.classList.toggle('active', !isAlreadyActive);
     };
-
     function renderSpecialState(icon, title, text, extraHTML = '') {
         DOM.dynamicContent.innerHTML = `<div class="content-loader-bar" id="contentLoader" style="display: ${DOM.contentLoader.style.display};"></div><div class="special-state-card"><i class="fas ${icon}"></i><h2>${title}</h2><p>${text}</p>${extraHTML}</div>`;
     }
-
     function startCountdown() {
         if(countdownInterval) clearInterval(countdownInterval);
         const timerEl = document.getElementById('countdown-timer'); if (!timerEl) return;
@@ -504,13 +563,9 @@ document.addEventListener('DOMContentLoaded', function() {
             timerEl.innerHTML = `${d} روز و ${h} ساعت و ${m} دقیقه و ${s} ثانیه`;
         }, 1000);
     }
-
-    // [ویرایش شده] این تابع اکنون مدت دوره را بر اساس تعداد باکس‌ها محاسبه می‌کند
     function populateDashboard() {
         DOM.userName.innerText = currentUser.name;
         DOM.courseName.innerText = courseData.name;
-        
-        // استفاده از jalali-moment برای解析 تاریخ شروع
         const startDateMoment = moment(courseData.startDate, 'jYYYY/jMM/jDD');
         if (!startDateMoment.isValid()) {
             console.error("تاریخ شروع نامعتبر است:", courseData.startDate);
@@ -518,21 +573,15 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         courseData.startDate = startDateMoment.toDate();
-        
-        // محاسبه تاریخ پایان بر اساس تعداد باکس‌ها (هر باکس یک هفته)
         const totalWeeks = courseData.layout.length > 0 ? courseData.layout.length : 1;
         courseData.endDate = moment(courseData.startDate).add(totalWeeks * 7, 'days').toDate();
-
         DOM.startDate.innerText = `شروع: ${formatDatePersian(courseData.startDate)}`;
         DOM.endDate.innerText = `پایان: ${formatDatePersian(courseData.endDate)}`;
-
         const now = new Date();
         const totalDuration = courseData.endDate.getTime() - courseData.startDate.getTime();
         const elapsed = now.getTime() - courseData.startDate.getTime();
         const progress = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
         DOM.progressBarFill.style.width = `${progress}%`;
-
-        // منطق نمایش بنر هشدار بر اساس تعداد هفته‌های پویا
         const lastWarningWeekStart = moment(courseData.startDate).add((totalWeeks - 1) * 7, 'days').toDate();
         if (now >= lastWarningWeekStart && now < courseData.endDate && DOM.warningBanner) {
             DOM.warningBanner.innerHTML = `<i class="fas fa-exclamation-triangle"></i> توجه: این آخرین هفته برای ارسال تکالیف است.`;
@@ -540,7 +589,6 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             DOM.warningBanner.style.display = 'none';
         }
-
         if (now < courseData.startDate) {
             renderSpecialState('fa-hourglass-start', 'دوره به زودی آغاز می‌شود!', `دوره در تاریخ ${formatDatePersian(courseData.startDate)} آغاز خواهد شد.`, '<div id="countdown-timer"></div>');
             startCountdown();
@@ -560,129 +608,47 @@ document.addEventListener('DOMContentLoaded', function() {
             renderCourseTimeline();
         }
     }
-
+    
+    // توابع اصلی مدیریت صفحه
     function initDashboard() {
         populateDashboard();
         showOverlay(DOM.loginContainer, false);
         DOM.dashboard.style.display = 'block';
     }
-
     function logout() {
         if (confirm("آیا برای خروج از سیستم مطمئن هستید؟")) {
-            localStorage.removeItem(LOGGED_IN_USER_KEY);
-            clearCache();
+            // [ویرایش شده] حذف توکن امن به جای کد ملی
+            localStorage.removeItem(SESSION_TOKEN_KEY);
+            // پاک کردن متغیرهای سراسری
+            currentUser = null;
+            courseData = null;
             location.reload();
         }
     }
+    async function initializePage() {
+        // [ویرایش شده] بررسی وجود توکن امن به جای کد ملی
+        const sessionToken = localStorage.getItem(SESSION_TOKEN_KEY);
 
-    async function refreshData(nationalId) {
-        if (DOM.contentLoader) DOM.contentLoader.style.display = 'block';
-        try {
-            const url = `${SCRIPT_URL}?id=${nationalId}`;
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('خطای شبکه در ارتباط با سرور.');
-            const result = await response.json();
-            if (result.error) throw new Error(result.message);
-            if (result.found) {
-                currentUser = result;
-                courseData.name = result.courseName;
-                courseData.startDate = result.startDate;
-                courseData.layout = result.layout;
-                setCache({ user: currentUser, data: courseData });
-                populateDashboard();
-            } else {
-                alert("اطلاعات شما در سیستم یافت نشد. لطفاً مجدداً وارد شوید.");
-                logout();
-            }
-        } catch (err) {
-            console.error("خطا در بارگیری مجدد اطلاعات:", err);
-        } finally {
-            if (DOM.contentLoader) DOM.contentLoader.style.display = 'none';
-        }
-    }
-
-    async function handleLoginAttempt(nationalId) {
-        if (!nationalId || !/^\d{10}$/.test(nationalId)) {
-            alert("کد ملی نامعتبر است.");
-            return;
-        }
-        DOM.verifyButton.classList.add('loading');
-        DOM.verifyButton.disabled = true;
-        try {
-            const url = `${SCRIPT_URL}?id=${nationalId}`;
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('خطای شبکه در ارتباط با سرور.');
-            const result = await response.json();
-            if (result.error) {
-                alert(result.message);
-                return;
-            }
-            if (result.found) {
-                currentUser = result;
-                courseData.name = result.courseName;
-                courseData.startDate = result.startDate;
-                courseData.layout = result.layout;
-                localStorage.setItem(LOGGED_IN_USER_KEY, nationalId);
-                setCache({ user: currentUser, data: courseData });
-                initDashboard();
-            } else {
-                alert("کد ملی وارد شده در این دوره ثبت نام نشده است.");
-            }
-        } catch (err) {
-            console.error("Data Fetching Error:", err);
-            alert(err.message || "خطا در بارگذاری اطلاعات از سرور.");
-        } finally {
-            DOM.verifyButton.classList.remove('loading');
-            DOM.verifyButton.disabled = false;
-        }
-    }
-
-    function initializePage() {
-        const loggedInUserNationalId = localStorage.getItem(LOGGED_IN_USER_KEY);
-        const urlParams = new URLSearchParams(window.location.search);
-        const nationalIdFromUrl = urlParams.get('id');
-
-        if (nationalIdFromUrl && loggedInUserNationalId && nationalIdFromUrl !== loggedInUserNationalId) {
-            localStorage.removeItem(LOGGED_IN_USER_KEY);
-            clearCache(); 
-            // ادامه با ورود خودکار
-        }
-
-        if (loggedInUserNationalId && !nationalIdFromUrl) {
-            const cachedItem = localStorage.getItem(CACHE_KEY);
-            if (cachedItem) {
-                const cache = JSON.parse(cachedItem);
-                const isExpired = (new Date().getTime() - cache.timestamp) > CACHE_EXPIRATION;
-                currentUser = cache.data.user;
-                courseData = cache.data.data;
-                showOverlay(DOM.loginContainer, false);
-                DOM.dashboard.style.display = 'block';
-                populateDashboard();
-                if (isExpired) {
-                    refreshData(loggedInUserNationalId);
-                }
-            } else {
-                refreshData(loggedInUserNationalId);
-            }
-        } else if (nationalIdFromUrl) {
-            showOverlay(DOM.loginContainer, true);
-            DOM.loginBox.innerHTML = `<h2><i class="fas fa-user-check"></i><br>ورود خودکار</h2><p style="font-size: 1.2rem; font-weight: bold; margin-bottom: 15px;">${nationalIdFromUrl}</p><div class="loader" style="margin: 20px auto 0;"></div>`;
-            handleLoginAttempt(nationalIdFromUrl);
+        if (sessionToken) {
+            // اگر توکن وجود داشت، سعی کن اطلاعات را با آن دریافت کنی
+            showOverlay(DOM.loginContainer, false);
+            DOM.dashboard.style.display = 'block'; // نمایش ساختار داشبورد قبل از لود محتوا
+            await fetchAndDisplayUserData(sessionToken);
         } else {
+            // اگر توکنی نبود، صفحه ورود را نمایش بده
             showOverlay(DOM.loginContainer, true);
         }
     }
 
-    DOM.verifyButton.addEventListener('click', () => handleLoginAttempt(DOM.nationalCodeInput.value.trim()));
+    // اتصال Event Listeners
+    DOM.verifyButton.addEventListener('click', handleLoginAttempt);
     DOM.nationalCodeInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            handleLoginAttempt(DOM.nationalCodeInput.value.trim());
-        }
+        if (e.key === 'Enter') handleLoginAttempt();
     });
     DOM.logoutBtn.addEventListener('click', logout);
 
+    // شروع کار برنامه
     initializePage();
-
 });
 </script>
 
