@@ -66,6 +66,64 @@
         #cancelLoginBtn { background-color: var(--danger-color); }
         #cancelLoginBtn:hover { background-color: #c0392b; }
         
+        /* [جدید] استایل لودر اتمی */
+        #atomic-loader {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 40px;
+        }
+        .atom {
+            width: 150px;
+            height: 150px;
+            position: relative;
+        }
+        .atom::before { /* هسته */
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 15px var(--primary-color);
+        }
+        .electron {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            border-radius: 50%;
+            border: 2px solid var(--primary-hover);
+            animation: rotate3d 3s linear infinite;
+        }
+        .electron::before { /* ذره الکترون */
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 50%;
+            width: 12px;
+            height: 12px;
+            background: var(--primary-hover);
+            border-radius: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 0 10px var(--primary-hover);
+        }
+        .electron:nth-child(1) { transform: rotate(0deg); animation-delay: -0.5s; }
+        .electron:nth-child(2) { transform: rotate(60deg) rotateX(60deg); animation-delay: -1s; }
+        .electron:nth-child(3) { transform: rotate(120deg) rotateX(120deg); animation-delay: -1.5s; }
+        @keyframes rotate3d {
+            0% { transform: rotateY(0deg) rotateX(10deg); }
+            100% { transform: rotateY(360deg) rotateX(10deg); }
+        }
+        #atomic-loader-text {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text-dark);
+        }
+        
         /* ================================
         ساختار اصلی داشبورد (بدون تغییر)
         =================================== */
@@ -173,8 +231,18 @@
 </head>
 <body>
 
-<!-- [ویرایش شده] ساختار HTML صفحه ورود برای پشتیبانی از دو مرحله -->
+<!-- [ویرایش شده] ساختار HTML صفحه ورود برای پشتیبانی از دو مرحله و لودر خودکار -->
 <div id="login-container" class="overlay">
+    <!-- [جدید] لودر اتمی برای بررسی خودکار -->
+    <div id="atomic-loader">
+        <div class="atom">
+            <div class="electron"></div>
+            <div class="electron"></div>
+            <div class="electron"></div>
+        </div>
+        <div id="atomic-loader-text">در حال بررسی اطلاعات...</div>
+    </div>
+    
     <div class="login-wrapper">
         <!-- مرحله 1: ورود کد ملی -->
         <div id="login-initial" class="login-step active">
@@ -254,6 +322,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // تعریف عناصر DOM
     const DOM = {
         loginContainer: document.getElementById('login-container'),
+        loginWrapper: document.querySelector('.login-wrapper'),
+        atomicLoader: document.getElementById('atomic-loader'), // [جدید]
         loginInitial: document.getElementById('login-initial'),
         loginConfirmation: document.getElementById('login-confirmation'),
         confirmationMessage: document.getElementById('confirmationMessage'),
@@ -321,15 +391,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (result.error || !result.found) {
             alert(result.message || "کاربر یافت نشد.");
+            showLoginStep('initial'); // اطمینان از نمایش مرحله اول در صورت خطا
             return;
         }
         
         // نمایش پیام تاییدیه
         DOM.confirmationMessage.innerHTML = `آیا با نام <strong>${result.name}</strong> و کد ملی <strong>${result.nationalId}</strong> وارد سیستم می‌شوید؟`;
         showLoginStep('confirmation');
-        
-        // همزمان که کاربر پیام را میخواند، میتوان داده‌های دوره را پیش-بارگیری کرد
-        // در این مدل، ما داده ها را بعد از تایید نهایی دریافت میکنیم که بهینه تر است
     }
 
     // [ویرایش شده] مرحله دوم: تایید نهایی و دریافت توکن (توسط reCAPTCHA فراخوانی می‌شود)
@@ -519,18 +587,44 @@ document.addEventListener('DOMContentLoaded', function() {
             doLogout();
         }
     }
+    // [ویرایش شده] تابع اصلی برای شروع کار برنامه
     async function initializePage() {
         const sessionToken = localStorage.getItem(SESSION_TOKEN_KEY);
+        const urlParams = new URLSearchParams(window.location.search);
+        const nationalIdFromUrl = urlParams.get('id');
 
         if (sessionToken) {
-            // اگر توکن وجود داشت، داشبورد را با لودر اسکلتی نمایش بده
+            // حالت ۱: کاربر قبلا وارد شده و توکن دارد
             showOverlay(DOM.loginContainer, false);
             DOM.dashboard.style.display = 'block';
             renderSkeletonLoader();
             await fetchAndDisplayUserData(sessionToken);
-        } else {
-            // اگر توکنی نبود، صفحه ورود را نمایش بده
+
+        } else if (nationalIdFromUrl) {
+            // حالت ۲: کاربر توکن ندارد ولی با لینک داینامیک وارد شده
             showOverlay(DOM.loginContainer, true);
+            DOM.loginWrapper.style.display = 'none'; // مخفی کردن فرم ورود
+            DOM.atomicLoader.style.display = 'flex';  // نمایش لودر اتمی
+
+            DOM.nationalCodeInput.value = nationalIdFromUrl;
+
+            try {
+                // فراخوانی خودکار تابع بررسی
+                await handleVerification();
+            } catch (e) {
+                console.error("خطا در بررسی خودکار:", e);
+                alert("یک خطای پیش‌بینی نشده در فرآیند بررسی خودکار رخ داد.");
+            } finally {
+                // پس از اتمام بررسی، لودر را مخفی و فرم را نمایش بده
+                DOM.atomicLoader.style.display = 'none';
+                DOM.loginWrapper.style.display = 'block';
+            }
+        
+        } else {
+            // حالت ۳: کاربر توکن ندارد و به صورت عادی وارد شده
+            showOverlay(DOM.loginContainer, true);
+            DOM.loginWrapper.style.display = 'block'; // اطمینان از نمایش فرم
+            DOM.atomicLoader.style.display = 'none';  // اطمینان از مخفی بودن لودر
             showLoginStep('initial');
         }
     }
@@ -549,4 +643,4 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 </body>
-</html>```
+</html>
