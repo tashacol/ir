@@ -1,1 +1,413 @@
  
+<!DOCTYPE html> 
+<html lang="fa">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow">
+  <title>سیستم ارسال تکالیف</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    :root {
+      --primary-color: #0d6efd; --success-color: #198754; --danger-color: #dc3545;
+      --warning-color: #ffc107; --info-color: #0dcaf0; --light-color: #f8f9fa;
+      --dark-color: #212529; --gray-color: #6c757d; --bg-color: #f0f2f5;
+      --card-bg: #ffffff; --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      --border-radius: 12px; --font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    body {
+      font-family: var(--font-family); direction: rtl; text-align: right;
+      background-color: var(--bg-color); margin: 0; padding: 20px; color: var(--dark-color);
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    }
+    .container {
+      width: 100%; max-width: 1100px; margin: 1rem auto; padding: 30px;
+      background-color: var(--card-bg); border-radius: var(--border-radius); box-shadow: var(--shadow);
+    }
+    .main-header { text-align: center; margin-bottom: 2rem; color: var(--dark-color); font-size: 2rem; font-weight: 700; }
+    .main-header i { color: var(--primary-color); margin-left: 10px; }
+    .ai-warning {
+        background-color: #fff3cd; color: #664d03; border: 1px solid #ffecb5;
+        border-radius: 8px; padding: 15px; margin: 0 auto 2rem auto;
+        max-width: 700px; text-align: center; font-size: 0.95rem; line-height: 1.7;
+    }
+    .ai-warning i { margin-left: 8px; }
+    .input-group {
+      margin: 0 auto 2.5rem auto; display: flex; box-shadow: var(--shadow);
+      border-radius: var(--border-radius); overflow: hidden; max-width: 450px;
+    }
+    #nationalCodeInput { flex-grow: 1; padding: 15px 20px; border: 1px solid #dee2e6; border-left: none; font-size: 1rem; text-align: right; transition: all 0.3s; }
+    #nationalCodeInput:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.2); outline: none; }
+    #checkBtn { padding: 15px 30px; border: none; background-color: var(--primary-color); color: white; cursor: pointer; transition: background-color 0.3s; font-weight: bold; font-size: 1rem; }
+    #checkBtn:hover { background-color: #0b5ed7; }
+    .user-welcome { text-align: center; font-size: 1.5rem; font-weight: 500; margin-bottom: 2rem; }
+    .terms-grid { display: none; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 25px; }
+    .term-box {
+      background: var(--card-bg); border-radius: var(--border-radius); box-shadow: var(--shadow);
+      border: 1px solid #dee2e6;
+      display: flex; flex-direction: column; overflow: hidden;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .term-box:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1); }
+    .term-header { padding: 15px 20px; border-bottom: 1px solid #e9ecef; }
+    .term-title { font-size: 1.5rem; font-weight: 700; margin: 0; }
+    .term-due-date { font-size: 0.8rem; color: var(--gray-color); margin-top: 5px; font-weight: 500; }
+    .term-body { padding: 20px; flex-grow: 1; }
+    .status-badge { display: flex; align-items: center; gap: 10px; font-size: 1.1rem; font-weight: 500; margin-bottom: 20px; }
+    .status-badge i { font-size: 1.5rem; }
+    .status-approved { color: var(--success-color); } .status-rejected { color: var(--danger-color); }
+    .status-pending { color: #fd7e14; } .status-locked { color: var(--gray-color); }
+    .term-footer { padding: 20px; background-color: #fcfcfc; border-top: 1px solid #e9ecef; }
+    .term-btn {
+      width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;
+      transition: all 0.2s; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-submit { background-color: var(--primary-color); color: white; }
+    .btn-edit { background-color: var(--warning-color); color: var(--dark-color); }
+    .btn-reason { background-color: var(--info-color); color: white; }
+    .term-btn:disabled { background-color: #e9ecef; color: #adb5bd; cursor: not-allowed; }
+    .term-btn:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.1); }
+    .loader { border: 5px solid #f3f3f3; border-top: 5px solid var(--primary-color); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 40px auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .linear-loader {
+        height: 8px; width: 100%; max-width: 450px; margin: 0 auto 2.5rem auto;
+        background-color: #e9ecef; border-radius: 4px; overflow: hidden;
+    }
+    .linear-loader-bar {
+        height: 100%; width: 0; background-color: var(--primary-color);
+        animation: fill-bar 2.5s ease-out forwards;
+    }
+    @keyframes fill-bar { from { width: 0%; } to { width: 100%; } }
+    .overlay { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(4px); animation: fadeIn 0.3s ease; }
+    .overlay.active { display: flex; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .popup-base { background-color: var(--card-bg); margin: auto; padding: 0; border-radius: var(--border-radius); width: 90%; max-width: 600px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); animation: slideIn 0.4s ease; overflow: hidden; }
+    @keyframes slideIn { from { transform: translateY(-30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .popup-header { font-size: 1.5rem; font-weight: 600; padding: 20px 25px; background-color: var(--light-color); border-bottom: 1px solid #dee2e6; }
+    .popup-body { padding: 25px; max-height: 65vh; overflow-y: auto; }
+    .popup-body p, .popup-body div { white-space: pre-wrap; line-height: 1.8; }
+    .popup-body strong { color: var(--primary-color); }
+    #submissionModal textarea {
+      width: 100%; min-height: 200px; padding: 15px; border: 1px solid #ced4da;
+      border-radius: 8px; transition: all 0.3s; resize: vertical; font-size: 1rem;
+      font-family: var(--font-family); box-sizing: border-box;
+    }
+    #submissionModal textarea:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.2); outline: none; }
+    .word-count { font-size: 0.9rem; color: #6c757d; text-align: left; margin-top: 8px; }
+    .word-count.invalid { color: var(--danger-color); font-weight: bold; }
+    .popup-footer { padding: 20px 25px; background-color: var(--light-color); text-align: left; border-top: 1px solid #dee2e6; display: flex; gap: 15px; justify-content: flex-end; }
+    .popup-footer button { padding: 10px 25px; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+    .popup-footer .confirm-btn { background-color: var(--primary-color); color: white; border: none; }
+    .popup-footer .cancel-btn { background-color: #e9ecef; color: var(--dark-color); border: 1px solid #dee2e6; }
+    #reasonModalContent strong { color: var(--danger-color); }
+    #reasonModalContent ul { padding-right: 20px; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h2 class="main-header"><i class="fas fa-tasks"></i>سیستم ارسال تکالیف</h2>
+    <div class="ai-warning"><i class="fas fa-exclamation-triangle"></i> هرگونه تقلب شرعا حرام بوده و این سیستم مجهز به هوش مصنوعی است و در صورتیکه جواب از هوش مصنوعی اخذ شده باشد توسط سیستم تشخیص داده شده و رد می‌شود.</div>
+
+    <div id="nationalCodeSection">
+      <div class="input-group">
+        <input type="text" id="nationalCodeInput" placeholder="کد ملی خود را وارد کنید..." />
+        <button id="checkBtn" onclick="fetchData()"><i class="fas fa-search"></i></button>
+      </div>
+    </div>
+
+    <div id="linearLoader" class="linear-loader" style="display: none;">
+      <div class="linear-loader-bar"></div>
+    </div>
+
+    <div id="loader" class="loader" style="display: none;"></div>
+    <div id="userInfo" style="display: none;"><h3 id="userName" class="user-welcome"></h3></div>
+    <div id="termsGrid" class="terms-grid"></div>
+  </div>
+
+  <div id="submissionModalOverlay" class="overlay">
+    <div id="submissionModal" class="popup-base">
+      <div id="submissionModalHeader" class="popup-header"></div>
+      <div class="popup-body">
+        <div><strong><i class="fas fa-question-circle"></i> سوال:</strong></div>
+        <p id="submissionModalQuestion" style="white-space: pre-wrap; background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 10px;"></p>
+        <form id="submissionForm" style="margin-top: 20px;">
+          <input type="hidden" id="termNumber">
+          <label for="answerText"><strong><i class="fas fa-pen-alt"></i> پاسخ شما:</strong></label>
+          <textarea id="answerText" required placeholder="متن تکلیف خود را اینجا وارد کنید" style="margin-top: 10px;"></textarea>
+          <div id="wordCount" class="word-count">تعداد کلمات: 0</div>
+        </form>
+      </div>
+      <div class="popup-footer">
+        <button type="button" class="cancel-btn" onclick="closeSubmissionModal()">انصراف</button>
+        <button type="submit" form="submissionForm" id="submitBtn" class="confirm-btn">ارسال تکلیف</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="reasonModalOverlay" class="overlay">
+    <div id="reasonModal" class="popup-base">
+      <div class="popup-header"><i class="fas fa-info-circle"></i> دلیل رد تکلیف</div>
+      <div class="popup-body"><div id="reasonModalContent"></div></div>
+      <div class="popup-footer"><button type="button" class="confirm-btn" onclick="closeReasonModal()">متوجه شدم</button></div>
+    </div>
+  </div>
+
+  <div id="approvedSubmissionModalOverlay" class="overlay">
+    <div id="approvedSubmissionModal" class="popup-base">
+      <div class="popup-header"><i class="fas fa-check-circle"></i> متن تکلیف تایید شده</div>
+      <div class="popup-body">
+        <p id="approvedSubmissionContent"></p>
+      </div>
+      <div class="popup-footer">
+        <button type="button" class="confirm-btn" onclick="closeApprovedSubmissionModal()">بستن</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="messageModalOverlay" class="overlay">
+    <div id="messageModal" class="popup-base">
+      <div id="messageModalHeader" class="popup-header"></div>
+      <div class="popup-body"><p id="messageModalContent" style="font-size: 1.1rem; text-align: center;"></p></div>
+      <div class="popup-footer"><button type="button" class="confirm-btn" onclick="closeMessageModal()">تایید</button></div>
+    </div>
+  </div>
+
+  <script>
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwM6QPomqlgoIvgPq7CsWhTBAhgB-EbsIyOnPLClRzFFS2rhvzo89jh7AsW8znGAe9s/exec";
+
+    const nationalCodeInput = document.getElementById('nationalCodeInput');
+    const loader = document.getElementById('loader');
+    const termsGrid = document.getElementById('termsGrid');
+    const userInfo = document.getElementById('userInfo');
+    const userNameEl = document.getElementById('userName');
+    const submissionForm = document.getElementById('submissionForm');
+    const answerTextarea = document.getElementById('answerText');
+    const wordCountDisplay = document.getElementById('wordCount');
+    const submissionModalOverlay = document.getElementById('submissionModalOverlay');
+    const reasonModalOverlay = document.getElementById('reasonModalOverlay');
+    const messageModalOverlay = document.getElementById('messageModalOverlay');
+    const nationalCodeSection = document.getElementById('nationalCodeSection');
+    const linearLoader = document.getElementById('linearLoader');
+    const approvedSubmissionModalOverlay = document.getElementById('approvedSubmissionModalOverlay');
+    
+    let userData = {};
+    let currentNationalCode = '';
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const params = new URLSearchParams(window.location.search);
+        const nationalCodeFromId = params.get('id');
+        
+        if (nationalCodeFromId && /^\d{10}$/.test(nationalCodeFromId)) {
+            nationalCodeSection.style.display = 'none';
+            linearLoader.style.display = 'block';
+            fetchData(nationalCodeFromId);
+        }
+    });
+
+    answerTextarea.addEventListener('input', () => {
+      const text = answerTextarea.value.trim();
+      const words = text.split(/\s+/).filter(word => word.length > 0);
+      wordCountDisplay.textContent = `تعداد کلمات: ${words.length}`;
+      wordCountDisplay.classList.toggle('invalid', words.length < 200 || words.length > 1500);
+    });
+
+    function showSubmissionModal(term) {
+      document.getElementById('termNumber').value = term;
+      document.getElementById('submissionModalHeader').innerHTML = `<i class="fas fa-upload"></i> ارسال تکلیف ترم ${term}`;
+      document.getElementById('submissionModalQuestion').textContent = userData.questions[term] || 'سوالی برای این ترم تعریف نشده است.';
+      answerTextarea.value = userData.submissions[term]?.answer || '';
+      answerTextarea.dispatchEvent(new Event('input'));
+      submissionModalOverlay.classList.add('active');
+    }
+    function closeSubmissionModal() { submissionModalOverlay.classList.remove('active'); }
+    function showReasonModal(term) {
+      const reason = userData.submissions[term]?.reason || 'دلیلی ثبت نشده است.';
+      document.getElementById('reasonModalContent').innerHTML = renderMarkdown(reason);
+      reasonModalOverlay.classList.add('active');
+    }
+    function closeReasonModal() { reasonModalOverlay.classList.remove('active'); }
+    function showMessageModal(title, message) {
+      document.getElementById('messageModalHeader').innerText = title;
+      document.getElementById('messageModalContent').innerText = message;
+      messageModalOverlay.classList.add('active');
+    }
+    function closeMessageModal() { messageModalOverlay.classList.remove('active'); }
+
+    function showApprovedSubmissionModal(term) {
+      const answer = userData.submissions[term]?.answer || 'متن تکلیفی یافت نشد.';
+      document.getElementById('approvedSubmissionContent').textContent = answer;
+      approvedSubmissionModalOverlay.classList.add('active');
+    }
+    function closeApprovedSubmissionModal() { approvedSubmissionModalOverlay.classList.remove('active'); }
+
+    async function fetchData(nationalCodeFromUrl = null) {
+      const nationalCode = nationalCodeFromUrl || nationalCodeInput.value.trim();
+      
+      if (!/^\d{10}$/.test(nationalCode)) {
+        return showMessageModal("خطا", "کد ملی ارائه شده معتبر نیست.");
+      }
+      currentNationalCode = nationalCode;
+      
+      if (!nationalCodeFromUrl) {
+          loader.style.display = 'block';
+          termsGrid.style.display = 'none';
+          userInfo.style.display = 'none';
+      }
+
+      if (WEB_APP_URL.includes("YOUR_NEW_GOOGLE")) { return handleError({ message: "آدرس وب اپلیکیشن در کد HTML تنظیم نشده است." }); }
+
+      try {
+        const response = await fetch(WEB_APP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'getUserData', nationalCode })
+        });
+        if (!response.ok) throw new Error(`خطای شبکه (کد: ${response.status})`);
+        const data = await response.json();
+        displayData(data);
+      } catch (error) { handleError(error); }
+    }
+
+    function displayData(data) {
+      loader.style.display = 'none';
+      linearLoader.style.display = 'none';
+
+      if (data.error) {
+        nationalCodeSection.style.display = 'flex';
+        userInfo.style.display = 'none';
+        termsGrid.style.display = 'none';
+        return showMessageModal("وضعیت دوره", data.error);
+      }
+      
+      nationalCodeSection.style.display = 'none';
+
+      userData = data;
+      userNameEl.innerHTML = `<i class="fas fa-user-check"></i> خوش آمدید، ${data.name}!`;
+      userInfo.style.display = 'block';
+      termsGrid.innerHTML = '';
+      const lastApprovedTerm = Math.max(0, ...Object.keys(data.submissions).filter(t => data.submissions[t].status == 5).map(Number));
+      
+      // ▼▼▼ ویرایش کلیدی: حلقه به جای ۸ بار ثابت، بر اساس تعداد ترم‌های دریافتی از سرور اجرا می‌شود ▼▼▼
+      const terms = Object.keys(data.termDetails).sort((a, b) => parseInt(a) - parseInt(b));
+
+      for (const term of terms) {
+        const submission = data.submissions[term];
+        const details = data.termDetails[term];
+        const prevTermApproved = (term == 1 || lastApprovedTerm >= term - 1);
+        
+        let statusIcon, statusText, statusClass, buttonsHTML;
+        let dueDateHTML = '';
+
+        if (details.isUnlocked) {
+            dueDateHTML = `<div class="term-due-date">آخرین مهلت: ${details.dueDate}</div>`;
+            const canSubmit = prevTermApproved;
+
+            if (submission) {
+                if (submission.status == 5) {
+                    statusIcon = 'fa-check-circle'; statusText = 'تأیید شده'; statusClass = 'status-approved';
+                    buttonsHTML = `<button class="term-btn" disabled><i class="fas fa-check"></i> تأیید شده</button>`;
+                    buttonsHTML += `<button class="term-btn btn-reason" style="margin-top: 10px;" onclick="showApprovedSubmissionModal(${term})"><i class="fas fa-eye"></i> مشاهده تکلیف</button>`;
+                } else if (submission.status == 0) {
+                    statusIcon = 'fa-times-circle'; statusText = 'تأیید نشده'; statusClass = 'status-rejected';
+                    buttonsHTML = `<button class="term-btn btn-edit" onclick="showSubmissionModal(${term})"><i class="fas fa-pencil-alt"></i> ویرایش تکلیف</button>`;
+                    if (submission.reason) { buttonsHTML += `<button class="term-btn btn-reason" style="margin-top: 10px;" onclick="showReasonModal(${term})"><i class="fas fa-eye"></i> مشاهده دلیل</button>`; }
+                } else {
+                    statusIcon = 'fa-hourglass-half'; statusText = 'در حال بررسی'; statusClass = 'status-pending';
+                    buttonsHTML = `<button class="term-btn" disabled><i class="fas fa-spinner fa-spin"></i> در حال بررسی</button>`;
+                }
+            } else {
+                if (canSubmit) {
+                    statusIcon = 'fa-clock'; statusText = 'آماده ارسال'; statusClass = 'status-pending';
+                    buttonsHTML = `<button class="term-btn btn-submit" onclick="showSubmissionModal(${term})"><i class="fas fa-paper-plane"></i> ارسال تکلیف</button>`;
+                } else {
+                    statusIcon = 'fa-lock'; statusText = 'منتظر تأیید ترم قبل'; statusClass = 'status-locked';
+                    buttonsHTML = `<button class="term-btn" disabled><i class="fas fa-lock"></i> منتظر تأیید ترم قبل</button>`;
+                }
+            }
+        } else {
+            statusIcon = 'fa-lock'; statusText = 'قفل شده'; statusClass = 'status-locked';
+            buttonsHTML = `<button class="term-btn" disabled><i class="fas fa-lock"></i> بازگشایی در ${details.unlockDate}</button>`;
+        }
+        
+        const termBox = document.createElement('div');
+        termBox.className = 'term-box';
+        termBox.innerHTML = `
+          <div class="term-header">
+            <h3 class="term-title">ترم ${term}</h3>
+            ${dueDateHTML}
+          </div>
+          <div class="term-body"><div class="status-badge ${statusClass}"><i class="fas ${statusIcon}"></i><span>${statusText}</span></div></div>
+          <div class="term-footer">${buttonsHTML}</div>`;
+        termsGrid.appendChild(termBox);
+      }
+      termsGrid.style.display = 'grid';
+    }
+    
+    submissionForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const term = document.getElementById('termNumber').value;
+      const answer = answerTextarea.value.trim();
+      const words = answer.split(/\s+/).filter(word => word.length > 0);
+      if (words.length < 200 || words.length > 1500) { return showMessageModal("خطا", "تعداد کلمات پاسخ شما باید بین ۲۰۰ تا ۱۵۰۰ کلمه باشد."); }
+      
+      const submitBtn = document.getElementById('submitBtn');
+      const originalBtnHTML = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> در حال ارسال...`;
+
+      const formData = { name: userData.name, nationalCode: currentNationalCode, term, answer };
+      try {
+        const response = await fetch(WEB_APP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'submitAssignment', formData })
+        });
+        if (!response.ok) throw new Error(`خطای شبکه (کد: ${response.status})`);
+        
+        const result = await response.json();
+        
+        closeSubmissionModal();
+        showMessageModal(result.success ? "موفقیت" : "توجه", result.message || "پاسخ نامشخص از سرور.");
+
+        if (result.updatedData && result.updatedData.success) {
+            displayData(result.updatedData);
+        } else {
+            fetchData(currentNationalCode);
+        }
+
+      } catch (error) {
+        handleError(error);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnHTML;
+      }
+    });
+
+    function handleError(error) {
+      linearLoader.style.display = 'none';
+      loader.style.display = 'none';
+      showMessageModal("خطای اتصال", 'خطا در ارتباط با سرور: ' + error.message);
+    }
+    function renderMarkdown(text) {
+      let html = text.replace(/</g, "<").replace(/>/g, ">");
+      html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      html = html.replace(/^\* (.*$)/gm, '<li>$1</li>');
+      if (html.includes('<li>')) { html = '<ul>' + html.replace(/<\/li>\s*<li>/g, '</li><li>') + '</ul>'; }
+      return html.replace(/\n/g, '<br>');
+    }
+
+    window.onclick = (event) => {
+      if (event.target == submissionModalOverlay) closeSubmissionModal();
+      if (event.target == reasonModalOverlay) closeReasonModal();
+      if (event.target == messageModalOverlay) closeMessageModal();
+      if (event.target == approvedSubmissionModalOverlay) closeApprovedSubmissionModal();
+    }
+    nationalCodeInput.addEventListener('keyup', (event) => { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('checkBtn').click(); } });
+  </script>
+
+</body>
+</html>
