@@ -224,9 +224,7 @@
         width: 100%; 
         box-sizing: border-box; 
         line-height: 1.6;
-        /* START: تغییر کلیدی برای رفع مشکل نمایش */
         display: block;
-        /* END: تغییر کلیدی */
     }
     
     .status-checklist { list-style: none; padding: 0; margin: 0; }
@@ -286,10 +284,10 @@
 
   <script>
     // ==========================================================
-    // هسته اصلی جاوا اسکریپت (بدون تغییر در عملکرد)
+    // هسته اصلی جاوا اسکریپت
     // ==========================================================
 
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyUIUr9mpqE-XB-jH6QX9ThK69lWIghoB4Yk-hiaMwA4JSj3D9AfEESTgyZX5wv7829uA/exec';
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxpYXfxUsSKvQ8Ot3zmHfE1YhhvBI1xLfx0zCQRRtBwevthrKaaV4oCqnwMsIYd8CBD/exec';
 
     const checkIconSVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="#28a745"/></svg>`;
     const crossIconSVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z" fill="#dc3545"/></svg>`;
@@ -339,7 +337,7 @@
             return cachedData.result;
         }
 
-        const url = `${SCRIPT_URL}?action=getCourseStatus&id=${nationalId}`;
+        const url = `${SCRIPT_URL}?id=${nationalId}`; // پارامتر action دیگر نیاز نیست
         try {
             const response = await fetch(url);
             if (!response.ok) {
@@ -415,16 +413,22 @@
         const courseName = regInfo?.courseName || projInfo?.courseName || 'نامشخص';
         const courseId = regInfo?.courseId;
         const startDate = regInfo?.startDate;
-        
-        let calculatedEndDate = null;
-        let isAfter85Days = false;
-        const driveFolderLink = 'https://drive.google.com/drive/folders/1-pUvCoHflHaLVIcSZJ3nR471I-HEEbn-';
+        // دریافت طول دوره از API
+        const courseDuration = regInfo?.courseDurationDays;
 
-        if (startDate) {
+        let calculatedEndDate = null;
+        let hasFinishedCourse = false;
+        const driveFolderLink = 'https://drive.google.com/drive/folders/1-pUvCoHflHaLVIcSZJ3nR471I-HEEbn-';
+        
+        // **بخش ویرایش شده**
+        // محاسبه تاریخ پایان بر اساس طول دوره دریافت شده
+        if (startDate && courseDuration) {
             const startMoment = moment(startDate, 'jYYYY/jMM/jDD');
             if(startMoment.isValid()){
-                calculatedEndDate = startMoment.clone().add(85, 'days').format('jYYYY/jMM/jDD');
-                isAfter85Days = moment().diff(startMoment, 'days') >= 85;
+                // محاسبه تاریخ پایان با اضافه کردن تعداد روزهای دوره
+                calculatedEndDate = startMoment.clone().add(courseDuration, 'days').format('jYYYY/jMM/jDD');
+                // بررسی اینکه آیا امروز بعد از تاریخ پایان دوره است یا خیر
+                hasFinishedCourse = moment().diff(startMoment, 'days') >= courseDuration;
             } else {
                 console.warn('Invalid startDate from API:', startDate);
             }
@@ -438,12 +442,13 @@
         courseInfo.innerHTML = `<h2>${courseName}</h2><p>${studentName} - کد ملی: ${nationalId}</p>${courseId ? `<p>شناسه دوره: ${courseId}</p>` : ''}`;
 
         let buttonsHTML = '';
-        if (isAfter85Days) {
+        // استفاده از متغیر hasFinishedCourse برای نمایش دکمه‌ها
+        if (hasFinishedCourse) {
             buttonsHTML += `<a href="${driveFolderLink}" target="_blank" class="lessons-link"><i class="fas fa-folder-open"></i>مشاهده دروس</a>`;
             if (projectLink) buttonsHTML += `<a href="${projectLink}" target="_blank" class="project-link"><i class="fas fa-file-alt"></i>مشاهده پروژه</a>`;
             if (certLink) buttonsHTML += `<a href="${certLink}" target="_blank" class="cert-link"><i class="fas fa-award"></i>دانلود گواهی</a>`;
         } else {
-            if (calculatedEndDate && moment(startDate, 'jYYYY/jMM/jDD').isValid()) {
+            if (calculatedEndDate) {
                 buttonsHTML = `<p class="access-message">دانشجوی گرامی، دسترسی به گواهینامه، پروژه و جزوات پس از تاریخ <strong>${calculatedEndDate}</strong> امکان‌پذیر خواهد بود.</p>`;
             } else {
                 buttonsHTML = `<p class="access-message">دسترسی به اطلاعات دوره در حال حاضر امکان‌پذیر نیست. لطفا با پشتیبانی تماس بگیرید.</p>`;
@@ -452,10 +457,10 @@
         actionButtons.innerHTML = buttonsHTML;
 
         const hasRegistered = !!regInfo;
-        const hasFinishedCourse = isAfter85Days;
         const hasSentProject = !!projectLink;
         const hasCertificate = !!certLink;
 
+        // استفاده از hasFinishedCourse برای نمایش وضعیت اتمام دوره
         statusChecklist.innerHTML = `
             <li><span class="status-label"><i class="fas fa-user-check label-icon"></i>ثبت نام</span><span class="status-value">${hasRegistered ? checkIconSVG : crossIconSVG}</span></li>
             <li><span class="status-label"><i class="fas fa-flag-checkered label-icon"></i>اتمام دوره</span><span class="status-value">${hasFinishedCourse ? checkIconSVG : crossIconSVG}</span></li>
