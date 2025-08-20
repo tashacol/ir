@@ -194,6 +194,7 @@
       margin-bottom: 30px;
     }
 
+    /* این بخش دیگر استفاده نمی‌شود اما برای حفظ ساختار کد باقی مانده است */
     .inline-progress-bar {
         height: 8px;
         background-color: var(--accent-blue);
@@ -202,23 +203,8 @@
         max-height: 0;
         opacity: 0;
         margin-bottom: 0;
-        transition: 
-            width 1.5s cubic-bezier(0.22, 0.61, 0.36, 1),
-            max-height 0.4s ease,
-            opacity 0.4s ease,
-            margin-bottom 0.4s ease;
     }
-    .container.loading h1, .container.loading .page-subtitle {
-        /* این استایل‌ها دیگر مستقیما دیده نمی‌شوند چون لودر تمام صفحه را می‌پوشاند
-           اما برای حفظ ساختار قبلی نگه داشته شده‌اند */
-        margin-bottom: 15px;
-    }
-    .container.loading .inline-progress-bar {
-       /* این بخش دیگر استفاده نمی‌شود اما برای حفظ ساختار کد باقی مانده است */
-       max-height: 8px;
-       opacity: 1;
-       margin-bottom: 25px;
-    }
+   
     .container.loading #loginForm {
         /* این استایل مهم است چون فرم را در حین لودینگ مخفی می‌کند */
         opacity: 0;
@@ -420,10 +406,8 @@
     const loadingProgressBar = document.getElementById('loadingProgressBar');
     const pageSubtitle = document.querySelector('.page-subtitle');
     
-    // **جدید**: ارجاع به لودر اتمی
     const atomicLoader = document.getElementById('atomicLoader');
 
-    // **جدید**: توابع کمکی برای مدیریت لودر
     const showLoader = () => {
         atomicLoader.classList.add('visible');
     };
@@ -431,11 +415,10 @@
         atomicLoader.classList.remove('visible');
     };
 
-    // تابع جدید برای مدیریت خطای reCAPTCHA
     function onRecaptchaError() {
       showMessage('خطا در اجرای reCAPTCHA. لطفا اتصال اینترنت را بررسی و صفحه را رفرش کنید.');
       btn.disabled = false;
-      hideLoader(); // **جدید**: در صورت خطا، لودر را پنهان کن
+      hideLoader(); 
     }
     
     const showMessage = (message) => {
@@ -443,52 +426,43 @@
         errorMsg.style.display = 'block';
     };
 
-    /**
-     * **تابع ویرایش شده**: این تابع به صورت خودکار توسط reCAPTCHA فراخوانی شده و اکنون از لودر اتمی استفاده می‌کند
-     * @param {string} token - توکن تایید که باید به سرور ارسال شود.
-     */
     async function onSubmitWithRecaptcha(token) {
         const userInput = input.value.trim();
         
-        // **ویرایش شده**: نمایش لودر اتمی و آماده‌سازی کانتینر اصلی
-        mainContainer.classList.add('loading'); // این کلاس فرم را مخفی می‌کند
+        mainContainer.classList.add('loading'); 
         showLoader();
 
-        // منطق نوار پیشرفت قبلی حذف شده و با لودر جدید جایگزین شده است
-
-        // اکنون اطلاعات را به سرور ارسال می‌کنیم
         const apiResult = await fetchCourseStatusData(userInput, token);
 
-        // **ویرایش شده**: پنهان کردن لودر
         hideLoader();
 
-        // یک تاخیر کوتاه برای نمایش انیمیشن خروج لودر قبل از نمایش نتایج
         setTimeout(() => {
             if (apiResult.error || !apiResult.found) {
                 const message = apiResult.message || "کد ملی وارد شده در سامانه یافت نشد.";
                 showMessage(message);
-                mainContainer.classList.remove('loading'); // نمایش مجدد فرم در صورت خطا
+                mainContainer.classList.remove('loading'); 
                 btn.disabled = false;
-                grecaptcha.reset(); // ریست کردن کپچا برای تلاش مجدد
+                // در حالت خودکار، نیازی به نمایش مجدد فرم نیست، اما در حالت دستی، این کد لازم است
+                // اگر فرم مخفی شده باشد، دیگر نمایش داده نخواهد شد که رفتار درستی است
+                if(loginForm.style.display !== 'none') {
+                    grecaptcha.reset(); 
+                }
             } else {
                 mainTitle.style.display = 'none';
                 pageSubtitle.style.display = 'none';
                 loginForm.style.display = 'none';
                 displayResults(apiResult, userInput);
             }
-        }, 400); // این تاخیر با زمان انیمیشن CSS هماهنگ است
+        }, 400); 
     }
     
-    /**
-     * **تابع ویرایش شده**: اکنون توکن را دریافت کرده و درخواست POST ارسال می کند
-     */
     async function fetchCourseStatusData(nationalId, token) {
         try {
             const response = await fetch(SCRIPT_URL, {
                 method: 'POST',
-                mode: 'cors', // مورد نیاز برای درخواست های بین دامنه ای
+                mode: 'cors', 
                 headers: {
-                    'Content-Type': 'text/plain;charset=utf-8', // Apps Script معمولا با text/plain بهتر کار می‌کند
+                    'Content-Type': 'text/plain;charset=utf-8', 
                 },
                 body: JSON.stringify({ id: nationalId, token: token })
             });
@@ -506,9 +480,6 @@
         }
     }
 
-    /**
-     * **تابع ویرایش شده**: اکنون فقط ورودی را چک کرده و reCAPTCHA را اجرا می کند
-     */
     function performSearch() {
         const userInput = input.value.trim();
         
@@ -518,17 +489,13 @@
 
         if (!/^\d{10}$/.test(userInput)) {
             showMessage("کد ملی باید ۱۰ رقم و فقط شامل عدد باشد.");
-            // reCAPTCHA را ریست می‌کنیم تا در تلاش بعدی دوباره اجرا شود
             grecaptcha.reset();
             return;
         }
 
         btn.disabled = true;
-        // در این مرحله، reCAPTCHA به صورت خودکار اجرا می‌شود چون دکمه کلیک شده است.
-        // تابع onSubmitWithRecaptcha بقیه کارها را انجام خواهد داد.
     }
     
-    // تابع نمایش نتایج (بدون تغییر در منطق اصلی)
     function displayResults(apiResult, nationalId) {
         const regInfo = apiResult.registrationInfo;
         const projInfo = apiResult.projectInfo;
@@ -597,31 +564,43 @@
         mainContainer.classList.add('results-active');
     }
     
-    // =====================================================================================
-    // **بخش ویرایش شده**: تابع برای بارگذاری اولیه با پارامتر URL و اجرای خودکار فرآیند
-    // =====================================================================================
+    // **بخش ویرایش شده**: منطق جدید برای مدیریت بارگذاری اولیه صفحه
     window.addEventListener('DOMContentLoaded', () => {
         const urlParams = new URLSearchParams(window.location.search);
         const nationalId = urlParams.get('id');
 
-        // بررسی می‌کند آیا پارامتر id در URL وجود دارد و یک کد ملی معتبر است یا خیر
+        // اگر کد ملی معتبر در URL وجود داشته باشد، فرآیند خودکار را اجرا کن
         if (nationalId && /^\d{10}$/.test(nationalId)) {
-            // ۱. کد ملی را در فیلد ورودی قرار می‌دهد. این کار برای تابع onSubmitWithRecaptcha ضروری است
-            // تا بتواند مقدار کد ملی را برای ارسال به سرور بخواند.
-            input.value = nationalId;
-            
-            // ۲. **مهم**: فرم ورود، عنوان اصلی و زیرنویس بلافاصله مخفی می‌شوند تا کاربر آن‌ها را نبیند.
-            mainTitle.style.display = 'none';
-            pageSubtitle.style.display = 'none';
+            // 1. فرم ورود و زیرنویس را فورا مخفی کن تا کاربر آنها را نبیند
             loginForm.style.display = 'none';
+            pageSubtitle.style.display = 'none';
             
-            // ۳. **مهم**: فرآیند بررسی به صورت خودکار آغاز می‌شود.
-            // با شبیه‌سازی کلیک روی دکمه (که اکنون مخفی است)، دقیقا همان منطق قبلی 
-            // یعنی اجرای reCAPTCHA و سپس فراخوانی تابع onSubmitWithRecaptcha اجرا می‌شود.
-            // تابع onSubmitWithRecaptcha خودش مسئول نمایش لودر و بقیه مراحل است.
-            document.getElementById('searchBtn').click();
+            // 2. مقدار کد ملی را در فیلد ورودی (که اکنون مخفی است) قرار بده
+            input.value = nationalId;
+
+            // 3. عنوان صفحه را برای بازخورد بهتر به کاربر تغییر بده
+            mainTitle.textContent = 'در حال اعتبارسنجی و بررسی اطلاعات';
+
+            // 4. تابع کمکی برای اجرای reCAPTCHA به محض آماده شدن
+            // این کار ضروری است چون اسکریپت reCAPTCHA به صورت async بارگذاری می‌شود
+            const tryExecuteRecaptcha = () => {
+                // بررسی می‌کنیم که آیا آبجکت grecaptcha و توابع آن در دسترس هستند یا خیر
+                if (typeof grecaptcha !== 'undefined' && grecaptcha.execute) {
+                    // reCAPTCHA را به صورت برنامه‌نویسی اجرا می‌کنیم.
+                    // این کار باعث نمایش چالش (در صورت نیاز) و سپس فراخوانی 
+                    // تابع 'onSubmitWithRecaptcha' می‌شود که در دکمه تعریف شده است.
+                    grecaptcha.execute();
+                } else {
+                    // اگر هنوز آماده نبود، با یک تاخیر کوتاه دوباره تلاش می‌کنیم.
+                    setTimeout(tryExecuteRecaptcha, 100);
+                }
+            };
+
+            // اولین تلاش برای اجرای reCAPTCHA را آغاز می‌کنیم
+            tryExecuteRecaptcha();
+            
         }
-        // اگر پارامتر id در URL وجود نداشته باشد، هیچ‌کدام از این کدها اجرا نشده و صفحه به حالت عادی بارگذاری می‌شود.
+        // اگر کد ملی در URL نباشد، هیچ کاری انجام نمی‌شود و صفحه به صورت عادی با فرم ورود نمایش داده می‌شود.
     });
 
   </script>
