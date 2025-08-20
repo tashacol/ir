@@ -11,7 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jalali-moment/dist/jalali-moment.browser.js"></script>
   <!-- کتابخانه آیکن‌های Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-  <!-- **مهم: اسکریپت Google reCAPTCHA** -->
+  <!-- اسکریپت Google reCAPTCHA -->
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 
   <style>
@@ -20,7 +20,7 @@
        *         CSS بازطراحی شده برای ظاهر حرفه‌ای         *
        ===================================================
     */
-    @import url('https://script.google.com/macros/s/AKfycbxpYXfxUsSKvQ8Ot3zmHfE1YhhvBI1xLfx0zCQRRtBwevthrKaaV4oCqnwMsIYd8CBD/exec');
+    @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;800&display=swap');
 
     :root {
       --primary-blue: #0052cc;
@@ -119,6 +119,7 @@
        margin-bottom: 25px;
     }
     .container.loading #loginForm {
+        /* این استایل فرم را در حالت لودینگ محو می‌کند */
         opacity: 0;
         pointer-events: none;
     }
@@ -260,7 +261,6 @@
           <label for="searchInput" class="form-label">کد ملی</label>
           <i class="fas fa-id-card form-icon"></i>
         </div>
-        <!-- **مهم: دکمه اکنون reCAPTCHA را اجرا می‌کند** -->
         <button 
           id="searchBtn"
           class="g-recaptcha" 
@@ -283,7 +283,7 @@
 
   <script>
     // ==========================================================
-    // هسته اصلی جاوا اسکریپت (نسخه امن با reCAPTCHA)
+    // هسته اصلی جاوا اسکریپت (نسخه امن با reCAPTCHA و ورود داینامیک)
     // ==========================================================
 
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxpYXfxUsSKvQ8Ot3zmHfE1YhhvBI1xLfx0zCQRRtBwevthrKaaV4oCqnwMsIYd8CBD/exec';
@@ -303,11 +303,11 @@
     const btn = document.getElementById('searchBtn');
     const loadingProgressBar = document.getElementById('loadingProgressBar');
     const pageSubtitle = document.querySelector('.page-subtitle');
-
-    // تابع جدید برای مدیریت خطای reCAPTCHA
+    
     function onRecaptchaError() {
       showMessage('خطا در اجرای reCAPTCHA. لطفا اتصال اینترنت را بررسی و صفحه را رفرش کنید.');
       btn.disabled = false;
+      mainContainer.classList.remove('loading');
     }
     
     const showMessage = (message) => {
@@ -316,13 +316,16 @@
     };
 
     /**
-     * **تابع جدید**: این تابع به صورت خودکار توسط reCAPTCHA پس از تایید موفقیت آمیز فراخوانی می شود
-     * @param {string} token - توکن تایید که باید به سرور ارسال شود.
+     * **تابع جدید**: این تابع ظاهر لودینگ را فعال می‌کند.
+     * از این تابع هم در حالت ورود داینامیک و هم در حالت دستی استفاده می‌شود.
      */
-    async function onSubmitWithRecaptcha(token) {
-        const userInput = input.value.trim();
+    function initiateLoadingUI() {
+        resultsContainer.style.display = 'none';
+        mainContainer.classList.remove('results-active');
+        errorMsg.style.display = 'none';
+        btn.disabled = true;
         
-        // نمایش انیمیشن لودینگ بلافاصله بعد از کلیک
+        // ریست کردن و شروع انیمیشن نوار پیشرفت
         loadingProgressBar.style.transition = 'none';
         loadingProgressBar.style.width = '0%';
         void loadingProgressBar.offsetWidth;
@@ -331,8 +334,14 @@
         
         loadingProgressBar.style.transition = 'width 1.5s cubic-bezier(0.22, 0.61, 0.36, 1)';
         loadingProgressBar.style.width = '90%';
+    }
 
-        // اکنون اطلاعات را به سرور ارسال می‌کنیم
+    /**
+     * **تابع ویرایش شده**: این تابع اکنون فقط مسئول ارسال درخواست به سرور است.
+     * بخش مربوط به شروع انیمیشن لودینگ به تابع initiateLoadingUI منتقل شده است.
+     */
+    async function onSubmitWithRecaptcha(token) {
+        const userInput = input.value.trim();
         const apiResult = await fetchCourseStatusData(userInput, token);
 
         loadingProgressBar.style.transition = 'width 0.4s ease-out';
@@ -344,42 +353,32 @@
                 showMessage(message);
                 mainContainer.classList.remove('loading');
                 btn.disabled = false;
+                grecaptcha.reset();
             } else {
                 mainTitle.style.display = 'none';
                 pageSubtitle.style.display = 'none';
                 loginForm.style.display = 'none';
                 displayResults(apiResult, userInput);
             }
-            // ریست کردن نوار پیشرفت
             setTimeout(() => {
                 loadingProgressBar.style.transition = 'none';
                 loadingProgressBar.style.width = '0%';
             }, 500);
-
-        }, 500); 
+        }, 500);
     }
     
-    /**
-     * **تابع ویرایش شده**: اکنون توکن را دریافت کرده و درخواست POST ارسال می کند
-     */
     async function fetchCourseStatusData(nationalId, token) {
         try {
             const response = await fetch(SCRIPT_URL, {
                 method: 'POST',
-                mode: 'cors', // مورد نیاز برای درخواست های بین دامنه ای
-                headers: {
-                    'Content-Type': 'text/plain;charset=utf-8', // Apps Script معمولا با text/plain بهتر کار می‌کند
-                },
+                mode: 'cors',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify({ id: nationalId, token: token })
             });
             if (!response.ok) {
                 throw new Error(`Network response was not ok: ${response.status}`);
             }
-            const result = await response.json();
-            if (result.error) {
-                throw new Error(result.message);
-            }
-            return result;
+            return await response.json();
         } catch (err) {
             console.error('Fetch Error:', err);
             return { error: true, message: 'خطا در بارگذاری اطلاعات. اتصال اینترنت را بررسی کنید.' };
@@ -387,28 +386,21 @@
     }
 
     /**
-     * **تابع ویرایش شده**: اکنون فقط ورودی را چک کرده و reCAPTCHA را اجرا می کند
+     * **تابع ویرایش شده**: این تابع فقط ورودی را چک کرده و در صورت صحت، UI لودینگ را فعال می‌کند.
      */
     function performSearch() {
         const userInput = input.value.trim();
         
-        resultsContainer.style.display = 'none';
-        mainContainer.classList.remove('results-active');
-        errorMsg.style.display = 'none';
-
         if (!/^\d{10}$/.test(userInput)) {
             showMessage("کد ملی باید ۱۰ رقم و فقط شامل عدد باشد.");
-            // reCAPTCHA را ریست می‌کنیم تا در تلاش بعدی دوباره اجرا شود
             grecaptcha.reset();
             return;
         }
 
-        btn.disabled = true;
-        // در این مرحله، reCAPTCHA به صورت خودکار اجرا می‌شود چون دکمه کلیک شده است.
-        // تابع onSubmitWithRecaptcha بقیه کارها را انجام خواهد داد.
+        initiateLoadingUI();
+        // بقیه کارها توسط کلیک روی دکمه و اجرای reCAPTCHA انجام می‌شود.
     }
     
-    // تابع نمایش نتایج (بدون تغییر در منطق اصلی)
     function displayResults(apiResult, nationalId) {
         const regInfo = apiResult.registrationInfo;
         const projInfo = apiResult.projectInfo;
@@ -469,7 +461,6 @@
         `;
         
         mainContainer.classList.remove('loading');
-        
         resultsContainer.style.display = 'block';
         resultsContainer.style.marginTop = '0';
         resultsContainer.style.paddingTop = '0';
@@ -477,19 +468,27 @@
         mainContainer.classList.add('results-active');
     }
     
-    // تابع برای بارگذاری اولیه با پارامتر URL (بدون تغییر)
+    /**
+     * **تابع ویرایش شده**: این تابع به محض بارگذاری صفحه، URL را برای ورود داینامیک بررسی می‌کند.
+     */
     window.addEventListener('DOMContentLoaded', () => {
         const urlParams = new URLSearchParams(window.location.search);
         const nationalId = urlParams.get('id');
 
         if (nationalId && /^\d{10}$/.test(nationalId)) {
+            // حالت ورود داینامیک
             input.value = nationalId;
-            // برای اجرای خودکار، باید دکمه را شبیه‌سازی کنیم
-            document.getElementById('searchBtn').click();
+            
+            // بلافاصله UI لودینگ را فعال کن
+            initiateLoadingUI();
+            
+            // و فرآیند reCAPTCHA را به صورت برنامه‌نویسی شده آغاز کن
+            grecaptcha.execute();
         }
+        // در غیر این صورت (ورود دستی)، هیچ کاری انجام نمی‌شود و کاربر باید فرم را پر کند.
     });
 
   </script>
 
 </body>
-</html>
+</html> 
