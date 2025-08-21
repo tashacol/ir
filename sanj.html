@@ -1,8 +1,8 @@
- <!DOCTYPE html>  
+    <!DOCTYPE html>  
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
     <title>استعلام گواهی آموزشی</title>
     
@@ -11,6 +11,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <!-- افزودن اسکریپت Google reCAPTCHA -->
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     
     <style>
         :root {
@@ -273,6 +276,12 @@
         }
         .result-button.project { background-color: var(--success-color); }
         .result-button.certificate { background-color: var(--warning-color); color: var(--text-dark); }
+        
+        /* استایل بج reCAPTCHA برای قرارگیری بهتر در صفحه */
+        .grecaptcha-badge { 
+            visibility: visible !important; /* گوگل نمایش این بج را الزامی می‌داند */
+            right: 15px !important; 
+        }
     </style>
 </head>
 <body>
@@ -285,7 +294,7 @@
                  <input type="text" id="searchInput" placeholder="کد ملی خود را وارد کنید" inputmode="numeric" maxlength="10" />
                  <i class="fas fa-id-card"></i>
             </div>
-            <button id="searchButton">
+            <button id="searchButton" class="g-recaptcha" data-sitekey="6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq" data-callback="onSearch" data-size="invisible">
                 <span class="btn-text-content">
                     <i class="fas fa-search"></i>
                     <span class="btn-text">استعلام</span>
@@ -297,13 +306,15 @@
 
         <div id="resultsContainer"></div>
     </div>
+    
+    <div id="g-recaptcha-container"></div>
 
     <script>
         // ==========================================================
-        // هسته اصلی جاوا اسکریپت - بدون هیچ تغییری در منطق
+        //  جاوا اسکریپت سمت کاربر - با منطق امنیتی جدید
         // ==========================================================
 
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzYtmmnFfuuJwH7rT8Oj1rw6AHR8A6aGPVzzYrEwES4q-DrrCHMZmBaMs78KmrO5E22Uw/exec';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxPqmsSM8Thob9k7tJap0F9UokZkMRAVEdwIa9cbdUIEg4pkPqmmxGQD8-gwZGw0mHJ2Q/exec';
         
         const input = document.getElementById('searchInput');
         const btn = document.getElementById('searchButton');
@@ -311,17 +322,12 @@
         const resultsContainer = document.getElementById('resultsContainer');
         const btnTextContent = btn.querySelector('.btn-text-content');
         
+        // منطق کش تغییری نکرده است
         const CACHE_KEY = 'certificateInquiryDataCache';
         const CACHE_EXPIRATION = 6 * 60 * 60 * 1000;
 
         const toggleLoading = (isLoading) => {
-            if (isLoading) {
-                btn.classList.add('loading');
-                btnTextContent.style.opacity = '0';
-            } else {
-                btn.classList.remove('loading');
-                btnTextContent.style.opacity = '1';
-            }
+            btn.classList.toggle('loading', isLoading);
             btn.disabled = isLoading;
         };
 
@@ -334,73 +340,90 @@
             const cachePayload = { timestamp: new Date().getTime(), data: data };
             localStorage.setItem(CACHE_KEY, JSON.stringify(cachePayload));
         }
-        function getCache() {
+
+        function getCache(nationalId) {
             const cachedData = localStorage.getItem(CACHE_KEY);
             if (!cachedData) return null;
             const cache = JSON.parse(cachedData);
             const isExpired = (new Date().getTime() - cache.timestamp) > CACHE_EXPIRATION;
-            if (isExpired) {
+            if (isExpired || cache.data.nationalId !== nationalId) {
                 localStorage.removeItem(CACHE_KEY);
                 return null;
             }
-            return cache.data;
+            return cache.data.result;
         }
+        
+        // تابع اصلی که پس از تأیید موفق reCAPTCHA فراخوانی می‌شود
+        async function onSearch() {
+            const nationalIdInput = input.value.trim();
+            toggleLoading(true);
 
-        async function fetchCertificateInfoData(nationalId) {
-            const cachedData = getCache();
-            if (cachedData && cachedData.nationalId === nationalId) {
+            // بررسی کش قبل از ارسال درخواست به سرور
+            const cachedResult = getCache(nationalIdInput);
+            if (cachedResult) {
                 console.log('Data retrieved from cache for Certificate Inquiry.');
-                return cachedData.result;
+                displayResults(cachedResult);
+                toggleLoading(false);
+                grecaptcha.reset();
+                return;
+            }
+            
+            // دریافت توکن reCAPTCHA
+            const recaptchaToken = grecaptcha.getResponse();
+            if (!recaptchaToken) {
+                showError("خطای امنیتی. لطفاً دوباره تلاش کنید.");
+                toggleLoading(false);
+                return;
             }
 
-            const url = `${SCRIPT_URL}?action=getCertificateInfo&id=${nationalId}`;
             try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`Network response was not ok: ${response.status} ${response.statusText}`);
-                }
-                const result = await response.json();
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    // Apps Script با این هدر بهتر کار می‌کند
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        nationalId: nationalIdInput,
+                        recaptchaToken: recaptchaToken
+                    })
+                });
 
+                const result = await response.json();
+                
                 if (result.error) {
-                    console.error('API Error:', result.message);
-                    showError(result.message);
-                    return null;
+                    throw new Error(result.message);
                 }
 
                 if (result.found) {
-                    setCache({ nationalId: nationalId, result: result });
-                    return result;
+                    setCache({ nationalId: nationalIdInput, result: result });
+                    displayResults(result);
                 } else {
-                    return null;
+                    showError(result.message || 'اطلاعاتی با این کد ملی یافت نشد.');
                 }
+
             } catch (err) {
                 console.error('Fetch Error:', err);
-                showError('خطا در بارگذاری اطلاعات. اتصال اینترنت را بررسی کنید.');
-                return null;
+                showError(err.message || 'خطا در ارتباط با سرور. لطفا اتصال اینترنت خود را بررسی کنید.');
+            } finally {
+                toggleLoading(false);
+                // ریست کردن reCAPTCHA برای درخواست بعدی
+                grecaptcha.reset();
             }
         }
-
-        btn.addEventListener('click', async () => {
+        
+        // رویداد کلیک دکمه
+        btn.addEventListener('click', () => {
             resultsContainer.innerHTML = '';
             errorMsg.style.display = 'none';
             let nationalIdInput = input.value.trim();
 
+            // اعتبارسنجی اولیه در سمت کاربر برای تجربه کاربری بهتر
             if (!/^\d{10}$/.test(nationalIdInput)) {
                 showError('کد ملی باید 10 رقم و فقط شامل عدد باشد.');
                 return;
             }
-
-            toggleLoading(true);
-            const apiResult = await fetchCertificateInfoData(nationalIdInput);
-            toggleLoading(false);
-
-            if (!apiResult || !apiResult.found) {
-                if (errorMsg.style.display !== 'block') {
-                    showError('اطلاعاتی با این کد ملی یافت نشد. لطفا مجددا تلاش کنید.');
-                }
-                return;
-            }
-            displayResults(apiResult);
+            
+            // اجرای reCAPTCHA
+            grecaptcha.execute();
         });
         
         input.addEventListener('keypress', (event) => {
@@ -410,6 +433,7 @@
             }
         });
 
+        // تابع نمایش نتایج (بدون تغییر در منطق)
         function displayResults(data) {
             const fallbackText = 'ثبت نشده';
             const name = data.name || fallbackText;
@@ -438,24 +462,16 @@
                     <div class="card-body">
                         <ul class="info-list">
                             <li class="info-item">
-                                <i class="fas fa-id-card"></i>
-                                <span class="info-label">کد ملی:</span>
-                                <span class="info-value">${nationalId}</span>
+                                <i class="fas fa-id-card"></i><span class="info-label">کد ملی:</span><span class="info-value">${nationalId}</span>
                             </li>
                             <li class="info-item">
-                                <i class="fas fa-award"></i>
-                                <span class="info-label">شماره گواهی:</span>
-                                <span class="info-value">${certificateNumber}</span>
+                                <i class="fas fa-award"></i><span class="info-label">شماره گواهی:</span><span class="info-value">${certificateNumber}</span>
                             </li>
                             <li class="info-item">
-                                <i class="fas fa-book-open"></i>
-                                <span class="info-label">کد دوره:</span>
-                                <span class="info-value">${courseCode}</span>
+                                <i class="fas fa-book-open"></i><span class="info-label">کد دوره:</span><span class="info-value">${courseCode}</span>
                             </li>
                             <li class="info-item">
-                                <i class="fas fa-calendar-alt"></i>
-                                <span class="info-label">تاریخ صدور:</span>
-                                <span class="info-value">${issueDate}</span>
+                                <i class="fas fa-calendar-alt"></i><span class="info-label">تاریخ صدور:</span><span class="info-value">${issueDate}</span>
                             </li>
                         </ul>
                     </div>
