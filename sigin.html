@@ -1,4 +1,4 @@
-    <!DOCTYPE html>
+     <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -57,9 +57,9 @@
         #terms-modal ul{text-align:right;padding-right:1.5rem;margin-bottom:2rem;line-height:2.2}
         #terms-modal ul li{margin-bottom:.8rem;color:var(--light-text)}
         #terms-modal button{margin-top:1rem}
-        /* استایل برای reCAPTCHA badge - مطابق با قوانین گوگل بهتر است مخفی نشود اما می‌توان آن را نامرئی کرد */
-        .grecaptcha-badge { visibility: hidden; }
     </style>
+    <!-- STEP 1: ADD reCAPTCHA SCRIPT -->
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
     <div class="container">
@@ -79,10 +79,10 @@
                 <div id="course-start-date-info" class="info-banner info-banner-date"></div>
                 <div id="capacity-info" class="info-banner info-banner-capacity"></div>
             </div>
-            <form id="registration-form" onsubmit="event.preventDefault(); handleFormSubmit();">
+            <form id="registration-form">
                 <!-- توکن امنیتی که از سرور دریافت می‌شود -->
                 <input type="hidden" id="securityToken">
-                <!-- فیلد Honeypot برای مقابله با ربات‌ها -->
+                <!-- فیلد تله برای جلوگیری از ربات‌ها -->
                 <div class="form-group honeypot-field">
                     <label for="email_confirm">لطفا این فیلد را خالی بگذارید</label>
                     <input type="text" id="email_confirm" name="email_confirm">
@@ -116,13 +116,20 @@
                         <option value="حفظ کل قرآن">دارای مدرک حفظ کل قرآن کریم</option>
                     </select>
                 </div>
-                <!-- کپچای ریاضی حذف شد -->
-                 <div class="form-group">
+                <div class="form-group">
                     <div class="checkbox-group">
                         <input type="checkbox" id="terms" required>
                         <label for="terms">صحت تمام اطلاعات فوق را تائید می‌کنم و در صورت نیاز مدارک لازم را ارائه خواهم داد.</label>
                     </div>
                 </div>
+
+                <!-- STEP 2: ADD INVISIBLE reCAPTCHA ELEMENT -->
+                <div class="g-recaptcha" 
+                     data-sitekey="6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq" 
+                     data-size="invisible" 
+                     data-callback="submitRegistration">
+                </div>
+                
                 <div id="form-error" class="form-error-message"></div>
                 <button type="submit" id="submit-btn" class="btn">
                     <span class="btn-text">ارسال و ثبت نام نهایی</span>
@@ -160,15 +167,10 @@
             <button id="accept-terms-btn" class="btn">شرایط را خوانده و می‌پذیرم</button>
         </div>
     </div>
-    
-    <!-- کتابخانه reCAPTCHA گوگل -->
-    <script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaLoad&render=explicit" async defer></script>
 
 <script>
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxeTYa6WQbEa3xlSdSPEZuCv5pHMQQYinxYem_3rbdPhsvVFqRH3Lx4n35-xc6frHlVZA/exec";
-const RECAPTCHA_SITE_KEY = '6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq';
 
-// --- انتخاب‌گرهای عناصر (بدون تغییر) ---
 const views = {loader: document.getElementById('loader-view'),status: document.getElementById('status-view'),form: document.getElementById('form-view'),success: document.getElementById('success-view')};
 const statusIcon = document.getElementById('status-icon');
 const statusTitle = document.getElementById('status-title');
@@ -182,9 +184,7 @@ const formError = document.getElementById('form-error');
 const termsModal = document.getElementById('terms-modal');
 const acceptTermsBtn = document.getElementById('accept-terms-btn');
 let countdownInterval;
-let recaptchaWidgetId;
 
-// --- توابع اصلی برنامه (منطق بدون تغییر) ---
 function switchView(viewName) {
     Object.values(views).forEach(v => v.classList.remove('active'));
     if (views[viewName]) views[viewName].classList.add('active');
@@ -212,7 +212,7 @@ function startCountdown(targetDateStr, label) {
         timerElements.days.textContent = String(Math.floor(distance / (1000 * 60 * 60 * 24))).padStart(2, '0');
         timerElements.hours.textContent = String(Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))).padStart(2, '0');
         timerElements.minutes.textContent = String(Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60))).padStart(2, '0');
-        timerElements.seconds.textContent = String(Math.floor((distance % 1000) / 1000)).padStart(2, '0');
+        timerElements.seconds.textContent = String(Math.floor((distance % (1000 * 60)) / 1000)).padStart(2, '0');
     };
     updateTimer();
     countdownInterval = setInterval(updateTimer, 1000);
@@ -232,8 +232,6 @@ function populateDateFields() {
     for (let d = 1; d <= 31; d++) daySelect.add(new Option(d, d));
 }
 
-// --- توابع ارتباط با سرور (با ساختار امنیتی جدید) ---
-
 async function getInitialStatus() {
     switchView('loader');
     try {
@@ -246,7 +244,6 @@ async function getInitialStatus() {
                 document.getElementById('form-title').innerHTML = `فرم ثبت‌نام ${data.courseName}`;
                 document.getElementById('course-start-date-info').innerHTML = `تاریخ شروع دوره: <strong>${data.courseStartDateFa}</strong>`;
                 document.getElementById('capacity-info').innerHTML = `ظرفیت باقی‌مانده: <strong>${data.remainingCapacity} نفر</strong>`;
-                // توکن امنیتی دریافت شده از سرور را در فیلد مخفی قرار می‌دهیم
                 document.getElementById('securityToken').value = data.securityToken;
                 moveCountdownTimer('form-countdown-container');
                 startCountdown(data.targetDate, 'زمان باقی‌مانده تا پایان مهلت ثبت‌نام');
@@ -277,29 +274,42 @@ async function getInitialStatus() {
     }
 }
 
-// تابع جدید برای مدیریت ارسال فرم که ابتدا reCAPTCHA را اجرا می‌کند
-function handleFormSubmit() {
+document.addEventListener('DOMContentLoaded', () => {
+    populateDateFields();
+    getInitialStatus();
+});
+
+acceptTermsBtn.addEventListener('click', () => {
+    termsModal.style.display = 'none';
+    switchView('form');
+});
+
+// STEP 3: MODIFY FORM SUBMISSION FLOW
+registrationForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
     formError.style.display = 'none';
+
     if (!document.getElementById('terms').checked) {
         formError.textContent = 'لطفاً تیک تأیید صحت اطلاعات و قوانین را بزنید.';
         formError.style.display = 'block';
         return;
     }
+    
+    // Disable button and show loader BEFORE calling reCAPTCHA
     submitBtn.disabled = true;
     submitBtn.querySelector('.btn-text').style.display = 'none';
     submitBtn.querySelector('.btn-loader').style.display = 'block';
+    
+    // Execute reCAPTCHA. On success, it will call the `submitRegistration` function.
+    grecaptcha.execute();
+});
 
-    // اجرای چالش reCAPTCHA. در صورت موفقیت، تابع 'onRecaptchaSuccess' فراخوانی می‌شود
-    grecaptcha.execute(recaptchaWidgetId);
-}
-
-// تابع callback برای reCAPTCHA که پس از تأیید هویت انسان اجرا می‌شود
-async function onRecaptchaSuccess(recaptchaToken) {
+// This function is the new entry point for submission, called by reCAPTCHA
+async function submitRegistration(recaptchaToken) {
     const year = document.getElementById('dob-year').value;
     const month = String(document.getElementById('dob-month').value).padStart(2, '0');
     const day = String(document.getElementById('dob-day').value).padStart(2, '0');
 
-    // تمام داده‌های فرم به همراه توکن reCAPTCHA و توکن امنیتی جمع‌آوری می‌شوند
     const dataObject = {
         fullName: document.getElementById('fullName').value,
         nationalId: document.getElementById('nationalId').value,
@@ -307,8 +317,8 @@ async function onRecaptchaSuccess(recaptchaToken) {
         phone: document.getElementById('phone').value,
         education: document.getElementById('education').value,
         securityToken: document.getElementById('securityToken').value,
-        recaptchaToken: recaptchaToken, // توکن reCAPTCHA به داده‌ها اضافه شد
-        honeypot: document.getElementById('email_confirm').value
+        honeypot: document.getElementById('email_confirm').value,
+        'g-recaptcha-response': recaptchaToken // Add the reCAPTCHA token
     };
 
     try {
@@ -334,38 +344,14 @@ async function onRecaptchaSuccess(recaptchaToken) {
         formError.textContent = 'مشکلی در ارسال اطلاعات به وجود آمد. لطفاً اتصال اینترنت خود را بررسی کرده و دوباره تلاش کنید.';
         formError.style.display = 'block';
     } finally {
+        // Always re-enable button and hide loader, regardless of outcome
         submitBtn.disabled = false;
         submitBtn.querySelector('.btn-text').style.display = 'inline';
         submitBtn.querySelector('.btn-loader').style.display = 'none';
-        // ریست کردن reCAPTCHA برای تلاش بعدی
-        grecaptcha.reset(recaptchaWidgetId);
+        // Reset reCAPTCHA for the next submission attempt
+        grecaptcha.reset();
     }
 }
-
-// --- راه‌اندازی اولیه ---
-
-// این تابع زمانی که کتابخانه reCAPTCHA گوگل بارگذاری شد، فراخوانی می‌شود
-window.onRecaptchaLoad = function() {
-  recaptchaWidgetId = grecaptcha.render(submitBtn, {
-    'sitekey' : RECAPTCHA_SITE_KEY,
-    'callback' : onRecaptchaSuccess,
-    'size': 'invisible'
-  });
-};
-
-document.addEventListener('DOMContentLoaded', () => {
-    populateDateFields();
-    getInitialStatus();
-});
-
-acceptTermsBtn.addEventListener('click', () => {
-    termsModal.style.display = 'none';
-    switchView('form');
-});
-
-// رویداد onsubmit فرم به تابع handleFormSubmit متصل شد
-// registrationForm.addEventListener('submit', ...) // این بخش دیگر نیازی نیست چون در تگ form قرار داده شد
-
 </script>
 
 </body>
