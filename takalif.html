@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="fa">
 <head>
   <meta charset="UTF-8" />
@@ -21,15 +21,11 @@
     }
     body {
       font-family: var(--font-family); direction: rtl; text-align: right;
-      
-      /* ▼▼▼ ویرایش درخواست شده: تغییر پس‌زمینه ▼▼▼ */
       background-image: url('https://tashacol.ir/123.jpg');
-      background-size: cover; /* تصویر کل صفحه را بپوشاند */
-      background-position: center; /* تصویر در مرکز قرار گیرد */
-      background-repeat: no-repeat; /* از تکرار تصویر جلوگیری شود */
-      background-attachment: fixed; /* پس‌زمینه هنگام اسکرول ثابت بماند */
-      /* ▲▲▲ پایان ویرایش ▲▲▲ */
-
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
       margin: 0; padding: 20px; color: var(--dark-color);
       min-height: 100vh; display: flex; align-items: center; justify-content: center;
     }
@@ -83,14 +79,18 @@
     .loader { border: 5px solid #f3f3f3; border-top: 5px solid var(--primary-color); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 40px auto; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     .linear-loader {
-        height: 8px; width: 100%; max-width: 450px; margin: 0 auto 2.5rem auto;
+        height: 8px; width: 100%; max-width: 450px; margin: 0 auto 1rem auto; /* Adjusted margin */
         background-color: #e9ecef; border-radius: 4px; overflow: hidden;
     }
     .linear-loader-bar {
         height: 100%; width: 0; background-color: var(--primary-color);
-        animation: fill-bar 2.5s ease-out forwards;
+        transition: width 0.1s linear; /* Animation for smooth progress */
     }
-    @keyframes fill-bar { from { width: 0%; } to { width: 100%; } }
+    /* ▼▼▼ استایل جدید برای شمارشگر لودینگ ▼▼▼ */
+    .loader-counter {
+      text-align: center; font-size: 1rem; font-weight: 500;
+      color: var(--dark-color); margin-bottom: 2.5rem;
+    }
     .overlay { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(4px); animation: fadeIn 0.3s ease; }
     .overlay.active { display: flex; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -114,7 +114,6 @@
     .popup-footer .cancel-btn { background-color: #e9ecef; color: var(--dark-color); border: 1px solid #dee2e6; }
     #reasonModalContent strong { color: var(--danger-color); }
     #reasonModalContent ul { padding-right: 20px; }
-    /* استایل برای badge کپچا که در گوشه صفحه نمایش داده می‌شود */
     .grecaptcha-badge { visibility: hidden; }
   </style>
 </head>
@@ -131,9 +130,11 @@
       </div>
     </div>
 
+    <!-- ▼▼▼ لودر خطی و شمارشگر جدید ▼▼▼ -->
     <div id="linearLoader" class="linear-loader" style="display: none;">
       <div class="linear-loader-bar"></div>
     </div>
+    <p id="loaderCounter" class="loader-counter" style="display: none;"></p>
 
     <div id="loader" class="loader" style="display: none;"></div>
     <div id="userInfo" style="display: none;"><h3 id="userName" class="user-welcome"></h3></div>
@@ -186,7 +187,6 @@
     </div>
   </div>
   
-  <!-- ▼▼▼ المان کپچا با کلید سایت شما ▼▼▼ -->
   <div class="g-recaptcha"
        data-sitekey="6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq"
        data-size="invisible"
@@ -212,10 +212,12 @@
     const nationalCodeSection = document.getElementById('nationalCodeSection');
     const linearLoader = document.getElementById('linearLoader');
     const approvedSubmissionModalOverlay = document.getElementById('approvedSubmissionModalOverlay');
+    const loaderCounter = document.getElementById('loaderCounter');
     
     // ▼▼▼ متغیرهای اصلی برای مدیریت وضعیت ▼▼▼
     let userData = {};
-    let sessionToken = null; // توکن امنیتی که از سرور دریافت می‌شود
+    let sessionToken = null;
+    let loaderInterval = null; // متغیر برای کنترل شمارشگر
 
     // بررسی وجود کد ملی در URL هنگام بارگذاری صفحه
     document.addEventListener('DOMContentLoaded', () => {
@@ -224,11 +226,45 @@
         
         if (nationalCodeFromId && /^\d{10}$/.test(nationalCodeFromId)) {
             nationalCodeSection.style.display = 'none';
-            linearLoader.style.display = 'block';
             nationalCodeInput.value = nationalCodeFromId;
+            startLoadingAnimation(); // شروع انیمیشن لودر و شمارشگر
             grecaptcha.ready(() => { grecaptcha.execute(); });
         }
     });
+
+    // ▼▼▼ تابع جدید برای شروع انیمیشن لودر و شمارشگر ▼▼▼
+    function startLoadingAnimation() {
+        linearLoader.style.display = 'block';
+        loaderCounter.style.display = 'block';
+        const loaderBar = document.querySelector('.linear-loader-bar');
+        let progress = 0;
+        
+        if(loaderInterval) clearInterval(loaderInterval);
+
+        loaderInterval = setInterval(() => {
+            progress += Math.floor(Math.random() * 3) + 1;
+            if (progress >= 99) {
+                progress = 99;
+                clearInterval(loaderInterval);
+            }
+            loaderBar.style.width = progress + '%';
+            loaderCounter.textContent = `در حال اعتبارسنجی... ${progress}%`;
+        }, 100);
+    }
+
+    // ▼▼▼ تابع جدید برای تکمیل و پنهان کردن لودر ▼▼▼
+    function completeLoadingAnimation(isSuccess) {
+        if(loaderInterval) clearInterval(loaderInterval);
+        const loaderBar = document.querySelector('.linear-loader-bar');
+        loaderBar.style.width = '100%';
+        loaderCounter.textContent = isSuccess ? 'اطلاعات با موفقیت دریافت شد! 100%' : 'عملیات ناموفق بود! 100%';
+        
+        setTimeout(() => {
+            linearLoader.style.display = 'none';
+            loaderCounter.style.display = 'none';
+            loader.style.display = 'none'; // مخفی کردن لودر دایره‌ای در هر صورت
+        }, 800);
+    }
 
     answerTextarea.addEventListener('input', () => {
       const text = answerTextarea.value.trim();
@@ -236,8 +272,7 @@
       wordCountDisplay.textContent = `تعداد کلمات: ${words.length}`;
       wordCountDisplay.classList.toggle('invalid', words.length < 200 || words.length > 1500);
     });
-
-    // توابع نمایش و بستن پاپ‌آپ‌ها (بدون تغییر)
+    
     function showSubmissionModal(term) {
       document.getElementById('termNumber').value = term;
       document.getElementById('submissionModalHeader').innerHTML = `<i class="fas fa-upload"></i> ارسال تکلیف ترم ${term}`;
@@ -266,7 +301,6 @@
     }
     function closeApprovedSubmissionModal() { approvedSubmissionModalOverlay.classList.remove('active'); }
 
-    // ▼▼▼ مرحله ۱: شروع فرآیند ورود با کلیک کاربر ▼▼▼
     function handleLoginClick() {
         const nationalCode = nationalCodeInput.value.trim();
         if (!/^\d{10}$/.test(nationalCode)) {
@@ -275,14 +309,9 @@
         loader.style.display = 'block';
         termsGrid.style.display = 'none';
         userInfo.style.display = 'none';
-        
-        // اجرای کپچا
-        grecaptcha.ready(() => {
-            grecaptcha.execute();
-        });
+        grecaptcha.ready(() => { grecaptcha.execute(); });
     }
 
-    // ▼▼▼ مرحله ۲: این تابع به صورت خودکار توسط کپچا پس از تایید فراخوانی می‌شود ▼▼▼
     async function onRecaptchaSuccess(recaptchaToken) {
       const nationalCode = nationalCodeInput.value.trim();
       
@@ -290,7 +319,6 @@
         const response = await fetch(WEB_APP_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          // ارسال اکشن 'login' به همراه کد ملی و توکن کپچا
           body: JSON.stringify({ action: 'login', nationalCode, recaptchaToken })
         });
         
@@ -299,26 +327,25 @@
         const data = await response.json();
         
         if (data.success && data.sessionToken) {
-          sessionToken = data.sessionToken; // ذخیره توکن امن
-          displayData(data);
+          sessionToken = data.sessionToken;
+          completeLoadingAnimation(true);
+          setTimeout(() => displayData(data), 800); // نمایش اطلاعات پس از اتمام انیمیشن
         } else {
-          // اگر خطایی از سرور بیاید (مثل کد ملی اشتباه)
-          handleError({ message: data.error || "خطای نامشخص از سرور." });
+          completeLoadingAnimation(false);
+          setTimeout(() => handleError({ message: data.error || "خطای نامشخص از سرور." }), 800);
         }
       } catch (error) { 
-        handleError(error); 
+        completeLoadingAnimation(false);
+        setTimeout(() => handleError(error), 800);
       } finally {
-        // ریست کردن کپچا برای تلاش بعدی
         grecaptcha.reset();
       }
     }
 
-    // ▼▼▼ مرحله ۳: نمایش اطلاعات دریافت شده از سرور ▼▼▼
     function displayData(data) {
       loader.style.display = 'none';
-      linearLoader.style.display = 'none';
-
-      if (data.error && !data.success) { // نمایش خطا فقط اگر عملیات ناموفق بود
+      
+      if (data.error && !data.success) {
         nationalCodeSection.style.display = 'flex';
         userInfo.style.display = 'none';
         termsGrid.style.display = 'none';
@@ -387,14 +414,9 @@
       termsGrid.style.display = 'grid';
     }
     
-    // ▼▼▼ ارسال فرم تکلیف با استفاده از توکن امن ▼▼▼
     submissionForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-
-      if (!sessionToken) {
-          return showMessageModal("خطا", "نشست شما معتبر نیست. لطفاً صفحه را رفرش کنید.");
-      }
-
+      if (!sessionToken) { return showMessageModal("خطا", "نشست شما معتبر نیست. لطفاً صفحه را رفرش کنید."); }
       const term = document.getElementById('termNumber').value;
       const answer = answerTextarea.value.trim();
       const words = answer.split(/\s+/).filter(word => word.length > 0);
@@ -405,12 +427,7 @@
       submitBtn.disabled = true;
       submitBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> در حال ارسال...`;
 
-      // فقط توکن و اطلاعات فرم ارسال می‌شود. کد ملی یا نام کاربر دیگر ارسال نمی‌شود.
-      const payload = {
-          action: 'submitAssignment',
-          sessionToken: sessionToken,
-          formData: { term, answer }
-      };
+      const payload = { action: 'submitAssignment', sessionToken: sessionToken, formData: { term, answer } };
 
       try {
         const response = await fetch(WEB_APP_URL, {
@@ -425,14 +442,11 @@
         closeSubmissionModal();
         showMessageModal(result.success ? "موفقیت" : "توجه", result.message || "پاسخ نامشخص از سرور.");
 
-        // سرور پس از ارسال موفق، آخرین اطلاعات را برمی‌گرداند
         if (result.updatedData && result.updatedData.success) {
             displayData(result.updatedData);
         } else if (result.message.includes("نشست")) {
-            // اگر توکن منقضی شده باشد، کاربر را به صفحه ورود برمی‌گردانیم
             window.location.reload();
         }
-
       } catch (error) {
         handleError(error);
       } finally {
@@ -442,9 +456,7 @@
     });
 
     function handleError(error) {
-      linearLoader.style.display = 'none';
-      loader.style.display = 'none';
-      // نمایش مجدد بخش ورود در صورت بروز خطا
+      loader.style.display = 'none'; // مخفی کردن لودر دایره‌ای
       nationalCodeSection.style.display = 'flex';
       userInfo.style.display = 'none';
       termsGrid.style.display = 'none';
