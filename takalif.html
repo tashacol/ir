@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa">
 <head>
   <meta charset="UTF-8" />
@@ -79,14 +79,13 @@
     .loader { border: 5px solid #f3f3f3; border-top: 5px solid var(--primary-color); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 40px auto; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     .linear-loader {
-        height: 8px; width: 100%; max-width: 450px; margin: 0 auto 1rem auto; /* Adjusted margin */
+        height: 8px; width: 100%; max-width: 450px; margin: 0 auto 1rem auto;
         background-color: #e9ecef; border-radius: 4px; overflow: hidden;
     }
     .linear-loader-bar {
         height: 100%; width: 0; background-color: var(--primary-color);
-        transition: width 0.1s linear; /* Animation for smooth progress */
+        transition: width 0.1s linear;
     }
-    /* ▼▼▼ استایل جدید برای شمارشگر لودینگ ▼▼▼ */
     .loader-counter {
       text-align: center; font-size: 1rem; font-weight: 500;
       color: var(--dark-color); margin-bottom: 2.5rem;
@@ -130,7 +129,6 @@
       </div>
     </div>
 
-    <!-- ▼▼▼ لودر خطی و شمارشگر جدید ▼▼▼ -->
     <div id="linearLoader" class="linear-loader" style="display: none;">
       <div class="linear-loader-bar"></div>
     </div>
@@ -214,25 +212,27 @@
     const approvedSubmissionModalOverlay = document.getElementById('approvedSubmissionModalOverlay');
     const loaderCounter = document.getElementById('loaderCounter');
     
-    // ▼▼▼ متغیرهای اصلی برای مدیریت وضعیت ▼▼▼
     let userData = {};
     let sessionToken = null;
-    let loaderInterval = null; // متغیر برای کنترل شمارشگر
+    let loaderInterval = null;
 
-    // بررسی وجود کد ملی در URL هنگام بارگذاری صفحه
+    // ▼▼▼ ویرایش اصلی: بررسی URL و کلیک خودکار دکمه ▼▼▼
     document.addEventListener('DOMContentLoaded', () => {
         const params = new URLSearchParams(window.location.search);
         const nationalCodeFromId = params.get('id');
         
         if (nationalCodeFromId && /^\d{10}$/.test(nationalCodeFromId)) {
-            nationalCodeSection.style.display = 'none';
+            // ۱. کد ملی در فیلد قرار داده می‌شود
             nationalCodeInput.value = nationalCodeFromId;
-            startLoadingAnimation(); // شروع انیمیشن لودر و شمارشگر
-            grecaptcha.ready(() => { grecaptcha.execute(); });
+            
+            // ۲. بخش ورود مخفی می‌شود تا کاربر فیلد را نبیند
+            nationalCodeSection.style.display = 'none';
+            
+            // ۳. دکمه بررسی به صورت برنامه‌نویسی کلیک می‌شود تا فرآیند آغاز شود
+            document.getElementById('checkBtn').click();
         }
     });
 
-    // ▼▼▼ تابع جدید برای شروع انیمیشن لودر و شمارشگر ▼▼▼
     function startLoadingAnimation() {
         linearLoader.style.display = 'block';
         loaderCounter.style.display = 'block';
@@ -252,7 +252,6 @@
         }, 100);
     }
 
-    // ▼▼▼ تابع جدید برای تکمیل و پنهان کردن لودر ▼▼▼
     function completeLoadingAnimation(isSuccess) {
         if(loaderInterval) clearInterval(loaderInterval);
         const loaderBar = document.querySelector('.linear-loader-bar');
@@ -262,7 +261,6 @@
         setTimeout(() => {
             linearLoader.style.display = 'none';
             loaderCounter.style.display = 'none';
-            loader.style.display = 'none'; // مخفی کردن لودر دایره‌ای در هر صورت
         }, 800);
     }
 
@@ -301,15 +299,32 @@
     }
     function closeApprovedSubmissionModal() { approvedSubmissionModalOverlay.classList.remove('active'); }
 
+    // ▼▼▼ ویرایش تابع ورود برای مدیریت هر دو حالت (دستی و خودکار) ▼▼▼
     function handleLoginClick() {
         const nationalCode = nationalCodeInput.value.trim();
         if (!/^\d{10}$/.test(nationalCode)) {
+            // اگر به خاطر لینک داینامیک فیلد مخفی بود، در صورت خطا آن را نمایش بده
+            if (nationalCodeSection.style.display === 'none') {
+                nationalCodeSection.style.display = 'flex';
+            }
             return showMessageModal("خطا", "کد ملی وارد شده معتبر نیست.");
         }
-        loader.style.display = 'block';
+        
+        // تشخیص اینکه آیا ورود خودکار است یا دستی
+        const isAutoLogin = nationalCodeSection.style.display === 'none';
+        
+        if (isAutoLogin) {
+            startLoadingAnimation(); // برای ورود خودکار، لودر خطی با شمارشگر
+        } else {
+            loader.style.display = 'block'; // برای ورود دستی، لودر دایره‌ای ساده
+        }
+        
         termsGrid.style.display = 'none';
         userInfo.style.display = 'none';
-        grecaptcha.ready(() => { grecaptcha.execute(); });
+        
+        grecaptcha.ready(() => {
+            grecaptcha.execute();
+        });
     }
 
     async function onRecaptchaSuccess(recaptchaToken) {
@@ -326,16 +341,18 @@
         
         const data = await response.json();
         
+        const isAutoLogin = !!loaderCounter.textContent; // بررسی اینکه آیا لودر خطی فعال بوده
+        
         if (data.success && data.sessionToken) {
           sessionToken = data.sessionToken;
-          completeLoadingAnimation(true);
-          setTimeout(() => displayData(data), 800); // نمایش اطلاعات پس از اتمام انیمیشن
+          if (isAutoLogin) completeLoadingAnimation(true);
+          setTimeout(() => displayData(data), 800);
         } else {
-          completeLoadingAnimation(false);
+          if (isAutoLogin) completeLoadingAnimation(false);
           setTimeout(() => handleError({ message: data.error || "خطای نامشخص از سرور." }), 800);
         }
       } catch (error) { 
-        completeLoadingAnimation(false);
+        if (loaderCounter.textContent) completeLoadingAnimation(false);
         setTimeout(() => handleError(error), 800);
       } finally {
         grecaptcha.reset();
@@ -344,14 +361,6 @@
 
     function displayData(data) {
       loader.style.display = 'none';
-      
-      if (data.error && !data.success) {
-        nationalCodeSection.style.display = 'flex';
-        userInfo.style.display = 'none';
-        termsGrid.style.display = 'none';
-        return showMessageModal("وضعیت دوره", data.error);
-      }
-      
       nationalCodeSection.style.display = 'none';
 
       userData = data;
@@ -366,8 +375,7 @@
         const details = data.termDetails[term];
         const prevTermApproved = (term === 1 || lastApprovedTerm >= term - 1);
         
-        let statusIcon, statusText, statusClass, buttonsHTML;
-        let dueDateHTML = '';
+        let statusIcon, statusText, statusClass, buttonsHTML, dueDateHTML = '';
 
         if (details.isUnlocked) {
             dueDateHTML = `<div class="term-due-date">آخرین مهلت: ${details.dueDate}</div>`;
@@ -456,7 +464,7 @@
     });
 
     function handleError(error) {
-      loader.style.display = 'none'; // مخفی کردن لودر دایره‌ای
+      loader.style.display = 'none';
       nationalCodeSection.style.display = 'flex';
       userInfo.style.display = 'none';
       termsGrid.style.display = 'none';
