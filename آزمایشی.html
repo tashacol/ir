@@ -153,12 +153,10 @@
         .modal-close { position: absolute; top: 10px; left: 15px; font-size: 2rem; color: #aaa; cursor: pointer; line-height: 1; }
         .modal-close:hover { color: #333; }
         
-        /* -- START: Date Picker Modal Styles -- */
         .date-picker-modal-content { background: #fff; padding: 25px; border-radius: 15px; width: 90%; max-width: 350px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
         .date-picker-modal-content h3 { margin-bottom: 20px; color: var(--text-dark); font-size: 1.3rem; }
         .date-picker-fields { display: flex; gap: 10px; margin-bottom: 20px; }
         .date-picker-fields select { flex-grow: 1; }
-        /* -- END: Date Picker Modal Styles -- */
 
         @media (max-width: 600px) { body { padding: 0; align-items: flex-start; } .container { width: 100%; min-height: 100vh; padding: 25px 20px; margin-top: 0; border-radius: 0; border: none; box-shadow: none; } h2 { font-size: 1.6rem; } }
     </style>
@@ -176,21 +174,16 @@
             <input type="text" id="nationalID" class="form-input" placeholder=" " pattern="\d*" required>
             <label for="nationalID" class="form-label">کد ملی</label>
         </div>
-        <!-- START: Modified startYear input -->
         <div class="input-group">
             <input type="text" id="startYear" class="form-input" placeholder=" " required readonly style="cursor: pointer;">
             <label for="startYear" class="form-label">تاریخ شروع فعالیت</label>
         </div>
-        <!-- END: Modified startYear input -->
-        <!-- START: Modified duration select -->
         <div class="input-group">
             <select id="duration" class="form-select" required>
                 <option value="" disabled selected></option>
-                <!-- Options will be populated by JavaScript -->
             </select>
             <label for="duration" class="form-label">مدت فعالیت (به سال)</label>
         </div>
-        <!-- END: Modified duration select -->
         <div class="input-group">
             <input type="text" id="department" class="form-input" placeholder=" " required>
             <label for="department" class="form-label">نام اداره</label>
@@ -200,14 +193,12 @@
             <label for="verificationCode" class="form-label">رمز عبور</label>
         </div>
 
-        <!-- شروع ویرایش امنیتی: افزودن ویجت reCAPTCHA و تغییر دکمه -->
         <button type="submit" id="generateBtn" class="action-btn g-recaptcha" 
                 data-sitekey="6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq" 
                 data-callback="onRecaptchaSuccess">
             <span class="btn-text">تولید و ذخیره نامه</span>
             <span class="spinner">...</span>
         </button>
-        <!-- پایان ویرایش امنیتی -->
 
     </form>
     <div id="statusMessage"></div>
@@ -240,7 +231,6 @@
     </div>
 </div>
 
-<!-- START: Date Picker Modal HTML -->
 <div class="modal-overlay" id="datePickerModal">
     <div class="date-picker-modal-content">
         <h3>انتخاب تاریخ</h3>
@@ -252,11 +242,9 @@
         <button id="confirmDateBtn" class="action-btn">تایید</button>
     </div>
 </div>
-<!-- END: Date Picker Modal HTML -->
 
 
 <script>
-    // توجه: پس از هر بار انتشار (Deploy) مجدد اسکریپت، ممکن است لازم باشد این آدرس را به‌روزرسانی کنید.
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyv2m-uKUOIaxISeGwOXh9oKlgg9sLrQb6G07MrkRrB3lMbtdwzgUo7X6gLpQyVhiET/exec";
 
     let lastGeneratedPdfBlob = null;
@@ -268,14 +256,12 @@
     const successModal = document.getElementById("successModal");
     const modalCloseBtn = document.getElementById("modalCloseBtn");
 
-    // -- START: Date Picker Elements --
     const startYearInput = document.getElementById('startYear');
     const datePickerModal = document.getElementById('datePickerModal');
     const dateDaySelect = document.getElementById('dateDay');
     const dateMonthSelect = document.getElementById('dateMonth');
     const dateYearSelect = document.getElementById('dateYear');
     const confirmDateBtn = document.getElementById('confirmDateBtn');
-    // -- END: Date Picker Elements --
 
     const setButtonLoading = (btn, isLoading, text = "تولید و ذخیره نامه") => {
         btn.disabled = isLoading;
@@ -309,7 +295,6 @@
         return result;
     }
 
-    // -- START: New Functions for Date & Duration --
     function getCurrentJalaliDate() {
         const dateString = new Date().toLocaleDateString('fa-IR-u-nu-latn');
         const parts = dateString.split('/');
@@ -320,15 +305,37 @@
         };
     }
 
-    function populateDurationOptions() {
+    // -- START: Modified Duration Function --
+    // این تابع اکنون سال شروع را به عنوان ورودی دریافت می‌کند تا گزینه‌ها را بر اساس آن بسازد
+    function populateDurationOptions(startYear) {
         const durationSelect = document.getElementById('duration');
         const currentJalaliYear = getCurrentJalaliDate().year;
-        const maxYears = currentJalaliYear - 1398;
 
-        // Clear existing options except the first one
+        // ابتدا گزینه‌های قبلی را پاک می‌کنیم
         while (durationSelect.options.length > 1) {
             durationSelect.remove(1);
         }
+        // مقدار انتخاب شده را ریست می‌کنیم
+        durationSelect.value = "";
+        
+        // اگر سال شروع معتبر نباشد، تابع خارج می‌شود
+        if (!startYear) return; 
+
+        // محاسبه حداکثر سال‌های ممکن بر اساس تاریخ شروع انتخاب شده
+        let maxYears = currentJalaliYear - startYear;
+        
+        // اگر ماه یا روز در سال جاری گذشته باشد، یک سال اضافه می‌شود
+        // (این بخش برای دقت بیشتر است، اما منطق اصلی همان تفریق سال‌هاست)
+        const today = getCurrentJalaliDate();
+        const selectedMonth = parseInt(dateMonthSelect.value);
+        const selectedDay = parseInt(dateDaySelect.value);
+
+        if (today.month > selectedMonth || (today.month === selectedMonth && today.day >= selectedDay)) {
+             // اگر از سالگرد گذشته باشد، یک سال کامل حساب می‌شود
+        } else {
+             maxYears -=1; // هنوز سالگرد فعالیت نرسیده
+        }
+
 
         for (let i = 1; i <= maxYears; i++) {
             const option = document.createElement('option');
@@ -337,13 +344,13 @@
             durationSelect.appendChild(option);
         }
     }
+    // -- END: Modified Duration Function --
 
     function updateDateLimits() {
         const today = getCurrentJalaliDate();
         const selectedYear = parseInt(dateYearSelect.value);
         const selectedMonth = parseInt(dateMonthSelect.value);
 
-        // Limit months
         for (let option of dateMonthSelect.options) {
             const monthValue = parseInt(option.value);
             option.disabled = (selectedYear === today.year && monthValue > today.month);
@@ -352,8 +359,7 @@
             dateMonthSelect.value = today.month;
         }
 
-        // Limit days
-        const currentSelectedMonth = parseInt(dateMonthSelect.value); // Re-read in case it changed
+        const currentSelectedMonth = parseInt(dateMonthSelect.value);
         for (let option of dateDaySelect.options) {
             const dayValue = parseInt(option.value);
             option.disabled = (selectedYear === today.year && currentSelectedMonth === today.month && dayValue > today.day);
@@ -365,17 +371,14 @@
 
     function setupDatePicker() {
         const today = getCurrentJalaliDate();
-        const startYear = 1398;
+        const startYearRange = 1398;
         
-        // Populate years
-        for (let y = today.year; y >= startYear; y--) {
+        for (let y = today.year; y >= startYearRange; y--) {
             dateYearSelect.add(new Option(toPersianDigits(y), y));
         }
-        // Populate months
         for (let m = 1; m <= 12; m++) {
             dateMonthSelect.add(new Option(toPersianDigits(m), m));
         }
-        // Populate days
         for (let d = 1; d <= 31; d++) {
             dateDaySelect.add(new Option(toPersianDigits(d), d));
         }
@@ -384,7 +387,7 @@
         dateMonthSelect.addEventListener('change', updateDateLimits);
 
         startYearInput.addEventListener('click', () => {
-            updateDateLimits(); // Initial check when opening
+            updateDateLimits();
             datePickerModal.style.display = 'flex';
         });
 
@@ -394,16 +397,18 @@
             const year = dateYearSelect.value;
             
             startYearInput.value = `${year}/${month}/${day}`;
-            // This manually triggers the label animation by forcing a check
             startYearInput.dispatchEvent(new Event('input', { bubbles: true })); 
             
-            // To make the label move up correctly
             if (!startYearInput.placeholder) startYearInput.placeholder = ' ';
+            
+            // -- START: New Logic Call --
+            // بعد از تایید تاریخ، تابع به‌روزرسانی مدت فعالیت با سال انتخاب شده فراخوانی می‌شود
+            populateDurationOptions(parseInt(year, 10));
+            // -- END: New Logic Call --
             
             datePickerModal.style.display = 'none';
         });
         
-        // Close modal on overlay click
         datePickerModal.addEventListener('click', (e) => {
            if (e.target === datePickerModal) {
                datePickerModal.style.display = 'none';
@@ -411,12 +416,11 @@
         });
     }
 
-    // Call the new setup functions when the DOM is loaded
     document.addEventListener('DOMContentLoaded', () => {
-        populateDurationOptions();
+        // دیگر در ابتدای بارگذاری صفحه، لیست مدت فعالیت ساخته نمی‌شود
+        // بلکه منتظر انتخاب تاریخ توسط کاربر می‌ماند
         setupDatePicker();
     });
-    // -- END: New Functions for Date & Duration --
 
 
     function scalePreview() {
@@ -463,7 +467,6 @@
             </div>`;
     }
     
-    // --- شروع ویرایش امنیتی: تابع اصلی که پس از تایید reCAPTCHA فراخوانی می‌شود ---
     function onRecaptchaSuccess(token) {
         hideMessage();
         
@@ -491,7 +494,7 @@
             duration: toEnglishDigits(formData.duration),
             department: formData.department,
             verificationCode: toEnglishDigits(formData.verificationCode),
-            recaptchaToken: token // توکن کپچا به سرور ارسال می‌شود
+            recaptchaToken: token
         };
         
         fetch(SCRIPT_URL, {
@@ -538,27 +541,22 @@
             setButtonLoading(generateBtn, false, "تولید و ذخیره نامه");
         })
         .finally(() => {
-             // کپچا را ریست می‌کنیم تا در صورت خطا، کاربر بتواند دوباره تلاش کند
             grecaptcha.reset();
         });
     }
-    // --- پایان ویرایش امنیتی ---
     
-    // --- شروع ویرایش امنیتی: مدیریت رویداد submit فرم ---
     letterForm.addEventListener('submit', function (event) {
-        event.preventDefault(); // جلوگیری از ارسال عادی فرم
+        event.preventDefault();
         hideMessage();
 
-        // بررسی اینکه آیا فیلدها پر شده‌اند یا نه
         if (!letterForm.checkValidity()) {
             showMessage('لطفاً تمام فیلدها را به درستی تکمیل کنید.', 'error');
             return;
         }
         
         setButtonLoading(generateBtn, true, "در حال اعتبارسنجی...");
-        grecaptcha.execute(); // اجرای کپچا. در صورت موفقیت، تابع onRecaptchaSuccess فراخوانی می‌شود
+        grecaptcha.execute();
     });
-    // --- پایان ویرایش امنیتی ---
 
     function downloadPdf() {
         setButtonLoading(downloadBtn, true, "در حال ساخت PDF...");
