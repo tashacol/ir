@@ -1,4 +1,4 @@
-  <!DOCTYPE html> 
+   <!DOCTYPE html> 
 <html lang="fa" dir="rtl">
 <head> 
     <meta charset="UTF-8">
@@ -29,11 +29,8 @@
     /* === START: LOADING BUTTON CSS FIX === */
     .btn-login { width: 100%; padding: 14px; font-size: 1.1rem; font-weight: 500; background: var(--primary); color: var(--text-on-dark); border: none; border-radius: var(--radius-md); cursor: pointer; transition: var(--transition); position: relative; min-height: 52px; display: flex; align-items: center; justify-content: center; }
     .btn-login:hover:not(:disabled) { background: var(--primary-dark); }
-    /* Hide the spinner by default */
-    .btn-login .spinner { position: absolute; width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.3); border-top-color: var(--text-on-dark); border-radius: 50%; animation: spin 0.8s linear infinite; visibility: hidden; opacity: 0; }
-    /* When loading, show the spinner */
+    .btn-login .spinner { position: absolute; width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.3); border-top-color: var(--text-on-dark); border-radius: 50%; animation: spin 0.8s linear infinite; visibility: hidden; opacity: 0; transition: opacity 0.3s, visibility 0.3s; }
     .btn-login.loading .spinner { visibility: visible; opacity: 1; }
-    /* When loading, hide the text */
     .btn-login.loading .btn-text { visibility: hidden; }
     /* === END: LOADING BUTTON CSS FIX === */
 
@@ -429,6 +426,9 @@
 
         // This function is triggered by the form's onsubmit event
         window.handleLogin = () => {
+            // Do not proceed if already loading
+            if (loginButton.classList.contains('loading')) return;
+
             loginErrorMsg.textContent = '';
             loginButton.classList.add('loading');
             loginButton.disabled = true;
@@ -436,7 +436,7 @@
             grecaptcha.execute(recaptchaWidgetId);
         };
         
-        // This is the reCAPTCHA callback function. It receives the token.
+        // THIS FUNCTION HAS BEEN REWRITTEN TO FIX THE LOADING ISSUE
         async function onRecaptchaSuccess(recaptchaToken) {
             try {
                 const username = document.getElementById('username').value;
@@ -453,15 +453,22 @@
                     sessionToken = result.token; // Store the secure token
                     setCache('ceoInfo', result.data); 
                     initDashboard(result.data); 
+                    // On success, we don't need to remove the loading class
+                    // because the entire view is about to be replaced.
                 } else { 
                     loginErrorMsg.textContent = result.message || 'اطلاعات ورود نامعتبر است.'; 
+                    // IMPORTANT: On failure, remove loading state to allow retry
+                    loginButton.classList.remove('loading'); 
+                    loginButton.disabled = false;
                 }
             } catch (error) { 
                 loginErrorMsg.textContent = error.message || 'خطا در ارتباط با سرور.'; 
-            } finally { 
+                // IMPORTANT: On error, also remove loading state to allow retry
                 loginButton.classList.remove('loading'); 
                 loginButton.disabled = false;
-                grecaptcha.reset(recaptchaWidgetId); // Reset for next login attempt
+            } finally { 
+                // ALWAYS reset reCAPTCHA for the next attempt
+                grecaptcha.reset(recaptchaWidgetId);
             }
         }
 
@@ -523,4 +530,4 @@
 </script>
 
 </body>
-</html>```
+</html>
