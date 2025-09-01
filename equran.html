@@ -1,4 +1,4 @@
-   <!DOCTYPE html> 
+<!DOCTYPE html> 
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -10,7 +10,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     
-    <!-- کتابخانه گوگل reCAPTCHA -->
     <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 
     <style>
@@ -119,15 +118,19 @@
                 </div>
                 <div class="form-group">
                     <div class="input-wrapper">
+                        <i class="fa-solid fa-search input-icon"></i>
+                        <input type="text" id="courseSearch" class="form-control" placeholder="جستجوی نام دوره...">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="input-wrapper">
                         <i class="fa-solid fa-book-open input-icon"></i>
                         <select id="courseCode" class="form-control" required>
-                            <option value="" disabled selected>انتخاب دوره</option>
-                            <option value="50">روخوانی و روانخوانی</option>
+                            <option value="" disabled selected>در حال بارگیری لیست دوره‌ها...</option>
                         </select>
                     </div>
                 </div>
                 
-                <!-- المان Google reCAPTCHA -->
                 <div class="recaptcha-wrapper">
                     <div class="g-recaptcha" data-sitekey="6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq"></div>
                 </div>
@@ -144,14 +147,12 @@
     </div>
 
     <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzU2RwatJXLtlWyVX_5y8UmiXwujNgwRIgh0m6f7J-mUo6_ojlPcioZ6AQPEoi7MMuJrQ/exec";
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxzasgsaHjgh4u2TJmHwOUP-A4F8Ksk_5UHOy3IToCtddiDb5Jx2l2hly6Md2GclJ6aaw/exec";
         
-        // متغیرهای گلوبال برای نگهداری اطلاعات فایل و توکن
         let fileBlob = null; 
         let fileInfo = {};
-        let secureAccessToken = null; // برای نگهداری توکن امن
+        let secureAccessToken = null;
 
-        // گرفتن رفرنس به المان‌های DOM
         const confirmModal = document.getElementById('confirm-modal');
         const modalMessage = document.getElementById('modal-message');
         const btnConfirmDownload = document.getElementById('btn-confirm-download');
@@ -165,12 +166,8 @@
         const downloadBtn = document.getElementById('btn-download');
         const viewBtn = document.getElementById('btn-view');
         const shareBtn = document.getElementById('btn-share');
+        const courseSearch = document.getElementById('courseSearch');
         
-        /**
-         * تابع برای ارسال درخواست به سرور Apps Script
-         * @param {Object} body - بدنه درخواست
-         * @returns {Promise<Object>} - پاسخ سرور
-         */
         async function apiCall(body) { 
             try { 
                 const response = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(body) }); 
@@ -182,7 +179,6 @@
             } 
         }
         
-        // توابع کمکی برای نمایش و پنهان کردن پیام‌ها و لودر
         function showMessage(message, type) { 
             messageArea.innerHTML = message; 
             messageArea.className = `message-area message-${type}`; 
@@ -192,12 +188,6 @@
         function showLoader(text = "لطفاً کمی صبر کنید...") { loaderText.textContent = text; mainLoader.style.display = 'flex'; }
         function hideLoader() { mainLoader.style.display = 'none'; }
         
-        /**
-         * تبدیل رشته Base64 به Blob برای دانلود فایل
-         * @param {string} b64Data - داده Base64
-         * @param {string} contentType - نوع محتوا (MIME type)
-         * @returns {Blob}
-         */
         function b64toBlob(b64Data, contentType = '') { 
             const byteCharacters = atob(b64Data); 
             const byteArrays = []; 
@@ -212,11 +202,47 @@
             return new Blob(byteArrays, { type: contentType }); 
         }
 
-        // رویداد ارسال فرم
+        async function fetchAndPopulateCourses() {
+            const courseSelect = document.getElementById('courseCode');
+            courseSearch.disabled = true;
+            courseSelect.disabled = true;
+
+            const response = await apiCall({ action: 'getCourses' });
+
+            if (response && response.status === 'success' && response.courses) {
+                const courses = response.courses;
+                courseSelect.innerHTML = '<option value="" disabled selected>انتخاب دوره</option>';
+                courses.forEach(course => {
+                    const option = document.createElement('option');
+                    option.value = course.code;
+                    option.textContent = course.name;
+                    courseSelect.appendChild(option);
+                });
+                
+                courseSearch.disabled = false;
+                courseSelect.disabled = false;
+
+                courseSearch.addEventListener('input', () => {
+                    const searchTerm = courseSearch.value.trim().toLowerCase();
+                    const options = courseSelect.options;
+                    
+                    for (let i = 1; i < options.length; i++) { // Start from 1 to skip "انتخاب دوره"
+                        const option = options[i];
+                        const courseName = option.textContent.toLowerCase();
+                        const isVisible = courseName.includes(searchTerm);
+                        option.style.display = isVisible ? '' : 'none';
+                    }
+                });
+
+            } else {
+                showMessage('خطا در بارگیری لیست دوره‌ها. لطفاً صفحه را دوباره بارگیری کنید.', 'error');
+                courseSelect.innerHTML = '<option value="" disabled selected>خطا در بارگیری</option>';
+            }
+        }
+
         certificateForm.addEventListener('submit', async function(event) {
             event.preventDefault();
             
-            // دریافت توکن از reCAPTCHA
             const recaptchaToken = grecaptcha.getResponse();
             if (!recaptchaToken) {
                 showMessage('لطفاً تأیید کنید که ربات نیستید.', 'error');
@@ -242,12 +268,11 @@
             });
             
             hideLoader();
-            grecaptcha.reset(); // ریست کردن کپچا پس از هر تلاش
+            grecaptcha.reset();
 
             if (verifyResponse && verifyResponse.status === 'verified') {
-                // ذخیره اطلاعات و توکن امن دریافت شده از سرور
                 fileInfo = { name: verifyResponse.fileName, nationalId: nationalIdValue, courseName: courseNameValue };
-                secureAccessToken = verifyResponse.accessToken; // ذخیره توکن امن
+                secureAccessToken = verifyResponse.accessToken;
 
                 showMessage(`کاربر با کد ملی <strong>${fileInfo.nationalId}</strong> در دوره <strong>${fileInfo.courseName}</strong> واجد شرایط دریافت گواهی است.`, 'success');
                 modalMessage.innerHTML = `آیا مایل به بارگیری فایل گواهی مربوط به کد ملی <strong>${fileInfo.nationalId}</strong> برای دوره <strong>${fileInfo.courseName}</strong> هستید؟`;
@@ -258,17 +283,15 @@
             submitBtn.disabled = false;
         });
         
-        // رویداد کلیک بر روی دکمه "بله، بارگیری شود"
         btnConfirmDownload.addEventListener('click', async () => {
             confirmModal.style.display = 'none';
-            if (!secureAccessToken) { // بررسی وجود توکن امن
+            if (!secureAccessToken) {
                 showMessage('توکن دسترسی نامعتبر است. لطفاً دوباره تلاش کنید.', 'error');
                 return;
             }
             hideMessage();
             showLoader("در حال آماده‌سازی فایل، لطفاً شکیبا باشید...");
             
-            // ارسال توکن امن به سرور برای دریافت محتوای فایل
             const fileContentResponse = await apiCall({ action: 'getFileContent', accessToken: secureAccessToken });
             
             hideLoader();
@@ -286,14 +309,13 @@
             }
         });
 
-        // رویدادهای مربوط به دکمه‌های دیگر
         btnCancelDownload.addEventListener('click', () => { confirmModal.style.display = 'none'; });
         downloadBtn.addEventListener('click', () => { if (!fileBlob) return; const url = URL.createObjectURL(fileBlob); const a = document.createElement('a'); a.href = url; a.download = fileInfo.name || 'certificate.pdf'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); });
         viewBtn.addEventListener('click', () => { if (!fileBlob) return; const url = URL.createObjectURL(fileBlob); window.open(url, '_blank'); });
         shareBtn.addEventListener('click', async () => { if (!fileBlob || !navigator.share) return; try { const file = new File([fileBlob], fileInfo.name, { type: fileBlob.type }); const shareText = `گواهينامه دوره آموزشی\nکدملی: ${fileInfo.nationalId}\n\nموفق و مؤید باشید`; await navigator.share({ title: 'گواهينامه آموزشی - موسسه تعالی اندیشه و رشد', text: shareText, files: [file] }); } catch (err) { if (err.name !== 'AbortError') console.error('خطا در اشتراک‌گذاری:', err); } });
         
-        // اجرای کد پس از بارگذاری کامل صفحه
         document.addEventListener('DOMContentLoaded', () => {
+            fetchAndPopulateCourses();
             const urlParams = new URLSearchParams(window.location.search);
             const nationalIdFromUrl = urlParams.get('id');
             if (nationalIdFromUrl) {
