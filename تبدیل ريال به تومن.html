@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تبدیل ریال و تومان</title>
+    <style>
+        /* استایل‌های کلی صفحه */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            margin: 0;
+            color: #333;
+        }
+
+        /* استایل کانتینر اصلی */
+        .converter-container {
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+            transition: all 0.3s ease-in-out;
+        }
+        .converter-container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        /* استایل عنوان */
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-weight: 600;
+        }
+
+        /* استایل فیلدهای ورودی و انتخاب */
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box; /* برای محاسبه صحیح عرض */
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .form-control:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 8px rgba(0, 123, 255, 0.25);
+            outline: none;
+        }
+
+        /* استایل دکمه */
+        .btn {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 500;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
+        }
+
+        /* استایل بخش نتیجه */
+        #result-container {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px dashed #ced4da;
+            display: none; /* در ابتدا مخفی باشد */
+        }
+        
+        #result-numeric {
+            font-size: 24px;
+            font-weight: bold;
+            color: #28a745;
+            margin-bottom: 10px;
+        }
+        
+        #result-words {
+            font-size: 16px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="converter-container">
+        <h1>تبدیل واحد پول 🪙</h1>
+        
+        <div class="input-group">
+            <input type="number" id="amount-input" class="form-control" placeholder="مبلغ را وارد کنید...">
+        </div>
+        
+        <div class="input-group">
+            <select id="conversion-type" class="form-control">
+                <option value="rial-to-toman">ریال به تومان</option>
+                <option value="toman-to-rial">تومان به ریال</option>
+            </select>
+        </div>
+        
+        <button id="convert-btn" class="btn">محاسبه کن</button>
+        
+        <div id="result-container">
+            <div id="result-numeric"></div>
+            <div id="result-words"></div>
+        </div>
+    </div>
+
+    <script>
+        // تابع اصلی برای تبدیل عدد به حروف فارسی
+        function numberToWords(num) {
+            const units = ["", "یک", "دو", "سه", "چهار", "پنج", "شش", "هفت", "هشت", "نه"];
+            const teens = ["ده", "یازده", "دوازده", "سیزده", "چهارده", "پانزده", "شانزده", "هفده", "هجده", "نوزده"];
+            const tens = ["", "", "بیست", "سی", "چهل", "پنجاه", "شصت", "هفتاد", "هشتاد", "نود"];
+            const hundreds = ["", "یکصد", "دویست", "سیصد", "چهارصد", "پانصد", "ششصد", "هفتصد", "هشتصد", "نهصد"];
+            const thousands = ["", "هزار", "میلیون", "میلیارد", "تریلیون"];
+
+            function convertThreeDigits(n) {
+                let str = "";
+                let num = parseInt(n);
+                if (num > 99) {
+                    str += hundreds[Math.floor(num / 100)] + " و ";
+                    num %= 100;
+                }
+                if (num > 9 && num < 20) {
+                    str += teens[num - 10];
+                } else {
+                    str += tens[Math.floor(num / 10)];
+                    if (num % 10 > 0) {
+                        str += (str ? " و " : "") + units[num % 10];
+                    }
+                }
+                return str.replace(/ و $/, ''); // حذف " و " اضافی در انتهای رشته
+            }
+
+            if (num === 0) return "صفر";
+            if (!num) return "";
+
+            let s = num.toString().replace(/[\,]/g, '');
+            if (isNaN(s)) return "عدد نامعتبر";
+
+            let parts = [];
+            while (s.length > 0) {
+                parts.push(s.substring(Math.max(0, s.length - 3)));
+                s = s.substring(0, s.length - 3);
+            }
+
+            let words = [];
+            for (let i = parts.length - 1; i >= 0; i--) {
+                let part = parseInt(parts[i]);
+                if (part) {
+                    words.push(convertThreeDigits(parts[i]) + " " + thousands[i]);
+                }
+            }
+
+            return words.join(" و ").replace(/ و $/, '').trim();
+        }
+
+        // اتصال رویداد کلیک به دکمه
+        document.getElementById('convert-btn').addEventListener('click', function() {
+            const amount = parseFloat(document.getElementById('amount-input').value);
+            const conversionType = document.getElementById('conversion-type').value;
+            const resultContainer = document.getElementById('result-container');
+            const resultNumeric = document.getElementById('result-numeric');
+            const resultWords = document.getElementById('result-words');
+
+            if (isNaN(amount) || amount < 0) {
+                alert("لطفاً یک عدد معتبر و مثبت وارد کنید.");
+                return;
+            }
+
+            let convertedAmount;
+            let resultUnit;
+
+            if (conversionType === 'rial-to-toman') {
+                convertedAmount = amount / 10;
+                resultUnit = "تومان";
+            } else { // toman-to-rial
+                convertedAmount = amount * 10;
+                resultUnit = "ریال";
+            }
+            
+            // نمایش نتیجه عددی با جداکننده هزارگان
+            resultNumeric.innerText = `${convertedAmount.toLocaleString('fa-IR')} ${resultUnit}`;
+            
+            // نمایش نتیجه حروفی
+            resultWords.innerText = `${numberToWords(convertedAmount)} ${resultUnit}`;
+
+            // نمایش کانتینر نتیجه
+            resultContainer.style.display = 'block';
+        });
+    </script>
+</body>
+</html>
