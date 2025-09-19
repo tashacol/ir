@@ -6,8 +6,6 @@
     
     <title>نشریه تعالی نوجوان | علمی، تربیتی، ویژه نوجوانان</title>
     <meta name="description" content="نشریه تعالی نوجوان، یک نشریه علمی-تربیتی هفتگی وابسته به مؤسسه تعالی اندیشه و رشد است که به ارائه مطالب کاربردی برای تربیت نوجوانان، والدین و مربیان می‌پردازد.">
-    <meta name="keywords" content="نشریه تعالی نوجوان, نشریه مؤسسه تعالی, نشریه تربیتی تعالی, نشریه کاربردی تعالی, نشریه علمی تربیتی تعالی نوجوان, تربیت نوجوان, والدین, مربیان, سبک زندگی اسلامی, فرهنگ دینی">
-    <meta name="author" content="مؤسسه تعالی اندیشه و رشد">
     
     <link rel="canonical" href="https://your-domain.com"> <!-- آدرس نهایی سایت -->
     
@@ -79,10 +77,8 @@
     <div id="overlay" class="overlay" onclick="closeNav()"></div>
     <nav id="mySidebar" class="sidebar">
         <span class="close-btn" onclick="closeNav()">&times;</span>
-        <a href="#">صفحه اصلی</a> <a href="#">آرشیو مطالب</a> <a href="#">برای والدین</a>
-        <a href="#">برای مربیان</a> <a href="#">درباره ما</a> <a href="#">تماس با ما</a>
+        <a href="#">صفحه اصلی</a> <a href="#">آرشیو مطالب</a>
     </nav>
-
     <header class="main-header">
         <div class="container">
             <div class="header-brand"><div class="logo-text">نشریه تعالی نوجوان</div></div>
@@ -92,13 +88,9 @@
 
     <main class="main-content">
         <div class="container">
-            <div id="posts-list" class="posts-list">
-                <!-- پست‌ها به صورت دینامیک اینجا قرار می‌گیرند -->
-            </div>
+            <div id="posts-list" class="posts-list"></div>
             <div id="loader" class="loader">در حال بارگذاری مطالب...</div>
-            <div class="load-more-container">
-                <button id="load-more-btn">پست‌های قبلی</button>
-            </div>
+            <div class="load-more-container"><button id="load-more-btn">پست‌های قبلی</button></div>
         </div>
     </main>
     
@@ -124,14 +116,13 @@
             // --- URL وب اپلیکیشن گوگل شیت شما ---
             const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwtDywAR1jm7nIOZGirZzUORDkpNev5t-l8-NzZDl6Pp2nUTYmLOhF6K4rNGpHKS3TBIg/exec';
 
+            // ... بقیه کد جاوا اسکریپت دقیقاً مانند نسخه قبلی است ...
             const postsList = document.getElementById('posts-list');
             const loader = document.getElementById('loader');
             const loadMoreBtn = document.getElementById('load-more-btn');
-            
             let currentPage = 1;
             let isLoading = false;
-
-            // --- تابع اصلی برای دریافت و نمایش پست‌ها ---
+            
             async function fetchAndDisplayPosts(page) {
                 if (isLoading) return;
                 isLoading = true;
@@ -140,18 +131,21 @@
 
                 try {
                     const response = await fetch(`${GOOGLE_APPS_SCRIPT_URL}?page=${page}`);
-                    if (!response.ok) throw new Error('Network response was not ok');
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                     const data = await response.json();
 
+                    if(data.error) throw new Error(data.message);
+
                     if (data.posts.length === 0 && page === 1) {
-                        postsList.innerHTML = '<p style="text-align: center;">مطلبی برای نمایش وجود ندارد.</p>';
+                        loader.textContent = 'مطلبی برای نمایش وجود ندارد.';
+                        return;
                     }
                     
                     data.posts.forEach(post => {
-                        // برای نمایش پاراگراف‌ها، \n را با <br> جایگزین می‌کنیم
-                        const formattedContent = post.content.replace(/\n/g, '<br>');
-                        const [excerpt, ...rest] = formattedContent.split('<br>').filter(p => p.trim() !== '');
-                        const fullText = rest.join('<br>');
+                        const formattedContent = (post.content || '').replace(/\n/g, '<br>');
+                        const paragraphs = formattedContent.split('<br>').filter(p => p.trim() !== '');
+                        const excerpt = paragraphs.slice(0, 2).join('<br>') + (paragraphs.length > 2 ? '...' : ''); // خلاصه دو پاراگراف اول
+                        const fullText = paragraphs.join('<br>');
 
                         const postHtml = `
                             <article class="post-card">
@@ -170,40 +164,29 @@
                         postsList.insertAdjacentHTML('beforeend', postHtml);
                     });
                     
-                    // افزودن event listener به دکمه‌های جدید
                     rebindPostActions();
-                    
-                    if (data.hasMore) {
-                        loadMoreBtn.style.display = 'block';
-                    } else {
-                        loadMoreBtn.style.display = 'none';
-                    }
-
+                    if (data.hasMore) { loadMoreBtn.style.display = 'block'; }
                 } catch (error) {
-                    postsList.innerHTML = `<p style="text-align: center; color: red;">خطا در بارگذاری مطالب. لطفاً بعداً تلاش کنید.</p>`;
+                    loader.innerHTML = `<p style="color: red;">خطا در بارگذاری مطالب. لطفاً از صحت عملکرد API و دسترسی عمومی آن اطمینان حاصل کنید.</p>`;
                     console.error('Fetch error:', error);
                 } finally {
                     isLoading = false;
-                    loader.style.display = 'none';
+                    if (postsList.innerHTML) loader.style.display = 'none';
                 }
             }
             
-            // --- تابع برای اتصال مجدد event ها به دکمه‌ها ---
             function rebindPostActions() {
-                const allPosts = document.querySelectorAll('.post-card:not(.bound)');
-                allPosts.forEach(post => {
+                document.querySelectorAll('.post-card:not(.bound)').forEach(post => {
                     post.classList.add('bound');
                     const readMoreIcon = post.querySelector('.read-more-icon');
                     const fullContent = post.querySelector('.full-content');
                     const copyBtn = post.querySelector('.copy-btn');
                     const contentWrapper = post.querySelector('.post-content-wrapper');
-
                     readMoreIcon.addEventListener('click', () => {
                         readMoreIcon.classList.toggle('expanded');
                         fullContent.classList.toggle('show');
                         copyBtn.style.display = fullContent.classList.contains('show') ? 'flex' : 'none';
                     });
-
                     copyBtn.addEventListener('click', () => {
                         const originalIcon = copyBtn.innerHTML;
                         navigator.clipboard.writeText(contentWrapper.innerText).then(() => {
@@ -214,23 +197,16 @@
                 });
             }
 
-            // --- مدیریت سایر بخش‌ها ---
             const sidebar = document.getElementById("mySidebar");
             const overlay = document.getElementById("overlay");
             window.openNav = () => { sidebar.classList.add("open"); overlay.classList.add("show"); };
             window.closeNav = () => { sidebar.classList.remove("open"); overlay.classList.remove("show"); };
-
             const lastUpdatedElement = document.getElementById('last-updated');
             const today = new Date();
             const shamsiOptions = { calendar: 'persian', year: 'numeric', month: 'long', day: 'numeric' };
             lastUpdatedElement.textContent = `آخرین بروزرسانی: ${new Intl.DateTimeFormat('fa-IR', shamsiOptions).format(today)}`;
+            loadMoreBtn.addEventListener('click', () => { currentPage++; fetchAndDisplayPosts(currentPage); });
             
-            loadMoreBtn.addEventListener('click', () => {
-                currentPage++;
-                fetchAndDisplayPosts(currentPage);
-            });
-
-            // --- اولین فراخوانی برای بارگذاری 5 پست اولیه ---
             fetchAndDisplayPosts(currentPage);
         });
     </script>
