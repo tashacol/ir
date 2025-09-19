@@ -137,7 +137,7 @@
         }
         .article-full-content.show { max-height: 3000px; margin-top: 25px; padding-top: 25px; }
         
-        .article-actions { margin-top: 25px; display: flex; align-items: center; gap: 15px; padding-top: 0; } /* border-top removed */
+        .article-actions { margin-top: 25px; display: flex; align-items: center; gap: 15px; padding-top: 0; }
         .icon-btn { 
             background: #f1f3f5; 
             border-radius: 50%; 
@@ -196,6 +196,47 @@
         @media print {
             body > *:not(#print-area) { display: none !important; }
             #print-area { display: block !important; }
+
+            /* *** NEW: Paged Media Styles for Header/Footer/Page Numbers *** */
+            @page {
+                margin: 2.5cm 2cm; /* Top margin increased for header */
+                counter-increment: page;
+
+                /* Running header for pages 2 onwards */
+                @top-center {
+                    content: string(article-title) " | شناسه: " string(article-id);
+                    font-family: var(--font-heading);
+                    font-size: 9pt;
+                    color: #666;
+                    vertical-align: bottom;
+                    padding-bottom: 5px;
+                }
+
+                /* Page number footer for all pages */
+                @bottom-center {
+                    content: "صفحه " counter(page);
+                    font-family: var(--font-heading);
+                    font-size: 9pt;
+                    color: #666;
+                }
+            }
+
+            /* Special rules for the very first page */
+            @page :first {
+                margin-top: 2cm; /* Reset top margin for first page */
+                /* Clear the header content for the first page */
+                @top-center {
+                    content: "";
+                }
+            }
+            
+            /* These rules CAPTURE the text from HTML for the @page header to use */
+            #print-title-for-header {
+                string-set: article-title content(text);
+            }
+            #print-id-for-header {
+                string-set: article-id content(text);
+            }
         }
     </style>
 </head>
@@ -232,7 +273,7 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwf9pP5UfknrNPt7HN8Bn3DjgtKqe3RCiu5xJmeR9wOhb-Eep7Df4caQdCb55ymW3yTrQ/exec'; // <<<<<<<<<<<<<<< URL جدید را اینجا قرار دهید
+            const GOOGLE_APPS_SCRIPT_URL = 'YOUR_NEW_WEB_APP_URL_HERE'; // <<<<<<<<<<<<<<< URL جدید را اینجا قرار دهید
 
             const postsList = document.getElementById('posts-list');
             const loadMoreBtn = document.getElementById('load-more-btn');
@@ -240,7 +281,6 @@
             let currentPage = 1; 
             let isLoading = false;
 
-            // --- Skeleton Loader Function ---
             function createSkeletonLoader() {
                 let skeletons = '';
                 for (let i = 0; i < 3; i++) {
@@ -276,7 +316,7 @@
                     if (!data.success) throw new Error(data.message || "خطا در اسکریپت گوگل");
 
                     if (page === 1) {
-                        postsList.innerHTML = ''; // Clear skeletons before adding real content
+                        postsList.innerHTML = '';
                     }
                     if (data.posts.length === 0 && page === 1) { 
                         postsList.innerHTML = '<p style="text-align:center;">مطلبی برای نمایش وجود ندارد.</p>'; 
@@ -285,11 +325,7 @@
                     
                     data.posts.forEach(post => {
                         const keywordsHtml = (post.keywords || '').split(',').map(kw => `<span>${kw.trim()}</span>`).join('');
-                        
-                        // *** THE FIX IS HERE ***
-                        // Format the date string to remove the time part
                         const formattedDate = post.date.split('T')[0];
-
                         const postHtml = `
                             <article class="article-card" data-id="${post.articleId}" data-author="${post.author}" data-date="${formattedDate}">
                                 <h2 class="article-title">${post.title}</h2>
@@ -342,7 +378,6 @@
             }
 
             function handlePrint(postElement) {
-                // Because we set the formatted date in 'data-date', it is already clean here.
                 const date = postElement.dataset.date;
                 const articleId = postElement.dataset.id;
                 const author = postElement.dataset.author;
@@ -351,6 +386,7 @@
                 const fullContentHTML = postElement.querySelector('.article-full-content').innerHTML;
                 const printArea = document.getElementById('print-area');
 
+                // *** NEW: Add IDs for the string-set function in CSS ***
                 const printContent = `
                     <div style="font-family: 'Amiri', 'Vazirmatn', sans-serif; padding: 1.5cm; text-align: right; direction: rtl;">
                         <header style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px;">
@@ -359,11 +395,11 @@
                         </header>
                         <div style="margin-bottom: 25px; font-size: 14px; line-height: 1.9;">
                             <p><strong>تاریخ نشر:</strong> ${date}</p>
-                            <p><strong>شناسه مقاله:</strong> ${articleId}</p>
+                            <p><strong>شناسه مقاله:</strong> <span id="print-id-for-header">${articleId}</span></p>
                             <p><strong>نویسنده:</strong> ${author}</p>
                         </div>
                         <main>
-                            <h2 style="font-size: 22px; margin-bottom: 15px; font-family: 'Vazirmatn';">چکیده</h2>
+                            <h2 id="print-title-for-header" style="font-size: 22px; margin-bottom: 15px; font-family: 'Vazirmatn';">چکیده</h2>
                             <div style="text-align: justify; line-height: 1.9; font-size: 16px;">${excerptHTML.replace('<strong>چکیده:</strong><br>', '')}</div>
                             <h2 style="font-size: 22px; margin-top: 35px; margin-bottom: 15px; font-family: 'Vazirmatn';">متن مقاله</h2>
                             <div style="text-align: justify; line-height: 1.9; font-size: 16px;">${fullContentHTML}</div>
