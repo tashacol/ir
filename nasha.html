@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -197,10 +197,10 @@
             body > *:not(#print-area) { display: none !important; }
             #print-area { display: block !important; }
 
-            /* *** NEW: Define a custom counter for Persian numerals *** */
             @counter-style persian-numeric {
               system: numeric;
               symbols: '۰' '۱' '۲' '۳' '۴' '۵' '۶' '۷' '۸' '۹';
+              suffix: " ";
             }
             
             @page {
@@ -214,10 +214,11 @@
                     color: #666;
                     vertical-align: bottom;
                     padding-bottom: 5px;
+                    border-bottom: 1px solid #ccc;
                 }
 
                 @bottom-center {
-                    content: "صفحه " counter(page, persian-numeric); /* Use the custom Persian counter */
+                    content: "صفحه " counter(page, persian-numeric);
                     font-family: var(--font-heading);
                     font-size: 9pt;
                     color: #666;
@@ -228,10 +229,10 @@
                 margin-top: 2cm;
                 @top-center {
                     content: ""; /* No header on the first page */
+                    border-bottom: none;
                 }
             }
             
-            /* These rules CAPTURE the text from HTML for the @page header to use */
             #print-author-for-header { string-set: article-author content(text); }
             #print-id-for-header { string-set: article-id content(text); }
         }
@@ -278,11 +279,10 @@
             let currentPage = 1; 
             let isLoading = false;
 
-            // *** NEW: Helper function to convert numbers to Persian numerals ***
             function toPersianNumerals(str) {
                 if (str === null || typeof str === 'undefined') return '';
                 const persian = { '0': '۰', '1': '۱', '2': '۲', '3': '۳', '4': '۴', '5': '۵', '6': '۶', '7': '۷', '8': '۸', '9': '۹' };
-                return String(str).replace(/[0-9]/g, (match) => persian[match]);
+                return String(str).replace(/[0-9-]/g, (match) => persian[match] || match);
             }
 
             function createSkeletonLoader() {
@@ -329,14 +329,16 @@
                     
                     data.posts.forEach(post => {
                         const keywordsHtml = (post.keywords || '').split(',').map(kw => `<span>${kw.trim()}</span>`).join('');
-                        const formattedDate = post.date.split('T')[0];
+                        const formattedDate = toPersianNumerals(post.date.split('T')[0]);
+                        const persianArticleId = toPersianNumerals(post.articleId);
+
                         const postHtml = `
-                            <article class="article-card" data-id="${post.articleId}" data-author="${post.author}" data-date="${formattedDate}">
+                            <article class="article-card" data-id="${post.articleId}" data-author="${post.author}" data-date="${post.date.split('T')[0]}">
                                 <h2 class="article-title">${post.title}</h2>
                                 <div class="article-meta">
                                     <span><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> <strong>نویسنده:</strong> ${post.author}</span>
                                     <span><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> <strong>تاریخ نشر:</strong> ${formattedDate}</span>
-                                    <span><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line><line x1="10" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="14" y2="21"></line></svg> <strong>شناسه:</strong> ${post.articleId}</span>
+                                    <span><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line><line x1="10" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="14" y2="21"></line></svg> <strong>شناسه:</strong> ${persianArticleId}</span>
                                 </div>
                                 <div class="article-excerpt"><strong>چکیده:</strong><br>${(post.excerpt || '').replace(/\n/g, '<br>')}</div>
                                 <div class="article-keywords"><strong>کلیدواژه‌ها:</strong> ${keywordsHtml}</div>
@@ -384,22 +386,21 @@
             function handlePrint(postElement) {
                 const author = postElement.dataset.author;
                 const articleId = postElement.dataset.id;
-                const date = postElement.dataset.date;
+                const date = postElement.dataset.date; // Use the original unformatted date
                 const title = postElement.querySelector('.article-title').innerHTML;
                 const excerptHTML = postElement.querySelector('.article-excerpt').innerHTML;
                 const fullContentHTML = postElement.querySelector('.article-full-content').innerHTML;
                 const printArea = document.getElementById('print-area');
 
-                // *** NEW: Convert all numeric data to Persian before printing ***
                 const persianDate = toPersianNumerals(date);
                 const persianArticleId = toPersianNumerals(articleId);
 
                 const printContent = `
-                    <div style="font-family: 'Amiri', 'Vazirmatn', sans-serif; padding: 1.5cm; text-align: right; direction: rtl;">
+                    <div style="font-family: 'Amiri', 'Vazirmatn', sans-serif; padding-top: 0; text-align: right; direction: rtl;">
                         
-                        <!-- NEW: These hidden spans pass data to the CSS running header -->
-                        <span id="print-author-for-header" style="display:none;">${author}</span>
-                        <span id="print-id-for-header" style="display:none;">${persianArticleId}</span>
+                        <!-- CORRECTED: These spans are now visually hidden but available to the print engine -->
+                        <span id="print-author-for-header" style="visibility: hidden; height: 0; display: block;">${author}</span>
+                        <span id="print-id-for-header" style="visibility: hidden; height: 0; display: block;">${persianArticleId}</span>
 
                         <header style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px;">
                             <h1 style="font-size: 24px; margin: 0; font-family: 'Vazirmatn';">نشریه علمی تربیتی تعالی نوجوان</h1>
@@ -436,4 +437,4 @@
         });
     </script>
 </body>
-</html>
+</html> 
