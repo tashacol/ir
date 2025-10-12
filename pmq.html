@@ -1,4 +1,4 @@
-      <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -192,6 +192,9 @@ border-bottom: 1px solid #e2e8f0; }
 <symbol xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" id="icon-download"><path fill="currentColor" d="M5 20h14v-2H5zM19 9h-4V3H9v6H5l7 7z"/></symbol>
 <symbol xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" id="icon-clock"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10s10-4.48 10-10S17.52 2 12 2m4.5 13.5L11 12.17V7h1.5v4.5l4.62 2.81z"/></symbol>
 <symbol xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" id="icon-email"><path fill="currentColor" d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2m0 4l-8 5l-8-5V6l8 5l8-5z"/></symbol>
+<!-- START: NEW ICON ADDED -->
+<symbol xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" id="icon-refresh"><path fill="currentColor" d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4z"></path></symbol>
+<!-- END: NEW ICON ADDED -->
 </svg>
    <div id="login-container">
     <div id="login-section">
@@ -240,6 +243,9 @@ border-bottom: 1px solid #e2e8f0; }
           
    <div class="header-loader"></div>
             <div class="header-actions">
+                <!-- START: REFRESH BUTTON ADDED -->
+                <button id="refresh-btn" class="icon-btn"><svg class="icon" style="color:var(--primary-color);"><use href="#icon-refresh"></use></svg><span class="btn-text">بروزرسانی</span></button>
+                <!-- END: REFRESH BUTTON ADDED -->
                 <button id="edit-email-btn" class="icon-btn"><svg class="icon" style="color:var(--accent-color);"><use href="#icon-email"></use></svg><span class="btn-text">ویرایش ایمیل</span></button>
                 <button id="logout-btn" class="icon-btn delete-btn"><svg class="icon"><use href="#icon-logout"></use></svg><span class="btn-text">خروج</span></button>
             </div>
@@ -285,7 +291,30 @@ function isValidNationalId(nid) { return /^\d{10}$/.test(nid); }
 function isValidEmail(email) { return /\S+@\S+\.\S+/.test(email);
 }
 
-document.addEventListener('DOMContentLoaded', () => { /* No auto-login for security */ });
+// START: MODIFIED DOMContentLoaded FOR AUTO-LOGIN
+document.addEventListener('DOMContentLoaded', () => {
+    const sessionDataString = localStorage.getItem('instructorSession');
+    if (sessionDataString) {
+        try {
+            const sessionData = JSON.parse(sessionDataString);
+            const now = new Date().getTime();
+            const sessionAge = now - sessionData.loginTime;
+            const twelveHours = 12 * 60 * 60 * 1000;
+
+            if (sessionAge < twelveHours) {
+                // Session is valid, show dashboard
+                showDashboard(sessionData.name, sessionData.email, sessionData.token);
+            } else {
+                // Session expired
+                localStorage.removeItem('instructorSession');
+            }
+        } catch (e) {
+            // Error parsing, clear storage
+            localStorage.removeItem('instructorSession');
+        }
+    }
+});
+// END: MODIFIED DOMContentLoaded FOR AUTO-LOGIN
 
 function showDashboard(name, email, token) {
 loggedInInstructorName = name;
@@ -297,6 +326,9 @@ document.getElementById('welcome-message').innerHTML = `استاد <strong>${nam
 document.getElementById('btn-create-course').addEventListener('click', e => showCreateCourseModal(e.target));
 document.getElementById('logout-btn').addEventListener('click', handleLogout);
 document.getElementById('edit-email-btn').addEventListener('click', showEditEmailModal);
+// START: ADDED REFRESH BUTTON EVENT LISTENER
+document.getElementById('refresh-btn').addEventListener('click', fetchDashboardData);
+// END: ADDED REFRESH BUTTON EVENT LISTENER
 fetchDashboardData();
 if (!loggedInInstructorEmail) {
 showEmailPromptModal();
@@ -313,7 +345,6 @@ errorP.classList.remove('hidden');
 return;
 }
 errorP.classList.add('hidden');
-// *** اصلاحیه لودینگ: دکمه را در همینجا به سرور پاس می‌دهیم ***
 grecaptcha.execute();
 }
 
@@ -323,12 +354,20 @@ const username = document.getElementById('username').value;
 const password = document.getElementById('password').value;
 const errorP = document.getElementById('error-message');
 const loginButton = document.getElementById('login-button');
-// *** اصلاحیه لودینگ: دکمه را به callAppsScript پاس می‌دهیم تا مدیریت شود ***
 const res = await callAppsScript('checkLogin', { nationalId, username, password, recaptchaToken }, loginButton);
 grecaptcha.reset();
 
 if (res && res.success) {
-showDashboard(res.name, res.email, res.token);
+    // START: SAVE SESSION TO LOCALSTORAGE
+    const sessionData = {
+        token: res.token,
+        name: res.name,
+        email: res.email,
+        loginTime: new Date().getTime()
+    };
+    localStorage.setItem('instructorSession', JSON.stringify(sessionData));
+    // END: SAVE SESSION TO LOCALSTORAGE
+    showDashboard(res.name, res.email, res.token);
 } else if(res) {
 errorP.innerText = res.message || "خطای ورود.";
 errorP.classList.remove('hidden');
@@ -341,10 +380,14 @@ setButtonLoading(document.getElementById('login-button'), false);
 grecaptcha.reset();
 }
 
+// START: MODIFIED LOGOUT FUNCTION
 async function handleLogout() {
 if (sessionToken) { await callAppsScript('logout', {}); }
-sessionToken = null; window.location.reload();
+sessionToken = null;
+localStorage.removeItem('instructorSession'); // Clear session from storage
+window.location.reload();
 }
+// END: MODIFIED LOGOUT FUNCTION
 
 function showEmailPromptModal() {
 const content = `<p style="text-align: center; margin-bottom: 20px;">لطفا ایمیل خود را جهت اطلاع از وضعیت دوره‌ها و قرآن آموزان وارد کنید.</p><div class="form-group"><label for="prompt-email">آدرس ایمیل</label><div class="input-icon"><svg class="icon"><use href="#icon-email"></use></svg></div><input type="email" id="prompt-email" required class="has-icon" style="direction: ltr;"></div><div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div><div style="text-align:center;"><button onclick="handleEmailPromptSubmit(event)"><span class="btn-text">ذخیره ایمیل</span></button></div>`;
@@ -358,7 +401,16 @@ if (!isValidEmail(email)) { showModalError('modal-error-container', 'لطفا ی
 }
 const res = await callAppsScript('updateTeacherEmail', { newEmail: email }, event.target);
 if (res && res.success) {
-loggedInInstructorEmail = email; closeAllModals();
+loggedInInstructorEmail = email;
+// START: UPDATE EMAIL IN LOCALSTORAGE
+const sessionDataString = localStorage.getItem('instructorSession');
+if (sessionDataString) {
+    const sessionData = JSON.parse(sessionDataString);
+    sessionData.email = email;
+    localStorage.setItem('instructorSession', JSON.stringify(sessionData));
+}
+// END: UPDATE EMAIL IN LOCALSTORAGE
+closeAllModals();
 showCustomAlert('ایمیل شما با موفقیت ثبت شد!', 'success');
 } else if(res) {
 showModalError('modal-error-container', res.message);
@@ -378,7 +430,16 @@ if (!isValidEmail(email)) { showModalError('modal-error-container', 'لطفا ی
 }
 const res = await callAppsScript('updateTeacherEmail', { newEmail: email }, event.target);
 if (res && res.success) {
-loggedInInstructorEmail = email; closeAllModals(); showCustomAlert(res.message, 'success');
+loggedInInstructorEmail = email;
+// START: UPDATE EMAIL IN LOCALSTORAGE
+const sessionDataString = localStorage.getItem('instructorSession');
+if (sessionDataString) {
+    const sessionData = JSON.parse(sessionDataString);
+    sessionData.email = email;
+    localStorage.setItem('instructorSession', JSON.stringify(sessionData));
+}
+// END: UPDATE EMAIL IN LOCALSTORAGE
+closeAllModals(); showCustomAlert(res.message, 'success');
 } else if (res) {
 showModalError('modal-error-container', res.message);
 }
@@ -415,11 +476,7 @@ if (course.startDate !== 'نامشخص') {
 const [year, month, day] = course.startDate.split('/').map(Number);
 const gregorianStartDate = jalaliToGregorian(year, month, day);
 const gregorianEndDate = new Date(gregorianStartDate);
-// ============================= ONLY CHANGE IS HERE =============================
-// The hardcoded '25' is replaced with the dynamic 'course.duration' from the backend.
-// A fallback to 25 is added for safety if duration is not provided.
 gregorianEndDate.setDate(gregorianStartDate.getDate() + (parseInt(course.duration, 10) || 25));
-// =============================================================================
 const p2e = s => s.replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
 endDateJalali = p2e(gregorianEndDate.toLocaleDateString('fa-IR', { year: 'numeric', month: '2-digit', day: '2-digit' }));
 }
@@ -584,7 +641,7 @@ const confirmed = await showCustomConfirm(`آیا از تائید حضور بر�
 if (confirmed) { const res = await callAppsScript('confirmStudentAttendance', { courseId, studentNationalId }, button); if (res && res.success) { fetchDashboardData();
 } else if (res) { showCustomAlert(res.message, 'error'); } } }
 async function showGradingModal(event, courseId, studentName, studentNationalId, courseCode) { const res = await callAppsScript('getGradingCriteria', { courseCode }, event.target.closest('button'));
-if (!res || !res.success || !res.data || res.data.length === 0) { showCustomAlert(res ? res.message : 'ساختار نمره‌دهی یافت نشد.', 'error');
+if (!res || !res.success || !res.data || !res.data.length === 0) { showCustomAlert(res ? res.message : 'ساختار نمره‌دهی یافت نشد.', 'error');
 return; } currentCourseId = courseId; currentStudentOriginalId = studentNationalId; let gradeInputsHTML = res.data.map((item, index) => `<div class="form-group grade-input-group"><label for="g${index + 1}">${item.title} (از ${item.maxScore})</label><input type="number" id="g${index + 1}" min="0" max="${item.maxScore}"></div>`).join('');
 const content = `<div class="grading-modal-header"><div><span class="student-name">${studentName}</span></div><div style="font-size: 0.9rem; color: var(--light-text);">کد ملی: ${studentNationalId}</div></div><div id="grading-form-content">${gradeInputsHTML}<div id="modal-error-container" class="hidden" style="margin-bottom: 15px;"></div><div style="text-align:center;"><button onclick="handleGradeSubmission(event, '${studentName}')" data-step="initial"><span class="btn-text">تایید و ارسال نمرات</span></button></div></div>`;
 renderModal('ثبت نمره برای قرآن آموز', content, 'narrow'); }
