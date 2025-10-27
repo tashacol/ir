@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -59,7 +59,6 @@
         .date-popup-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
         .date-popup-overlay.show { display: flex; }
         .date-popup-box { background: #fff; padding: 25px; border-radius: var(--radius-md); display: flex; gap: 15px; }
-        .date-popup-box select, .date-popup-box button { font-family: inherit; font-size: 1rem; }
 
         /* Dashboard View */
         #dashboard-view { animation: fadeIn 0.5s; background-color: var(--bg-main); }
@@ -77,11 +76,11 @@
         textarea.form-input { resize: vertical; min-height: 120px; }
         #word-count { font-size: 0.9rem; color: var(--text-light); margin-top: 5px; }
 
-        .activity-list { list-style-type: none; padding: 0;}
+        .activity-list { list-style-type: none; }
         .activity-item { border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; margin-bottom: 15px; transition: var(--transition); }
         .activity-item h3 { margin-bottom: 10px; color: var(--primary-dark); }
         .activity-meta { display: flex; flex-wrap: wrap; gap: 20px; color: var(--text-light); font-size: 0.9rem; margin-bottom: 15px; }
-        .activity-description { margin-bottom: 20px; line-height: 1.8; }
+        .activity-description { margin-bottom: 20px; }
         .activity-actions button { background: var(--warning); color: #fff; border: none; padding: 8px 15px; border-radius: var(--radius-md); cursor: pointer; transition: var(--transition); font-weight: 500; }
         .activity-actions button:hover { opacity: 0.8; }
         .activity-item[data-status="5"] { background-color: #f0fff4; border-color: var(--success); }
@@ -178,21 +177,46 @@
     <div id="toast-container"></div>
 
     <script>
-        // تابع callback برای reCAPTCHA باید در حوزه عمومی باشد تا گوگل بتواند آن را فراخوانی کند
+        // تابع callback برای reCAPTCHA باید در حوزه عمومی (global scope) باشد
         let formToSubmit = null;
-        function onRecaptchaSuccess(token) {
-            if (formToSubmit) {
-                // تابع اصلی را که درونDOMContentLoaded تعریف شده فراخوانی می‌کنیم
-                window.app.processAuthForm(formToSubmit, token);
+        async function onRecaptchaSuccess(token) {
+            if (!formToSubmit) return;
+            const formId = formToSubmit.id;
+            const btn = formToSubmit.querySelector('.btn-submit');
+            let params;
+
+            if (formId === 'login-form') {
+                params = {
+                    action: 'login',
+                    nationalId: document.getElementById('login-nid').value,
+                    password: document.getElementById('login-password').value,
+                    recaptchaToken: token
+                };
+            } else if (formId === 'register-form') {
+                params = {
+                    action: 'register',
+                    fullName: document.getElementById('reg-fullname').value,
+                    nationalId: document.getElementById('reg-nid').value,
+                    dob: document.getElementById('reg-dob').value,
+                    gender: document.getElementById('reg-gender').value,
+                    education: document.getElementById('reg-education').value,
+                    skill: document.getElementById('reg-skill').value,
+                    phone: document.getElementById('reg-phone').value,
+                    password: document.getElementById('reg-password').value,
+                    recaptchaToken: token
+                };
             }
+            
+            const result = await window.app.apiRequest(params);
+            window.app.handleAuthResponse(result);
+            window.app.toggleButtonLoading(btn, false);
+            grecaptcha.reset();
+            formToSubmit = null;
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            // ایجاد یک namespace برای تمام توابع و متغیرهای برنامه
-            window.app = {};
-
-            // ⬇️⬇️⬇️ مهم: این آدرس را با Web App URL خودتان جایگزین کنید ⬇️⬇️⬇️
-            const SCRIPT_URL = "YOUR_WEB_APP_URL_HERE"; 
+            window.app = {}; // ایجاد یک namespace برای توابع
+            const SCRIPT_URL = "YOUR_WEB_APP_URL_HERE"; // ⬇️⬇️⬇️ مهم: این آدرس را با Web App URL خودتان جایگزین کنید
             
             // --- Elements Cache ---
             const authView = document.getElementById('auth-view'), dashboardView = document.getElementById('dashboard-view');
@@ -201,7 +225,9 @@
             const authErrorMsg = document.getElementById('auth-error-msg'), logoutBtn = document.getElementById('logout-btn');
             const userNameDisplay = document.getElementById('user-name-display');
             const activityForm = document.getElementById('activity-form'), activityDescription = document.getElementById('activity-description'), wordCountDisplay = document.getElementById('word-count');
-            
+
+            let currentActivities = [];
+
             // --- Utility Functions ---
             const showToast = (message, type = 'info') => {
                 const c = document.getElementById('toast-container'), t = document.createElement('div'); t.className = `toast ${type}`;
@@ -209,10 +235,8 @@
                 t.innerHTML = `<i class="fas ${i} toast-icon"></i><span>${message}</span>`; c.appendChild(t);
                 setTimeout(() => { t.classList.add('hide'); t.addEventListener('animationend', () => t.remove()); }, 5000);
             };
-
-            const toggleButtonLoading = (btn, isLoading) => { btn.classList.toggle('loading', isLoading); btn.disabled = isLoading; };
-
-            const apiRequest = async (params) => {
+            app.toggleButtonLoading = (btn, isLoading) => { btn.classList.toggle('loading', isLoading); btn.disabled = isLoading; };
+            app.apiRequest = async (params) => {
                 const url = new URL(SCRIPT_URL); const token = sessionStorage.getItem('authToken');
                 if (token && params.action !== 'login' && params.action !== 'register') params.token = token;
                 Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
@@ -221,82 +245,71 @@
                     const result = await response.json();
                     if (!result.success && result.message.includes("نشست شما نامعتبر")) { handleLogout(false); showToast(result.message, 'error'); }
                     return result;
-                } catch (error) { console.error("API Request Error:", error); return { success: false, message: 'خطا در برقراری ارتباط با سرور.' }; }
+                } catch (error) { console.error("API Request Error:", error); return { success: false, message: 'خطا در ارتباط با سرور.' }; }
             };
-
+            
             // --- Authentication Logic ---
             const toggleAuthForms = (showLogin) => {
                 loginForm.classList.toggle('hidden', !showLogin); registerForm.classList.toggle('hidden', showLogin);
                 showLoginBtn.classList.toggle('active', showLogin); showRegisterBtn.classList.toggle('active', !showLogin);
                 authErrorMsg.textContent = '';
             };
-            showLoginBtn.addEventListener('click', () => toggleAuthForms(true));
-            showRegisterBtn.addEventListener('click', () => toggleAuthForms(false));
+            showLoginBtn.addEventListener('click', () => toggleAuthForms(true)); showRegisterBtn.addEventListener('click', () => toggleAuthForms(false));
 
-            // این تابع زمانی اجرا می‌شود که کاربر روی دکمه ورود یا ثبت‌نام کلیک می‌کند
             const handleAuthSubmit = (e) => {
                 e.preventDefault(); const btn = e.target.querySelector('.btn-submit'); authErrorMsg.textContent = '';
-                if (e.target.id === 'register-form' && !isValidIranianNationalId(document.getElementById('reg-nid').value)) {
+                if(e.target.id === 'register-form' && !isValidIranianNationalId(document.getElementById('reg-nid').value)) {
                     authErrorMsg.textContent = "کد ملی وارد شده معتبر نیست."; return;
                 }
-                toggleButtonLoading(btn, true); formToSubmit = e.target; grecaptcha.execute();
+                app.toggleButtonLoading(btn, true); formToSubmit = e.target; grecaptcha.execute();
             };
+            loginForm.addEventListener('submit', handleAuthSubmit);
+            registerForm.addEventListener('submit', handleAuthSubmit);
 
-            // این تابع پس از دریافت توکن از reCAPTCHA، درخواست را به سرور می‌فرستد
-            window.app.processAuthForm = async (form, token) => {
-                const formId = form.id; const btn = form.querySelector('.btn-submit'); let params;
-                if (formId === 'login-form') {
-                    params = { action: 'login', nationalId: document.getElementById('login-nid').value, password: document.getElementById('login-password').value, recaptchaToken: token };
-                } else if (formId === 'register-form') {
-                    params = {
-                        action: 'register', fullName: document.getElementById('reg-fullname').value, nationalId: document.getElementById('reg-nid').value, dob: document.getElementById('reg-dob').value,
-                        gender: document.getElementById('reg-gender').value, education: document.getElementById('reg-education').value, skill: document.getElementById('reg-skill').value,
-                        phone: document.getElementById('reg-phone').value, password: document.getElementById('reg-password').value, recaptchaToken: token
-                    };
-                }
-                const result = await apiRequest(params); handleAuthResponse(result);
-                toggleButtonLoading(btn, false); grecaptcha.reset(); formToSubmit = null;
-            };
-
-            // این تابع پاسخ سرور به ورود یا ثبت‌نام را مدیریت می‌کند
-            const handleAuthResponse = (result) => {
+            app.handleAuthResponse = (result) => {
                 if (result.success) {
                     showToast(result.message, 'success');
                     if (result.token) { // Login success
-                        sessionStorage.setItem('authToken', result.token); sessionStorage.setItem('currentUser', JSON.stringify(result.userData)); initDashboard(result.userData);
+                        sessionStorage.setItem('authToken', result.token);
+                        sessionStorage.setItem('currentUser', JSON.stringify(result.userData));
+                        initDashboard(result.userData);
                     } else { // Register success
                         registerForm.reset(); toggleAuthForms(true);
                     }
                 } else { authErrorMsg.textContent = result.message; }
             };
 
-            loginForm.addEventListener('submit', handleAuthSubmit); registerForm.addEventListener('submit', handleAuthSubmit);
-
             const handleLogout = async (showSuccessMessage = true) => {
-                const token = sessionStorage.getItem('authToken'); if (token) await apiRequest({ action: 'logout' });
+                const token = sessionStorage.getItem('authToken'); if(token) await app.apiRequest({ action: 'logout' });
                 sessionStorage.clear(); dashboardView.classList.add('hidden'); authView.classList.remove('hidden');
-                loginForm.reset(); if (showSuccessMessage) showToast('با موفقیت خارج شدید.', 'info');
+                loginForm.reset(); if(showSuccessMessage) showToast('با موفقیت خارج شدید.', 'info');
             };
             logoutBtn.addEventListener('click', handleLogout);
 
             // --- Dashboard Logic ---
-            const initDashboard = async (userData) => { if (!userData) return; authView.classList.add('hidden'); dashboardView.classList.remove('hidden'); userNameDisplay.textContent = userData.name; await fetchAndDisplayActivities(); };
-            const fetchAndDisplayActivities = async () => { const result = await apiRequest({ action: 'getActivities' }); if (result.success) { renderActivities(result.activities); } else { showToast(result.message, 'error'); } };
-            const renderActivities = (activities) => {
+            const initDashboard = async (userData) => {
+                if (!userData) return; authView.classList.add('hidden'); dashboardView.classList.remove('hidden');
+                userNameDisplay.textContent = userData.name; await fetchAndDisplayActivities();
+            };
+            const fetchAndDisplayActivities = async () => {
+                const result = await app.apiRequest({ action: 'getActivities' });
+                if (result.success) { currentActivities = result.activities; renderActivities(); } else { showToast(result.message, 'error'); }
+            };
+            const renderActivities = () => {
                 const lists = { pending: document.getElementById('pending-activities-list'), rejected: document.getElementById('rejected-activities-list'), approved: document.getElementById('approved-activities-list') };
                 Object.values(lists).forEach(list => list.innerHTML = '');
                 const activitiesByStatus = { '0': [], '1': [], '5': [] };
-                activities.forEach(act => activitiesByStatus[act.status.toString()]?.push(act));
+                currentActivities.forEach(act => activitiesByStatus[act.status.toString()]?.push(act));
                 lists.pending.innerHTML = activitiesByStatus['0'].map(createActivityHTML).join('') || '<li>موردی یافت نشد.</li>';
                 lists.rejected.innerHTML = activitiesByStatus['1'].map(createActivityHTML).join('') || '<li>موردی یافت نشد.</li>';
                 lists.approved.innerHTML = activitiesByStatus['5'].map(createActivityHTML).join('') || '<li>موردی یافت نشد.</li>';
-                addEditListeners(activities);
+                addEditListeners();
             };
             const createActivityHTML = (activity) => {
                 const canEdit = activity.status == '0' || activity.status == '1';
                 return `<li class="activity-item" data-status="${activity.status}"><h3>${activity.title}</h3><p class="activity-description">${activity.description}</p><div class="activity-meta"><span><i class="fas fa-calendar-alt"></i> تاریخ ثبت: ${activity.submissionDate}</span><span><i class="fas fa-play"></i> شروع: ${activity.startDate}</span><span><i class="fas fa-stop"></i> پایان: ${activity.endDate}</span></div>${canEdit ? `<div class="activity-actions"><button class="btn-edit" data-row-id="${activity.row}">ویرایش</button></div>` : ''}</li>`;
             };
-            const addEditListeners = (activities) => { document.querySelectorAll('.btn-edit').forEach(btn => btn.addEventListener('click', (e) => { const rowId = e.target.dataset.rowId; const activityToEdit = activities.find(act => act.row == rowId); if (activityToEdit) { populateActivityForm(activityToEdit); window.scrollTo({ top: 0, behavior: 'smooth' }); } })); };
+            const addEditListeners = () => { document.querySelectorAll('.btn-edit').forEach(btn => btn.addEventListener('click', (e) => { const rowId = e.target.dataset.rowId; const activityToEdit = currentActivities.find(act => act.row == rowId); if (activityToEdit) { populateActivityForm(activityToEdit); window.scrollTo({ top: 0, behavior: 'smooth' }); } })); };
             const populateActivityForm = (activity) => {
                 document.getElementById('activity-form-title').textContent = 'ویرایش فعالیت'; document.getElementById('activity-row-id').value = activity.row;
                 document.getElementById('activity-title').value = activity.title; document.getElementById('activity-description').value = activity.description;
@@ -306,35 +319,34 @@
             activityForm.addEventListener('submit', async (e) => {
                 e.preventDefault(); const btn = e.target.querySelector('.btn-submit'); const rowId = document.getElementById('activity-row-id').value;
                 if (activityDescription.value.trim().split(/\s+/).filter(Boolean).length < 15) { showToast('توضیحات باید حداقل ۱۵ کلمه باشد.', 'error'); return; }
-                toggleButtonLoading(btn, true);
-                const params = { action: rowId ? 'updateActivity' : 'addActivity', row: rowId, title: document.getElementById('activity-title').value, description: activityDescription.value, startDate: document.getElementById('activity-start-date').value, endDate: document.getElementById('activity-end-date').value };
-                const result = await apiRequest(params); showToast(result.message, result.success ? 'success' : 'error');
+                app.toggleButtonLoading(btn, true);
+                const params = {
+                    action: rowId ? 'updateActivity' : 'addActivity', row: rowId, title: document.getElementById('activity-title').value,
+                    description: activityDescription.value, startDate: document.getElementById('activity-start-date').value, endDate: document.getElementById('activity-end-date').value
+                };
+                const result = await app.apiRequest(params); showToast(result.message, result.success ? 'success' : 'error');
                 if (result.success) { resetActivityForm(); await fetchAndDisplayActivities(); }
-                toggleButtonLoading(btn, false);
-            };
+                app.toggleButtonLoading(btn, false);
+            });
             const resetActivityForm = () => { activityForm.reset(); document.getElementById('activity-form-title').textContent = 'ثبت فعالیت جدید'; document.getElementById('activity-row-id').value = ''; document.getElementById('activity-submit-btn').querySelector('.btn-text').textContent = 'ارسال فعالیت'; updateWordCount(); };
             activityDescription.addEventListener('input', updateWordCount); function updateWordCount() { wordCountDisplay.textContent = `تعداد کلمات: ${activityDescription.value.trim().split(/\s+/).filter(Boolean).length}`; }
 
             // --- Date Picker Logic ---
-            const datePickerPopup = document.getElementById('date-picker-popup'); let currentDatePickerInput = null; let datePickerOptions = {};
-            const openDatePicker = (inputElement, options) => { currentDatePickerInput = inputElement; datePickerOptions = options; populateDatePicker(options); datePickerPopup.classList.add('show'); };
-            const populateDatePicker = ({ yearRange = 60, minAge = 10, minDateStr, maxDateStr } = {}) => {
+            const datePickerPopup = document.getElementById('date-picker-popup'); let currentDatePickerInput = null;
+            const openDatePicker = (inputElement, options) => { currentDatePickerInput = inputElement; populateDatePicker(options); datePickerPopup.classList.add('show'); };
+            const populateDatePicker = ({ yearRange = 60, minAge = 10, minDate, maxDate } = {}) => {
                 const yearSelect = document.getElementById('date-picker-year'), monthSelect = document.getElementById('date-picker-month'), daySelect = document.getElementById('date-picker-day');
-                const [maxYear, maxMonth, maxDay] = maxDateStr ? maxDateStr.split('/').map(Number) : getPersianDateParts(new Date());
-                const [minYear, minMonth, minDay] = minDateStr ? minDateStr.split('/').map(Number) : [maxYear - minAge - yearRange, 1, 1];
-                yearSelect.innerHTML = ''; for (let i = maxYear; i >= minYear; i--) yearSelect.innerHTML += `<option value="${i}">${i}</option>`;
+                const currentPersianYear = parseInt(new Date().toLocaleDateString('fa-IR-u-nu-latn').split('/')[0], 10);
+                let startYear = minDate ? minDate.toLocaleDateString('fa-IR-u-nu-latn').split('/')[0] : currentPersianYear - minAge - yearRange;
+                let endYear = maxDate ? maxDate.toLocaleDateString('fa-IR-u-nu-latn').split('/')[0] : currentPersianYear - minAge;
+                yearSelect.innerHTML = ''; for (let i = endYear; i >= startYear; i--) yearSelect.innerHTML += `<option value="${i}">${i}</option>`;
                 monthSelect.innerHTML = Array.from({length: 12}, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
                 daySelect.innerHTML = Array.from({length: 31}, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
             };
             document.getElementById('date-picker-submit').addEventListener('click', () => {
                 if (currentDatePickerInput) {
                     const y = document.getElementById('date-picker-year').value, m = document.getElementById('date-picker-month').value.padStart(2, '0'), d = document.getElementById('date-picker-day').value.padStart(2, '0');
-                    const selectedDateStr = `${y}/${m}/${d}`;
-                    if( (datePickerOptions.minDateStr && selectedDateStr < datePickerOptions.minDateStr) || (datePickerOptions.maxDateStr && selectedDateStr > datePickerOptions.maxDateStr) ){
-                         showToast('تاریخ انتخاب شده خارج از محدوده مجاز است.', 'error'); return;
-                    }
-                    currentDatePickerInput.value = selectedDateStr;
-                    if (currentDatePickerInput.id === 'activity-start-date') document.getElementById('activity-end-date').value = '';
+                    currentDatePickerInput.value = `${y}/${m}/${d}`; if(currentDatePickerInput.id === 'activity-start-date') document.getElementById('activity-end-date').value = ''; // Reset end date on start date change
                 }
                 datePickerPopup.classList.remove('show');
             });
@@ -343,19 +355,19 @@
             // --- Custom Date Picker Listeners ---
             document.getElementById('reg-dob').addEventListener('click', function(){ openDatePicker(this, {}); });
             document.getElementById('activity-start-date').addEventListener('click', function(){
-                const today = new Date(); const oneMonthAgo = new Date(); oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-                openDatePicker(this, { minDateStr: getPersianDateString(oneMonthAgo), maxDateStr: getPersianDateString(today) });
+                const maxDate = new Date(); const minDate = new Date(); minDate.setMonth(minDate.getMonth() - 1);
+                openDatePicker(this, { minDate, maxDate });
             });
             document.getElementById('activity-end-date').addEventListener('click', function(){
                 const startDateStr = document.getElementById('activity-start-date').value;
                 if (!startDateStr) { showToast('ابتدا تاریخ شروع را انتخاب کنید.', 'info'); return; }
-                openDatePicker(this, { minDateStr: startDateStr, maxDateStr: getPersianDateString(new Date()) });
+                const minDate = parsePersianDate(startDateStr); const maxDate = new Date();
+                openDatePicker(this, { minDate, maxDate });
             });
             
             // --- Helper Functions ---
             function isValidIranianNationalId(c) { if (!/^\d{10}$/.test(c)) return false; const k = parseInt(c[9],10); let s=0; for (let i=0; i<9; i++) s+=parseInt(c[i],10)*(10-i); const r=s%11; return r<2 ? k===r : k===11-r; }
-            function getPersianDateString(date) { return date.toLocaleDateString('fa-IR-u-nu-latn', { year: 'numeric', month: '2-digit', day: '2-digit' }); }
-            function getPersianDateParts(date) { return getPersianDateString(date).split('/').map(Number); }
+            function parsePersianDate(str) { const [y, m, d] = str.split('/').map(Number); const gYear = y - 621; const date = new Date(gYear, m - 1, d); const dayOfWeek = date.getDay(); const gMonth = date.getMonth() + 1; const gDay = date.getDate(); return new Date(new Date().getFullYear(), m - 1, d); } // Simplified conversion for comparison
 
             // --- Initial Load ---
             const checkSession = () => { const user = sessionStorage.getItem('currentUser'), token = sessionStorage.getItem('authToken'); if (user && token) initDashboard(JSON.parse(user)); };
