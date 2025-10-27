@@ -64,8 +64,12 @@
         #dashboard-view { animation: fadeIn 0.5s; background-color: var(--bg-main); }
         .dashboard-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: var(--bg-card); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         .user-info span { font-weight: 700; color: var(--primary); }
-        .btn-logout { background: var(--danger); color: #fff; border: none; padding: 8px 15px; border-radius: var(--radius-md); cursor: pointer; transition: var(--transition); }
-        .btn-logout:hover { background: #c82333; }
+        .btn-logout { background: var(--danger); color: #fff; border: none; padding: 8px 15px; border-radius: var(--radius-md); cursor: pointer; transition: var(--transition); position: relative; display: flex; align-items: center; justify-content: center; min-height: 41px; }
+        .btn-logout:hover:not(:disabled) { background: #c82333; }
+        .btn-logout:disabled { background-color: #a0a0a0; cursor: not-allowed; }
+        .btn-logout .spinner { width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-top-color: var(--text-on-dark); border-radius: 50%; animation: spin 0.8s linear infinite; display: none; }
+        .btn-logout.loading .btn-text { visibility: hidden; }
+        .btn-logout.loading .spinner { display: block; position: absolute; }
         
         .dashboard-container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
         .card { background: var(--bg-card); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: 25px; margin-bottom: 30px; }
@@ -76,7 +80,7 @@
         textarea.form-input { resize: vertical; min-height: 120px; }
         #word-count { font-size: 0.9rem; color: var(--text-light); margin-top: 5px; }
 
-        .activity-list { list-style-type: none; }
+        .activity-list { list-style-type: none; min-height: 100px; position: relative; }
         .activity-item { border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; margin-bottom: 15px; transition: var(--transition); }
         .activity-item h3 { margin-bottom: 10px; color: var(--primary-dark); }
         .activity-meta { display: flex; flex-wrap: wrap; gap: 20px; color: var(--text-light); font-size: 0.9rem; margin-bottom: 15px; }
@@ -85,6 +89,15 @@
         .activity-actions button:hover { opacity: 0.8; }
         .activity-item[data-status="5"] { background-color: #f0fff4; border-color: var(--success); }
         .activity-item[data-status="1"] { background-color: #fff5f5; border-color: var(--danger); }
+        
+        /* [دستور سوم] استایل لودینگ برای لیست‌ها */
+        .list-loader {
+            width: 40px; height: 40px; border: 4px solid var(--border-color);
+            border-top-color: var(--primary); border-radius: 50%;
+            animation: spin 1s linear infinite; margin: 40px auto;
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+        }
 
         /* Toast Notifications */
         #toast-container { position: fixed; top: 20px; left: 20px; z-index: 1001; display: flex; flex-direction: column; gap: 10px; direction: ltr; }
@@ -135,7 +148,11 @@
     <div id="dashboard-view" class="hidden">
         <header class="dashboard-header">
             <div class="user-info">خوش آمدید، <span id="user-name-display"></span>!</div>
-            <button id="logout-btn" class="btn-logout"><i class="fas fa-sign-out-alt"></i> خروج</button>
+            <!-- [دستور پنجم] ساختار دکمه خروج برای نمایش لودینگ تغییر کرد -->
+            <button id="logout-btn" class="btn-logout">
+                <span class="btn-text"><i class="fas fa-sign-out-alt"></i> خروج</span>
+                <div class="spinner"></div>
+            </button>
         </header>
         <main class="dashboard-container">
             <section class="card">
@@ -153,14 +170,15 @@
                     <button type="submit" class="btn-submit" id="activity-submit-btn"><span class="btn-text">ارسال فعالیت</span><div class="spinner"></div></button>
                 </form>
             </section>
+            <!-- [دستور سوم] لودینگ به لیست‌ها اضافه شد -->
             <section class="card">
-                <div class="card-header"><i class="fas fa-hourglass-half icon"></i><h2>فعالیت‌های در حال بررسی</h2></div><ul id="pending-activities-list" class="activity-list"></ul>
+                <div class="card-header"><i class="fas fa-hourglass-half icon"></i><h2>فعالیت‌های در حال بررسی</h2></div><ul id="pending-activities-list" class="activity-list"><div class="list-loader"></div></ul>
             </section>
             <section class="card">
-                <div class="card-header"><i class="fas fa-times-circle icon" style="color:var(--danger)"></i><h2>فعالیت‌های رد شده</h2></div><ul id="rejected-activities-list" class="activity-list"></ul>
+                <div class="card-header"><i class="fas fa-times-circle icon" style="color:var(--danger)"></i><h2>فعالیت‌های رد شده</h2></div><ul id="rejected-activities-list" class="activity-list"><div class="list-loader"></div></ul>
             </section>
             <section class="card">
-                <div class="card-header"><i class="fas fa-check-circle icon" style="color:var(--success)"></i><h2>فعالیت‌های تایید شده</h2></div><ul id="approved-activities-list" class="activity-list"></ul>
+                <div class="card-header"><i class="fas fa-check-circle icon" style="color:var(--success)"></i><h2>فعالیت‌های تایید شده</h2></div><ul id="approved-activities-list" class="activity-list"><div class="list-loader"></div></ul>
             </section>
         </main>
     </div>
@@ -278,11 +296,15 @@
                     }
                 } else { authErrorMsg.textContent = result.message; }
             };
-
+            
+            // [دستور پنجم] تابع خروج برای نمایش لودینگ ویرایش شد
             const handleLogout = async (showSuccessMessage = true) => {
+                app.toggleButtonLoading(logoutBtn, true);
                 const token = sessionStorage.getItem('authToken'); if(token) await app.apiRequest({ action: 'logout' });
                 sessionStorage.clear(); dashboardView.classList.add('hidden'); authView.classList.remove('hidden');
-                loginForm.reset(); if(showSuccessMessage) showToast('با موفقیت خارج شدید.', 'info');
+                loginForm.reset(); 
+                if(showSuccessMessage) showToast('با موفقیت خارج شدید.', 'info');
+                app.toggleButtonLoading(logoutBtn, false);
             };
             logoutBtn.addEventListener('click', handleLogout);
 
@@ -307,6 +329,7 @@
             };
             const createActivityHTML = (activity) => {
                 const canEdit = activity.status == '0' || activity.status == '1';
+                // [دستور دوم] تاریخ‌ها اکنون به درستی نمایش داده می‌شوند چون از سرور به صورت رشته شمسی ارسال می‌شوند
                 return `<li class="activity-item" data-status="${activity.status}"><h3>${activity.title}</h3><p class="activity-description">${activity.description}</p><div class="activity-meta"><span><i class="fas fa-calendar-alt"></i> تاریخ ثبت: ${activity.submissionDate}</span><span><i class="fas fa-play"></i> شروع: ${activity.startDate}</span><span><i class="fas fa-stop"></i> پایان: ${activity.endDate}</span></div>${canEdit ? `<div class="activity-actions"><button class="btn-edit" data-row-id="${activity.row}">ویرایش</button></div>` : ''}</li>`;
             };
             const addEditListeners = () => { document.querySelectorAll('.btn-edit').forEach(btn => btn.addEventListener('click', (e) => { const rowId = e.target.dataset.rowId; const activityToEdit = currentActivities.find(act => act.row == rowId); if (activityToEdit) { populateActivityForm(activityToEdit); window.scrollTo({ top: 0, behavior: 'smooth' }); } })); };
@@ -331,18 +354,64 @@
             const resetActivityForm = () => { activityForm.reset(); document.getElementById('activity-form-title').textContent = 'ثبت فعالیت جدید'; document.getElementById('activity-row-id').value = ''; document.getElementById('activity-submit-btn').querySelector('.btn-text').textContent = 'ارسال فعالیت'; updateWordCount(); };
             activityDescription.addEventListener('input', updateWordCount); function updateWordCount() { wordCountDisplay.textContent = `تعداد کلمات: ${activityDescription.value.trim().split(/\s+/).filter(Boolean).length}`; }
 
-            // --- Date Picker Logic ---
+            // --- [دستور اول] منطق انتخابگر تاریخ با محدودیت‌های زمانی ---
             const datePickerPopup = document.getElementById('date-picker-popup'); let currentDatePickerInput = null;
             const openDatePicker = (inputElement, options) => { currentDatePickerInput = inputElement; populateDatePicker(options); datePickerPopup.classList.add('show'); };
-            const populateDatePicker = ({ yearRange = 60, minAge = 10, minDate, maxDate } = {}) => {
-                const yearSelect = document.getElementById('date-picker-year'), monthSelect = document.getElementById('date-picker-month'), daySelect = document.getElementById('date-picker-day');
-                const currentPersianYear = parseInt(new Date().toLocaleDateString('fa-IR-u-nu-latn').split('/')[0], 10);
-                let startYear = minDate ? minDate.toLocaleDateString('fa-IR-u-nu-latn').split('/')[0] : currentPersianYear - minAge - yearRange;
-                let endYear = maxDate ? maxDate.toLocaleDateString('fa-IR-u-nu-latn').split('/')[0] : currentPersianYear - minAge;
-                yearSelect.innerHTML = ''; for (let i = endYear; i >= startYear; i--) yearSelect.innerHTML += `<option value="${i}">${i}</option>`;
-                monthSelect.innerHTML = Array.from({length: 12}, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
-                daySelect.innerHTML = Array.from({length: 31}, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
+            
+            const getPersianDateParts = (date) => {
+                if (!date) return null;
+                const [year, month, day] = new Date(date).toLocaleDateString('fa-IR-u-nu-latn', { year: 'numeric', month: '2-digit', day: '2-digit' }).split('/');
+                return { year: parseInt(year), month: parseInt(month), day: parseInt(day) };
             };
+            
+            const populateDatePicker = (options = {}) => {
+                const yearSelect = document.getElementById('date-picker-year');
+                const monthSelect = document.getElementById('date-picker-month');
+                const daySelect = document.getElementById('date-picker-day');
+                
+                const { minDate, maxDate, minDateParts } = options;
+                const pMin = minDate ? getPersianDateParts(minDate) : minDateParts;
+                const pMax = getPersianDateParts(maxDate);
+
+                const updateDays = () => {
+                    daySelect.innerHTML = '';
+                    const selectedYear = parseInt(yearSelect.value);
+                    const selectedMonth = parseInt(monthSelect.value);
+                    const startDay = (selectedYear === pMin.year && selectedMonth === pMin.month) ? pMin.day : 1;
+                    
+                    let endDayOfMonth;
+                    if (selectedMonth <= 6) endDayOfMonth = 31;
+                    else if (selectedMonth <= 11) endDayOfMonth = 30;
+                    else endDayOfMonth = 29; // Ignoring leap years for simplicity
+                    
+                    const endDay = (selectedYear === pMax.year && selectedMonth === pMax.month) ? pMax.day : endDayOfMonth;
+
+                    for (let d = startDay; d <= endDay; d++) {
+                        daySelect.innerHTML += `<option value="${d}">${d}</option>`;
+                    }
+                };
+                
+                const updateMonths = () => {
+                    monthSelect.innerHTML = '';
+                    const selectedYear = parseInt(yearSelect.value);
+                    const startMonth = (selectedYear === pMin.year) ? pMin.month : 1;
+                    const endMonth = (selectedYear === pMax.year) ? pMax.month : 12;
+                    for (let m = startMonth; m <= endMonth; m++) {
+                        monthSelect.innerHTML += `<option value="${m}">${m}</option>`;
+                    }
+                    updateDays();
+                };
+
+                yearSelect.innerHTML = '';
+                for (let y = pMax.year; y >= pMin.year; y--) {
+                    yearSelect.innerHTML += `<option value="${y}">${y}</option>`;
+                }
+                updateMonths();
+
+                yearSelect.onchange = updateMonths;
+                monthSelect.onchange = updateDays;
+            };
+
             document.getElementById('date-picker-submit').addEventListener('click', () => {
                 if (currentDatePickerInput) {
                     const y = document.getElementById('date-picker-year').value, m = document.getElementById('date-picker-month').value.padStart(2, '0'), d = document.getElementById('date-picker-day').value.padStart(2, '0');
@@ -353,21 +422,31 @@
             datePickerPopup.addEventListener('click', (e) => { if(e.target === datePickerPopup) datePickerPopup.classList.remove('show'); });
             
             // --- Custom Date Picker Listeners ---
-            document.getElementById('reg-dob').addEventListener('click', function(){ openDatePicker(this, {}); });
-            document.getElementById('activity-start-date').addEventListener('click', function(){
-                const maxDate = new Date(); const minDate = new Date(); minDate.setMonth(minDate.getMonth() - 1);
+            document.getElementById('reg-dob').addEventListener('click', function(){ 
+                const maxDate = new Date();
+                const minDate = new Date();
+                minDate.setFullYear(minDate.getFullYear() - 80);
                 openDatePicker(this, { minDate, maxDate });
             });
+            
+            document.getElementById('activity-start-date').addEventListener('click', function(){
+                const maxDate = new Date(); 
+                const minDate = new Date(); 
+                minDate.setMonth(minDate.getMonth() - 1);
+                openDatePicker(this, { minDate, maxDate });
+            });
+
             document.getElementById('activity-end-date').addEventListener('click', function(){
                 const startDateStr = document.getElementById('activity-start-date').value;
                 if (!startDateStr) { showToast('ابتدا تاریخ شروع را انتخاب کنید.', 'info'); return; }
-                const minDate = parsePersianDate(startDateStr); const maxDate = new Date();
-                openDatePicker(this, { minDate, maxDate });
+                const [year, month, day] = startDateStr.split('/').map(Number);
+                const minDateParts = { year, month, day };
+                const maxDate = new Date();
+                openDatePicker(this, { minDateParts, maxDate });
             });
             
             // --- Helper Functions ---
             function isValidIranianNationalId(c) { if (!/^\d{10}$/.test(c)) return false; const k = parseInt(c[9],10); let s=0; for (let i=0; i<9; i++) s+=parseInt(c[i],10)*(10-i); const r=s%11; return r<2 ? k===r : k===11-r; }
-            function parsePersianDate(str) { const [y, m, d] = str.split('/').map(Number); const gYear = y - 621; const date = new Date(gYear, m - 1, d); const dayOfWeek = date.getDay(); const gMonth = date.getMonth() + 1; const gDay = date.getDate(); return new Date(new Date().getFullYear(), m - 1, d); } // Simplified conversion for comparison
 
             // --- Initial Load ---
             const checkSession = () => { const user = sessionStorage.getItem('currentUser'), token = sessionStorage.getItem('authToken'); if (user && token) initDashboard(JSON.parse(user)); };
