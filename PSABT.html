@@ -22,8 +22,19 @@
         @keyframes spin { to { transform: rotate(360deg); } }
 
         /* Auth View */
-        #auth-view { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; animation: fadeIn 0.5s; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); }
-        .auth-container { width: 100%; max-width: 450px; background: var(--bg-card); padding: 40px; border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+        #auth-view { 
+            min-height: 100vh; display: flex; align-items: center; justify-content: center; 
+            padding: 20px; animation: fadeIn 0.5s; 
+            background-image: url('https://tashacol.ir/123.jpg'); 
+            background-size: cover; 
+            background-position: center; 
+        }
+        .auth-container { 
+            width: 100%; max-width: 450px; 
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(8px);
+            padding: 40px; border-radius: var(--radius-lg); box-shadow: var(--shadow); 
+        }
         .auth-header { text-align: center; margin-bottom: 30px; }
         .auth-header h1 { font-size: 2rem; color: var(--primary); }
         .auth-toggle { display: flex; border: 1px solid var(--border-color); border-radius: var(--radius-md); margin-bottom: 30px; }
@@ -48,7 +59,7 @@
         .date-popup-box { background: #fff; padding: 25px; border-radius: var(--radius-md); display: flex; gap: 15px; }
 
         /* Dashboard View */
-        #dashboard-view { animation: fadeIn 0.5s; }
+        #dashboard-view { animation: fadeIn 0.5s; background-color: var(--bg-main); }
         .dashboard-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: var(--bg-card); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         .user-info span { font-weight: 700; color: var(--primary); }
         .btn-logout { background: var(--danger); color: #fff; border: none; padding: 8px 15px; border-radius: var(--radius-md); cursor: pointer; transition: var(--transition); }
@@ -125,7 +136,6 @@
                 <div class="form-group"><label for="reg-password">رمز عبور (بین ۴ تا ۳۰ کاراکتر)</label><input type="password" id="reg-password" class="form-input" required minlength="4" maxlength="30"></div>
                 <button type="submit" class="btn-submit"><span class="btn-text">ثبت‌نام</span><div class="spinner"></div></button>
             </form>
-
             <p id="auth-error-msg"></p>
         </div>
     </div>
@@ -136,9 +146,7 @@
             <div class="user-info">خوش آمدید، <span id="user-name-display"></span>!</div>
             <button id="logout-btn" class="btn-logout"><i class="fas fa-sign-out-alt"></i> خروج</button>
         </header>
-
         <main class="dashboard-container">
-            <!-- Register/Edit Activity Form -->
             <section class="card">
                 <div class="card-header"><i class="fas fa-edit icon"></i><h2 id="activity-form-title">ثبت فعالیت جدید</h2></div>
                 <form id="activity-form">
@@ -154,20 +162,14 @@
                     <button type="submit" class="btn-submit" id="activity-submit-btn"><span class="btn-text">ارسال فعالیت</span><div class="spinner"></div></button>
                 </form>
             </section>
-
-            <!-- Pending Activities -->
             <section class="card">
                 <div class="card-header"><i class="fas fa-hourglass-half icon"></i><h2>فعالیت‌های در حال بررسی</h2></div>
                 <ul id="pending-activities-list" class="activity-list"></ul>
             </section>
-            
-            <!-- Rejected Activities -->
             <section class="card">
                 <div class="card-header"><i class="fas fa-times-circle icon" style="color:var(--danger)"></i><h2>فعالیت‌های رد شده</h2></div>
                 <ul id="rejected-activities-list" class="activity-list"></ul>
             </section>
-            
-            <!-- Approved Activities -->
             <section class="card">
                 <div class="card-header"><i class="fas fa-check-circle icon" style="color:var(--success)"></i><h2>فعالیت‌های تایید شده</h2></div>
                 <ul id="approved-activities-list" class="activity-list"></ul>
@@ -184,7 +186,6 @@
             <button id="date-picker-submit" class="btn-submit" style="width:auto; padding: 10px 20px;">تایید</button>
         </div>
     </div>
-
     <div id="toast-container"></div>
 
     <script>
@@ -206,7 +207,6 @@
             const activityDescription = document.getElementById('activity-description');
             const wordCountDisplay = document.getElementById('word-count');
 
-            let currentUser = null;
             let currentActivities = [];
 
             // --- Utility Functions ---
@@ -232,11 +232,25 @@
 
             const apiRequest = async (params) => {
                 const url = new URL(SCRIPT_URL);
+                // برای درخواست‌های نیازمند احراز هویت، توکن را اضافه کن
+                const token = sessionStorage.getItem('authToken');
+                if (token && params.action !== 'login' && params.action !== 'register') {
+                    params.token = token;
+                }
+                
                 Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+
                 try {
                     const response = await fetch(url);
                     if (!response.ok) throw new Error('خطای شبکه.');
-                    return await response.json();
+                    const result = await response.json();
+
+                    // اگر سرور اعلام کرد نشست منقضی شده، کاربر را خارج کن
+                    if (!result.success && result.message.includes("نشست شما نامعتبر")) {
+                        handleLogout(false); // خروج بدون نمایش پیام
+                        showToast(result.message, 'error');
+                    }
+                    return result;
                 } catch (error) {
                     console.error("API Request Error:", error);
                     return { success: false, message: 'خطا در برقراری ارتباط با سرور.' };
@@ -269,9 +283,9 @@
 
                 if (result.success) {
                     showToast(result.message, 'success');
-                    currentUser = result.userData;
-                    sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
-                    initDashboard();
+                    sessionStorage.setItem('authToken', result.token);
+                    sessionStorage.setItem('currentUser', JSON.stringify(result.userData));
+                    initDashboard(result.userData);
                 } else {
                     authErrorMsg.textContent = result.message;
                 }
@@ -281,16 +295,14 @@
             registerForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const btn = e.target.querySelector('.btn-submit');
-                toggleButtonLoading(btn, true);
-                authErrorMsg.textContent = '';
-
                 const nationalId = document.getElementById('reg-nid').value;
                 if (!isValidIranianNationalId(nationalId)) {
                     authErrorMsg.textContent = "کد ملی وارد شده معتبر نیست.";
-                    toggleButtonLoading(btn, false);
                     return;
                 }
-
+                toggleButtonLoading(btn, true);
+                authErrorMsg.textContent = '';
+                
                 const result = await apiRequest({
                     action: 'register',
                     fullName: document.getElementById('reg-fullname').value,
@@ -313,26 +325,30 @@
                 toggleButtonLoading(btn, false);
             });
 
-            logoutBtn.addEventListener('click', () => {
-                currentUser = null;
+            const handleLogout = async (showSuccessMessage = true) => {
+                const token = sessionStorage.getItem('authToken');
+                if(token) await apiRequest({ action: 'logout' }); // به سرور اطلاع بده توکن را حذف کند
+                
+                sessionStorage.removeItem('authToken');
                 sessionStorage.removeItem('currentUser');
                 dashboardView.classList.add('hidden');
                 authView.classList.remove('hidden');
                 loginForm.reset();
-                showToast('با موفقیت خارج شدید.', 'info');
-            });
+                if(showSuccessMessage) showToast('با موفقیت خارج شدید.', 'info');
+            };
+            logoutBtn.addEventListener('click', handleLogout);
 
             // --- Dashboard Logic ---
-            const initDashboard = async () => {
-                if (!currentUser) return;
+            const initDashboard = async (userData) => {
+                if (!userData) return;
                 authView.classList.add('hidden');
                 dashboardView.classList.remove('hidden');
-                userNameDisplay.textContent = currentUser.name;
+                userNameDisplay.textContent = userData.name;
                 await fetchAndDisplayActivities();
             };
 
             const fetchAndDisplayActivities = async () => {
-                const result = await apiRequest({ action: 'getActivities', nationalId: currentUser.nationalId });
+                const result = await apiRequest({ action: 'getActivities' });
                 if (result.success) {
                     currentActivities = result.activities;
                     renderActivities();
@@ -352,9 +368,7 @@
                 const activitiesByStatus = { '0': [], '1': [], '5': [] };
                 currentActivities.forEach(act => {
                     const statusKey = act.status.toString();
-                    if (activitiesByStatus[statusKey]) {
-                        activitiesByStatus[statusKey].push(act);
-                    }
+                    if (activitiesByStatus[statusKey]) activitiesByStatus[statusKey].push(act);
                 });
                 
                 lists.pending.innerHTML = activitiesByStatus['0'].map(createActivityHTML).join('') || '<li>موردی یافت نشد.</li>';
@@ -408,18 +422,14 @@
                 e.preventDefault();
                 const btn = e.target.querySelector('.btn-submit');
                 const rowId = document.getElementById('activity-row-id').value;
-                
                 const wordCount = activityDescription.value.trim().split(/\s+/).filter(Boolean).length;
                 if(wordCount < 15) {
-                    showToast('توضیحات باید حداقل ۱۵ کلمه باشد.', 'error');
-                    return;
+                    showToast('توضیحات باید حداقل ۱۵ کلمه باشد.', 'error'); return;
                 }
-
                 toggleButtonLoading(btn, true);
 
                 const params = {
                     action: rowId ? 'updateActivity' : 'addActivity',
-                    nationalId: currentUser.nationalId,
                     row: rowId,
                     title: document.getElementById('activity-title').value,
                     description: activityDescription.value,
@@ -467,20 +477,14 @@
                 const yearSelect = document.getElementById('date-picker-year');
                 const monthSelect = document.getElementById('date-picker-month');
                 const daySelect = document.getElementById('date-picker-day');
-                
-                const today = new Date();
                 const currentPersianYear = new Date().toLocaleDateString('fa-IR-u-nu-latn').split('/')[0];
                 
                 yearSelect.innerHTML = '';
                 if (future) {
-                    for (let i = 0; i <= 5; i++) {
-                        yearSelect.innerHTML += `<option value="${+currentPersianYear + i}">${+currentPersianYear + i}</option>`;
-                    }
+                    for (let i = 0; i <= 5; i++) yearSelect.innerHTML += `<option value="${+currentPersianYear + i}">${+currentPersianYear + i}</option>`;
                 } else {
                     const endYear = +currentPersianYear - minAge;
-                    for (let i = endYear; i >= endYear - yearRange; i--) {
-                        yearSelect.innerHTML += `<option value="${i}">${i}</option>`;
-                    }
+                    for (let i = endYear; i >= endYear - yearRange; i--) yearSelect.innerHTML += `<option value="${i}">${i}</option>`;
                 }
                 monthSelect.innerHTML = Array.from({length: 12}, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
                 daySelect.innerHTML = Array.from({length: 31}, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
@@ -504,15 +508,12 @@
             setupDatePicker(document.getElementById('activity-start-date'), { future: true, minAge: 0, yearRange: 0 });
             setupDatePicker(document.getElementById('activity-end-date'), { future: true, minAge: 0, yearRange: 0 });
 
-
             // --- National ID Validation (Client-Side) ---
             function isValidIranianNationalId(code) {
                 if (!/^\d{10}$/.test(code)) return false;
                 const check = parseInt(code.substr(9, 1), 10);
                 let sum = 0;
-                for (let i = 0; i < 9; i++) {
-                    sum += parseInt(code.substr(i, 1), 10) * (10 - i);
-                }
+                for (let i = 0; i < 9; i++) sum += parseInt(code.substr(i, 1), 10) * (10 - i);
                 const remainder = sum % 11;
                 return (remainder < 2 && check === remainder) || (remainder >= 2 && check === 11 - remainder);
             }
@@ -520,12 +521,11 @@
             // --- Initial Load ---
             const checkSession = () => {
                 const savedUser = sessionStorage.getItem('currentUser');
-                if (savedUser) {
-                    currentUser = JSON.parse(savedUser);
-                    initDashboard();
+                const token = sessionStorage.getItem('authToken');
+                if (savedUser && token) {
+                    initDashboard(JSON.parse(savedUser));
                 }
             };
-            
             checkSession();
         });
     </script>
