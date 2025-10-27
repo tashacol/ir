@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سامانه ثبت و پیگیری فعالیت‌ها</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap');
+        :root {
+            --primary: #007bff; --primary-light: #e6f2ff; --primary-dark: #0056b3;
+            --text-dark: #212529; --text-light: #6c757d; --text-on-dark: #ffffff;
+            --bg-main: #f4f7f9; --bg-card: #ffffff; --border-color: #dee2e6;
+            --success: #28a745; --danger: #dc3545; --warning: #ffc107; --info: #17a2b8;
+            --shadow: 0 4px 25px rgba(0,0,0,0.08); --radius-lg: 16px; --radius-md: 12px;
+            --transition: 0.3s ease;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Vazirmatn', sans-serif; background-color: var(--bg-main); color: var(--text-dark); line-height: 1.7; }
+        .hidden { display: none !important; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Auth View */
+        #auth-view { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; animation: fadeIn 0.5s; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); }
+        .auth-container { width: 100%; max-width: 450px; background: var(--bg-card); padding: 40px; border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+        .auth-header { text-align: center; margin-bottom: 30px; }
+        .auth-header h1 { font-size: 2rem; color: var(--primary); }
+        .auth-toggle { display: flex; border: 1px solid var(--border-color); border-radius: var(--radius-md); margin-bottom: 30px; }
+        .auth-toggle button { flex: 1; padding: 12px; font-size: 1rem; font-weight: 500; background: transparent; border: none; cursor: pointer; transition: var(--transition); color: var(--text-light); }
+        .auth-toggle button.active { background-color: var(--primary); color: var(--text-on-dark); border-radius: var(--radius-md); }
+        
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 500; }
+        .form-input, .form-select { width: 100%; padding: 12px 15px; border-radius: var(--radius-md); border: 1px solid var(--border-color); font-size: 1rem; font-family: inherit; transition: var(--transition); }
+        .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); outline: none; }
+        .btn-submit { width: 100%; padding: 14px; font-size: 1.1rem; font-weight: 500; background: var(--primary); color: var(--text-on-dark); border: none; border-radius: var(--radius-md); cursor: pointer; transition: var(--transition); position: relative; display: flex; align-items: center; justify-content: center; min-height: 50px; }
+        .btn-submit:hover:not(:disabled) { background: var(--primary-dark); }
+        .btn-submit:disabled { background-color: #a0a0a0; cursor: not-allowed; }
+        .btn-submit .spinner { width: 22px; height: 22px; border: 3px solid rgba(255,255,255,0.3); border-top-color: var(--text-on-dark); border-radius: 50%; animation: spin 0.8s linear infinite; display: none; }
+        .btn-submit.loading .btn-text { visibility: hidden; }
+        .btn-submit.loading .spinner { display: block; position: absolute; }
+        #auth-error-msg { margin-top: 15px; color: var(--danger); min-height: 20px; font-weight: 500; text-align: center; }
+
+        /* Date Picker Popup */
+        .date-popup-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .date-popup-overlay.show { display: flex; }
+        .date-popup-box { background: #fff; padding: 25px; border-radius: var(--radius-md); display: flex; gap: 15px; }
+
+        /* Dashboard View */
+        #dashboard-view { animation: fadeIn 0.5s; }
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: var(--bg-card); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .user-info span { font-weight: 700; color: var(--primary); }
+        .btn-logout { background: var(--danger); color: #fff; border: none; padding: 8px 15px; border-radius: var(--radius-md); cursor: pointer; transition: var(--transition); }
+        .btn-logout:hover { background: #c82333; }
+        
+        .dashboard-container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+        .card { background: var(--bg-card); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: 25px; margin-bottom: 30px; }
+        .card-header { display: flex; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--border-color); }
+        .card-header .icon { color: var(--primary); font-size: 1.5rem; margin-left: 15px; }
+        .card-header h2 { font-size: 1.3rem; margin: 0; }
+        
+        textarea.form-input { resize: vertical; min-height: 120px; }
+        #word-count { font-size: 0.9rem; color: var(--text-light); margin-top: 5px; }
+
+        .activity-list { list-style-type: none; }
+        .activity-item { border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; margin-bottom: 15px; transition: var(--transition); }
+        .activity-item h3 { margin-bottom: 10px; color: var(--primary-dark); }
+        .activity-meta { display: flex; flex-wrap: wrap; gap: 20px; color: var(--text-light); font-size: 0.9rem; margin-bottom: 15px; }
+        .activity-description { margin-bottom: 20px; }
+        .activity-actions button { background: var(--warning); color: #fff; border: none; padding: 8px 15px; border-radius: var(--radius-md); cursor: pointer; transition: var(--transition); font-weight: 500; }
+        .activity-actions button:hover { opacity: 0.8; }
+        .activity-item[data-status="5"] { background-color: #f0fff4; border-color: var(--success); }
+        .activity-item[data-status="1"] { background-color: #fff5f5; border-color: var(--danger); }
+
+        /* Toast Notifications */
+        #toast-container { position: fixed; top: 20px; left: 20px; z-index: 1001; display: flex; flex-direction: column; gap: 10px; direction: ltr; }
+        .toast { background-color: var(--bg-card); padding: 15px 20px; border-radius: var(--radius-md); box-shadow: var(--shadow); border-right: 5px solid; display: flex; align-items: center; gap: 15px; opacity: 0; transform: translateX(100%); animation: toast-in 0.5s forwards; min-width: 350px; }
+        @keyframes toast-in { to { opacity: 1; transform: translateX(0); } }
+        .toast.hide { animation: toast-out 0.5s forwards; }
+        @keyframes toast-out { to { opacity: 0; transform: translateX(120%); } }
+        .toast .toast-icon { font-size: 1.5rem; }
+        .toast span { font-family: 'Vazirmatn', sans-serif; font-weight: 500; direction: rtl; text-align: right; width: 100%; }
+        .toast.success { border-color: var(--success); } .toast.success .toast-icon { color: var(--success); }
+        .toast.error { border-color: var(--danger); } .toast.error .toast-icon { color: var(--danger); }
+        .toast.info { border-color: var(--info); } .toast.info .toast-icon { color: var(--info); }
+    </style>
+</head>
+<body>
+
+    <!-- Auth View: Login & Registration -->
+    <div id="auth-view">
+        <div class="auth-container">
+            <div class="auth-header">
+                <h1>سامانه فعالیت‌ها</h1>
+                <p>برای ادامه وارد شوید یا ثبت‌نام کنید</p>
+            </div>
+            <div class="auth-toggle">
+                <button id="show-login-btn" class="active">ورود</button>
+                <button id="show-register-btn">ثبت‌نام</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-nid">کد ملی (نام کاربری)</label>
+                    <input type="text" id="login-nid" class="form-input" required inputmode="numeric">
+                </div>
+                <div class="form-group">
+                    <label for="login-password">رمز عبور</label>
+                    <input type="password" id="login-password" class="form-input" required>
+                </div>
+                <button type="submit" class="btn-submit"><span class="btn-text">ورود</span><div class="spinner"></div></button>
+            </form>
+
+            <!-- Registration Form -->
+            <form id="register-form" class="hidden">
+                <div class="form-group"><label for="reg-fullname">نام و نام خانوادگی</label><input type="text" id="reg-fullname" class="form-input" required></div>
+                <div class="form-group"><label for="reg-nid">کد ملی</label><input type="text" id="reg-nid" class="form-input" required inputmode="numeric" maxlength="10"></div>
+                <div class="form-group"><label for="reg-dob">تاریخ تولد</label><input type="text" id="reg-dob" class="form-input" required readonly placeholder="برای انتخاب کلیک کنید"></div>
+                <div class="form-group"><label for="reg-gender">جنسیت</label><select id="reg-gender" class="form-select"><option value="مرد">مرد</option><option value="زن">زن</option></select></div>
+                <div class="form-group"><label for="reg-education">تحصیلات</label><select id="reg-education" class="form-select"><option value="طلبه">طلبه</option><option value="دانشجو">دانشجو</option><option value="مدرسه">مدرسه</option><option value="بدون تحصیلات">بدون تحصیلات</option></select></div>
+                <div class="form-group"><label for="reg-skill">مهارت یا تخصص</label><input type="text" id="reg-skill" class="form-input"></div>
+                <div class="form-group"><label for="reg-phone">شماره تماس</label><input type="tel" id="reg-phone" class="form-input" required inputmode="numeric"></div>
+                <div class="form-group"><label for="reg-password">رمز عبور (بین ۴ تا ۳۰ کاراکتر)</label><input type="password" id="reg-password" class="form-input" required minlength="4" maxlength="30"></div>
+                <button type="submit" class="btn-submit"><span class="btn-text">ثبت‌نام</span><div class="spinner"></div></button>
+            </form>
+
+            <p id="auth-error-msg"></p>
+        </div>
+    </div>
+
+    <!-- Dashboard View -->
+    <div id="dashboard-view" class="hidden">
+        <header class="dashboard-header">
+            <div class="user-info">خوش آمدید، <span id="user-name-display"></span>!</div>
+            <button id="logout-btn" class="btn-logout"><i class="fas fa-sign-out-alt"></i> خروج</button>
+        </header>
+
+        <main class="dashboard-container">
+            <!-- Register/Edit Activity Form -->
+            <section class="card">
+                <div class="card-header"><i class="fas fa-edit icon"></i><h2 id="activity-form-title">ثبت فعالیت جدید</h2></div>
+                <form id="activity-form">
+                    <input type="hidden" id="activity-row-id">
+                    <div class="form-group"><label for="activity-title">عنوان فعالیت</label><input type="text" id="activity-title" class="form-input" required></div>
+                    <div class="form-group"><label for="activity-description">توضیحات (حداقل ۱۵ کلمه)</label><textarea id="activity-description" class="form-input" required></textarea><div id="word-count">تعداد کلمات: 0</div></div>
+                    <div class="form-group"><label for="activity-start-date">بازه زمانی فعالیت</label>
+                        <div style="display: flex; gap: 15px;">
+                            <input type="text" id="activity-start-date" class="form-input" required readonly placeholder="تاریخ شروع">
+                            <input type="text" id="activity-end-date" class="form-input" required readonly placeholder="تاریخ پایان">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-submit" id="activity-submit-btn"><span class="btn-text">ارسال فعالیت</span><div class="spinner"></div></button>
+                </form>
+            </section>
+
+            <!-- Pending Activities -->
+            <section class="card">
+                <div class="card-header"><i class="fas fa-hourglass-half icon"></i><h2>فعالیت‌های در حال بررسی</h2></div>
+                <ul id="pending-activities-list" class="activity-list"></ul>
+            </section>
+            
+            <!-- Rejected Activities -->
+            <section class="card">
+                <div class="card-header"><i class="fas fa-times-circle icon" style="color:var(--danger)"></i><h2>فعالیت‌های رد شده</h2></div>
+                <ul id="rejected-activities-list" class="activity-list"></ul>
+            </section>
+            
+            <!-- Approved Activities -->
+            <section class="card">
+                <div class="card-header"><i class="fas fa-check-circle icon" style="color:var(--success)"></i><h2>فعالیت‌های تایید شده</h2></div>
+                <ul id="approved-activities-list" class="activity-list"></ul>
+            </section>
+        </main>
+    </div>
+
+    <!-- Date Picker Popup -->
+    <div id="date-picker-popup" class="date-popup-overlay">
+        <div class="date-popup-box">
+            <select id="date-picker-year" class="form-select"></select>
+            <select id="date-picker-month" class="form-select"></select>
+            <select id="date-picker-day" class="form-select"></select>
+            <button id="date-picker-submit" class="btn-submit" style="width:auto; padding: 10px 20px;">تایید</button>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // ⬇️⬇️⬇️ مهم: این آدرس را با Web App URL خودتان جایگزین کنید ⬇️⬇️⬇️
+            const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwe_V2VK38kJ_Lw6X7h2PTc0QIWfx6B_q0YGZ54m_aXE7F3sGMUGjBQa0eQQlXL6W50RA/exec";
+            
+            // --- Elements Cache ---
+            const authView = document.getElementById('auth-view');
+            const dashboardView = document.getElementById('dashboard-view');
+            const loginForm = document.getElementById('login-form');
+            const registerForm = document.getElementById('register-form');
+            const showLoginBtn = document.getElementById('show-login-btn');
+            const showRegisterBtn = document.getElementById('show-register-btn');
+            const authErrorMsg = document.getElementById('auth-error-msg');
+            const logoutBtn = document.getElementById('logout-btn');
+            const userNameDisplay = document.getElementById('user-name-display');
+            const activityForm = document.getElementById('activity-form');
+            const activityDescription = document.getElementById('activity-description');
+            const wordCountDisplay = document.getElementById('word-count');
+
+            let currentUser = null;
+            let currentActivities = [];
+
+            // --- Utility Functions ---
+            const showToast = (message, type = 'info') => {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                let icon = 'fa-info-circle';
+                if (type === 'success') icon = 'fa-check-circle';
+                if (type === 'error') icon = 'fa-times-circle';
+                toast.innerHTML = `<i class="fas ${icon} toast-icon"></i><span>${message}</span>`;
+                container.appendChild(toast);
+                setTimeout(() => {
+                    toast.classList.add('hide');
+                    toast.addEventListener('animationend', () => toast.remove());
+                }, 5000);
+            };
+
+            const toggleButtonLoading = (btn, isLoading) => {
+                btn.classList.toggle('loading', isLoading);
+                btn.disabled = isLoading;
+            };
+
+            const apiRequest = async (params) => {
+                const url = new URL(SCRIPT_URL);
+                Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error('خطای شبکه.');
+                    return await response.json();
+                } catch (error) {
+                    console.error("API Request Error:", error);
+                    return { success: false, message: 'خطا در برقراری ارتباط با سرور.' };
+                }
+            };
+            
+            // --- Authentication Logic ---
+            const toggleAuthForms = (showLogin) => {
+                loginForm.classList.toggle('hidden', !showLogin);
+                registerForm.classList.toggle('hidden', showLogin);
+                showLoginBtn.classList.toggle('active', showLogin);
+                showRegisterBtn.classList.toggle('active', !showLogin);
+                authErrorMsg.textContent = '';
+            };
+
+            showLoginBtn.addEventListener('click', () => toggleAuthForms(true));
+            showRegisterBtn.addEventListener('click', () => toggleAuthForms(false));
+
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = e.target.querySelector('.btn-submit');
+                toggleButtonLoading(btn, true);
+                authErrorMsg.textContent = '';
+                
+                const result = await apiRequest({
+                    action: 'login',
+                    nationalId: document.getElementById('login-nid').value,
+                    password: document.getElementById('login-password').value
+                });
+
+                if (result.success) {
+                    showToast(result.message, 'success');
+                    currentUser = result.userData;
+                    sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    initDashboard();
+                } else {
+                    authErrorMsg.textContent = result.message;
+                }
+                toggleButtonLoading(btn, false);
+            });
+
+            registerForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = e.target.querySelector('.btn-submit');
+                toggleButtonLoading(btn, true);
+                authErrorMsg.textContent = '';
+
+                const nationalId = document.getElementById('reg-nid').value;
+                if (!isValidIranianNationalId(nationalId)) {
+                    authErrorMsg.textContent = "کد ملی وارد شده معتبر نیست.";
+                    toggleButtonLoading(btn, false);
+                    return;
+                }
+
+                const result = await apiRequest({
+                    action: 'register',
+                    fullName: document.getElementById('reg-fullname').value,
+                    nationalId: nationalId,
+                    dob: document.getElementById('reg-dob').value,
+                    gender: document.getElementById('reg-gender').value,
+                    education: document.getElementById('reg-education').value,
+                    skill: document.getElementById('reg-skill').value,
+                    phone: document.getElementById('reg-phone').value,
+                    password: document.getElementById('reg-password').value,
+                });
+                
+                showToast(result.message, result.success ? 'success' : 'error');
+                if (result.success) {
+                    registerForm.reset();
+                    toggleAuthForms(true);
+                } else {
+                    authErrorMsg.textContent = result.message;
+                }
+                toggleButtonLoading(btn, false);
+            });
+
+            logoutBtn.addEventListener('click', () => {
+                currentUser = null;
+                sessionStorage.removeItem('currentUser');
+                dashboardView.classList.add('hidden');
+                authView.classList.remove('hidden');
+                loginForm.reset();
+                showToast('با موفقیت خارج شدید.', 'info');
+            });
+
+            // --- Dashboard Logic ---
+            const initDashboard = async () => {
+                if (!currentUser) return;
+                authView.classList.add('hidden');
+                dashboardView.classList.remove('hidden');
+                userNameDisplay.textContent = currentUser.name;
+                await fetchAndDisplayActivities();
+            };
+
+            const fetchAndDisplayActivities = async () => {
+                const result = await apiRequest({ action: 'getActivities', nationalId: currentUser.nationalId });
+                if (result.success) {
+                    currentActivities = result.activities;
+                    renderActivities();
+                } else {
+                    showToast(result.message, 'error');
+                }
+            };
+            
+            const renderActivities = () => {
+                const lists = {
+                    pending: document.getElementById('pending-activities-list'),
+                    rejected: document.getElementById('rejected-activities-list'),
+                    approved: document.getElementById('approved-activities-list')
+                };
+                Object.values(lists).forEach(list => list.innerHTML = '');
+
+                const activitiesByStatus = { '0': [], '1': [], '5': [] };
+                currentActivities.forEach(act => {
+                    const statusKey = act.status.toString();
+                    if (activitiesByStatus[statusKey]) {
+                        activitiesByStatus[statusKey].push(act);
+                    }
+                });
+                
+                lists.pending.innerHTML = activitiesByStatus['0'].map(createActivityHTML).join('') || '<li>موردی یافت نشد.</li>';
+                lists.rejected.innerHTML = activitiesByStatus['1'].map(createActivityHTML).join('') || '<li>موردی یافت نشد.</li>';
+                lists.approved.innerHTML = activitiesByStatus['5'].map(createActivityHTML).join('') || '<li>موردی یافت نشد.</li>';
+                
+                addEditListeners();
+            };
+            
+            const createActivityHTML = (activity) => {
+                const canEdit = activity.status == '0' || activity.status == '1';
+                return `
+                    <li class="activity-item" data-status="${activity.status}">
+                        <h3>${activity.title}</h3>
+                        <p class="activity-description">${activity.description}</p>
+                        <div class="activity-meta">
+                            <span><i class="fas fa-calendar-alt"></i> تاریخ ثبت: ${activity.submissionDate}</span>
+                            <span><i class="fas fa-play"></i> شروع: ${activity.startDate}</span>
+                            <span><i class="fas fa-stop"></i> پایان: ${activity.endDate}</span>
+                        </div>
+                        ${canEdit ? `<div class="activity-actions"><button class="btn-edit" data-row-id="${activity.row}">ویرایش</button></div>` : ''}
+                    </li>
+                `;
+            };
+
+            const addEditListeners = () => {
+                document.querySelectorAll('.btn-edit').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const rowId = e.target.dataset.rowId;
+                        const activityToEdit = currentActivities.find(act => act.row == rowId);
+                        if (activityToEdit) {
+                            populateActivityForm(activityToEdit);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                    });
+                });
+            };
+
+            const populateActivityForm = (activity) => {
+                document.getElementById('activity-form-title').textContent = 'ویرایش فعالیت';
+                document.getElementById('activity-row-id').value = activity.row;
+                document.getElementById('activity-title').value = activity.title;
+                document.getElementById('activity-description').value = activity.description;
+                document.getElementById('activity-start-date').value = activity.startDate;
+                document.getElementById('activity-end-date').value = activity.endDate;
+                document.getElementById('activity-submit-btn').querySelector('.btn-text').textContent = 'ویرایش و ارسال مجدد';
+                updateWordCount();
+            };
+
+            activityForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = e.target.querySelector('.btn-submit');
+                const rowId = document.getElementById('activity-row-id').value;
+                
+                const wordCount = activityDescription.value.trim().split(/\s+/).filter(Boolean).length;
+                if(wordCount < 15) {
+                    showToast('توضیحات باید حداقل ۱۵ کلمه باشد.', 'error');
+                    return;
+                }
+
+                toggleButtonLoading(btn, true);
+
+                const params = {
+                    action: rowId ? 'updateActivity' : 'addActivity',
+                    nationalId: currentUser.nationalId,
+                    row: rowId,
+                    title: document.getElementById('activity-title').value,
+                    description: activityDescription.value,
+                    startDate: document.getElementById('activity-start-date').value,
+                    endDate: document.getElementById('activity-end-date').value
+                };
+                
+                const result = await apiRequest(params);
+                showToast(result.message, result.success ? 'success' : 'error');
+                
+                if (result.success) {
+                    resetActivityForm();
+                    await fetchAndDisplayActivities();
+                }
+                toggleButtonLoading(btn, false);
+            });
+            
+            const resetActivityForm = () => {
+                activityForm.reset();
+                document.getElementById('activity-form-title').textContent = 'ثبت فعالیت جدید';
+                document.getElementById('activity-row-id').value = '';
+                document.getElementById('activity-submit-btn').querySelector('.btn-text').textContent = 'ارسال فعالیت';
+                updateWordCount();
+            };
+
+            activityDescription.addEventListener('input', updateWordCount);
+            function updateWordCount() {
+                const count = activityDescription.value.trim().split(/\s+/).filter(Boolean).length;
+                wordCountDisplay.textContent = `تعداد کلمات: ${count}`;
+            }
+
+            // --- Date Picker Logic ---
+            const datePickerPopup = document.getElementById('date-picker-popup');
+            let currentDatePickerInput = null;
+
+            const setupDatePicker = (inputElement, options = {}) => {
+                inputElement.addEventListener('click', () => {
+                    currentDatePickerInput = inputElement;
+                    populateDatePicker(options);
+                    datePickerPopup.classList.add('show');
+                });
+            };
+
+            const populateDatePicker = ({ yearRange = 60, minAge = 10, future = false } = {}) => {
+                const yearSelect = document.getElementById('date-picker-year');
+                const monthSelect = document.getElementById('date-picker-month');
+                const daySelect = document.getElementById('date-picker-day');
+                
+                const today = new Date();
+                const currentPersianYear = new Date().toLocaleDateString('fa-IR-u-nu-latn').split('/')[0];
+                
+                yearSelect.innerHTML = '';
+                if (future) {
+                    for (let i = 0; i <= 5; i++) {
+                        yearSelect.innerHTML += `<option value="${+currentPersianYear + i}">${+currentPersianYear + i}</option>`;
+                    }
+                } else {
+                    const endYear = +currentPersianYear - minAge;
+                    for (let i = endYear; i >= endYear - yearRange; i--) {
+                        yearSelect.innerHTML += `<option value="${i}">${i}</option>`;
+                    }
+                }
+                monthSelect.innerHTML = Array.from({length: 12}, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
+                daySelect.innerHTML = Array.from({length: 31}, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
+            };
+
+            document.getElementById('date-picker-submit').addEventListener('click', () => {
+                if (currentDatePickerInput) {
+                    const year = document.getElementById('date-picker-year').value;
+                    const month = document.getElementById('date-picker-month').value.padStart(2, '0');
+                    const day = document.getElementById('date-picker-day').value.padStart(2, '0');
+                    currentDatePickerInput.value = `${year}/${month}/${day}`;
+                }
+                datePickerPopup.classList.remove('show');
+            });
+            
+            datePickerPopup.addEventListener('click', (e) => {
+                if(e.target === datePickerPopup) datePickerPopup.classList.remove('show');
+            });
+
+            setupDatePicker(document.getElementById('reg-dob'));
+            setupDatePicker(document.getElementById('activity-start-date'), { future: true, minAge: 0, yearRange: 0 });
+            setupDatePicker(document.getElementById('activity-end-date'), { future: true, minAge: 0, yearRange: 0 });
+
+
+            // --- National ID Validation (Client-Side) ---
+            function isValidIranianNationalId(code) {
+                if (!/^\d{10}$/.test(code)) return false;
+                const check = parseInt(code.substr(9, 1), 10);
+                let sum = 0;
+                for (let i = 0; i < 9; i++) {
+                    sum += parseInt(code.substr(i, 1), 10) * (10 - i);
+                }
+                const remainder = sum % 11;
+                return (remainder < 2 && check === remainder) || (remainder >= 2 && check === 11 - remainder);
+            }
+
+            // --- Initial Load ---
+            const checkSession = () => {
+                const savedUser = sessionStorage.getItem('currentUser');
+                if (savedUser) {
+                    currentUser = JSON.parse(savedUser);
+                    initDashboard();
+                }
+            };
+            
+            checkSession();
+        });
+    </script>
+</body>
+</html>
