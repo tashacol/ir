@@ -388,7 +388,6 @@
                 const iconEl = alertPopup.querySelector('.popup-icon i');
                 const iconContainer = alertPopup.querySelector('.popup-icon');
                 
-                // تنظیم رنگ و آیکون بر اساس نوع پیام
                 popupBox.classList.remove('success', 'error', 'info');
                 popupBox.classList.add(type);
                 iconContainer.className = `popup-icon ${type}`;
@@ -402,7 +401,6 @@
                 alertPopup.classList.add('show');
             };
 
-            // افزودن قابلیت بستن به پاپ‌آپ اطلاع‌رسانی
             alertPopup.addEventListener('click', (e) => {
                 if (e.target.classList.contains('popup-overlay') || e.target.closest('.popup-close-btn')) {
                     alertPopup.classList.remove('show');
@@ -442,31 +440,21 @@
                 }
             };
             
-            const executeRecaptcha = (action, params, btn) => {
-                grecaptcha.ready(function() {
-                    grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: action }).then(async function(recaptchaToken) {
-                        params.recaptchaToken = recaptchaToken;
-                        const result = await apiRequest(params);
-                        if (result.success) {
-                            if (action === 'login') {
-                                showAlert('ورود موفق', result.message, 'success');
-                                sessionStorage.setItem('authToken', result.token);
-                                sessionStorage.setItem('currentUser', JSON.stringify(result.userData));
-                                setTimeout(() => {
-                                    alertPopup.classList.remove('show');
-                                    initDashboard(result.userData);
-                                }, 1500);
-                            } else if (action === 'register') {
-                                showAlert('ثبت نام موفق', result.message, 'success');
-                                registerForm.reset();
-                                resetRegistrationForm();
-                                toggleAuthForms(true);
-                                setTimeout(() => alertPopup.classList.remove('show'), 2000);
-                            }
-                        } else { 
-                            showAlert('خطا', result.message, 'error');
+            // --- ویرایش برای حل مشکل کپچا ---
+            // تابع جدید برای دریافت توکن تازه reCAPTCHA در هر درخواست
+            const getFreshRecaptchaToken = (action) => {
+                return new Promise((resolve, reject) => {
+                    if (typeof grecaptcha === 'undefined' || typeof grecaptcha.execute === 'undefined') {
+                        return reject(new Error("اسکریپت reCAPTCHA هنوز بارگذاری نشده است."));
+                    }
+                    grecaptcha.ready(() => {
+                        try {
+                            grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: action })
+                                .then(token => resolve(token))
+                                .catch(err => reject(err)); // مدیریت خطای احتمالی از خود execute
+                        } catch (error) {
+                            reject(error);
                         }
-                        toggleButtonLoading(btn, false);
                     });
                 });
             };
@@ -480,16 +468,40 @@
             showLoginBtn.addEventListener('click', () => toggleAuthForms(true));
             showRegisterBtn.addEventListener('click', () => toggleAuthForms(false));
 
-            loginForm.addEventListener('submit', (e) => {
+            // --- ویرایش برای حل مشکل کپچا ---
+            // بازنویسی رویداد submit فرم ورود با ساختار async/await
+            loginForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const btn = e.target.querySelector('button[type="submit"]');
                 toggleButtonLoading(btn, true);
-                const params = {
-                    action: 'login',
-                    nationalId: document.getElementById('login-nid').value,
-                    password: document.getElementById('login-password').value
-                };
-                executeRecaptcha('login', params, btn);
+
+                try {
+                    const recaptchaToken = await getFreshRecaptchaToken('login');
+                    const params = {
+                        action: 'login',
+                        nationalId: document.getElementById('login-nid').value,
+                        password: document.getElementById('login-password').value,
+                        recaptchaToken: recaptchaToken
+                    };
+
+                    const result = await apiRequest(params);
+                    if (result.success) {
+                        showAlert('ورود موفق', result.message, 'success');
+                        sessionStorage.setItem('authToken', result.token);
+                        sessionStorage.setItem('currentUser', JSON.stringify(result.userData));
+                        setTimeout(() => {
+                            alertPopup.classList.remove('show');
+                            initDashboard(result.userData);
+                        }, 1500);
+                    } else {
+                        showAlert('خطا', result.message, 'error');
+                    }
+                } catch (error) {
+                    console.error("خطا در فرآیند ورود یا کپچا:", error);
+                    showAlert('خطای اساسی', 'مشکلی در اعتبارسنجی یا ارتباط با سرور رخ داد.', 'error');
+                } finally {
+                    toggleButtonLoading(btn, false);
+                }
             });
 
             // منطق فرم چند مرحله ای ثبت نام با نوار پیشرفت
@@ -561,22 +573,42 @@
                 return true;
             };
 
-            registerForm.addEventListener('submit', (e) => {
+            // --- ویرایش برای حل مشکل کپچا ---
+            // بازنویسی رویداد submit فرم ثبت‌نام با ساختار async/await
+            registerForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 if (!validateStep(currentStep)) return;
                 
-                // دستور دوم: رفع مشکل لودینگ دکمه ثبت نام با انتخاب دقیق دکمه
                 const btn = e.target.querySelector('button[type="submit"]');
                 toggleButtonLoading(btn, true);
 
-                const params = {
-                    action: 'register',
-                    fullName: document.getElementById('reg-fullname').value, nationalId: document.getElementById('reg-nid').value,
-                    dob: document.getElementById('reg-dob').value, gender: document.getElementById('reg-gender').value,
-                    education: document.getElementById('reg-education').value, skill: document.getElementById('reg-skill').value,
-                    phone: document.getElementById('reg-phone').value, password: document.getElementById('reg-password').value,
-                };
-                executeRecaptcha('register', params, btn);
+                try {
+                    const recaptchaToken = await getFreshRecaptchaToken('register');
+                    const params = {
+                        action: 'register',
+                        fullName: document.getElementById('reg-fullname').value, nationalId: document.getElementById('reg-nid').value,
+                        dob: document.getElementById('reg-dob').value, gender: document.getElementById('reg-gender').value,
+                        education: document.getElementById('reg-education').value, skill: document.getElementById('reg-skill').value,
+                        phone: document.getElementById('reg-phone').value, password: document.getElementById('reg-password').value,
+                        recaptchaToken: recaptchaToken
+                    };
+
+                    const result = await apiRequest(params);
+                    if (result.success) {
+                        showAlert('ثبت نام موفق', result.message, 'success');
+                        registerForm.reset();
+                        resetRegistrationForm();
+                        toggleAuthForms(true);
+                        setTimeout(() => alertPopup.classList.remove('show'), 2000);
+                    } else { 
+                        showAlert('خطا', result.message, 'error');
+                    }
+                } catch (error) {
+                    console.error("خطا در فرآیند ثبت‌نام یا کپچا:", error);
+                    showAlert('خطای اساسی', 'مشکلی در اعتبارسنجی یا ارتباط با سرور رخ داد.', 'error');
+                } finally {
+                    toggleButtonLoading(btn, false);
+                }
             });
 
             const handleLogout = async (showSuccessMessage = true) => {
