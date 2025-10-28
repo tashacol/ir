@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -65,8 +65,12 @@
             color: var(--text-dark); 
             line-height: 1.7; 
             font-size: 16px;
-            /* دستور سوم: افزودن پس‌زمینه مدرن و جذاب */
-            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d4deef' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            /* --- دستور دوم: تغییر تصویر پس‌زمینه --- */
+            background-image: url('https://tashacol.ir/123.jpg');
+            background-size: cover;
+            background-position: center center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
         }
         .hidden { display: none !important; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-15px); } to { opacity: 1; transform: translateY(0); } }
@@ -200,6 +204,13 @@
         textarea.form-input { resize: vertical; min-height: 120px; }
         #word-count { font-size: 0.9rem; color: var(--text-light); margin-top: 5px; text-align: left; }
         .date-inputs-container { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .form-hint {
+            display: block;
+            margin-top: -12px;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            color: var(--text-light);
+        }
 
         /* دستور سوم: استایل جدول سوابق */
         .activity-table-container { max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-md); }
@@ -233,8 +244,8 @@
             <div class="auth-container">
                 <div class="auth-header">
                     <!-- SEO: H1 مهم‌ترین تیتر صفحه است و باید شامل کلمات کلیدی اصلی باشد -->
-                    <h1>سامانه گروه جهادی طلاب و روحانیون جنوب</h1>
-                   
+                    <h1>ثبت سوابق</h1>
+                    <p>گروه جهادی طلاب و روحانیون جنوب </p>
                 </div>
                 <div class="auth-toggle"><button id="show-login-btn" class="active">ورود</button><button id="show-register-btn">ثبت‌نام</button></div>
                 
@@ -299,7 +310,10 @@
                         <input type="hidden" id="activity-row-id">
                         <div class="form-group"><label for="activity-title">عنوان فعالیت</label><input type="text" id="activity-title" class="form-input" required></div>
                         <div class="form-group"><label for="activity-description">توضیحات (حداقل ۱۵ کلمه)</label><textarea id="activity-description" class="form-input" required></textarea><div id="word-count">تعداد کلمات: 0</div></div>
-                        <div class="form-group"><label>بازه زمانی فعالیت (از یک ماه قبل تا امروز)</label>
+                        <!-- --- دستور سوم: افزودن متن راهنما برای تاریخ --- -->
+                        <div class="form-group">
+                            <label>بازه زمانی فعالیت</label>
+                            <small class="form-hint">ثبت سوابق فقط برای یکماه گذشته ممکن است.</small>
                             <div class="date-inputs-container">
                                 <input type="text" id="activity-start-date" class="form-input" required readonly placeholder="تاریخ شروع">
                                 <input type="text" id="activity-end-date" class="form-input" required readonly placeholder="تاریخ پایان">
@@ -440,25 +454,6 @@
                 }
             };
             
-            // --- ویرایش برای حل مشکل کپچا ---
-            // تابع جدید برای دریافت توکن تازه reCAPTCHA در هر درخواست
-            const getFreshRecaptchaToken = (action) => {
-                return new Promise((resolve, reject) => {
-                    if (typeof grecaptcha === 'undefined' || typeof grecaptcha.execute === 'undefined') {
-                        return reject(new Error("اسکریپت reCAPTCHA هنوز بارگذاری نشده است."));
-                    }
-                    grecaptcha.ready(() => {
-                        try {
-                            grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: action })
-                                .then(token => resolve(token))
-                                .catch(err => reject(err)); // مدیریت خطای احتمالی از خود execute
-                        } catch (error) {
-                            reject(error);
-                        }
-                    });
-                });
-            };
-
             const toggleAuthForms = (showLogin) => {
                 loginForm.classList.toggle('hidden', !showLogin);
                 registerForm.classList.toggle('hidden', showLogin);
@@ -468,15 +463,23 @@
             showLoginBtn.addEventListener('click', () => toggleAuthForms(true));
             showRegisterBtn.addEventListener('click', () => toggleAuthForms(false));
 
-            // --- ویرایش برای حل مشکل کپچا ---
-            // بازنویسی رویداد submit فرم ورود با ساختار async/await
+            // --- دستور اول: بازنویسی کامل منطق فرم‌ها برای حل مشکل reCAPTCHA ---
+
             loginForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const btn = e.target.querySelector('button[type="submit"]');
                 toggleButtonLoading(btn, true);
 
                 try {
-                    const recaptchaToken = await getFreshRecaptchaToken('login');
+                    // مرحله ۱: دریافت توکن کاملا جدید برای این تلاش خاص
+                    const recaptchaToken = await new Promise((resolve, reject) => {
+                        grecaptcha.ready(() => {
+                            grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'login' })
+                                .then(resolve)
+                                .catch(reject);
+                        });
+                    });
+
                     const params = {
                         action: 'login',
                         nationalId: document.getElementById('login-nid').value,
@@ -484,7 +487,10 @@
                         recaptchaToken: recaptchaToken
                     };
 
+                    // مرحله ۲: ارسال درخواست به سرور
                     const result = await apiRequest(params);
+
+                    // مرحله ۳: پردازش نتیجه
                     if (result.success) {
                         showAlert('ورود موفق', result.message, 'success');
                         sessionStorage.setItem('authToken', result.token);
@@ -497,12 +503,62 @@
                         showAlert('خطا', result.message, 'error');
                     }
                 } catch (error) {
-                    console.error("خطا در فرآیند ورود یا کپچا:", error);
+                    console.error("خطا در فرآیند ورود یا reCAPTCHA:", error);
                     showAlert('خطای اساسی', 'مشکلی در اعتبارسنجی یا ارتباط با سرور رخ داد.', 'error');
                 } finally {
+                    // مرحله ۴: تضمین غیرفعال شدن لودینگ دکمه در هر حالتی
                     toggleButtonLoading(btn, false);
                 }
             });
+
+            registerForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (!validateStep(currentStep)) return;
+                
+                const btn = e.target.querySelector('button[type="submit"]');
+                toggleButtonLoading(btn, true);
+
+                try {
+                    // مرحله ۱: دریافت توکن کاملا جدید برای این تلاش خاص
+                    const recaptchaToken = await new Promise((resolve, reject) => {
+                        grecaptcha.ready(() => {
+                            grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'register' })
+                                .then(resolve)
+                                .catch(reject);
+                        });
+                    });
+
+                    const params = {
+                        action: 'register',
+                        fullName: document.getElementById('reg-fullname').value, nationalId: document.getElementById('reg-nid').value,
+                        dob: document.getElementById('reg-dob').value, gender: document.getElementById('reg-gender').value,
+                        education: document.getElementById('reg-education').value, skill: document.getElementById('reg-skill').value,
+                        phone: document.getElementById('reg-phone').value, password: document.getElementById('reg-password').value,
+                        recaptchaToken: recaptchaToken
+                    };
+                    
+                    // مرحله ۲: ارسال درخواست به سرور
+                    const result = await apiRequest(params);
+
+                    // مرحله ۳: پردازش نتیجه
+                    if (result.success) {
+                        showAlert('ثبت نام موفق', result.message, 'success');
+                        registerForm.reset();
+                        resetRegistrationForm();
+                        toggleAuthForms(true);
+                        setTimeout(() => alertPopup.classList.remove('show'), 2000);
+                    } else { 
+                        showAlert('خطا', result.message, 'error');
+                    }
+                } catch (error) {
+                    console.error("خطا در فرآیند ثبت‌نام یا reCAPTCHA:", error);
+                    showAlert('خطای اساسی', 'مشکلی در اعتبارسنجی یا ارتباط با سرور رخ داد.', 'error');
+                } finally {
+                    // مرحله ۴: تضمین غیرفعال شدن لودینگ دکمه در هر حالتی
+                    toggleButtonLoading(btn, false);
+                }
+            });
+
 
             // منطق فرم چند مرحله ای ثبت نام با نوار پیشرفت
             const registerSteps = Array.from(registerForm.querySelectorAll('.form-step'));
@@ -572,44 +628,6 @@
                 }
                 return true;
             };
-
-            // --- ویرایش برای حل مشکل کپچا ---
-            // بازنویسی رویداد submit فرم ثبت‌نام با ساختار async/await
-            registerForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                if (!validateStep(currentStep)) return;
-                
-                const btn = e.target.querySelector('button[type="submit"]');
-                toggleButtonLoading(btn, true);
-
-                try {
-                    const recaptchaToken = await getFreshRecaptchaToken('register');
-                    const params = {
-                        action: 'register',
-                        fullName: document.getElementById('reg-fullname').value, nationalId: document.getElementById('reg-nid').value,
-                        dob: document.getElementById('reg-dob').value, gender: document.getElementById('reg-gender').value,
-                        education: document.getElementById('reg-education').value, skill: document.getElementById('reg-skill').value,
-                        phone: document.getElementById('reg-phone').value, password: document.getElementById('reg-password').value,
-                        recaptchaToken: recaptchaToken
-                    };
-
-                    const result = await apiRequest(params);
-                    if (result.success) {
-                        showAlert('ثبت نام موفق', result.message, 'success');
-                        registerForm.reset();
-                        resetRegistrationForm();
-                        toggleAuthForms(true);
-                        setTimeout(() => alertPopup.classList.remove('show'), 2000);
-                    } else { 
-                        showAlert('خطا', result.message, 'error');
-                    }
-                } catch (error) {
-                    console.error("خطا در فرآیند ثبت‌نام یا کپچا:", error);
-                    showAlert('خطای اساسی', 'مشکلی در اعتبارسنجی یا ارتباط با سرور رخ داد.', 'error');
-                } finally {
-                    toggleButtonLoading(btn, false);
-                }
-            });
 
             const handleLogout = async (showSuccessMessage = true) => {
                 const token = sessionStorage.getItem('authToken');
