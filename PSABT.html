@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>سامانه ثبت و پیگیری فعالیت‌ها</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <!-- اسکریپت Google reCAPTCHA -->
     <script src="https://www.google.com/recaptcha/api.js?render=6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap');
@@ -79,7 +80,7 @@
         .activity-item { border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; margin-bottom: 15px; transition: var(--transition); animation: fadeIn 0.4s; }
         .activity-item h3 { margin-bottom: 10px; color: var(--primary-dark); }
         .activity-meta { display: flex; flex-wrap: wrap; gap: 20px; color: var(--text-light); font-size: 0.9rem; margin-bottom: 15px; }
-        .activity-description { margin-bottom: 20px; white-space: pre-wrap; word-wrap: break-word; } /* جلوگیری از شکستن استایل توسط متن طولانی */
+        .activity-description { margin-bottom: 20px; }
         .activity-actions button { background: var(--warning); color: #fff; border: none; padding: 8px 15px; border-radius: var(--radius-md); cursor: pointer; transition: var(--transition); font-weight: 500; }
         .activity-actions button:hover { opacity: 0.8; }
         .activity-item[data-status="5"] { background-color: #f0fff4; border-color: var(--success); }
@@ -99,7 +100,7 @@
         .toast.hide { animation: toast-out 0.5s forwards; }
         @keyframes toast-out { to { opacity: 0; transform: translateX(120%); } }
         .toast .toast-icon { font-size: 1.5rem; }
-        .toast span { font-family: 'Vazirmatn', sans-serif; font-weight: 500; direction: rtl; text-align: right; width: 100%; }
+        .toast .toast-text { font-family: 'Vazirmatn', sans-serif; font-weight: 500; direction: rtl; text-align: right; width: 100%; }
         .toast.success { border-color: var(--success); } .toast.success .toast-icon { color: var(--success); }
         .toast.error { border-color: var(--danger); } .toast.error .toast-icon { color: var(--danger); }
         .toast.info { border-color: var(--info); } .toast.info .toast-icon { color: var(--info); }
@@ -107,7 +108,7 @@
 </head>
 <body>
 
-    <!-- بخش احراز هویت بدون تغییر در ساختار -->
+    <!-- بخش‌های HTML بدون تغییر باقی می‌مانند -->
     <div id="auth-view">
         <div class="auth-container">
             <div class="auth-header"><h1>سامانه فعالیت‌ها</h1><p>برای ادامه وارد شوید یا ثبت‌نام کنید</p></div>
@@ -125,14 +126,13 @@
                 <div class="form-group"><label for="reg-education">تحصیلات</label><select id="reg-education" class="form-select"><option value="طلبه">طلبه</option><option value="دانشجو">دانشجو</option><option value="مدرسه">مدرسه</option><option value="بدون تحصیلات">بدون تحصیلات</option></select></div>
                 <div class="form-group"><label for="reg-skill">مهارت یا تخصص</label><input type="text" id="reg-skill" class="form-input"></div>
                 <div class="form-group"><label for="reg-phone">شماره تماس</label><input type="tel" id="reg-phone" class="form-input" required inputmode="numeric"></div>
-                <div class="form-group"><label for="reg-password">رمز عبور (بین ۴ تا ۳۰ کاراکتر)</label><input type="password" id="reg-password" class="form-input" required minlength="4" maxlength="30"></div>
+                <div class="form-group"><label for="reg-password">رمز عبور (بین ۸ تا ۳۰ کاراکتر)</label><input type="password" id="reg-password" class="form-input" required minlength="8" maxlength="30"></div>
                 <button type="submit" class="btn-submit"><span class="btn-text">ثبت‌نام</span><div class="spinner"></div></button>
             </form>
             <p id="auth-error-msg"></p>
         </div>
     </div>
 
-    <!-- داشبورد بدون تغییر در ساختار -->
     <div id="dashboard-view" class="hidden">
         <header class="dashboard-header">
             <div class="user-info">خوش آمدید، <span id="user-name-display"></span>!</div>
@@ -187,9 +187,10 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwe_V2VK38kJ_Lw6X7h2PTc0QIWfx6B_q0YGZ54m_aXE7F3sGMUGjBQa0eQQlXL6W50RA/exec"; // <-- آدرس جدید بعد از استقرار را اینجا بگذارید
+            const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwe_V2VK38kJ_Lw6X7h2PTc0QIWfx6B_q0YGZ54m_aXE7F3sGMUGjBQa0eQQlXL6W50RA/exec"; // آدرس را جایگزین کنید
             const RECAPTCHA_SITE_KEY = '6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq';
             
+            // ... (تمام متغیرهای DOM بدون تغییر باقی می‌مانند) ...
             const authView = document.getElementById('auth-view');
             const dashboardView = document.getElementById('dashboard-view');
             const loginForm = document.getElementById('login-form');
@@ -205,22 +206,26 @@
 
             let currentActivities = [];
 
+            /**
+             * SECURITY FIX: نمایش امن Toast Message با استفاده از textContent برای جلوگیری از XSS
+             */
             const showToast = (message, type = 'info') => {
                 const container = document.getElementById('toast-container');
                 const toast = document.createElement('div');
                 toast.className = `toast ${type}`;
-                let icon = 'fa-info-circle';
-                if (type === 'success') icon = 'fa-check-circle';
-                if (type === 'error') icon = 'fa-times-circle';
-
-                const iconElement = document.createElement('i');
-                iconElement.className = `fas ${icon} toast-icon`;
                 
-                const spanElement = document.createElement('span');
-                spanElement.textContent = message; // استفاده از textContent برای امنیت
+                const icon = document.createElement('i');
+                let iconClass = 'fa-info-circle';
+                if (type === 'success') iconClass = 'fa-check-circle';
+                if (type === 'error') iconClass = 'fa-times-circle';
+                icon.className = `fas ${iconClass} toast-icon`;
 
-                toast.appendChild(iconElement);
-                toast.appendChild(spanElement);
+                const textSpan = document.createElement('span');
+                textSpan.className = 'toast-text';
+                textSpan.textContent = message; // استفاده از textContent برای امنیت
+
+                toast.appendChild(icon);
+                toast.appendChild(textSpan);
 
                 container.appendChild(toast);
                 setTimeout(() => {
@@ -235,27 +240,26 @@
             };
 
             /**
-             * [تغییر کلیدی] تابع بازنویسی شده برای ارسال امن درخواست‌ها
-             * این تابع از متد POST برای ارسال داده در بدنه درخواست استفاده می‌کند.
+             * SECURITY FIX: بازنویسی کامل تابع برای استفاده از متد POST و ارسال داده‌ها در بدنه درخواست
              */
-            const apiRequest = async (params, method = 'POST') => {
+            const apiRequest = async (params) => {
                 const token = sessionStorage.getItem('authToken');
-                if (token) {
+                if (token && params.action !== 'login' && params.action !== 'register') {
                     params.token = token;
                 }
 
                 try {
                     const response = await fetch(SCRIPT_URL, {
-                        method: method,
-                        mode: 'cors',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(params),
-                        redirect: 'follow'
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'text/plain;charset=utf-8', // Apps Script با این هدر بهتر کار می‌کند
+                        },
+                        body: JSON.stringify(params) // ارسال تمام پارامترها در بدنه
                     });
 
                     if (!response.ok) throw new Error('خطای شبکه.');
                     const result = await response.json();
-
+                    
                     if (!result.success && result.message.includes("نشست شما نامعتبر")) {
                         handleLogout(false);
                         showToast(result.message, 'error');
@@ -271,7 +275,7 @@
                 grecaptcha.ready(function() {
                     grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: action }).then(async function(recaptchaToken) {
                         params.recaptchaToken = recaptchaToken;
-                        const result = await apiRequest(params); // متد به طور پیش‌فرض POST است
+                        const result = await apiRequest(params);
                         if (result.success) {
                             if (action === 'login') {
                                 showToast(result.message, 'success');
@@ -291,6 +295,7 @@
                 });
             };
 
+            // ... (توابع toggleAuthForms, event listeners دکمه‌های ورود/ثبت‌نام بدون تغییر) ...
             const toggleAuthForms = (showLogin) => {
                 loginForm.classList.toggle('hidden', !showLogin);
                 registerForm.classList.toggle('hidden', showLogin);
@@ -318,9 +323,16 @@
                 e.preventDefault();
                 const btn = e.target.querySelector('.btn-submit');
                 const nationalId = document.getElementById('reg-nid').value;
+                const password = document.getElementById('reg-password').value;
+
                 if (!isValidIranianNationalId(nationalId)) {
                     authErrorMsg.textContent = "کد ملی وارد شده معتبر نیست."; return;
                 }
+                // SECURITY: افزایش حداقل طول رمز عبور
+                if (password.length < 8) {
+                    authErrorMsg.textContent = "رمز عبور باید حداقل ۸ کاراکتر باشد."; return;
+                }
+
                 toggleButtonLoading(btn, true);
                 authErrorMsg.textContent = '';
                 const params = {
@@ -328,7 +340,7 @@
                     fullName: document.getElementById('reg-fullname').value, nationalId: nationalId,
                     dob: document.getElementById('reg-dob').value, gender: document.getElementById('reg-gender').value,
                     education: document.getElementById('reg-education').value, skill: document.getElementById('reg-skill').value,
-                    phone: document.getElementById('reg-phone').value, password: document.getElementById('reg-password').value,
+                    phone: document.getElementById('reg-phone').value, password: password,
                 };
                 executeRecaptcha('register', params, btn);
             });
@@ -336,7 +348,7 @@
             const handleLogout = async (showSuccessMessage = true) => {
                 const token = sessionStorage.getItem('authToken');
                 toggleButtonLoading(logoutBtn, true);
-                if(token) await apiRequest({ action: 'logout' });
+                if(token) await apiRequest({ action: 'logout' }); // توکن در بدنه ارسال می‌شود
                 toggleButtonLoading(logoutBtn, false);
                 sessionStorage.clear();
                 dashboardView.classList.add('hidden');
@@ -350,7 +362,7 @@
                 if (!userData) return;
                 authView.classList.add('hidden');
                 dashboardView.classList.remove('hidden');
-                userNameDisplay.textContent = userData.name; // textContent برای امنیت
+                userNameDisplay.textContent = userData.name;
                 await fetchAndDisplayActivities();
             };
 
@@ -374,29 +386,31 @@
             const renderActivities = () => {
                 const lists = { pending: document.getElementById('pending-activities-list'), rejected: document.getElementById('rejected-activities-list'), approved: document.getElementById('approved-activities-list') };
                 Object.values(lists).forEach(list => list.innerHTML = '');
-                
                 const activitiesByStatus = { '0': [], '1': [], '5': [] };
-                currentActivities.forEach(act => {
-                    const statusKey = act.status.toString();
-                    if (activitiesByStatus[statusKey]) activitiesByStatus[statusKey].push(act);
-                });
+                
+                if(currentActivities && currentActivities.length > 0){
+                    currentActivities.forEach(act => {
+                        const statusKey = act.status.toString();
+                        if (activitiesByStatus[statusKey]) activitiesByStatus[statusKey].push(act);
+                    });
+                }
                 
                 lists.pending.innerHTML = '';
-                if (activitiesByStatus['0'].length > 0) {
+                if(activitiesByStatus['0'].length > 0) {
                     activitiesByStatus['0'].forEach(act => lists.pending.appendChild(createActivityElement(act)));
                 } else {
                     lists.pending.innerHTML = '<li>موردی یافت نشد.</li>';
                 }
 
                 lists.rejected.innerHTML = '';
-                 if (activitiesByStatus['1'].length > 0) {
+                 if(activitiesByStatus['1'].length > 0) {
                     activitiesByStatus['1'].forEach(act => lists.rejected.appendChild(createActivityElement(act)));
                 } else {
                     lists.rejected.innerHTML = '<li>موردی یافت نشد.</li>';
                 }
 
                 lists.approved.innerHTML = '';
-                if (activitiesByStatus['5'].length > 0) {
+                 if(activitiesByStatus['5'].length > 0) {
                     activitiesByStatus['5'].forEach(act => lists.approved.appendChild(createActivityElement(act)));
                 } else {
                     lists.approved.innerHTML = '<li>موردی یافت نشد.</li>';
@@ -406,44 +420,56 @@
             };
             
             /**
-             * [تغییر کلیدی] تابع بازنویسی شده برای ساخت امن آیتم‌های فعالیت
-             * این تابع از document.createElement و textContent برای جلوگیری از حملات XSS استفاده می‌کند.
+             * SECURITY FIX: بازنویسی کامل تابع برای ساخت امن DOM و جلوگیری از XSS
              */
             const createActivityElement = (activity) => {
                 const li = document.createElement('li');
                 li.className = 'activity-item';
                 li.dataset.status = activity.status;
 
-                const title = document.createElement('h3');
-                title.textContent = activity.title;
+                const h3 = document.createElement('h3');
+                h3.textContent = activity.title; // امن
 
-                const description = document.createElement('p');
-                description.className = 'activity-description';
-                description.textContent = activity.description;
+                const pDesc = document.createElement('p');
+                pDesc.className = 'activity-description';
+                pDesc.textContent = activity.description; // امن
 
-                const meta = document.createElement('div');
-                meta.className = 'activity-meta';
-                meta.innerHTML = `<span><i class="fas fa-calendar-alt"></i> تاریخ ثبت: ${activity.submissionDate}</span>
-                                  <span><i class="fas fa-play"></i> شروع: ${activity.startDate}</span>
-                                  <span><i class="fas fa-stop"></i> پایان: ${activity.endDate}</span>`;
+                const metaDiv = document.createElement('div');
+                metaDiv.className = 'activity-meta';
+                
+                const createMetaSpan = (iconClass, text) => {
+                    const span = document.createElement('span');
+                    const icon = document.createElement('i');
+                    icon.className = `fas ${iconClass}`;
+                    span.appendChild(icon);
+                    span.appendChild(document.createTextNode(` ${text}`)); // امن
+                    return span;
+                };
 
-                li.appendChild(title);
-                li.appendChild(description);
-                li.appendChild(meta);
+                metaDiv.appendChild(createMetaSpan('fa-calendar-alt', `تاریخ ثبت: ${activity.submissionDate}`));
+                metaDiv.appendChild(createMetaSpan('fa-play', `شروع: ${activity.startDate}`));
+                metaDiv.appendChild(createMetaSpan('fa-stop', `پایان: ${activity.endDate}`));
 
-                if (activity.status == '0' || activity.status == '1') {
-                    const actions = document.createElement('div');
-                    actions.className = 'activity-actions';
+                li.appendChild(h3);
+                li.appendChild(pDesc);
+                li.appendChild(metaDiv);
+                
+                const canEdit = activity.status == '0' || activity.status == '1';
+                if (canEdit) {
+                    const actionsDiv = document.createElement('div');
+                    actionsDiv.className = 'activity-actions';
                     const editButton = document.createElement('button');
                     editButton.className = 'btn-edit';
-                    editButton.textContent = 'ویرایش';
                     editButton.dataset.rowId = activity.row;
-                    actions.appendChild(editButton);
-                    li.appendChild(actions);
+                    editButton.textContent = 'ویرایش'; // امن
+                    actionsDiv.appendChild(editButton);
+                    li.appendChild(actionsDiv);
                 }
+
                 return li;
             };
 
+            // ... (بقیه توابع جاوا اسکریپت مانند addEditListeners, populateActivityForm, activityForm submit listener و ... بدون تغییر در منطق اصلی، اما اکنون با apiRequest امن کار می‌کنند) ...
             const addEditListeners = () => {
                 document.querySelectorAll('.btn-edit').forEach(btn => {
                     btn.addEventListener('click', (e) => {
@@ -508,7 +534,7 @@
             activityDescription.addEventListener('input', updateWordCount);
             function updateWordCount() { wordCountDisplay.textContent = `تعداد کلمات: ${activityDescription.value.trim().split(/\s+/).filter(Boolean).length}`; }
 
-            // --- منطق Date Picker بدون تغییر باقی می‌ماند ---
+            // منطق Date Picker بدون تغییر باقی می‌ماند
             const datePickerPopup = document.getElementById('date-picker-popup');
             let currentDatePickerInput = null;
 
@@ -529,11 +555,7 @@
                 const yearSelect = document.getElementById('date-picker-year');
                 const monthSelect = document.getElementById('date-picker-month');
                 const daySelect = document.getElementById('date-picker-day');
-
-                yearSelect.innerHTML = '';
-                monthSelect.innerHTML = '';
-                daySelect.innerHTML = '';
-
+                yearSelect.innerHTML = ''; monthSelect.innerHTML = ''; daySelect.innerHTML = '';
                 if (isActivity) {
                     const today = new Date();
                     const oneMonthAgo = new Date();
@@ -555,14 +577,13 @@
                         const selectedYear = parseInt(yearSelect.value);
                         const selectedMonth = parseInt(monthSelect.value);
                         let startDay = (selectedYear === oneMonthAgoFa.year && selectedMonth === oneMonthAgoFa.month) ? oneMonthAgoFa.day : 1;
-                        let endDay = (selectedYear === todayFa.year && selectedMonth === todayFa.month) ? todayFa.day : (selectedMonth <= 6 ? 31 : 30);
-                        if (selectedMonth === 12) endDay = 29;
+                        let endDay = (selectedYear === todayFa.year && selectedMonth === todayFa.month) ? todayFa.day : ((selectedMonth <= 6) ? 31 : 30);
+                         if (selectedMonth === 12) endDay = 29; // در محدوده فعلی نیازی به بررسی کبیسه نیست
                         for (let d = startDay; d <= endDay; d++) daySelect.innerHTML += `<option value="${d}">${d}</option>`;
                     };
-                    yearSelect.addEventListener('change', updateMonths);
-                    monthSelect.addEventListener('change', updateDays);
+                    yearSelect.onchange = updateMonths; monthSelect.onchange = updateDays;
                     updateMonths();
-                } else {
+                } else { 
                     const currentPersianYear = getPersianDate(new Date()).year;
                     const endYear = currentPersianYear - 10;
                     for (let i = endYear; i >= endYear - 60; i--) yearSelect.innerHTML += `<option value="${i}">${i}</option>`;
@@ -580,12 +601,10 @@
                 }
                 datePickerPopup.classList.remove('show');
             });
-
             datePickerPopup.addEventListener('click', (e) => { if(e.target === datePickerPopup) datePickerPopup.classList.remove('show'); });
-
             setupDatePicker(document.getElementById('reg-dob'));
-            setupDatePicker(document.getElementById('activity-start-date'), { isActivity: true, isStartDate: true });
-            setupDatePicker(document.getElementById('activity-end-date'), { isActivity: true, isStartDate: false });
+            setupDatePicker(document.getElementById('activity-start-date'), { isActivity: true });
+            setupDatePicker(document.getElementById('activity-end-date'), { isActivity: true });
 
             function isValidIranianNationalId(code) {
                 if (!/^\d{10}$/.test(code)) return false;
