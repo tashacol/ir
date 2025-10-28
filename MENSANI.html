@@ -1,1 +1,443 @@
- N
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>پنل مدیریت سامانه</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        /* [استایل‌های پایه و متغیرها مشابه پنل کاربری] */
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap');
+        :root {
+            --primary: #17a2b8; --primary-light: #d1ecf1; --primary-dark: #117a8b;
+            --text-dark: #212529; --text-light: #6c757d; --text-on-dark: #ffffff;
+            --bg-main: #f4f7f9; --bg-card: #ffffff; --border-color: #dee2e6;
+            --success: #28a745; --danger: #dc3545; --warning: #ffc107; --info: #007bff;
+            --shadow: 0 4px 25px rgba(0,0,0,0.08); --radius-lg: 16px; --radius-md: 12px;
+            --transition: 0.3s ease;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Vazirmatn', sans-serif; background-color: var(--bg-main); color: var(--text-dark); line-height: 1.7; }
+        .hidden { display: none !important; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* [استایل‌های عمومی مشابه پنل کاربری] */
+        .form-input, .form-select { width: 100%; padding: 12px 15px; border-radius: var(--radius-md); border: 1px solid var(--border-color); font-size: 1rem; font-family: inherit; transition: var(--transition); }
+        .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); outline: none; }
+        .btn { padding: 10px 20px; font-size: 1rem; font-weight: 500; border: none; border-radius: var(--radius-md); cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-primary { background: var(--primary); color: var(--text-on-dark); }
+        .btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-danger { background: var(--danger); color: #fff; }
+        .btn-warning { background: var(--warning); color: #fff; }
+        .btn-sm { padding: 5px 10px; font-size: 0.9rem; }
+        .btn:disabled { background-color: #a0a0a0; cursor: not-allowed; }
+        .spinner { width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-top-color: var(--text-on-dark); border-radius: 50%; animation: spin 0.8s linear infinite; display: none; }
+        .btn.loading .btn-text { visibility: hidden; }
+        .btn.loading .spinner { display: block; position: absolute; }
+
+        /* [استایل صفحه ورود مدیر] */
+        #admin-login-view { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; animation: fadeIn 0.5s; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .login-container { width: 100%; max-width: 400px; background: var(--bg-card); padding: 40px; border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+        .login-container h1 { text-align: center; margin-bottom: 30px; color: var(--primary); }
+        .form-group { margin-bottom: 20px; }
+        #login-error-msg { margin-top: 15px; color: var(--danger); min-height: 20px; text-align: center; }
+
+        /* [استایل داشبورد مدیریت] */
+        #admin-dashboard-view { animation: fadeIn 0.5s; }
+        .admin-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: var(--bg-card); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .admin-header .welcome-msg span { font-weight: 700; color: var(--primary); }
+        .admin-container { max-width: 1400px; margin: 30px auto; padding: 0 20px; }
+        
+        /* [استایل تب‌ها] */
+        .tabs-nav { display: flex; gap: 5px; background: #e9ecef; border-radius: var(--radius-md); padding: 5px; margin-bottom: 30px; }
+        .tabs-nav button { flex: 1; padding: 12px; font-size: 1rem; font-weight: 500; background: transparent; border: none; cursor: pointer; transition: var(--transition); color: var(--text-light); border-radius: var(--radius-md); }
+        .tabs-nav button.active { background-color: var(--bg-card); color: var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.4s; }
+
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 30px; }
+        .card { background: var(--bg-card); border-radius: var(--radius-lg); box-shadow: var(--shadow); overflow: hidden; }
+        .card-header { padding: 20px; border-bottom: 1px solid var(--border-color); font-size: 1.2rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .card-body { padding: 20px; }
+        .data-list { list-style-type: none; }
+        .data-item { padding: 15px; border: 1px solid var(--border-color); border-radius: var(--radius-md); margin-bottom: 15px; }
+        .data-item:last-child { margin-bottom: 0; }
+        .item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .item-header h4 { margin: 0; font-size: 1.1rem; }
+        .item-meta { font-size: 0.9rem; color: var(--text-light); }
+        .item-actions { display: flex; gap: 10px; margin-top: 15px; }
+        
+        #search-results-container .user-details { background: var(--primary-light); padding: 15px; border-radius: var(--radius-md); margin-bottom: 20px; }
+
+        .skeleton-loader { padding: 20px; }
+        .skeleton-line { height: 16px; background: #e9ecef; border-radius: 4px; margin-bottom: 12px; }
+        .skeleton-line.short { width: 40%; }
+    </style>
+</head>
+<body>
+
+    <div id="admin-login-view">
+        <div class="login-container">
+            <h1>ورود به پنل مدیریت</h1>
+            <form id="admin-login-form">
+                <div class="form-group"><label for="admin-username">نام کاربری</label><input type="text" id="admin-username" class="form-input" required></div>
+                <div class="form-group"><label for="admin-password">رمز عبور</label><input type="password" id="admin-password" class="form-input" required></div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;"><span class="btn-text">ورود</span><div class="spinner"></div></button>
+                <p id="login-error-msg"></p>
+            </form>
+        </div>
+    </div>
+
+    <div id="admin-dashboard-view" class="hidden">
+        <header class="admin-header">
+            <div class="welcome-msg">خوش آمدید، <span id="admin-name-display"></span>!</div>
+            <button id="logout-btn" class="btn btn-danger"><i class="fas fa-sign-out-alt"></i> خروج</button>
+        </header>
+
+        <main class="admin-container">
+            <nav class="tabs-nav">
+                <button class="tab-btn active" data-tab="users-tab">مدیریت کاربران</button>
+                <button class="tab-btn" data-tab="activities-tab">مدیریت فعالیت‌ها</button>
+                <button class="tab-btn" data-tab="search-tab">جستجوی کاربر</button>
+            </nav>
+
+            <div id="users-tab" class="tab-content active">
+                <div id="user-management-content" class="grid-container"></div>
+            </div>
+
+            <div id="activities-tab" class="tab-content">
+                <div id="activity-management-content" class="grid-container"></div>
+            </div>
+
+            <div id="search-tab" class="tab-content">
+                <div class="card">
+                    <div class="card-header">جستجو بر اساس کد ملی</div>
+                    <div class="card-body">
+                        <form id="search-user-form" style="display:flex; gap:15px;">
+                            <input type="text" id="search-nid" class="form-input" placeholder="کد ملی کاربر را وارد کنید..." required inputmode="numeric" maxlength="10">
+                            <button type="submit" class="btn btn-primary">جستجو</button>
+                        </form>
+                        <div id="search-results-container" style="margin-top: 20px;"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx_USt6iFHiAMKZXSmfQqDnl95hYw2prf-V5SWaPLU25YXNyBUBhQjgoqwwHzRyPgrizg/exec"; // همان آدرس قبلی
+        
+        const loginView = document.getElementById('admin-login-view');
+        const dashboardView = document.getElementById('admin-dashboard-view');
+        const loginForm = document.getElementById('admin-login-form');
+        const adminNameDisplay = document.getElementById('admin-name-display');
+        const logoutBtn = document.getElementById('logout-btn');
+        const tabsNav = document.querySelector('.tabs-nav');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        // تابع امن برای ارسال درخواست به سرور
+        const apiRequest = async (params) => {
+            const token = sessionStorage.getItem('adminAuthToken');
+            if (token) params.token = token;
+            try {
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(params)
+                });
+                if (!response.ok) throw new Error('خطای شبکه.');
+                const result = await response.json();
+                if (!result.success && result.message.includes("نشست شما نامعتبر")) {
+                    handleLogout();
+                }
+                return result;
+            } catch (error) {
+                console.error("API Request Error:", error);
+                return { success: false, message: 'خطا در ارتباط با سرور.' };
+            }
+        };
+
+        const toggleButtonLoading = (btn, isLoading) => {
+            btn.classList.toggle('loading', isLoading);
+            btn.disabled = isLoading;
+        };
+
+        // --- مدیریت ورود و خروج ---
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            toggleButtonLoading(btn, true);
+            const errorMsg = document.getElementById('login-error-msg');
+            errorMsg.textContent = '';
+
+            const result = await apiRequest({
+                action: 'admin_login',
+                username: document.getElementById('admin-username').value,
+                password: document.getElementById('admin-password').value
+            });
+
+            if (result.success) {
+                sessionStorage.setItem('adminAuthToken', result.token);
+                sessionStorage.setItem('adminUser', JSON.stringify(result.userData));
+                initDashboard(result.userData);
+            } else {
+                errorMsg.textContent = result.message;
+            }
+            toggleButtonLoading(btn, false);
+        });
+
+        const handleLogout = () => {
+            sessionStorage.clear();
+            dashboardView.classList.add('hidden');
+            loginView.classList.remove('hidden');
+        };
+        logoutBtn.addEventListener('click', handleLogout);
+
+        const initDashboard = (userData) => {
+            loginView.classList.add('hidden');
+            dashboardView.classList.remove('hidden');
+            adminNameDisplay.textContent = userData.name;
+            fetchAndRenderData();
+        };
+
+        // --- مدیریت تب‌ها ---
+        tabsNav.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                const tabId = e.target.dataset.tab;
+                tabsNav.querySelector('.active').classList.remove('active');
+                e.target.classList.add('active');
+                tabContents.forEach(content => {
+                    content.classList.toggle('active', content.id === tabId);
+                });
+            }
+        });
+
+        // --- رندر کردن داده‌ها ---
+        const createSkeletonLoader = () => {
+            return `<div class="card"><div class="card-body skeleton-loader"><div class="skeleton-line"></div><div class="skeleton-line short"></div><div class="skeleton-line"></div></div></div>`.repeat(3);
+        };
+
+        const fetchAndRenderData = async () => {
+            document.getElementById('user-management-content').innerHTML = createSkeletonLoader();
+            document.getElementById('activity-management-content').innerHTML = createSkeletonLoader();
+
+            const result = await apiRequest({ action: 'getAdminDashboardData' });
+            if (result.success) {
+                renderUsers(result.data.users);
+                renderActivities(result.data.activities);
+            }
+        };
+
+        const renderUsers = (users) => {
+            const container = document.getElementById('user-management-content');
+            container.innerHTML = '';
+            const statuses = {
+                pending: { title: "کاربران در انتظار تایید", data: users.filter(u => u.status == 0) },
+                approved: { title: "کاربران تایید شده", data: users.filter(u => u.status == 5) },
+                rejected: { title: "کاربران رد شده", data: users.filter(u => u.status == 1) },
+            };
+
+            for (const key in statuses) {
+                const card = createDataCard(statuses[key].title, statuses[key].data, createUserItem);
+                container.appendChild(card);
+            }
+        };
+
+        const renderActivities = (activities) => {
+            const container = document.getElementById('activity-management-content');
+            container.innerHTML = '';
+            const statuses = {
+                pending: { title: "فعالیت‌های در انتظار بررسی", data: activities.filter(a => a.status == 0) },
+                approved: { title: "فعالیت‌های تایید شده", data: activities.filter(a => a.status == 5) },
+                rejected: { title: "فعالیت‌های رد شده", data: activities.filter(a => a.status == 1) },
+            };
+
+            for (const key in statuses) {
+                const card = createDataCard(statuses[key].title, statuses[key].data, createActivityItem);
+                container.appendChild(card);
+            }
+        };
+
+        const createDataCard = (title, data, itemRenderer) => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            const header = document.createElement('div');
+            header.className = 'card-header';
+            header.textContent = title;
+            const body = document.createElement('div');
+            body.className = 'card-body';
+            const list = document.createElement('ul');
+            list.className = 'data-list';
+
+            if (data.length > 0) {
+                data.forEach(item => list.appendChild(itemRenderer(item)));
+            } else {
+                const li = document.createElement('li');
+                li.textContent = 'موردی برای نمایش وجود ندارد.';
+                list.appendChild(li);
+            }
+            body.appendChild(list);
+            card.appendChild(header);
+            card.appendChild(body);
+            return card;
+        };
+
+        const createUserItem = (user) => {
+            const item = document.createElement('li');
+            item.className = 'data-item';
+            
+            const header = document.createElement('div');
+            header.className = 'item-header';
+            const name = document.createElement('h4');
+            name.textContent = user.fullName;
+            const nid = document.createElement('span');
+            nid.className = 'item-meta';
+            nid.textContent = `کد ملی: ${user.nationalId}`;
+            header.appendChild(name);
+            header.appendChild(nid);
+            
+            const details = document.createElement('div');
+            details.className = 'item-meta';
+            details.textContent = `تاریخ تولد: ${user.dob} | تلفن: ${user.phone} | تحصیلات: ${user.education}`;
+
+            const actions = document.createElement('div');
+            actions.className = 'item-actions';
+            actions.dataset.rowId = user.row;
+            actions.dataset.type = 'user';
+
+            if (user.status != 5) { // not approved
+                actions.innerHTML += `<button class="btn btn-sm btn-success" data-new-status="5">تایید</button>`;
+            }
+            if (user.status != 1) { // not rejected
+                actions.innerHTML += `<button class="btn btn-sm btn-danger" data-new-status="1">رد</button>`;
+            }
+            if (user.status != 0) { // not pending
+                actions.innerHTML += `<button class="btn btn-sm btn-warning" data-new-status="0">بازگردانی به حالت بررسی</button>`;
+            }
+            
+            item.appendChild(header);
+            item.appendChild(details);
+            item.appendChild(actions);
+            return item;
+        };
+
+        const createActivityItem = (activity) => {
+            const item = document.createElement('li');
+            item.className = 'data-item';
+            
+            const header = document.createElement('div');
+            header.className = 'item-header';
+            const title = document.createElement('h4');
+            title.textContent = activity.title;
+            const date = document.createElement('span');
+            date.className = 'item-meta';
+            date.textContent = `ثبت: ${activity.submissionDate}`;
+            header.appendChild(title);
+            header.appendChild(date);
+            
+            const description = document.createElement('p');
+            description.textContent = activity.description;
+            
+            const meta = document.createElement('div');
+            meta.className = 'item-meta';
+            meta.textContent = `کد ملی کاربر: ${activity.nationalId}`;
+
+            const actions = document.createElement('div');
+            actions.className = 'item-actions';
+            actions.dataset.rowId = activity.row;
+            actions.dataset.type = 'activity';
+
+            if (activity.status != 5) {
+                actions.innerHTML += `<button class="btn btn-sm btn-success" data-new-status="5">تایید</button>`;
+            }
+            if (activity.status != 1) {
+                actions.innerHTML += `<button class="btn btn-sm btn-danger" data-new-status="1">رد</button>`;
+            }
+            
+            item.appendChild(header);
+            item.appendChild(description);
+            item.appendChild(meta);
+            item.appendChild(actions);
+            return item;
+        };
+        
+        // --- مدیریت رویدادها برای دکمه‌های تایید/رد ---
+        document.getElementById('user-management-content').addEventListener('click', handleStatusUpdate);
+        document.getElementById('activity-management-content').addEventListener('click', handleStatusUpdate);
+
+        async function handleStatusUpdate(e) {
+            if (e.target.tagName !== 'BUTTON') return;
+            const button = e.target;
+            const actionsDiv = button.parentElement;
+            const rowId = actionsDiv.dataset.rowId;
+            const type = actionsDiv.dataset.type;
+            const newStatus = button.dataset.newStatus;
+            
+            const action = type === 'user' ? 'updateUserStatus' : 'updateActivityStatus';
+
+            button.disabled = true;
+            const result = await apiRequest({ action, row: rowId, status: newStatus });
+            if (result.success) {
+                fetchAndRenderData(); // Refresh all data
+            } else {
+                alert(`خطا: ${result.message}`);
+                button.disabled = false;
+            }
+        }
+
+        // --- مدیریت جستجو ---
+        document.getElementById('search-user-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            const nid = document.getElementById('search-nid').value;
+            const resultsContainer = document.getElementById('search-results-container');
+            resultsContainer.innerHTML = 'در حال جستجو...';
+            toggleButtonLoading(btn, true);
+
+            const result = await apiRequest({ action: 'searchUserByNID', nationalId: nid });
+            
+            if (result.success && result.data) {
+                renderSearchResults(result.data);
+            } else {
+                resultsContainer.textContent = result.message || 'کاربری با این کد ملی یافت نشد.';
+            }
+            toggleButtonLoading(btn, false);
+        });
+
+        const renderSearchResults = (data) => {
+            const container = document.getElementById('search-results-container');
+            container.innerHTML = '';
+            
+            const user = data.user;
+            const activities = data.activities;
+
+            const userDetails = document.createElement('div');
+            userDetails.className = 'user-details';
+            userDetails.innerHTML = `
+                <h4>${user.fullName} (کد ملی: ${user.nationalId})</h4>
+                <p class="item-meta">تلفن: ${user.phone} | وضعیت: ${user.status == 5 ? 'تایید شده' : (user.status == 1 ? 'رد شده' : 'در انتظار')}</p>
+            `;
+            container.appendChild(userDetails);
+
+            const card = createDataCard('سوابق فعالیت‌های کاربر', activities, createActivityItem);
+            container.appendChild(card);
+            
+            // Add listeners for the newly created buttons
+            card.addEventListener('click', handleStatusUpdate);
+        };
+        
+        // --- بررسی نشست فعال ---
+        const checkAdminSession = () => {
+            const savedUser = sessionStorage.getItem('adminUser');
+            if (savedUser) {
+                initDashboard(JSON.parse(savedUser));
+            }
+        };
+        checkAdminSession();
+    });
+    </script>
+</body>
+</html>
