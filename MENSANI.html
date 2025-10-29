@@ -1,10 +1,12 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>پنل مدیریت سامانه</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <!-- اسکریپت Google reCAPTCHA -->
+    <script src="https://www.google.com/recaptcha/api.js?render=6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap');
         :root {
@@ -128,8 +130,8 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // همان آدرس Web App URL که برای پنل کاربری استفاده کردید
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx_USt6iFHiAMKZXSmfQqDnl95hYw2prf-V5SWaPLU25YXNyBUBhQjgoqwwHzRyPgrizg/exec"; 
+        const SCRIPT_URL = "YOUR_WEB_APP_URL_HERE"; 
+        const RECAPTCHA_SITE_KEY = '6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq';
         
         const loginView = document.getElementById('admin-login-view');
         const dashboardView = document.getElementById('admin-dashboard-view');
@@ -165,27 +167,35 @@
             btn.disabled = isLoading;
         };
 
-        loginForm.addEventListener('submit', async (e) => {
+        loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('button[type="submit"]');
             toggleButtonLoading(btn, true);
             const errorMsg = document.getElementById('login-error-msg');
             errorMsg.textContent = '';
 
-            const result = await apiRequest({
+            const params = {
                 action: 'admin_login',
                 username: document.getElementById('admin-username').value,
                 password: document.getElementById('admin-password').value
-            });
+            };
+            
+            // اجرای reCAPTCHA برای ورود مدیر
+            grecaptcha.ready(function() {
+                grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'admin_login' }).then(async function(token) {
+                    params.recaptchaToken = token;
+                    const result = await apiRequest(params);
 
-            if (result.success) {
-                sessionStorage.setItem('adminAuthToken', result.token);
-                sessionStorage.setItem('adminUser', JSON.stringify(result.userData));
-                initDashboard(result.userData);
-            } else {
-                errorMsg.textContent = result.message;
-            }
-            toggleButtonLoading(btn, false);
+                    if (result.success) {
+                        sessionStorage.setItem('adminAuthToken', result.token);
+                        sessionStorage.setItem('adminUser', JSON.stringify(result.userData));
+                        initDashboard(result.userData);
+                    } else {
+                        errorMsg.textContent = result.message;
+                    }
+                    toggleButtonLoading(btn, false);
+                });
+            });
         });
 
         const handleLogout = () => {
@@ -372,7 +382,6 @@
                 fetchAndRenderData();
             } else {
                 alert(`خطا: ${result.message}`);
-                // Re-enable button on failure, maybe revert text too.
                 button.disabled = false; 
             }
         }
@@ -414,7 +423,7 @@
             const h4 = document.createElement('h4');
             h4.textContent = `${user.fullName} (کد ملی: ${user.nationalId})`;
             const p = document.createElement('p');
-p.className = 'item-meta';
+            p.className = 'item-meta';
             p.textContent = `تلفن: ${user.phone} | وضعیت: ${statusText}`;
 
             userDetails.appendChild(h4);
