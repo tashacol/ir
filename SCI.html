@@ -1,1 +1,665 @@
 
+<!DOCTYPE html> 
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نشریه تعالی نوجوان - وابسته به مؤسسه تعالی اندیشه و رشد</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;800&display=swap');
+
+        /* ========================================= */
+        /*          بخش ۱: متغیرهای طراحی و پایه        */
+        /* ========================================= */
+        :root {
+            --primary-color: #0D284D;  /* سرمه‌ای عمیق و رسمی */
+            --secondary-color: #4A5568; /* خاکستری برای متون و عناصر فرعی */
+            --accent-color: #C5A56A;   /* طلایی مات برای تاکیدها و دکمه‌ها */
+            --text-dark: #1A202C;
+            --text-light: #718096;
+            --bg-main: #F7FAFC;       /* پس‌زمینه اصلی بسیار روشن */
+            --bg-card: #FFFFFF;
+            --border-color: #E2E8F0;
+            --font-family: 'Vazirmatn', sans-serif;
+            --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --border-radius: 12px; /* گردی گوشه‌ها برای ظاهر مدرن */
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-main);
+            color: var(--text-dark);
+            line-height: 1.7;
+            font-size: 16px;
+        }
+        body.modal-open { overflow: hidden; }
+
+        .container { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+
+        /* ========================================= */
+        /*          بخش ۲: انیمیشن لودینگ و نوتیفیکیشن */
+        /* ========================================= */
+        #loading-overlay { position: fixed; inset: 0; background-color: var(--bg-card); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; transition: opacity 0.5s ease-out, visibility 0.5s ease-out; }
+        .loader { width: 60px; height: 60px; position: relative; }
+        .loader::before, .loader::after { content: ''; position: absolute; width: inherit; height: inherit; border-radius: 50%; mix-blend-mode: multiply; animation: spin 2s infinite cubic-bezier(0.77, 0, 0.175, 1); }
+        .loader::before { background-color: var(--primary-color); }
+        .loader::after { background-color: var(--accent-color); animation-delay: -1s; }
+        @keyframes spin { 0%, 100% { transform: translateX(-10px) scale(1); } 50% { transform: translateX(10px) scale(0.8); } }
+        #loading-overlay p { margin-top: 25px; font-size: 1.1rem; color: var(--text-dark); font-weight: 500; }
+        
+        #toast-notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translate(-50%, -120px);
+            background-color: var(--primary-color);
+            color: white;
+            padding: 14px 28px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-lg);
+            z-index: 10001;
+            font-size: 1rem;
+            opacity: 0;
+            visibility: hidden;
+            transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.4s;
+        }
+        #toast-notification.show { transform: translate(-50%, 0); opacity: 1; visibility: visible; }
+
+
+        /* ========================================= */
+        /*            بخش ۳: هدر و ناوبری            */
+        /* ========================================= */
+        .top-bar { background-color: #1A202C; padding: 0.6rem 0; font-size: 0.85rem; }
+        .top-bar-content { display: flex; justify-content: space-between; align-items: center; }
+        .site-info p { color: #A0AEC0; margin: 0; }
+        .site-info a { color: var(--accent-color); text-decoration: none; }
+        .site-info a:hover { text-decoration: underline; }
+        
+        .main-header { 
+            background-color: var(--bg-card); 
+            padding: 3rem 0; 
+            text-align: center; 
+            border-bottom: 1px solid var(--border-color); 
+        }
+        .main-header .logo {
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--primary-color);
+            line-height: 1.2;
+            margin: 0;
+        }
+        .main-header .subtitle { 
+            font-size: 1.1rem; 
+            color: var(--text-light); 
+            margin-top: 0.5rem; 
+            font-weight: 400;
+        }
+
+        .main-nav { background-color: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px); box-shadow: var(--shadow-md); position: sticky; top: 0; z-index: 998; border-bottom: 1px solid var(--border-color); }
+        .main-nav ul { list-style: none; display: flex; justify-content: center; flex-wrap: wrap; }
+        .main-nav a { display: block; padding: 1.1rem 1.8rem; color: var(--secondary-color); font-weight: 500; text-decoration: none; border-bottom: 4px solid transparent; transition: var(--transition); }
+        .main-nav a:hover, .main-nav a.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }
+
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; position: relative; }
+        .btn-accent { background-color: var(--accent-color); color: var(--primary-color); font-weight: 700; }
+        .btn-accent:hover { background-color: #dab678; box-shadow: 0 4px 12px rgba(0,0,0,0.1); transform: translateY(-2px); }
+        .btn-secondary { background-color: var(--bg-main); color: var(--secondary-color); border: 1px solid var(--border-color); }
+        .btn-secondary:hover { background-color: #E2E8F0; border-color: #CBD5E0; }
+
+        .login-dropdown { position: relative; }
+        .dropdown-menu { position: absolute; top: 130%; left: 0; background-color: var(--bg-card); border-radius: var(--border-radius); box-shadow: var(--shadow-lg); list-style: none; min-width: 230px; z-index: 1000; opacity: 0; visibility: hidden; transform: translateY(10px); transition: var(--transition); border: 1px solid var(--border-color); padding: 8px; }
+        .dropdown-menu.visible { opacity: 1; visibility: visible; transform: translateY(0); }
+        .dropdown-menu a { display: flex; align-items: center; gap: 12px; color: var(--text-dark); padding: 12px 15px; border-radius: 8px; font-size: 0.9rem; }
+        .dropdown-menu a:hover { background-color: var(--bg-main); color: var(--primary-color); }
+        .dropdown-menu i { width: 22px; text-align: center; color: var(--accent-color); font-size: 1.1rem; }
+
+        /* ========================================= */
+        /*          بخش ۴: محتوای اصلی و سایدبار      */
+        /* ========================================= */
+        .main-content { padding-top: 3.5rem; }
+        .page-grid { display: grid; grid-template-columns: 1fr; gap: 40px; }
+        @media (min-width: 1024px) { .page-grid { grid-template-columns: 3fr 1fr; } }
+        
+        .card { background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 30px; box-shadow: var(--shadow-md); }
+        .sidebar .card { margin-bottom: 30px; }
+        .sidebar .card h3 { font-size: 1.3rem; color: var(--primary-color); border-bottom: 2px solid var(--accent-color); padding-bottom: 12px; margin-bottom: 20px; font-weight: 700; }
+        .sidebar ul { list-style: none; }
+        .sidebar li { margin-bottom: 12px; font-size: 0.95rem; color: var(--text-dark); line-height: 1.8; }
+        .sidebar li strong { color: var(--secondary-color); font-weight: 500; }
+        .sidebar a { color: var(--accent-color); text-decoration: none; font-weight: 500; }
+        .sidebar a:hover { text-decoration: underline; }
+
+        /* ========================================= */
+        /*              بخش ۵: جستجو و فیلتر          */
+        /* ========================================= */
+        .search-container { margin-bottom: 2.5rem; position: relative; }
+        .search-bar { display: flex; border: 1px solid var(--border-color); border-radius: var(--border-radius); overflow: hidden; box-shadow: var(--shadow-md); background-color: var(--bg-card); }
+        #search-input { width: 100%; border: none; padding: 15px 20px; font-size: 1.05rem; font-family: var(--font-family); }
+        #search-input:focus { outline: 2px solid var(--accent-color); outline-offset: -1px; }
+        .search-bar-buttons { display: flex; }
+        #search-filter-btn { background-color: #fdfdfe; color: var(--secondary-color); border: none; border-right: 1px solid var(--border-color); padding: 0 18px; cursor: pointer; transition: background-color var(--transition); }
+        #search-filter-btn:hover { background-color: var(--bg-main); }
+        #search-filter-btn i { transition: transform var(--transition); font-size: 1.1rem; }
+        #search-filter-btn.active i { transform: rotate(180deg); }
+        #search-button { background-color: var(--primary-color); color: white; border: none; padding: 0 22px; cursor: pointer; transition: background-color var(--transition); }
+        #search-button:hover { background-color: #12376e; }
+        #search-filter-dropdown { position: absolute; top: calc(100% + 10px); right: 0; left: 0; background: var(--bg-card); border-radius: var(--border-radius); box-shadow: var(--shadow-lg); border: 1px solid var(--border-color); padding: 25px; z-index: 100; opacity: 0; visibility: hidden; transform: translateY(10px); transition: var(--transition); }
+        #search-filter-dropdown.visible { opacity: 1; visibility: visible; transform: translateY(0); }
+        .filter-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 18px; }
+        .filter-checkbox { display: flex; align-items: center; cursor: pointer; padding: 10px; border-radius: 8px; transition: background-color var(--transition); user-select: none; }
+        .filter-checkbox:hover { background-color: var(--bg-main); }
+        .filter-checkbox input { display: none; }
+        .filter-checkbox .checkmark { width: 22px; height: 22px; border: 2px solid var(--border-color); border-radius: 6px; display: inline-block; position: relative; margin-left: 12px; transition: var(--transition); background-color: #fff; }
+        .filter-checkbox input:checked + .checkmark { background-color: var(--primary-color); border-color: var(--primary-color); }
+        .filter-checkbox .checkmark::after { content: ""; position: absolute; display: none; left: 7px; top: 3px; width: 5px; height: 11px; border: solid white; border-width: 0 3px 3px 0; transform: rotate(45deg); }
+        .filter-checkbox input:checked + .checkmark::after { display: block; }
+        
+        /* ========================================= */
+        /*       بخش ۶: نمایش دوره‌ها و مقالات       */
+        /* ========================================= */
+        details.issue-accordion { border: 1px solid var(--border-color); border-radius: var(--border-radius); margin-bottom: 2rem; background: var(--bg-card); overflow: hidden; box-shadow: var(--shadow-md); transition: var(--transition); }
+        details.issue-accordion[open] { box-shadow: var(--shadow-lg); border-color: #CBD5E0; }
+        summary.issue-header { padding: 1.8rem 2rem; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+        summary.issue-header::-webkit-details-marker { display: none; }
+        .issue-title h3 { margin: 0; font-size: 1.6rem; color: var(--primary-color); font-weight: 700; }
+        .issue-title span { color: var(--text-light); font-size: 0.9rem; margin-top: 5px; display: block; }
+        .article-list { padding: 0 2rem 1rem; border-top: 1px solid var(--border-color); }
+        
+        .article-card { border-bottom: 1px dashed var(--border-color); padding: 25px 10px; transition: background-color var(--transition); border-radius: 8px; }
+        .article-card:last-child { border-bottom: none; }
+        .article-card:hover { background-color: #fdfdfe; }
+        .article-title { font-size: 1.25rem; font-weight: 700; color: var(--secondary-color); margin-bottom: 10px; cursor: pointer; transition: color 0.3s; }
+        .article-title:hover { color: var(--primary-color); }
+        .article-meta { font-size: 0.9rem; color: var(--text-light); }
+        .article-meta strong { color: var(--text-dark); font-weight: 500; }
+
+        /* ========================================= */
+        /*                  بخش ۷: مودال               */
+        /* ========================================= */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(13, 40, 77, 0.7); backdrop-filter: blur(8px); align-items: center; justify-content: center; z-index: 1000; padding: 20px; opacity: 0; transition: opacity 0.3s ease-in-out; }
+        .modal-overlay.visible { display: flex; opacity: 1; }
+        .modal-content { background: var(--bg-main); border: 1px solid var(--border-color); padding: 0; border-radius: var(--border-radius); max-width: 800px; width: 100%; box-shadow: var(--shadow-lg); max-height: 90vh; display: flex; flex-direction: column; transform: scale(0.95); transition: transform 0.3s ease-in-out; overflow: hidden; }
+        .modal-overlay.visible .modal-content { transform: scale(1); }
+        .modal-header { padding: 25px 35px; border-bottom: 1px solid var(--border-color); position: relative; background: var(--bg-card); }
+        .modal-header h2 { font-size: 1.6rem; color: var(--primary-color); margin: 0; padding-left: 40px; font-weight: 700; }
+        .modal-body { flex-grow: 1; overflow-y: auto; padding: 35px; line-height: 2.1; }
+        .modal-body h4 { font-size: 1.2rem; margin-bottom: 10px; margin-top: 20px; color: var(--primary-color); border-bottom: 1px solid var(--border-color); padding-bottom: 8px; }
+        .modal-body-meta { background-color: var(--bg-card); padding: 20px 35px; border-bottom: 1px solid var(--border-color); font-size: 0.95rem; color: var(--text-light); }
+        .modal-body-meta p { margin: 0 0 10px 0; }
+        .modal-body-meta p:last-child { margin-bottom: 0; }
+        .modal-body-meta strong { color: var(--text-dark); font-weight: 500; }
+        .modal-footer { padding: 20px 35px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; background: var(--bg-card); }
+        .modal-close-button { background: none; border: none; font-size: 2rem; cursor: pointer; color: #999; position: absolute; top: 50%; left: 25px; transform: translateY(-50%); transition: color 0.2s, transform 0.2s; }
+        .modal-close-button:hover { color: #333; transform: translateY(-50%) rotate(90deg); }
+
+        /* ========================================= */
+        /*                بخش ۸: فوتر                */
+        /* ========================================= */
+        footer.main-footer { text-align: center; padding: 3rem 1.5rem; margin-top: 4rem; background: var(--primary-color); color: #E2E8F0; border-top: 6px solid var(--accent-color); }
+        .footer-content { line-height: 2; }
+        .footer-content a { color: #FFFFFF; text-decoration: none; }
+        .footer-content a:hover { text-decoration: underline; }
+
+        /* ========================================= */
+        /*              بخش ۹: ابزارها و انیمیشن‌ها     */
+        /* ========================================= */
+        .btn-loading { pointer-events: none; }
+        .btn-loading .btn-text, .btn-loading i { opacity: 0; }
+        .btn-loading::after { content: ''; position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; border: 2px solid; border-color: currentColor currentColor transparent transparent; border-radius: 50%; animation: spin-btn 0.8s linear infinite; }
+        @keyframes spin-btn { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
+
+    </style>
+</head>
+<body>
+
+<div id="loading-overlay"><div class="loader"></div><p>در حال بارگذاری اطلاعات نشریه...</p></div>
+
+<div id="toast-notification"></div>
+
+<div id="page-wrapper" style="opacity:0; transition: opacity 0.5s;">
+    <header>
+        <div class="top-bar">
+            <div class="container top-bar-content">
+                <div class="site-info">
+                    <p>صاحب امتیاز: <a href="https://tashacol.ir" target="_blank">مؤسسه تعالی اندیشه و رشد</a></p>
+                </div>
+                <div class="login-dropdown">
+                    <button class="btn btn-accent" id="login-menu-btn"><i class="fas fa-user-circle"></i> <span class="btn-text">ورود به سامانه</span></button>
+                    <ul class="dropdown-menu" id="login-dropdown-menu">
+                        <li><a id="researcher-link" href="#" target="_blank"><i class="fas fa-user-graduate"></i> پنل پژوهشگران</a></li>
+                        <li><a id="professor-link" href="#" target="_blank"><i class="fas fa-user-tie"></i> پنل اساتید</a></li>
+                        <li><a id="admin-link" href="#" target="_blank"><i class="fas fa-user-shield"></i> پنل مدیریت</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="main-header">
+            <div class="container">
+                <h1 class="logo">نشریه تعالی نوجوان</h1>
+                <p class="subtitle">وابسته به مؤسسه تعالی اندیشه و رشد</p>
+            </div>
+        </div>
+        <nav class="main-nav">
+            <div class="container"><ul>
+                <li><a href="#" class="active">صفحه اصلی</a></li>
+                <li><a href="#" onclick="showAboutModal(event)">درباره نشریه</a></li>
+                <li><a href="#" onclick="showIssuesModal(event)">آرشیو دوره‌ها</a></li>
+            </ul></div>
+        </nav>
+    </header>
+
+<main class="container main-content page-grid">
+    <div class="main-column">
+        <div class="search-container">
+            <div class="search-bar">
+                <input type="text" id="search-input" placeholder="جستجو در میان مقالات...">
+                <div class="search-bar-buttons">
+                    <button id="search-filter-btn" title="فیلترهای جستجو"><i class="fas fa-sliders-h"></i></button>
+                    <button id="search-button" class="btn"><i class="fas fa-search"></i></button>
+                </div>
+            </div>
+            <div id="search-filter-dropdown">
+                <p style="margin-bottom: 15px; font-weight: 500; color: var(--text-dark);">جستجو بر اساس:</p>
+                <div class="filter-options">
+                    <label class="filter-checkbox">
+                        <input type="checkbox" name="search-category" value="title" checked>
+                        <span class="checkmark"></span> عنوان مقاله
+                    </label>
+                    <label class="filter-checkbox">
+                        <input type="checkbox" name="search-category" value="researcherName" checked>
+                        <span class="checkmark"></span> نام نویسنده
+                    </label>
+                    <label class="filter-checkbox">
+                        <input type="checkbox" name="search-category" value="supervisorName" checked>
+                        <span class="checkmark"></span> استاد راهنما
+                    </label>
+                    <label class="filter-checkbox">
+                        <input type="checkbox" name="search-category" value="keywords" checked>
+                        <span class="checkmark"></span> کلیدواژگان
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div id="issues-container"></div>
+        <div id="load-more-container" style="text-align: center; margin-top: 2rem;"></div>
+    </div>
+    <aside class="sidebar">
+        <div class="card">
+            <h3>درباره نشریه</h3>
+            <p style="font-size: 0.95rem; line-height: 1.9;"><strong>نشریه تعالی نوجوان</strong>، فضایی برای رشد اندیشه و پرورش قلم نسل جوان است که با هدف ترویج پژوهش و تفکر انتقادی در حوزه‌های علوم اسلامی و انسانی منتشر می‌شود...</p>
+            <a href="#" onclick="showAboutModal(event)">اطلاعات بیشتر...</a>
+        </div>
+         <div class="card">
+            <h3>شناسنامه نشریه</h3>
+            <ul>
+                <li><strong>صاحب امتیاز:</strong> مؤسسه تعالی اندیشه و رشد</li>
+                <li><strong>مدیر مسئول:</strong> علیرضا شیبانی</li>
+                <li><strong>سردبیر:</strong> امیرحسین دادگستر</li>
+            </ul>
+        </div>
+    </aside>
+</main>
+
+<footer class="main-footer">
+    <div class="footer-content">
+        <p>&copy; تمامی حقوق مادی و معنوی این وب‌سایت برای <strong>نشریه تعالی نوجوان</strong> محفوظ است.</p>
+        <p>آدرس: کرمان، جیرفت، خیابان استقلال، حوزه علمیه امام صادق (ع)</p>
+        <p>وب‌سایت صاحب امتیاز: <a href="https://tashacol.ir" target="_blank">tashacol.ir</a></p>
+    </div>
+</footer>
+</div>
+
+<div id="modal-container"></div>
+
+<script>
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyhU2ha6ypcNg2_bFeiiu6WFgHvqrb9zWcfkuxPxVq2alBY7-zkbMNXJPwdN4gcoxCb3Q/exec';
+    const PANEL_URLS = { researcher: '#', professor: '#', admin: '#' };
+    const JOURNAL_NAME = "نشریه تعالی نوجوان";
+
+    let allIssues = [];
+    let allArticles = [];
+    let visibleIssuesCount = 5;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadPublicationData();
+        Object.keys(PANEL_URLS).forEach(key => { document.getElementById(`${key}-link`).href = PANEL_URLS[key]; });
+        
+        const loginMenuBtn = document.getElementById('login-menu-btn');
+        const loginDropdownMenu = document.getElementById('login-dropdown-menu');
+        
+        const filterBtn = document.getElementById('search-filter-btn');
+        const filterDropdown = document.getElementById('search-filter-dropdown');
+        
+        loginMenuBtn.addEventListener('click', e => { 
+            e.stopPropagation(); 
+            loginDropdownMenu.classList.toggle('visible'); 
+        });
+
+        filterBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            filterDropdown.classList.toggle('visible');
+            filterBtn.classList.toggle('active');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!loginMenuBtn.contains(e.target) && !loginDropdownMenu.contains(e.target)) {
+                loginDropdownMenu.classList.remove('visible');
+            }
+            if (!filterBtn.contains(e.target) && !filterDropdown.contains(e.target)) {
+                filterDropdown.classList.remove('visible');
+                filterBtn.classList.remove('active');
+            }
+        });
+
+        document.getElementById('search-button').addEventListener('click', triggerSearch);
+        document.getElementById('search-input').addEventListener('keypress', (e) => { if (e.key === 'Enter') triggerSearch(); });
+    });
+
+    async function callApi(action, params = {}) {
+        try {
+            const response = await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action, params }) });
+            if (!response.ok) throw new Error('خطا در ارتباط با سرور. لطفاً اتصال اینترنت خود را بررسی کنید.');
+            const data = await response.json();
+            if (data.status === 'error') throw new Error(data.message);
+            return data;
+        } catch (error) {
+            document.getElementById('issues-container').innerHTML = `<div class="card" style="text-align:center;"><p>${error.message}</p></div>`;
+            return null;
+        }
+    }
+
+    async function loadPublicationData() {
+        const response = await callApi('getPublicationData');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        if (response?.status === 'success') {
+            allIssues = response.data.issues.sort((a, b) => b.issueNumber - a.issueNumber);
+            allArticles = response.data.allArticles;
+            const articlesByIssue = groupArticlesByIssue(allArticles);
+            renderIssues(allIssues, articlesByIssue);
+        }
+        loadingOverlay.style.opacity = '0';
+        setTimeout(() => {
+            loadingOverlay.style.display = 'none';
+            document.getElementById('page-wrapper').style.opacity = '1';
+        }, 500);
+    }
+    
+    function groupArticlesByIssue(articles) {
+        return articles.reduce((acc, article) => {
+            (acc[article.issueNumber] = acc[article.issueNumber] || []).push(article);
+            return acc;
+        }, {});
+    }
+
+    function renderIssues(issues, articlesByIssue) {
+        const container = document.getElementById('issues-container');
+        const issuesToRender = issues.slice(0, visibleIssuesCount);
+        container.innerHTML = issuesToRender.map((issue, index) => {
+            const articles = articlesByIssue[issue.issueNumber] || [];
+            if (articles.length === 0) return '';
+            return `
+                <details class="issue-accordion" ${index === 0 ? 'open' : ''}>
+                    <summary class="issue-header">
+                        <div class="issue-title">
+                            <h3>شماره ${issue.issueNumber}</h3>
+                            <span>تاریخ نشر: ${formatDate(issue.publishDate)}</span>
+                        </div>
+                        <div class="issue-actions"><button class="btn btn-secondary" onclick="downloadIssuePDF(event, '${issue.issueNumber}')"><span class="btn-text"><i class="fas fa-book"></i> دانلود نسخه کامل دوره</span></button></div>
+                    </summary>
+                    <div class="article-list">
+                        ${articles.map(article => `
+                            <article class="article-card">
+                                <h3 class="article-title" onclick="showArticleModal('${article.articleId}')">${article.title}</h3>
+                                <p class="article-meta"><strong>نویسنده:</strong> ${article.researcherName || 'نامشخص'} | <strong>استاد راهنما:</strong> ${article.supervisorName || 'نامشخص'}</p>
+                            </article>`).join('')}
+                    </div>
+                </details>`;
+        }).join('') || `<div class="card" style="text-align:center;"><p>هیچ مقاله‌ای مطابق با جستجوی شما یافت نشد.</p></div>`;
+
+        const loadMoreContainer = document.getElementById('load-more-container');
+        if (visibleIssuesCount < issues.length) {
+            loadMoreContainer.innerHTML = `<button id="load-more-btn" class="btn btn-secondary">نمایش دوره‌های قدیمی‌تر</button>`;
+            document.getElementById('load-more-btn').onclick = () => { visibleIssuesCount += 5; renderIssues(issues, articlesByIssue); };
+        } else {
+            loadMoreContainer.innerHTML = '';
+        }
+    }
+    
+    async function triggerSearch() {
+        const searchButton = document.getElementById('search-button');
+        searchButton.classList.add('btn-loading');
+
+        const searchTerm = document.getElementById('search-input').value.trim();
+        const categories = Array.from(document.querySelectorAll('input[name="search-category"]:checked')).map(cb => cb.value);
+        
+        let articlesToDisplay;
+
+        if (!searchTerm) {
+            articlesToDisplay = allArticles;
+        } else {
+            const response = await callApi('searchArticles', { searchTerm, categories });
+            if (response?.status === 'success') {
+                articlesToDisplay = response.data.articles;
+            } else {
+                articlesToDisplay = [];
+            }
+        }
+        
+        const articlesByIssue = groupArticlesByIssue(articlesToDisplay);
+        const relevantIssues = allIssues.filter(issue => articlesByIssue[issue.issueNumber] && articlesByIssue[issue.issueNumber].length > 0);
+        
+        visibleIssuesCount = 5; 
+        renderIssues(searchTerm ? relevantIssues : allIssues, articlesByIssue);
+
+        searchButton.classList.remove('btn-loading');
+    }
+
+    function showAboutModal(event) {
+        event.preventDefault();
+        const aboutContent = `
+            <div class="modal-header">
+                <h2>درباره نشریه تعالی نوجوان</h2>
+                <button class="modal-close-button" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p><strong>نشریه تعالی نوجوان</strong>، به همت <strong>مؤسسه تعالی اندیشه و رشد</strong>، به عنوان بستری برای ارائه و نقد اندیشه‌های نو در حوزه علوم اسلامی و انسانی، با تمرکز ویژه بر مسائل فکری و فرهنگی نسل نوجوان، پایه‌گذاری شده است. این نشریه می‌کوشد تا با انتشار مقالات علمی-پژوهشی، گامی در جهت تعمیق مبانی نظری و کاربردی این علوم بردارد.</p>
+                <h4>اهداف و چشم‌انداز:</h4>
+                <ul>
+                    <li>ایجاد فضایی پویا برای تبادل نظر و رشد قلمی پژوهشگران جوان و حوزوی.</li>
+                    <li>ترویج و گسترش فرهنگ پژوهش و تفکر انتقادی مبتنی بر اصول اسلامی.</li>
+                    <li>بررسی چالش‌های معاصر نوجوانان و ارائه راهکارهای مبتنی بر اندیشه دینی.</li>
+                    <li>کمک به تولید علم و ادبیات پژوهشی در زمینه‌های مرتبط با علوم انسانی-اسلامی.</li>
+                </ul>
+                <h4>محورهای اصلی پذیرش مقالات:</h4>
+                <p>این نشریه از مقالات پژوهشی، تحلیلی و مروری در محورهای زیر استقبال می‌کند:</p>
+                <ul>
+                    <li>اندیشه اسلامی (کلام، فلسفه، عرفان)</li>
+                    <li>علوم قرآنی و حدیث</li>
+                    <li>فقه و اصول</li>
+                    <li>اخلاق و تربیت اسلامی</li>
+                    <li>تاریخ اسلام و تشیع</li>
+                    <li>جامعه‌شناسی و روانشناسی با رویکرد اسلامی</li>
+                </ul>
+            </div>`;
+        showModal(aboutContent);
+    }
+
+    function showIssuesModal(event) {
+        event.preventDefault();
+        let content = `<div class="modal-header"><h2>آرشیو دوره‌ها</h2><button class="modal-close-button" onclick="closeModal()">&times;</button></div><div class="modal-body">`;
+        if (allIssues.length > 0) {
+            content += `<table style="width:100%; border-collapse: collapse; text-align: center;"><thead><tr><th style="padding:12px; border:1px solid #ddd; background-color:#f1f5f9;">شماره دوره</th><th style="padding:12px; border:1px solid #ddd; background-color:#f1f5f9;">تاریخ انتشار</th><th style="padding:12px; border:1px solid #ddd; background-color:#f1f5f9;">دانلود</th></tr></thead><tbody>`;
+            allIssues.forEach(issue => {
+                content += `<tr><td style="padding:12px; border:1px solid #ddd;">${issue.issueNumber}</td><td style="padding:12px; border:1px solid #ddd;">${formatDate(issue.publishDate)}</td>
+                <td style="padding:12px; border:1px solid #ddd;"><button class="btn btn-secondary btn-sm" onclick="downloadIssuePDF(event, '${issue.issueNumber}')">PDF</button></td></tr>`;
+            });
+            content += `</tbody></table>`;
+        } else { content += `<p>دوره‌ای برای نمایش وجود ندارد.</p>`; }
+        showModal(content + `</div>`);
+    }
+    
+    function showArticleModal(articleId) {
+        const articlePool = allArticles;
+        const d = articlePool.find(a => String(a.articleId) === String(articleId));
+        if (d) {
+            const modalHtml = `
+                <div class="modal-header">
+                    <h2>${d.title || 'بدون عنوان'}</h2>
+                    <button class="modal-close-button" onclick="closeModal()">&times;</button>
+                </div>
+                <div class="modal-body-meta">
+                    <p><strong>نویسنده:</strong> ${d.researcherName || 'نامشخص'}</p>
+                    <p><strong>وابستگی سازمانی:</strong> ${d.researcherAffiliation || 'ثبت نشده'}</p>
+                    <p><strong>استاد راهنما:</strong> ${d.supervisorName || 'نامشخص'}</p>
+                    <p><strong>تاریخ پذیرش:</strong> ${formatDate(d.acceptanceDate) || 'ثبت نشده'} | <strong>تاریخ نشر:</strong> ${formatDate(d.publishDate) || 'ثبت نشده'}</p>
+                </div>
+                <div class="modal-body">
+                    <h4>چکیده</h4>
+                    <p>${d.abstract || 'موجود نیست'}</p>
+                    <p><strong>کلیدواژگان:</strong> ${d.keywords || 'موجود نیست'}</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="showFullArticleContent('${articleId}')"><span class="btn-text">مشاهده متن کامل مقاله</span></button>
+                    <button class="btn btn-accent" onclick="handleDownloadPDF(this, '${d.articleId}')"><i class="fas fa-file-pdf"></i> <span class="btn-text">دانلود فایل PDF</span></button>
+                </div>`;
+            showModal(modalHtml);
+        } else {
+            showToast('خطا: اطلاعات مقاله یافت نشد.');
+        }
+    }
+    
+    function showFullArticleContent(articleId) {
+        const d = allArticles.find(a => String(a.articleId) === String(articleId));
+        if (d) {
+             const fullContentHtml = `
+                <div class="modal-header">
+                    <h2>${d.title || 'بدون عنوان'}</h2>
+                    <button class="modal-close-button" onclick="closeModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <h4>مقدمه</h4>
+                    <div style="white-space: pre-wrap;">${d.introduction || 'موجود نیست'}</div>
+                    <h4>بدنه اصلی مقاله</h4>
+                    <div style="white-space: pre-wrap;">${d.body || 'موجود نیست'}</div>
+                    <h4>نتیجه‌گیری</h4>
+                    <div style="white-space: pre-wrap;">${d.conclusion || 'موجود نیست'}</div>
+                    <h4>منابع</h4>
+                    <div style="white-space: pre-wrap;">${d.references || 'موجود نیست'}</div>
+                </div>
+                <div class="modal-footer">
+                     <button class="btn btn-accent" onclick="handleDownloadPDF(this, '${d.articleId}')"><i class="fas fa-file-pdf"></i> <span class="btn-text">دانلود فایل PDF</span></button>
+                </div>`;
+            updateModal(fullContentHtml);
+        }
+    }
+    
+    async function downloadIssuePDF(event, issueNumber) {
+        event.stopPropagation();
+        const button = event.target.closest('button');
+        if (button) button.classList.add('btn-loading');
+        showToast('در حال آماده‌سازی فایل PDF کل دوره...');
+
+        try {
+            const response = await callApi('generatePdfForIssue', { issueNumber: issueNumber });
+            if (response && response.status === 'success') {
+                downloadBase64File(response.data);
+            } else {
+                 showToast('خطا در تولید PDF دوره');
+            }
+        } catch (error) {
+            console.error("Issue PDF Download Error:", error);
+            showToast('خطای غیرمنتظره در دانلود PDF رخ داد.');
+        } finally {
+            if (button) button.classList.remove('btn-loading');
+            setTimeout(hideToast, 3000);
+        }
+    }
+
+    async function handleDownloadPDF(button, articleId) {
+        if (button) button.classList.add('btn-loading');
+        showToast('در حال آماده‌سازی فایل PDF مقاله...');
+
+        try {
+            const response = await callApi('generatePdfFromArticle', { articleId: articleId });
+            if (response && response.status === 'success') {
+                downloadBase64File(response.data);
+            } else {
+                showToast('خطا در تولید PDF');
+            }
+        } catch (error) {
+            console.error("PDF Download Error:", error);
+            showToast('خطای غیرمنتظره در دانلود PDF رخ داد.');
+        } finally {
+            if (button) button.classList.remove('btn-loading');
+            setTimeout(hideToast, 3000);
+        }
+    }
+    
+    function downloadBase64File({ filename, mimeType, content }) {
+        const byteCharacters = atob(content);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: mimeType });
+
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    // --- Utility Functions ---
+    function showModal(content) {
+        document.getElementById('modal-container').innerHTML = `<div class="modal-overlay visible" id="main-modal" onclick="if(event.target.id === 'main-modal') closeModal()"><div class="modal-content">${content}</div></div>`;
+        document.body.classList.add('modal-open');
+    }
+    function updateModal(content) {
+        const modal = document.querySelector('#main-modal .modal-content');
+        if (modal) modal.innerHTML = content;
+    }
+    function closeModal() {
+        const modal = document.getElementById('main-modal');
+        if (modal) {
+            modal.classList.remove('visible');
+            setTimeout(() => {
+                modal.remove();
+                document.body.classList.remove('modal-open');
+            }, 300);
+        }
+    }
+    function formatDate(dateString) {
+        if (!dateString) return 'نامشخص';
+        try {
+            return new Date(dateString).toLocaleDateString('fa-IR', { year: 'numeric', month: 'long', day: 'numeric' });
+        } catch(e) {
+            return 'نامشخص';
+        }
+    }
+    
+    let toastTimeout;
+    function showToast(message) {
+        clearTimeout(toastTimeout);
+        const toast = document.getElementById('toast-notification');
+        toast.textContent = message;
+        toast.classList.add('show');
+        toastTimeout = setTimeout(hideToast, 5000);
+    }
+    function hideToast() {
+        const toast = document.getElementById('toast-notification');
+        toast.classList.remove('show');
+    }
+
+</script>
+
+</body>
+</html>
