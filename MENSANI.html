@@ -92,7 +92,7 @@
             </div>
             <form id="login-form">
                 <div class="form-group">
-                    <label for="admin-username">نام کاربری</label>
+                    <label for="admin-username">نام کاربری (کد ملی)</label>
                     <input type="text" id="admin-username" class="form-input" required>
                 </div>
                 <div class="form-group">
@@ -175,6 +175,7 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
+        // !!! مهم: این آدرس را با URL جدیدی که بعد از Deploy دریافت می‌کنید جایگزین کنید !!!
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx_USt6iFHiAMKZXSmfQqDnl95hYw2prf-V5SWaPLU25YXNyBUBhQjgoqwwHzRyPgrizg/exec";
 
         const loginView = document.getElementById('login-view');
@@ -210,6 +211,7 @@
                 return result;
             } catch (error) {
                 console.error("API Request Error:", error);
+                loginErrorMsg.textContent = 'خطا در ارتباط با سرور. لطفاً از صحت URL اسکریپت اطمینان حاصل کنید.';
                 return { success: false, message: 'خطا در ارتباط با سرور.' };
             }
         };
@@ -257,7 +259,7 @@
             loginView.classList.add('hidden');
             adminPanelView.classList.remove('hidden');
             adminNameDisplay.textContent = userData.name;
-            loadTabData('users-tab'); // Load initial tab
+            document.querySelector('.tab-link.active').click();
         };
 
         document.querySelectorAll('.tab-link').forEach(tab => {
@@ -333,15 +335,13 @@
             const result = await apiRequest({ action: 'getActivitiesByStatus', status: statusMap[statusType] });
 
             if (result.success && result.activities.length > 0) {
-                 // FIX: Added 'نام جهادگر' to the table headers
-                 const table = createTable(['نام جهادگر', 'کد ملی', 'عنوان فعالیت', 'بازه زمانی', 'توضیحات', 'اقدامات']);
+                 const table = createTable(['عنوان', 'کد ملی کاربر', 'تاریخ ارسال', 'بازه زمانی', 'توضیحات', 'اقدامات']);
                  const tbody = table.querySelector('tbody');
                  result.activities.forEach(act => {
                     const tr = document.createElement('tr');
-                    // FIX: Added the volunteer's name cell
-                    tr.appendChild(createCell(act.volunteerName));
-                    tr.appendChild(createCell(act.nid));
                     tr.appendChild(createCell(act.title));
+                    tr.appendChild(createCell(act.nid));
+                    tr.appendChild(createCell(act.submissionDate));
                     tr.appendChild(createCell(`${act.startDate} تا ${act.endDate}`));
                     tr.appendChild(createCell(act.description, true));
                     
@@ -416,7 +416,7 @@
                 <span><strong>شماره تماس:</strong> ${user.phone}</span>
                 <span><strong>تحصیلات:</strong> ${user.education}</span>
                 <span><strong>مهارت:</strong> ${user.skill || '-'}</span>
-                <span><strong>وضعیت حساب:</strong> ${user.status == 5 ? 'تایید شده' : (user.status == 1 ? 'رد شده' : 'در انتظار')}</span>
+                <span><strong>وضعیت حساب:</strong> ${user.status == 5 ? 'فعال' : (user.status == 1 ? 'رد شده' : 'در انتظار')}</span>
             `;
             container.appendChild(grid);
             return container;
@@ -457,7 +457,6 @@
             card.appendChild(table);
             return card;
         };
-
 
         // --- Helper functions for creating elements ---
         const createTable = (headers) => {
