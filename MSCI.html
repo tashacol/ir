@@ -1,1 +1,891 @@
 
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>پنل مدیریت نشریه</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <!-- افزودن کتابخانه‌های اکسل و PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap');
+        /* دستور اول: ظاهر حرفه‌ای و رسمی با رنگ‌های رسمی */
+        :root {
+            --primary: #2563eb; --primary-light: #dbeafe; --primary-dark: #1e40af;
+            --secondary: #1f2937; --secondary-light: #f3f4f6;
+            --text-dark: #111827; --text-light: #6b7280; --bg-main: #f9fafb;
+            --bg-card: #ffffff; --border-color: #e5e7eb; --success: #16a34a;
+            --danger: #dc2626; --warning: #f97316; --info: #0ea5e9;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --radius-lg: 12px; --radius-md: 8px; --transition: 0.2s ease-in-out;
+        }
+        *, *::before, *::after { box-sizing: border-box; }
+        body { font-family: 'Vazirmatn', sans-serif; background-color: var(--bg-main); color: var(--text-dark); margin: 0; font-size: 15px; }
+        .hidden { display: none !important; }
+        .card { background: var(--bg-card); border-radius: var(--radius-lg); box-shadow: var(--shadow); border: 1px solid var(--border-color); }
+        h1,h2,h3,h4 { font-weight: 700; margin: 0 0 16px 0; color: var(--text-dark); }
+        h1 { font-size: 1.8rem; } h2 { font-size: 1.5rem; } h3 { font-size: 1.2rem; }
+        input, select, textarea {
+            width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--border-color);
+            border-radius: var(--radius-md); font-size: 1rem; font-family: inherit; transition: var(--transition); background-color: #fff;
+        }
+        input:focus, select:focus, textarea:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px var(--primary-light); }
+        button {
+            font-family: inherit; padding: 10px 16px; border: none; border-radius: var(--radius-md); font-size: 0.95rem; font-weight: 500;
+            cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; justify-content: center; gap: 8px; position: relative; background-color: var(--primary); color: white;
+            vertical-align: middle;
+        }
+        button:hover:not(:disabled) { opacity: 0.85; }
+        button:disabled { background-color: #d1d5db; cursor: not-allowed; }
+        .btn-success { background-color: var(--success); } .btn-danger { background-color: var(--danger); } .btn-warning { background-color: var(--warning); } .btn-secondary { background-color: #4b5563; }
+        .btn-light { background-color: var(--bg-card); color: var(--text-dark); border: 1px solid var(--border-color); }
+        /* دستور چهارم (بخش لودینگ): اصلاح لودینگ دکمه ها */
+        .btn-loading { color: transparent !important; }
+        .btn-loading .btn-text, .btn-loading .fas, .btn-loading .fa-solid { opacity: 0; }
+        .btn-loading::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.5); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        #main-app { display: flex; min-height: 100vh; }
+        #sidebar { width: 250px; background: var(--secondary); color: white; padding: 20px; display: flex; flex-direction: column; flex-shrink: 0; transition: width 0.3s; }
+        #sidebar h2 { color: white; border-bottom: 1px solid #4b5563; padding-bottom: 15px; text-align: center; }
+        #main-nav { flex-grow: 1; }
+        #main-nav button { background: none; width: 100%; justify-content: flex-start; padding: 12px 15px; margin-bottom: 5px; color: #d1d5db; font-size: 1rem; }
+        #main-nav button:hover, #main-nav button.active { background: #374151; color: white; }
+        #main-nav button i { width: 25px; text-align: center; }
+        #logout-btn { margin-top: auto; background: #374151; }
+        #main-content { flex-grow: 1; padding: 30px; overflow-y: auto; }
+        .loader-wrapper { display: flex; justify-content: center; align-items: center; padding: 60px; }
+        .loader { width: 48px; height: 48px; border: 5px solid var(--primary-light); border-bottom-color: var(--primary); border-radius: 50%; display: inline-block; animation: spin 1s linear infinite; }
+        
+        .table-wrapper { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 15px; text-align: right; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+        th { background: var(--secondary-light); font-weight: 700; white-space: nowrap; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background-color: #f9fafb; }
+        .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 500; display: inline-block; }
+        .actions-cell button { padding: 6px 10px; font-size: 0.85rem; }
+
+        .modal-overlay { position: fixed; inset: 0; background: rgba(17, 24, 39, 0.6); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px); animation: fadeIn 0.3s; }
+        .modal-box { background: var(--bg-card); border-radius: var(--radius-lg); width: 100%; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; max-height: calc(100vh - 40px); animation: zoomIn 0.3s; }
+        .modal-lg { max-width: 900px; } .modal-md { max-width: 600px; }
+        .modal-header, .modal-footer { padding: 16px 24px; flex-shrink: 0; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); }
+        .modal-footer { border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 8px; }
+        .modal-body { overflow-y: auto; flex-grow: 1; padding: 24px; }
+        .form-group { margin-bottom: 1.2rem; }
+        label { display: block; font-weight: 500; margin-bottom: 8px; color: var(--text-dark); }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes zoomIn { from { transform: scale(0.9); } to { transform: scale(1); } }
+
+        .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+        .stat-card { padding: 20px; text-align: center; border-right: 4px solid var(--primary); }
+        .stat-card h4 { color: var(--text-light); font-size: 1rem; }
+        .stat-card .count { font-size: 2.5rem; font-weight: 700; }
+        
+        .tab-nav { display:flex; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; }
+        .tab-nav button { background: none; color: var(--text-light); border-radius: 0; padding: 10px 20px; border-bottom: 3px solid transparent; }
+        .tab-nav button.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 700; }
+        
+        #toast-container { position: fixed; bottom: 20px; left: 20px; z-index: 2000; }
+        .toast { background-color: var(--secondary); color: white; padding: 15px 20px; border-radius: var(--radius-md); box-shadow: var(--shadow-lg); margin-top: 10px; opacity: 0; transform: translateY(20px); animation: toast-in 0.5s forwards; }
+        .toast.success { background-color: var(--success); }
+        .toast.error { background-color: var(--danger); }
+        @keyframes toast-in { to { opacity: 1; transform: translateY(0); } }
+
+        #article-modal-tabs { display: flex; border-bottom: 1px solid var(--border-color); }
+        #article-modal-tabs button { background: none; color: var(--text-light); border: none; padding: 12px 20px; cursor: pointer; border-bottom: 3px solid transparent; }
+        #article-modal-tabs button.active { color: var(--primary); font-weight: 700; border-bottom-color: var(--primary); }
+        .tab-content { padding-top: 20px; }
+        .history-timeline { list-style: none; padding: 0; }
+        .timeline-item { display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px dashed var(--border-color); }
+        .timeline-item:last-child { border-bottom: none; }
+        .timeline-icon { flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .timeline-content { flex-grow: 1; }
+        .timeline-header { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 5px; align-items: center; }
+        .timeline-details { font-size: 0.9em; color: var(--text-light); word-break: break-word; }
+        
+        .issue-list-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius-md); margin-bottom: 8px; }
+        .issue-list-item button { background: none; border: none; cursor: pointer; }
+        .issue-list-item button.delete-btn { color: var(--danger); }
+        .issue-list-item button:disabled { color: #ccc; cursor: not-allowed; }
+        
+        #drop-area { border: 2px dashed var(--border-color); border-radius: var(--radius-md); padding: 30px; text-align: center; color: var(--text-light); cursor: pointer; }
+        #drop-area.highlight { border-color: var(--primary); background-color: var(--primary-light); }
+        #file-info { margin-top: 15px; font-weight: 500; }
+        
+        .content-accordion details { border-bottom: 1px solid var(--border-color); }
+        .content-accordion summary { position: sticky; top: 0; background: var(--bg-card); padding: 15px 10px; z-index: 1; cursor: pointer; list-style: none; font-weight: 700; }
+        .content-accordion summary::-webkit-details-marker { display:none; }
+        .content-accordion .content-panel { padding: 1rem; }
+    </style>
+</head>
+<body>
+
+<div id="login-page">
+    <div class="card" style="max-width: 400px; margin: 100px auto; padding: 40px;">
+        <div style="text-align:center; margin-bottom: 2rem;">
+            <i class="fas fa-shield-alt fa-3x" style="color: var(--primary);"></i>
+            <h2 style="margin-top: 1rem;">ورود به پنل مدیریت</h2>
+            <p style="color: var(--text-light);">لطفا اطلاعات خود را برای ورود وارد کنید.</p>
+        </div>
+        <form id="login-form">
+            <div class="form-group"><label for="username">نام کاربری</label><input type="text" id="username" required></div>
+            <div class="form-group"><label for="password">رمز عبور</label><input type="password" id="password" required></div>
+            <button type="submit" id="login-btn" style="width: 100%; padding: 12px;"><span class="btn-text">ورود به سیستم</span></button>
+            <p id="login-error" style="color:var(--danger); text-align: center; height: 1em; margin-top: 1em;"></p>
+        </form>
+    </div>
+</div>
+
+<div id="main-app" class="hidden">
+    <aside id="sidebar">
+        <h2><i class="fas fa-landmark"></i> نشریه</h2>
+        <nav id="main-nav">
+            <button data-view="dashboard" class="active"><i class="fas fa-tachometer-alt fa-fw"></i><span class="nav-text"> داشبورد</span></button>
+            <button data-view="articles"><i class="fas fa-file-alt fa-fw"></i><span class="nav-text"> مدیریت مقالات</span></button>
+            <button data-view="publications"><i class="fas fa-newspaper fa-fw"></i><span class="nav-text"> مدیریت انتشارات</span></button>
+            <button data-view="users"><i class="fas fa-users-cog fa-fw"></i><span class="nav-text"> مدیریت کاربران</span></button>
+            <button data-view="logs"><i class="fas fa-history fa-fw"></i><span class="nav-text"> گزارش وقایع</span></button>
+        </nav>
+        <button id="logout-btn"><i class="fas fa-sign-out-alt"></i><span class="nav-text"> خروج از سیستم</span></button>
+    </aside>
+    <main id="main-content"><!-- Views will be rendered here --></main>
+</div>
+<div id="modal-container"></div>
+<div id="toast-container"></div>
+<!-- کانتینر مخفی برای رندر کردن محتوای PDF -->
+<div id="pdf-render-container" style="position: fixed; left: -9999px; top: -9999px; background: white; color: black; font-family: 'Vazirmatn', sans-serif; direction: rtl; width: 210mm; padding: 1.5cm; box-sizing: border-box;"></div>
+
+<script>
+    // ==========================================================
+    // == پنل مدیریت نشریه - JavaScript (نسخه نهایی و پایدار)
+    // ==========================================================
+
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxqsfCE7G7gbMANi-CqxBlIVPQHzIZt54IDQAY-f3PhC46kt5kBvLo1bpp4Xk3KscASvg/exec';
+
+    const appState = {
+        currentUser: null,
+        isDataLoaded: false,
+        data: { articles: [], users: {researchers:[], professors:[]}, publications: {issues:[], readyArticles:[]}, logs: [] }
+    };
+    
+    // لیست کامل و جامع ۱۵۰ لاگ با آیکن و رنگ
+    const LOG_ACTIONS = {
+        'LOGIN_SUCCESS': { title: 'ورود موفق', icon: 'fa-right-to-bracket', color: 'var(--success)' },
+        'LOGIN_FAIL': { title: 'ورود ناموفق', icon: 'fa-user-clock', color: 'var(--warning)' },
+        'DRAFT_CREATE_SUCCESS': { title: 'ایجاد پیش‌نویس جدید', icon: 'fa-file-medical', color: 'var(--info)' },
+        'DRAFT_SAVE_SUCCESS': { title: 'ذخیره پیش‌نویس', icon: 'fa-floppy-disk', color: 'var(--text-light)' },
+        'SUBMIT_ARTICLE_SUCCESS': { title: 'ارسال برای استاد', icon: 'fa-file-circle-plus', color: 'var(--primary)' },
+        'SUBMIT_DRAFT_SUCCESS': { title: 'ارسال پیش‌نویس برای استاد', icon: 'fa-paper-plane', color: 'var(--primary)' },
+        'UPDATE_DETAILS_SUCCESS': { title: 'ویرایش اطلاعات کلی', icon: 'fa-pen-to-square', color: 'var(--info)' },
+        'ABSTRACT_UPDATE_SUCCESS': { title: 'ویرایش چکیده', icon: 'fa-file-lines', color: 'var(--info)' },
+        'INTRODUCTION_UPDATE_SUCCESS': { title: 'ویرایش مقدمه', icon: 'fa-file-lines', color: 'var(--info)' },
+        'BODY_UPDATE_SUCCESS': { title: 'ویرایش بدنه', icon: 'fa-file-lines', color: 'var(--info)' },
+        'CONCLUSION_UPDATE_SUCCESS': { title: 'ویرایش نتیجه‌گیری', icon: 'fa-file-lines', color: 'var(--info)' },
+        'REFERENCES_UPDATE_SUCCESS': { title: 'ویرایش منابع', icon: 'fa-file-lines', color: 'var(--info)' },
+        'SUBMIT_REVISIONS_SUCCESS': { title: 'ارسال ویرایشات برای استاد', icon: 'fa-file-pen', color: 'var(--primary)' },
+        'REVISION_NOTE_ADD_SUCCESS': { title: 'افزودن یادداشت برای استاد', icon: 'fa-note-sticky', color: 'var(--info)' },
+        'SEND_FINAL_REVIEW_SUCCESS': { title: 'ارسال برای بررسی نهایی', icon: 'fa-user-check', color: 'var(--primary-dark)' },
+        'DELETE_ARTICLE_SUCCESS': { title: 'حذف مقاله', icon: 'fa-trash', color: 'var(--danger)' },
+        'ARTICLE_WITHDRAW_REQUEST': { title: 'درخواست انصراف از مقاله', icon: 'fa-user-minus', color: 'var(--warning)' },
+        'SUGGESTED_TITLE_TAKEN': { title: 'انتخاب عنوان پیشنهادی', icon: 'fa-lightbulb', color: 'var(--success)' },
+        'SUGGESTED_TITLE_RELEASED': { title: 'آزادسازی عنوان', icon: 'fa-lightbulb', color: 'var(--info)' },
+        'PROFILE_UPDATE_SUCCESS': { title: 'بروزرسانی پروفایل', icon: 'fa-address-card', color: 'var(--info)' },
+        'PASSWORD_CHANGE_SUCCESS': { title: 'تغییر موفق رمز عبور', icon: 'fa-key', color: 'var(--success)' },
+        'PASSWORD_CHANGE_FAIL': { title: 'تلاش ناموفق برای تغییر رمز', icon: 'fa-key', color: 'var(--warning)' },
+        'FEEDBACK_VIEWED_BY_RESEARCHER': { title: 'مشاهده بازخورد استاد', icon: 'fa-eye', color: 'var(--info)' },
+        'ATTACHMENT_UPLOAD_SUCCESS': { title: 'بارگذاری فایل ضمیمه', icon: 'fa-paperclip', color: 'var(--info)' },
+        'ATTACHMENT_DELETE_SUCCESS': { title: 'حذف فایل ضمیمه', icon: 'fa-unlink', color: 'var(--info)' },
+        'COAUTHOR_ADD_REQUEST': { title: 'درخواست افزودن همکار', icon: 'fa-user-plus', color: 'var(--primary)' },
+        'COAUTHOR_REMOVE_SUCCESS': { title: 'حذف همکار نویسنده', icon: 'fa-user-minus', color: 'var(--info)' },
+        'SESSION_TIMEOUT_LOGOUT': { title: 'خروج خودکار', icon: 'fa-clock', color: 'var(--text-light)' },
+        'SUPPORT_TICKET_CREATE_SUCCESS': { title: 'ثبت تیکت پشتیبانی', icon: 'fa-life-ring', color: 'var(--primary)' },
+        'NOTIFICATION_READ': { title: 'مشاهده اعلان', icon: 'fa-bell', color: 'var(--info)' },
+        'NOTIFICATION_DELETE_ALL': { title: 'حذف همه اعلان‌ها', icon: 'fa-trash-can', color: 'var(--info)' },
+        'ARTICLE_CLONE_SUCCESS': { title: 'ایجاد کپی از مقاله', icon: 'fa-clone', color: 'var(--info)' },
+        'FORM_VALIDATION_FAIL': { title: 'خطای اعتبارسنجی فرم', icon: 'fa-triangle-exclamation', color: 'var(--warning)' },
+        'ARTICLE_PRINT_VIEW': { title: 'مشاهده نسخه چاپی', icon: 'fa-print', color: 'var(--info)' },
+        'FINAL_DECISION_VIEWED': { title: 'مشاهده تصمیم نهایی', icon: 'fa-gavel', color: 'var(--primary-dark)' },
+        'ARTICLE_HISTORY_VIEW': { title: 'مشاهده تاریخچه مقاله', icon: 'fa-history', color: 'var(--info)' },
+        'SUPERVISOR_CHANGE_REQUEST': { title: 'درخواست تغییر استاد', icon: 'fa-user-tag', color: 'var(--primary)' },
+        'KEYWORDS_UPDATE_SUCCESS': { title: 'ویرایش کلیدواژه‌ها', icon: 'fa-tags', color: 'var(--info)' },
+        'TITLE_UPDATE_SUCCESS': { title: 'ویرایش عنوان مقاله', icon: 'fa-heading', color: 'var(--info)' },
+        'AFFILIATION_UPDATE_SUCCESS': { title: 'ویرایش وابستگی سازمانی', icon: 'fa-building-columns', color: 'var(--info)' },
+        'VERSION_RESTORE_REQUEST': { title: 'درخواست بازیابی نسخه', icon: 'fa-clock-rotate-left', color: 'var(--warning)' },
+        'MESSAGE_SEND_TO_SUPERVISOR': { title: 'ارسال پیام به استاد', icon: 'fa-paper-plane', color: 'var(--primary)' },
+        'MESSAGE_VIEW_FROM_SUPERVISOR': { title: 'مشاهده پیام از استاد', icon: 'fa-envelope-open', color: 'var(--info)' },
+        'FILE_UPLOAD_FORMAT_ERROR': { title: 'خطای فرمت فایل', icon: 'fa-file-circle-exclamation', color: 'var(--danger)' },
+        'FILE_UPLOAD_SIZE_EXCEEDED': { title: 'خطای حجم فایل', icon: 'fa-file-arrow-up', color: 'var(--danger)' },
+        'SUBMISSION_CANCEL_SUCCESS': { title: 'لغو ارسال مقاله', icon: 'fa-file-circle-xmark', color: 'var(--warning)' },
+        'ACCOUNT_DEACTIVATION_REQUEST': { title: 'درخواست غیرفعال‌سازی حساب', icon: 'fa-user-lock', color: 'var(--danger)' },
+        'PASSWORD_RESET_REQUEST': { title: 'درخواست بازیابی رمز', icon: 'fa-unlock-keyhole', color: 'var(--primary)' },
+        'TWO_FACTOR_AUTH_SETUP': { title: 'فعال‌سازی تایید دو مرحله‌ای', icon: 'fa-shield-halved', color: 'var(--success)' },
+        'API_TOKEN_REGENERATE': { title: 'تولید مجدد توکن API', icon: 'fa-key', color: 'var(--info)' },
+        'PROF_LOGIN_SUCCESS': { title: 'ورود موفق استاد', icon: 'fa-user-tie', color: 'var(--success)' },
+        'PROF_LOGIN_FAIL': { title: 'ورود ناموفق استاد', icon: 'fa-user-tie', color: 'var(--warning)' },
+        'GUIDANCE_ACCEPTED': { title: 'پذیرش راهنمایی', icon: 'fa-handshake', color: 'var(--success)' },
+        'GUIDANCE_REJECTED': { title: 'عدم پذیرش راهنمایی', icon: 'fa-handshake-slash', color: 'var(--danger)' },
+        'ARTICLE_OPEN_FOR_REVIEW': { title: 'باز کردن مقاله برای بازبینی', icon: 'fa-folder-open', color: 'var(--info)' },
+        'SENT_FOR_REVISION': { title: 'ارجاع برای ویرایش (توسط استاد)', icon: 'fa-user-edit', color: 'var(--warning)' },
+        'REVISION_FEEDBACK_UPDATED': { title: 'ویرایش بازخورد استاد', icon: 'fa-comment-dots', color: 'var(--info)' },
+        'FEEDBACK_SAVE_DRAFT': { title: 'ذخیره پیش‌نویس بازخورد', icon: 'fa-floppy-disk', color: 'var(--text-light)' },
+        'APPROVED_FOR_JOURNAL': { title: 'تایید نهایی توسط استاد', icon: 'fa-user-graduate', color: 'var(--success)' },
+        'SUPERVISION_CANCELLED': { title: 'انصراف استاد از راهنمایی', icon: 'fa-user-slash', color: 'var(--danger)' },
+        'CAPACITY_UPDATE_SUCCESS': { title: 'تغییر ظرفیت پذیرش', icon: 'fa-users-line', color: 'var(--info)' },
+        'AVAILABILITY_SET_AWAY': { title: 'تنظیم وضعیت به "غیرفعال"', icon: 'fa-toggle-off', color: 'var(--text-light)' },
+        'AVAILABILITY_SET_ACTIVE': { title: 'تنظیم وضعیت به "فعال"', icon: 'fa-toggle-on', color: 'var(--success)' },
+        'TITLE_SUGGESTED': { title: 'افزودن عنوان پیشنهادی', icon: 'fa-plus', color: 'var(--info)' },
+        'SUGGESTED_TITLE_EDIT_SUCCESS': { title: 'ویرایش عنوان پیشنهادی', icon: 'fa-pen', color: 'var(--info)' },
+        'SUGGESTED_TITLE_DELETE_SUCCESS': { title: 'حذف عنوان پیشنهادی', icon: 'fa-trash', color: 'var(--danger)' },
+        'MESSAGE_SEND_TO_RESEARCHER': { title: 'ارسال پیام به محقق', icon: 'fa-paper-plane', color: 'var(--primary)' },
+        'MESSAGE_VIEW_FROM_RESEARCHER': { title: 'مشاهده پیام از محقق', icon: 'fa-envelope-open', color: 'var(--info)' },
+        'REVISION_NOTE_VIEWED': { title: 'مشاهده توضیحات محقق', icon: 'fa-eye', color: 'var(--info)' },
+        'ARTICLE_HISTORY_VIEWED': { title: 'مشاهده تاریخچه مقاله', icon: 'fa-history', color: 'var(--info)' },
+        'DASHBOARD_FILTER_APPLY': { title: 'اعمال فیلتر در داشبورد', icon: 'fa-filter', color: 'var(--info)' },
+        'ARTICLE_SEARCH_PERFORMED': { title: 'انجام جستجو در مقالات', icon: 'fa-search', color: 'var(--info)' },
+        'ARTICLE_ESCALATE_TO_ADMIN': { title: 'ارجاع مورد به مدیر', icon: 'fa-flag', color: 'var(--warning)' },
+        'SUPERVISION_TRANSFER_REQUEST': { title: 'درخواست انتقال راهنمایی', icon: 'fa-right-left', color: 'var(--primary)' },
+        'PASSWORD_CHANGE_SUCCESS_PROF': { title: 'تغییر موفق رمز عبور (استاد)', icon: 'fa-key', color: 'var(--success)' },
+        'NOTIFICATION_MARK_AS_READ': { title: 'خواندن اعلان', icon: 'fa-bell-slash', color: 'var(--info)' },
+        'BATCH_ACTION_REJECT_SUCCESS': { title: 'رد گروهی درخواست‌ها', icon: 'fa-folder-minus', color: 'var(--danger)' },
+        'REPORT_GENERATE_OWN_STATS': { title: 'تولید گزارش عملکرد شخصی', icon: 'fa-chart-pie', color: 'var(--info)' },
+        'ARTICLE_METADATA_VIEW': { title: 'مشاهده فراداده مقاله', icon: 'fa-info-circle', color: 'var(--info)' },
+        'ARTICLE_CONTENT_DOWNLOAD': { title: 'دانلود محتوای مقاله', icon: 'fa-file-download', color: 'var(--info)' },
+        'QUICK_REPLY_SENT': { title: 'ارسال پاسخ سریع', icon: 'fa-reply-all', color: 'var(--primary)' },
+        'DEADLINE_SET_FOR_REVISION': { title: 'تعیین مهلت ویرایش', icon: 'fa-calendar-day', color: 'var(--warning)' },
+        'DEADLINE_EXTENSION_GRANTED': { title: 'تمدید مهلت ویرایش', icon: 'fa-calendar-plus', color: 'var(--success)' },
+        'PLAGIARISM_CHECK_INITIATED': { title: 'درخواست بررسی سرقت ادبی', icon: 'fa-search-dollar', color: 'var(--primary)' },
+        'PLAGIARISM_REPORT_VIEWED': { title: 'مشاهده گزارش سرقت ادبی', icon: 'fa-file-contract', color: 'var(--info)' },
+        'ANNOTATION_ADD_SUCCESS': { title: 'افزودن یادداشت روی متن', icon: 'fa-highlighter', color: 'var(--info)' },
+        'VERSION_COMPARE_VIEW': { title: 'مشاهده تفاوت نسخه‌ها', icon: 'fa-code-compare', color: 'var(--info)' },
+        'ARTICLE_TAG_ADD': { title: 'افزودن برچسب به مقاله', icon: 'fa-tag', color: 'var(--info)' },
+        'ARTICLE_TAG_REMOVE': { title: 'حذف برچسب از مقاله', icon: 'fa-tags', color: 'var(--info)' },
+        'SIMILAR_ARTICLES_SEARCH': { title: 'جستجوی مقالات مشابه', icon: 'fa-copy', color: 'var(--info)' },
+        'GUIDANCE_COMPLETE_MANUAL': { title: 'تکمیل دستی فرآیند راهنمایی', icon: 'fa-check-circle', color: 'var(--success)' },
+        'LOGOUT_SUCCESS': { title: 'خروج موفق از سیستم', icon: 'fa-sign-out-alt', color: 'var(--info)' },
+        'TWO_FACTOR_DISABLE_REQUEST': { title: 'درخواست غیرفعال‌سازی تایید دو مرحله‌ای', icon: 'fa-shield-slash', color: 'var(--warning)' },
+        'EXPORT_OWN_ARTICLES_LIST': { title: 'دریافت خروجی مقالات', icon: 'fa-file-export', color: 'var(--info)' },
+        'HELP_DOCUMENTATION_VIEW': { title: 'مشاهده راهنمای پنل', icon: 'fa-question-circle', color: 'var(--info)' },
+        'MESSAGE_ARCHIVE_SUCCESS': { title: 'بایگانی کردن پیام', icon: 'fa-box-archive', color: 'var(--info)' },
+        'DECISION_SAVE_FAIL': { title: 'خطای ثبت تصمیم', icon: 'fa-triangle-exclamation', color: 'var(--danger)' },
+        'REMINDER_SET_FOR_RESEARCHER': { title: 'تنظیم یادآور برای محقق', icon: 'fa-bell', color: 'var(--primary)' },
+        'COMMUNICATION_LOG_VIEW': { title: 'مشاهده لاگ ارتباطات', icon: 'fa-comments', color: 'var(--info)' },
+        'ADMIN_LOGIN_SUCCESS': { title: 'ورود موفق مدیر', icon: 'fa-user-shield', color: 'var(--success)' },
+        'ADMIN_LOGIN_FAIL': { title: 'ورود ناموفق مدیر', icon: 'fa-user-shield', color: 'var(--danger)' },
+        'JOURNAL_ACCEPTED': { title: 'پذیرش نهایی مقاله', icon: 'fa-award', color: 'var(--success)' },
+        'JOURNAL_REJECTED': { title: 'رد نهایی مقاله', icon: 'fa-ban', color: 'var(--danger)' },
+        'SENT_FOR_FINAL_REVISION': { title: 'ارسال برای ویرایش نهایی', icon: 'fa-circle-exclamation', color: 'var(--warning)' },
+        'ARTICLE_ASSIGNED_TO_ISSUE': { title: 'تخصیص به شماره نشر', icon: 'fa-calendar-check', color: 'var(--info)' },
+        'ARTICLE_REMOVE_FROM_ISSUE': { title: 'حذف از شماره نشر', icon: 'fa-calendar-minus', color: 'var(--warning)' },
+        'ISSUE_CREATED': { title: 'ایجاد شماره نشر جدید', icon: 'fa-newspaper', color: 'var(--primary)' },
+        'ISSUE_UPDATED': { title: 'ویرایش شماره نشر', icon: 'fa-edit', color: 'var(--info)' },
+        'ISSUE_DELETED': { title: 'حذف شماره نشر', icon: 'fa-trash-can', color: 'var(--danger)' },
+        'ISSUE_PUBLISHED_FLAG': { title: 'علامت‌گذاری "منتشر شده"', icon: 'fa-check-double', color: 'var(--success)' },
+        'USER_CREATED': { title: 'ایجاد کاربر جدید', icon: 'fa-user-plus', color: 'var(--success)' },
+        'USER_UPDATED': { title: 'ویرایش اطلاعات کاربر', icon: 'fa-user-pen', color: 'var(--info)' },
+        'USER_DELETED': { title: 'حذف کاربر', icon: 'fa-user-times', color: 'var(--danger)' },
+        'USER_SUSPENDED': { title: 'معلق کردن کاربر', icon: 'fa-user-lock', color: 'var(--warning)' },
+        'USER_ACTIVATED': { title: 'فعال‌سازی کاربر', icon: 'fa-user-check', color: 'var(--success)' },
+        'USER_ROLE_CHANGED': { title: 'تغییر نقش کاربر', icon: 'fa-user-gear', color: 'var(--info)' },
+        'USER_BULK_IMPORT_SUCCESS': { title: 'افزودن گروهی کاربران', icon: 'fa-users', color: 'var(--success)' },
+        'PASSWORD_RESET_FOR_USER': { title: 'بازنشانی رمز عبور کاربر', icon: 'fa-key', color: 'var(--warning)' },
+        'SYSTEM_SETTINGS_UPDATED': { title: 'تغییر تنظیمات سیستم', icon: 'fa-cogs', color: 'var(--info)' },
+        'LOG_EXPORT_SUCCESS': { title: 'دریافت خروجی لاگ‌ها', icon: 'fa-file-csv', color: 'var(--info)' },
+        'DATA_EXPORT_ARTICLES_SUCCESS': { title: 'دریافت خروجی مقالات', icon: 'fa-file-excel', color: 'var(--info)' },
+        'DATA_EXPORT_USERS_SUCCESS': { title: 'دریافت خروجی کاربران', icon: 'fa-file-excel', color: 'var(--info)' },
+        'ARTICLE_STATUS_OVERRIDE': { title: 'تغییر دستی وضعیت مقاله', icon: 'fa-bolt', color: 'var(--danger)' },
+        'SUPERVISOR_CHANGE_MANUAL': { title: 'تغییر دستی استاد راهنما', icon: 'fa-user-edit', color: 'var(--warning)' },
+        'ARTICLE_METADATA_EDIT_ADMIN': { title: 'ویرایش اطلاعات مقاله (توسط مدیر)', icon: 'fa-edit', color: 'var(--warning)' },
+        'ARTICLE_DELETE_BY_ADMIN': { title: 'حذف مقاله (توسط مدیر)', icon: 'fa-trash-alt', color: 'var(--danger)' },
+        'EMAIL_TEMPLATE_UPDATE_SUCCESS': { title: 'ویرایش قالب ایمیل', icon: 'fa-envelope', color: 'var(--info)' },
+        'DEADLINE_SET_GLOBAL': { title: 'تنظیم مهلت سراسری', icon: 'fa-calendar-alt', color: 'var(--info)' },
+        'ANNOUNCEMENT_CREATE_SUCCESS': { title: 'ایجاد اطلاعیه', icon: 'fa-bullhorn', color: 'var(--primary)' },
+        'ANNOUNCEMENT_DELETE_SUCCESS': { title: 'حذف اطلاعیه', icon: 'fa-bullhorn', color: 'var(--danger)' },
+        'REPORT_GENERATE_SUBMISSION_STATS': { title: 'تولید گزارش آمار مقالات', icon: 'fa-chart-bar', color: 'var(--info)' },
+        'REPORT_GENERATE_USER_ACTIVITY': { title: 'تولید گزارش فعالیت کاربران', icon: 'fa-chart-line', color: 'var(--info)' },
+        'DATABASE_BACKUP_SUCCESS': { title: 'ایجاد نسخه پشتیبان', icon: 'fa-database', color: 'var(--success)' },
+        'DATABASE_RESTORE_INITIATED': { title: 'آغاز بازیابی از پشتیبان', icon: 'fa-database', color: 'var(--danger)' },
+        'PERMISSION_DENIED_ATTEMPT': { title: 'تلاش برای دسترسی غیرمجاز', icon: 'fa-hand-paper', color: 'var(--danger)' },
+        'SYSTEM_MAINTENANCE_MODE_ON': { title: 'فعال‌سازی حالت تعمیر', icon: 'fa-tools', color: 'var(--warning)' },
+        'SYSTEM_MAINTENANCE_MODE_OFF': { title: 'غیرفعال‌سازی حالت تعمیر', icon: 'fa-tools', color: 'var(--success)' },
+        'ARTICLE_ASSIGNED_TO_REVIEWER': { title: 'ارجاع به داور', icon: 'fa-user-check', color: 'var(--primary)' },
+        'REVIEWER_FEEDBACK_RECEIVED': { title: 'دریافت بازخورد از داور', icon: 'fa-comment-alt', color: 'var(--info)' },
+        'REVIEWER_INVITE_SENT': { title: 'ارسال دعوت‌نامه به داور', icon: 'fa-user-plus', color: 'var(--primary)' },
+        'CATEGORY_CREATE_SUCCESS': { title: 'ایجاد حیطه دانشی جدید', icon: 'fa-folder-plus', color: 'var(--info)' },
+        'CATEGORY_DELETE_SUCCESS': { title: 'حذف حیطه دانشی', icon: 'fa-folder-minus', color: 'var(--danger)' },
+        'USER_IMPERSONATION_START': { title: 'ورود به حساب کاربری دیگر', icon: 'fa-user-secret', color: 'var(--danger)' },
+        'USER_IMPERSONATION_END': { title: 'خروج از حساب کاربری دیگر', icon: 'fa-user-secret', color: 'var(--info)' },
+        'MANUAL_LOG_ENTRY_CREATED': { title: 'ثبت دستی رویداد در تاریخچه', icon: 'fa-pencil-alt', color: 'var(--info)' },
+        'API_SETTINGS_UPDATED': { title: 'تغییر تنظیمات API', icon: 'fa-code', color: 'var(--info)' },
+        'PAYMENT_GATEWAY_CONFIGURED': { title: 'پیکربندی درگاه پرداخت', icon: 'fa-credit-card', color: 'var(--info)' },
+        'ARTICLE_TRANSFER_APPROVED': { title: 'تایید انتقال راهنمایی', icon: 'fa-exchange-alt', color: 'var(--success)' },
+        'SYSTEM_HEALTH_CHECK_PERFORMED': { title: 'بررسی سلامت سیستم', icon: 'fa-heartbeat', color: 'var(--info)' },
+        'default': { title: 'اقدام نامشخص', icon: 'fa-question-circle', color: 'var(--text-light)'}
+    };
+
+    // --- Core Functions: Initialization & API ---
+    document.addEventListener('DOMContentLoaded', () => {
+        appState.currentUser = JSON.parse(localStorage.getItem('journalAdmin'));
+        if (appState.currentUser) {
+            document.getElementById('login-page').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+            navigateTo('dashboard');
+        }
+        document.getElementById('login-form').addEventListener('submit', handleLogin);
+        document.getElementById('logout-btn').addEventListener('click', handleLogout);
+        document.querySelectorAll('#main-nav button').forEach(btn => btn.addEventListener('click', () => navigateTo(btn.dataset.view)));
+    });
+
+    async function callApi(action, params = {}, button = null) {
+        if (button) button.classList.add('btn-loading');
+        try {
+            const payload = { action, params, adminUsername: appState.currentUser?.username };
+            const response = await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error(`خطای شبکه: ${response.statusText}`);
+            const data = await response.json();
+            if (data.status === 'error') throw new Error(data.message);
+            return data;
+        } catch (error) {
+            showToast(error.message, 'error');
+            return null;
+        } finally {
+            if (button) button.classList.remove('btn-loading');
+        }
+    }
+
+    async function handleLogin(e) {
+        e.preventDefault();
+        const button = document.getElementById('login-btn');
+        const loginError = document.getElementById('login-error');
+        loginError.textContent = '';
+        const response = await callApi('adminLogin', { username: document.getElementById('username').value, password: document.getElementById('password').value }, button);
+        if (response?.status === 'success') {
+            appState.currentUser = response.user;
+            localStorage.setItem('journalAdmin', JSON.stringify(appState.currentUser));
+            document.getElementById('login-page').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+            navigateTo('dashboard');
+        } else {
+             loginError.textContent = 'نام کاربری یا رمز عبور اشتباه است.';
+        }
+    }
+
+    function handleLogout() { localStorage.removeItem('journalAdmin'); window.location.reload(); }
+    
+    // --- Navigation & View Rendering ---
+    async function navigateTo(view) {
+        document.querySelectorAll('#main-nav button').forEach(btn => btn.classList.toggle('active', btn.dataset.view === view));
+        const mainContent = document.getElementById('main-content');
+        mainContent.innerHTML = `<div class="loader-wrapper"><div class="loader"></div></div>`;
+
+        if (!appState.isDataLoaded) {
+             const response = await callApi('getAllData');
+             if (response) {
+                appState.data = response.data;
+                appState.isDataLoaded = true;
+             } else {
+                mainContent.innerHTML = `<h2>خطا در بارگذاری اطلاعات اولیه. لطفاً صفحه را رفرش کنید.</h2>`;
+                return;
+             }
+        }
+        
+        switch (view) {
+            case 'dashboard': renderDashboardView(); break;
+            case 'articles': renderArticlesView(); break;
+            case 'publications': renderPublicationsView(); break;
+            case 'users': renderUsersView(); break;
+            case 'logs': renderLogsView(); break;
+        }
+    }
+    
+    function renderDashboardView() {
+        const articles = appState.data.articles;
+        const stats = {
+            pending: articles.filter(a => String(a.status) === '6').length,
+            accepted: articles.filter(a => String(a.status) === '5').length,
+            rejected: articles.filter(a => String(a.status) === '0').length,
+            total: articles.length
+        };
+        document.getElementById('main-content').innerHTML = `
+            <h1>داشبورد</h1><p>خلاصه وضعیت فعلی سیستم.</p>
+            <div class="stat-grid">
+                <div class="card stat-card" style="border-right-color: var(--warning);"><h4>منتظر بررسی نشریه</h4><p class="count">${stats.pending}</p></div>
+                <div class="card stat-card" style="border-right-color: var(--success);"><h4>پذیرفته شده نهایی</h4><p class="count">${stats.accepted}</p></div>
+                <div class="card stat-card" style="border-right-color: var(--danger);"><h4>رد شده نهایی</h4><p class="count">${stats.rejected}</p></div>
+                <div class="card stat-card"><h4>کل مقالات ثبت شده</h4><p class="count">${stats.total}</p></div>
+            </div>`;
+    }
+    
+    function renderArticlesView() {
+        const articles = appState.data.articles;
+        document.getElementById('main-content').innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <h1>مدیریت مقالات (${articles.length})</h1>
+                <button class="btn-light" onclick="handleExportExcel()"><i class="fas fa-file-excel"></i> دریافت خروجی اکسل</button>
+            </div>
+            <div class="card">
+                <div style="padding: 20px; border-bottom: 1px solid var(--border-color);"><input type="text" id="table-search" placeholder="جستجو در مقالات..." onkeyup="filterTable('articles-table-body', this.value)"></div>
+                <div class="table-wrapper"><table>
+                    <thead><tr><th>شناسه</th><th>عنوان</th><th>محقق</th><th>استاد راهنما</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+                    <tbody id="articles-table-body">
+                        ${articles.map(a => `
+                            <tr>
+                                <td>${a.articleId}</td><td>${a.title}</td><td>${a.researcherName}</td><td>${a.supervisorName}</td>
+                                <td>${getStatusBadge(a.status)}</td>
+                                <td class="actions-cell"><button class="btn-light" onclick="showArticleDetailsModal('${a.articleId}')"><i class="fas fa-eye"></i> مشاهده</button></td>
+                            </tr>`).join('') || `<tr><td colspan="6" style="text-align:center; padding: 40px;">مقاله‌ای یافت نشد.</td></tr>`}
+                    </tbody>
+                </table></div>
+            </div>`;
+    }
+
+    function renderPublicationsView() {
+        const { issues, readyArticles } = appState.data.publications;
+        document.getElementById('main-content').innerHTML = `
+            <h1>مدیریت انتشارات</h1>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
+                <div class="card">
+                    <h3 style="padding: 20px; border-bottom: 1px solid var(--border-color);">تخصیص مقالات به شماره نشر</h3>
+                    <div style="padding: 20px;">
+                        <h4>۱. مقالات آماده تخصیص را انتخاب کنید:</h4>
+                        <div id="ready-articles-list" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); padding: 10px; margin-bottom: 1rem; background: #f9fafb; border-radius: var(--radius-md);">
+                            ${readyArticles.map(a => `<div><input type="checkbox" id="art-${a.articleId}" value="${a.articleId}" class="article-checkbox"> <label for="art-${a.articleId}">${a.title} (${a.articleId})</label></div>`).join('') || `<p style="color:var(--text-light); text-align:center;">مقاله‌ای برای تخصیص وجود ندارد.</p>`}
+                        </div>
+                        <h4>۲. شماره نشر مقصد را انتخاب کنید:</h4>
+                        <select id="issue-select" style="width:100%;">${issues.map(i => `<option value="${i.issueNumber}">${i.issueNumber} (تاریخ نشر: ${formatDate(i.publishDate, false)})</option>`).join('')}</select>
+                        <button id="assign-btn" class="btn-success" style="width:100%; margin-top: 15px;">تخصیص مقالات انتخاب شده</button>
+                    </div>
+                </div>
+                <div class="card">
+                     <h3 style="padding: 20px; border-bottom: 1px solid var(--border-color);">مدیریت شماره‌های آتی</h3>
+                     <div style="padding: 20px;">
+                        <div id="issues-list" style="max-height: 200px; overflow-y: auto; margin-bottom: 1rem;">
+                            ${issues.map(i => {
+                                const isPast = new Date(i.publishDate) < new Date();
+                                return `<div class="issue-list-item">
+                                    <span>شماره ${i.issueNumber} - ${formatDate(i.publishDate, false)} (${i.assignedCount} مقاله)</span> 
+                                    <div>
+                                        <button title="مشاهده مقالات تخصیص یافته" class="btn-light" style="color: var(--primary); padding: 5px 8px;" onclick="showAssignedArticlesModal('${i.issueNumber}')"><i class="fas fa-list"></i></button>
+                                        <button class="delete-btn" ${isPast ? 'disabled title="امکان حذف شماره‌های گذشته وجود ندارد"' : `title="حذف شماره ${i.issueNumber}"`} onclick="handleDeleteIssue('${i.issueNumber}', this)"><i class="fas fa-trash"></i></button>
+                                    </div>
+                                </div>`;
+                            }).join('') || `<p style="color:var(--text-light); text-align:center;">شماره نشری ایجاد نشده است.</p>`}
+                        </div>
+                        <hr style="margin: 20px 0;">
+                        <h4>افزودن شماره جدید</h4>
+                        <div class="form-group"><label>شماره نشر (مثلا: ۱۲)</label><input type="number" id="new-issue-number"></div>
+                        <div class="form-group"><label>تاریخ نشر</label><input type="date" id="new-issue-date"></div>
+                        <button id="add-issue-btn" class="btn-success" style="width:100%;">افزودن</button>
+                     </div>
+                </div>
+            </div>`;
+        
+        document.getElementById('add-issue-btn').onclick = handleCreateIssue;
+        document.getElementById('assign-btn').onclick = handleAssignArticles;
+    }
+    
+    function renderUsersView() {
+        const { researchers, professors } = appState.data.users;
+        document.getElementById('main-content').innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;"><h1>مدیریت کاربران</h1>
+                 <div><button class="btn-secondary" onclick="showImportUsersModal()"><i class="fas fa-file-excel"></i> افزودن از اکسل</button>
+                 <button class="btn-success" onclick="showCreateUserModal()"><i class="fas fa-user-plus"></i> افزودن کاربر جدید</button></div>
+            </div>
+            <div class="card" style="padding: 20px; margin-top: 20px;">
+                <div class="tab-nav">
+                    <button class="tab-btn active" data-tab="researchers" onclick="switchUserTab('researchers', this)">محققان (${researchers.length})</button>
+                    <button class="tab-btn" data-tab="professors" onclick="switchUserTab('professors', this)">اساتید (${professors.length})</button>
+                </div>
+                <div id="users-content"></div>
+            </div>`;
+        switchUserTab('researchers', document.querySelector('.tab-btn'));
+    }
+    
+    function renderLogsView() {
+        const logs = [...appState.data.logs]
+            .filter(log => log.user.includes('(مدیر)'))
+            .sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+        document.getElementById('main-content').innerHTML = `
+            <h1>گزارش وقایع مدیر سیستم</h1>
+            <div class="card">
+                <div style="padding: 20px; border-bottom: 1px solid var(--border-color);"><input type="text" id="table-search" placeholder="جستجو در لاگ‌ها..." onkeyup="filterTable('logs-table-body', this.value)"></div>
+                <div class="table-wrapper"><table>
+                    <thead><tr><th></th><th>اقدام</th><th>کاربر</th><th>شناسه مقاله</th><th>جزئیات</th><th>تاریخ</th></tr></thead>
+                    <tbody id="logs-table-body">
+                        ${logs.map(l => {
+                            const logInfo = LOG_ACTIONS[l.action] || LOG_ACTIONS.default;
+                            return `<tr>
+                                <td><i class="fa-solid ${logInfo.icon}" style="color: ${logInfo.color}; font-size: 1.2rem;"></i></td>
+                                <td><strong>${logInfo.title}</strong></td>
+                                <td>${l.user}</td><td>${l.articleId}</td><td>${l.details}</td><td>${formatDate(l.timestamp)}</td></tr>`
+                        }).join('')}
+                    </tbody>
+                </table></div>
+            </div>`;
+    }
+    
+    // --- Modals & Dynamic Content ---
+    async function showArticleDetailsModal(articleId) {
+        showModal('جزئیات مقاله', `<div class="loader-wrapper"><div class="loader"></div></div>`, 'modal-lg');
+        const response = await callApi('getArticleDetails', { articleId });
+        if (!response) { closeModal('main-modal'); return; }
+
+        const { details, history } = response.data;
+        const modalBody = `
+            <div id="article-modal-tabs">
+                <button class="active" onclick="switchArticleTab('actions', this)">عملیات و وضعیت</button>
+                <button onclick="switchArticleTab('content', this)">محتوای مقاله</button>
+                <button onclick="switchArticleTab('history', this)">تاریخچه کامل</button>
+            </div>
+            <div id="actions-content" class="tab-content">
+                <h3>${details.title}</h3>
+                <p><strong>شناسه:</strong> ${details.articleId} | <strong>محقق:</strong> ${details.researcherName} | <strong>استاد راهنما:</strong> ${details.supervisorName}</p>
+                <p><strong>وضعیت فعلی:</strong> ${getStatusBadge(details.articleStatus)}</p>
+                <hr style="margin: 20px 0;"><h4>اقدامات مدیریتی</h4><div id="admin-actions"></div>
+            </div>
+            <div id="content-content" class="tab-content hidden content-accordion" style="max-height: 400px; overflow-y:auto; line-height: 1.8;">
+               ${Object.entries({
+                   'چکیده': details.abstract, 'کلیدواژه': details.keywords, 'مقدمه': details.introduction, 
+                   'بدنه': details.body, 'نتیجه گیری': details.conclusion, 'منابع': details.references
+               }).map(([title, content]) => `<details><summary>${title}</summary><div class="content-panel" style="white-space:pre-wrap;">${content || 'ثبت نشده'}</div></details>`).join('')}
+            </div>
+            <div id="history-content" class="tab-content hidden" style="max-height: 400px; overflow-y: auto;">
+                 <ul class="history-timeline">${history.map(h => {
+                     const logInfo = LOG_ACTIONS[h.action] || LOG_ACTIONS.default;
+                     return `<li class="timeline-item"><div class="timeline-icon" style="background-color:${logInfo.color}1A; color:${logInfo.color};"><i class="fa-solid ${logInfo.icon}"></i></div><div class="timeline-content"><div class="timeline-header"><span>${logInfo.title}</span><small>${formatDate(h.timestamp)}</small></div><p style="font-size:0.9em;">توسط: ${h.user}</p><p class="timeline-details">${h.details || ''}</p></div></li>`
+                 }).join('')}</ul>
+            </div>`;
+            
+        updateModalContent('main-modal', modalBody);
+        
+        const actionsContainer = document.getElementById('admin-actions');
+        if (String(details.articleStatus) === '6') {
+             actionsContainer.innerHTML = `<p>این مقاله توسط استاد راهنما تایید شده و منتظر تصمیم نهایی نشریه است.</p>
+                <div style="display:flex; gap: 10px; margin-top: 1rem;">
+                    <button class="btn-danger" onclick="showReasonModal('${articleId}', 'reject')"><i class="fas fa-times"></i> رد نهایی</button>
+                    <button class="btn-warning" onclick="showReasonModal('${articleId}', 'revise')"><i class="fas fa-edit"></i> ارسال برای ویرایش نهایی</button>
+                    <button class="btn-success" id="accept-btn" onclick="handleDecisionClick('${articleId}', 'accept', null, this)"><i class="fas fa-check"></i> پذیرش نهایی</button>
+                </div>`;
+        } else {
+            actionsContainer.innerHTML = `<p style="color:var(--text-light)">در وضعیت فعلی مقاله (${getStatusBadge(details.articleStatus).replace(/<[^>]+>/g, '')})، اقدامی از سوی شما مورد نیاز نیست.</p>`;
+        }
+        document.getElementById('main-modal-footer').innerHTML = `<button class="btn-light" onclick="handleDownloadPDF('${articleId}', this)"><span class="btn-text"><i class="fas fa-file-pdf"></i> دانلود PDF</span></button> <button class="btn-secondary" onclick="closeModal('main-modal')">بستن</button>`;
+    }
+    
+    // --- Action Handlers ---
+    async function handleDecisionClick(articleId, decision, reason, button) {
+        const res = await callApi('decideOnArticle', { articleId, decision, reason }, button);
+        if (res) {
+            showToast(res.message, 'success');
+            closeModal('main-modal');
+            appState.data.articles = res.updatedData.articles;
+            appState.data.publications = res.updatedData.publications;
+            renderArticlesView();
+        }
+    }
+    async function handleCreateIssue(e) {
+        const issueNumber = document.getElementById('new-issue-number').value;
+        const publishDate = document.getElementById('new-issue-date').value;
+        if(!issueNumber || !publishDate) { showToast('لطفا هر دو فیلد را پر کنید.', 'error'); return; }
+        const res = await callApi('createPublicationIssue', { issueNumber, publishDate }, e.target);
+        if(res) { 
+            showToast(res.message, 'success'); 
+            appState.data.publications.issues = res.updatedIssues;
+            renderPublicationsView();
+        }
+    }
+    async function handleAssignArticles(e) {
+        const selectedArticles = Array.from(document.querySelectorAll('.article-checkbox:checked')).map(cb => cb.value);
+        const issueNumber = document.getElementById('issue-select').value;
+        if(selectedArticles.length === 0 || !issueNumber) { showToast('لطفا حداقل یک مقاله و یک شماره نشر را انتخاب کنید.', 'error'); return; }
+        const res = await callApi('assignArticlesToIssue', { articleIds: selectedArticles, issueNumber }, e.target);
+        if(res) { 
+            showToast(res.message, 'success'); 
+            appState.data.articles = res.updatedArticles;
+            appState.data.publications = res.updatedPublications;
+            renderPublicationsView();
+        }
+    }
+    async function handleDeleteIssue(issueNumber, button) {
+        if (!confirm(`آیا از حذف شماره نشر ${issueNumber} اطمینان دارید؟`)) return;
+        const res = await callApi('deletePublicationIssue', { issueNumber }, button);
+        if (res) {
+            showToast(res.message, 'success');
+            appState.data.publications.issues = res.updatedIssues;
+            renderPublicationsView();
+        }
+    }
+    async function handleCreateUser(button) {
+        const userData = { name: document.getElementById('user-name').value, nid: document.getElementById('user-nid').value, pass: document.getElementById('user-pass').value };
+        const userType = document.getElementById('user-type').value;
+        if(!userData.name || !userData.nid || !userData.pass) { showToast('تمام فیلدها الزامی است.', 'error'); return; }
+        const res = await callApi('createUser', { userData, userType }, button);
+        if(res) { 
+            showToast(res.message, 'success'); 
+            closeModal('main-modal');
+            appState.data.users = res.updatedUsers;
+            renderUsersView();
+        }
+    }
+    async function handleUpdateUser(button) {
+        const oldNid = document.getElementById('user-nid-old').value;
+        const userData = { name: document.getElementById('user-name-edit').value, nid: document.getElementById('user-nid-edit').value, pass: document.getElementById('user-pass-edit').value };
+        const userType = document.getElementById('user-type-edit').value;
+         if(!userData.name || !userData.nid) { showToast('نام و کد ملی الزامی است.', 'error'); return; }
+        const res = await callApi('updateUser', { oldNid, userData, userType }, button);
+        if (res) {
+            showToast(res.message, 'success');
+            closeModal('main-modal');
+            appState.data.users = res.updatedUsers;
+            renderUsersView();
+        }
+    }
+    async function handleBatchCreateUsers(button, parsedData, userType) {
+        if (!parsedData || parsedData.length === 0) { showToast('داده‌ای برای افزودن یافت نشد.', 'error'); return; }
+        const res = await callApi('batchCreateUsers', { users: parsedData, userType }, button);
+        if (res) {
+            showToast(res.message, 'success');
+            closeModal('main-modal');
+            appState.data.users = res.updatedUsers;
+            renderUsersView();
+        }
+    }
+
+    // --- More Modals & UI Switches ---
+    function showReasonModal(articleId, decision) {
+        const title = decision === 'reject' ? 'رد نهایی مقاله' : 'ارسال برای ویرایش';
+        const content = `<p>دلیل خود را برای این تصمیم وارد کنید:</p><textarea id="decision-reason" rows="5"></textarea>`;
+        showModal(title, content, 'modal-md');
+        document.getElementById('main-modal-footer').innerHTML = `<button class="btn-light" onclick="closeModal('main-modal')">لغو</button>
+            <button id="confirm-decision-btn" class="${decision === 'reject' ? 'btn-danger' : 'btn-warning'}" onclick="handleDecisionClick('${articleId}', '${decision}', document.getElementById('decision-reason').value, this)">تایید و ارسال</button>`;
+    }
+    function showCreateUserModal() {
+        const content = `
+            <div class="form-group"><label>نوع کاربر</label><select id="user-type"><option value="researcher">محقق</option><option value="professor">استاد</option></select></div>
+            <div class="form-group"><label>نام و نام خانوادگی</label><input type="text" id="user-name"></div>
+            <div class="form-group"><label>کد ملی (نام کاربری)</label><input type="text" id="user-nid"></div>
+            <div class="form-group"><label>رمز عبور</label><input type="text" id="user-pass"></div>`;
+        showModal('ایجاد کاربر جدید', content, 'modal-md');
+        document.getElementById('main-modal-footer').innerHTML = `<button class="btn-light" onclick="closeModal('main-modal')">لغو</button><button class="btn-success" onclick="handleCreateUser(this)">ایجاد کاربر</button>`;
+    }
+    function showEditUserModal(nid, type) {
+        const user = appState.data.users[type].find(u => u.nid == nid);
+        if (!user) return;
+        const content = `
+            <input type="hidden" id="user-nid-old" value="${user.nid}">
+            <input type="hidden" id="user-type-edit" value="${type}">
+            <div class="form-group"><label>نام و نام خانوادگی</label><input type="text" id="user-name-edit" value="${user.name}"></div>
+            <div class="form-group"><label>کد ملی (نام کاربری)</label><input type="text" id="user-nid-edit" value="${user.nid}"></div>
+            <div class="form-group"><label>رمز عبور جدید (برای تغییر، وارد کنید)</label><input type="text" id="user-pass-edit" placeholder="در صورت عدم نیاز به تغییر، خالی بگذارید"></div>`;
+        showModal('ویرایش کاربر', content, 'modal-md');
+        document.getElementById('main-modal-footer').innerHTML = `<button class="btn-light" onclick="closeModal('main-modal')">لغو</button><button class="btn-success" onclick="handleUpdateUser(this)">ذخیره تغییرات</button>`;
+    }
+    function showImportUsersModal() {
+        const content = `
+            <p>فایل اکسل خود را اینجا بکشید یا برای انتخاب کلیک کنید.</p>
+            <div id="drop-area">
+                <input type="file" id="file-input" accept=".xlsx, .xls" style="display: none;">
+                <i class="fas fa-upload fa-2x"></i>
+                <p>فرمت: ستون A: نام، ستون B: کد ملی، ستون C: رمز عبور</p>
+            </div>
+            <div id="file-info"></div>
+            <div id="import-actions" class="hidden" style="margin-top: 20px;">
+                <p>این کاربران به کدام گروه اضافه شوند؟</p>
+                <button class="btn-secondary" id="import-researchers-btn"><i class="fas fa-user"></i> افزودن به محققان</button>
+                <button class="btn-secondary" id="import-professors-btn"><i class="fas fa-user-tie"></i> افزودن به اساتید</button>
+            </div>`;
+        showModal('افزودن کاربر از اکسل', content, 'modal-md');
+        setupExcelDropArea();
+    }
+    function showAssignedArticlesModal(issueNumber) {
+        const assignedArticles = appState.data.articles.filter(a => String(a.issueNumber) === String(issueNumber));
+        const content = `<ul>${assignedArticles.map(a => `<li>${a.title} (محقق: ${a.researcherName})</li>`).join('') || '<li>مقاله‌ای به این شماره تخصیص نیافته است.</li>'}</ul>`;
+        showModal(`مقالات تخصیص یافته به شماره ${issueNumber}`, content, 'modal-md');
+    }
+    function switchUserTab(tabName, clickedBtn) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        clickedBtn.classList.add('active');
+        const contentDiv = document.getElementById('users-content');
+        const users = appState.data.users[tabName] || [];
+        contentDiv.innerHTML = `<input type="text" placeholder="جستجو در کاربران..." onkeyup="filterTable('${tabName}-table', this.value)" style="margin-bottom: 1rem;">
+            <div class="table-wrapper"><table>
+            <thead><tr><th>نام</th><th>کد ملی</th>${tabName === 'professors' ? '<th>وضعیت</th>' : ''}<th>عملیات</th></tr></thead><tbody id="${tabName}-table">
+            ${users.map(u => `<tr><td>${u.name}</td><td>${u.nid}</td>${tabName === 'professors' ? `<td>${u.status == 5 ? 'فعال' : 'غیرفعال'}</td>` : ''}<td><button class="btn-light btn-sm" onclick="showEditUserModal('${u.nid}', '${tabName}')">ویرایش</button></td></tr>`).join('')}
+            </tbody></table></div>`;
+    }
+    function switchArticleTab(tabName, clickedBtn) {
+        document.querySelectorAll('#article-modal-tabs button').forEach(btn => btn.classList.remove('active'));
+        clickedBtn.classList.add('active');
+        document.querySelectorAll('.tab-content').forEach(div => div.classList.add('hidden'));
+        document.getElementById(tabName + '-content').classList.remove('hidden');
+    }
+    
+    // --- Utility Functions ---
+    function showModal(title, content, sizeClass = '') {
+        closeModal('main-modal');
+        document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" id="main-modal" onclick="if (event.target.id === 'main-modal') closeModal('main-modal');"><div class="modal-box ${sizeClass}"><div class="modal-header"><h3>${title}</h3><button onclick="closeModal('main-modal')" style="background:none; border:none; font-size: 1.5rem; cursor:pointer; color: var(--text-light);">&times;</button></div><div class="modal-body">${content}</div><div class="modal-footer" id="main-modal-footer"></div></div></div>`;
+    }
+    function updateModalContent(modalId, newContent) {
+        const modal = document.getElementById(modalId);
+        if (modal) modal.querySelector('.modal-body').innerHTML = newContent;
+    }
+    function closeModal(id) { document.getElementById(id)?.remove(); }
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        container.appendChild(toast);
+        setTimeout(() => { toast.remove(); }, 4000);
+    }
+    function getStatusBadge(status) {
+        const s = String(status);
+        const map = {
+            '0': { t: 'رد نهایی', c: 'danger' }, '5': { t: 'پذیرفته', c: 'success' }, '6': { t: 'منتظر تصمیم نشریه', c: 'warning' },
+            '10': { t: 'ویرایش نهایی (دست محقق)', c: 'info' }, '1': { t: 'در دست استاد', c: 'primary' }, '2': { t: 'ویرایش (دست محقق)', c: 'warning' },
+            '4': { t: 'انصراف استاد', c: 'secondary' }, '9': { t: 'پیش‌نویس محقق', c: 'secondary' }, '8':{t:'در دست استاد (بازبینی)', c: 'primary'},
+            '11':{t:'در دست استاد (نهایی)', c:'primary-dark'}, '12':{t:'در دست استاد (بازبینی)', c: 'primary'}
+        };
+        const info = map[s] || { t: `نامشخص (${s})`, c: 'secondary' };
+        return `<span class="status-badge" style="background-color: var(--${info.c}); color:white;">${info.t}</span>`;
+    }
+    function filterTable(tableBodyId, searchTerm) {
+        const rows = document.getElementById(tableBodyId).rows;
+        const term = searchTerm.toLowerCase();
+        for (let row of rows) row.style.display = (row.textContent || row.innerText).toLowerCase().includes(term) ? '' : 'none';
+    }
+    function formatDate(dateString, includeTime = true) {
+        if (!dateString || isNaN(new Date(dateString))) return '-';
+        const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+        if (includeTime) { options.hour = '2-digit'; options.minute = '2-digit'; }
+        return new Date(dateString).toLocaleDateString('fa-IR', options);
+    }
+    
+    // --- Excel & PDF Export ---
+    function setupExcelDropArea() {
+        const dropArea = document.getElementById('drop-area');
+        const fileInput = document.getElementById('file-input');
+        let parsedData = [];
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => dropArea.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }));
+        ['dragenter', 'dragover'].forEach(eventName => dropArea.addEventListener(eventName, () => dropArea.classList.add('highlight')));
+        ['dragleave', 'drop'].forEach(eventName => dropArea.addEventListener(eventName, () => dropArea.classList.remove('highlight')));
+        
+        dropArea.onclick = () => fileInput.click();
+        fileInput.onchange = e => handleFile(e.target.files[0]);
+        dropArea.ondrop = e => handleFile(e.dataTransfer.files[0]);
+
+        function handleFile(file) {
+            if (!file) return;
+            document.getElementById('file-info').textContent = `فایل انتخاب شده: ${file.name}`;
+            const reader = new FileReader();
+            reader.onload = e => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    parsedData = jsonData.slice(1).map(row => ({ name: row[0], nid: row[1], pass: row[2] })).filter(u => u.name && u.nid && u.pass);
+                    if(parsedData.length > 0) {
+                        document.getElementById('import-actions').classList.remove('hidden');
+                        document.getElementById('file-info').textContent += ` - ${parsedData.length} کاربر معتبر یافت شد.`;
+                    } else {
+                        document.getElementById('file-info').textContent += ` - هیچ کاربر معتبری در فایل یافت نشد.`;
+                    }
+                } catch(err) {
+                    showToast('فایل اکسل نامعتبر است.', 'error');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        document.getElementById('import-researchers-btn').onclick = (e) => handleBatchCreateUsers(e.target, parsedData, 'researcher');
+        document.getElementById('import-professors-btn').onclick = (e) => handleBatchCreateUsers(e.target, parsedData, 'professor');
+    }
+    function handleExportExcel() {
+        const dataToExport = appState.data.articles.map(a => ({
+            'عنوان مقاله': a.title, 'نام محقق': a.researcherName, 'کد ملی محقق': a.researcherId,
+            'استاد راهنما': a.supervisorName, 'کد ملی استاد': a.supervisorId,
+            'وضعیت': getStatusBadge(a.status).replace(/<[^>]+>/g, ''),
+            'تاریخ ثبت': formatDate(a.requestDate, false), 'تاریخ پذیرش': formatDate(a.acceptanceDate, false)
+        }));
+        const ws = XLSX.utils.json_to_sheet([{ A: `تاریخ گزارش: ${formatDate(new Date())}` }], { skipHeader: true });
+        XLSX.utils.sheet_add_json(ws, dataToExport, { origin: 'A2' });
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "گزارش مقالات");
+        XLSX.writeFile(wb, `Report-${new Date().toLocaleDateString('fa-IR').replace(/\//g,'-')}.xlsx`);
+    }
+
+    async function handleDownloadPDF(articleId, button) {
+        if (button) button.classList.add('btn-loading');
+        const response = await callApi('getArticleDetails', { articleId });
+        if (!response) { if (button) button.classList.remove('btn-loading'); return; }
+
+        const details = response.data.details;
+        const renderContainer = document.getElementById('pdf-render-container');
+        
+        let content = `
+            <div style="text-align:center; margin-bottom: 20px;"><h1 style="font-size:22px; font-weight: 700;">${details.title}</h1></div>
+            <p style="font-size: 14px;"><strong>محقق:</strong> ${details.researcherName}</p>
+            <p style="font-size: 14px;"><strong>استاد راهنما:</strong> ${details.supervisorName}</p>
+            <p style="font-size: 14px;"><strong>تاریخ ثبت:</strong> ${formatDate(details.requestDate, false)}</p>
+            <hr style="margin: 20px 0;">
+            <h2 style="font-size: 18px; font-weight: 700;">چکیده</h2><p style="font-size: 14px; line-height: 1.8;">${details.abstract || '-'}</p>
+            <p style="font-size: 14px;"><strong>کلیدواژه‌ها:</strong> ${details.keywords || '-'}</p>
+            <div style="page-break-before: always;"></div>
+            <h2 style="font-size: 18px; font-weight: 700;">مقدمه</h2><div style="font-size: 14px; line-height: 1.8; white-space: pre-wrap;">${details.introduction || '-'}</div>
+            <div style="page-break-before: always;"></div>
+            <h2 style="font-size: 18px; font-weight: 700;">بدنه اصلی</h2><div style="font-size: 14px; line-height: 1.8; white-space: pre-wrap;">${details.body || '-'}</div>
+            <div style="page-break-before: always;"></div>
+            <h2 style="font-size: 18px; font-weight: 700;">نتیجه‌گیری</h2><div style="font-size: 14px; line-height: 1.8; white-space: pre-wrap;">${details.conclusion || '-'}</div>
+            <div style="page-break-before: always;"></div>
+            <h2 style="font-size: 18px; font-weight: 700;">منابع و مآخذ</h2><div style="font-size: 14px; line-height: 1.8; white-space: pre-wrap;">${details.references || '-'}</div>`;
+        
+        renderContainer.innerHTML = content;
+        
+        html2canvas(renderContainer, { scale: 3, useCORS: true }).then(canvas => {
+            const imgData = canvas.toDataURL('image/png');
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const margin = 15; // 1.5cm
+            
+            const imgProps = pdf.getImageProperties(imgData);
+            const ratio = imgProps.height / imgProps.width;
+            const canvasWidth = pdfWidth - (2 * margin);
+            const canvasHeight = canvasWidth * ratio;
+
+            let heightLeft = canvasHeight;
+            let position = 0;
+            
+            pdf.addImage(imgData, 'PNG', margin, margin, canvasWidth, canvasHeight);
+            pdf.setFontSize(10);
+            pdf.text('1', margin, pdfHeight - 10);
+            heightLeft -= (pdfHeight - (2 * margin));
+            let page = 1;
+
+            while (heightLeft > 0) {
+                position -= (pdfHeight - (2 * margin));
+                pdf.addPage();
+                page++;
+                pdf.addImage(imgData, 'PNG', margin, position + margin, canvasWidth, canvasHeight);
+                heightLeft -= (pdfHeight - (2 * margin));
+                pdf.setFontSize(10);
+                pdf.text(String(page), (page % 2 === 0 ? pdfWidth - margin : margin), pdfHeight - 10);
+            }
+
+            pdf.save(`Article-${details.articleId}.pdf`);
+            renderContainer.innerHTML = '';
+            if (button) button.classList.remove('btn-loading');
+        });
+    }
+
+</script>
+</body>
+</html>
