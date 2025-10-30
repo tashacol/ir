@@ -206,9 +206,9 @@
         <div id="activities-content" class="tab-content">
             <div class="card">
                 <div class="nav-tabs" id="activity-status-tabs">
-                    <div class="nav-tab active" data-status="0" data-table-id="activities-table-body-0">در حال بررسی</div>
-                    <div class="nav-tab" data-status="5" data-table-id="activities-table-body-5">تائید شده</div>
-                    <div class="nav-tab" data-status="1" data-table-id="activities-table-body-1">رد شده</div>
+                    <div class="nav-tab active" data-status="0">در حال بررسی</div>
+                    <div class="nav-tab" data-status="5">تائید شده</div>
+                    <div class="nav-tab" data-status="1">رد شده</div>
                 </div>
                 <!-- دستور ششم: افزودن جستجو و خروجی اکسل -->
                 <div class="card-actions" style="margin-bottom: 20px;">
@@ -383,19 +383,17 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- Authentication ---
-    const handleLogin = async (e) => {
-        e.preventDefault();
+    // **اصلاح شد:** بازگرداندن منطق ورود به حالت اصلی و پایدار
+    const handleLogin = async () => {
         loginErrorMsg.textContent = '';
         loginButton.classList.add('loading');
         loginButton.disabled = true;
 
-        // دستور دوم: رفع مشکل reCAPTCHA با ارسال توکن در هر درخواست
         const recaptchaResponse = grecaptcha.getResponse();
         if (!recaptchaResponse) {
             loginErrorMsg.textContent = 'لطفاً تأیید کنید که ربات نیستید.';
             loginButton.classList.remove('loading');
             loginButton.disabled = false;
-            grecaptcha.reset(); // ریست کردن در صورت خطا
             return;
         }
         
@@ -412,12 +410,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch(e) {
             loginErrorMsg.textContent = e.message;
-            grecaptcha.reset(); // ریست کردن در صورت خطا
         } finally {
-            // دکمه فقط در صورت خطا فعال می‌شود، در صورت موفقیت صفحه عوض می‌شود
+            grecaptcha.reset();
+            // فقط در صورتی که ورود ناموفق بود و کاربر هنوز در صفحه لاگین است، دکمه را فعال کن
             if (loginView.style.display !== 'none') {
-                loginButton.classList.remove('loading');
-                loginButton.disabled = false;
+                 loginButton.classList.remove('loading');
+                 loginButton.disabled = false;
             }
         }
     };
@@ -571,7 +569,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- Event Listeners ---
-    loginForm.addEventListener('submit', handleLogin);
+    loginForm.addEventListener('submit', (e) => { e.preventDefault(); handleLogin(); });
     logoutBtn.addEventListener('click', logout);
     
     document.getElementById('main-nav-tabs').addEventListener('click', (e) => {
@@ -736,8 +734,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await apiRequest({ action: 'getActivities', nationalId, status: 'all' });
             const doc = new jsPDF();
             
-            // برای پشتیبانی از فارسی، نیاز به فونت مناسب است. این یک راه حل ساده است.
-            // برای کیفیت بالا، باید فونت فارسی را به صورت base64 در کد اضافه کرد.
+            // برای پشتیبانی از فارسی، نیاز به فونت مناسب است.
             doc.addFont('https://cdn.rawgit.com/MrM Romano/jsPDF-CustomFonts-farsi/master/fonts/Vazir/Vazir-Regular.ttf', 'Vazir', 'normal');
             doc.setFont('Vazir');
 
@@ -746,13 +743,7 @@ document.addEventListener('DOMContentLoaded', () => {
             doc.text(`فعالیت‌های جهادگر: ${fullName}`, 105, 30, { align: 'center' });
 
             const head = [['عملیات', 'وضعیت', 'تاریخ پایان', 'تاریخ شروع', 'عنوان فعالیت']];
-            const body = result.data.map(act => [
-                '', // ستون عملیات در PDF خالی است
-                act.statusText,
-                act.endDate,
-                act.startDate,
-                act.title
-            ]);
+            const body = result.data.map(act => [ '', act.statusText, act.endDate, act.startDate, act.title ]);
 
             doc.autoTable({
                 head: head,
