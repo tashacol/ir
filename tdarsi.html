@@ -1,21 +1,22 @@
- 
+  
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سامانه جامع تقویم آموزشی | نسخه سازمانی</title>
+    <title>سامانه جامع تقویم آموزشی | نسخه نهایی</title>
     
-    <!-- Bootstrap 5 & Icons -->
+    <!-- استایل‌ها -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Fonts -->
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
     
-    <!-- Libraries -->
+    <!-- کتابخانه‌های ضروری (نسخه‌های پایدار و تست شده) -->
+    <!-- ExcelJS برای خروجی اکسل حرفه‌ای -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <!-- FileSaver برای ذخیره فایل -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <!-- html2pdf برای خروجی PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
@@ -73,10 +74,12 @@
         .btn-excel:hover { background-color: #059669; }
         .btn-preview { background-color: var(--primary); color: white; border: none; }
         .btn-preview:hover { background-color: var(--primary-dark); }
+        .btn-pdf { background-color: #ef4444; color: white; border: none; }
+        .btn-pdf:hover { background-color: #dc2626; }
 
         .event-list-item {
             display: flex; justify-content: space-between; align-items: center;
-            background: white; padding: 8px 12px; border-radius: 6px;
+            background: #f9fafb; padding: 8px 12px; border-radius: 6px;
             margin-bottom: 5px; border: 1px solid #e5e7eb; font-size: 0.85rem;
         }
 
@@ -105,8 +108,8 @@
         </div>
 
         <div class="row g-2 mb-3">
-            <div class="col-6"><label class="form-label">شروع</label><input type="text" id="startDate" class="form-control text-center" value="1403/07/01"></div>
-            <div class="col-6"><label class="form-label">پایان</label><input type="text" id="endDate" class="form-control text-center" value="1403/10/30"></div>
+            <div class="col-6"><label class="form-label">شروع (Y/M/D)</label><input type="text" id="startDate" class="form-control text-center" value="1403/07/01"></div>
+            <div class="col-6"><label class="form-label">پایان (Y/M/D)</label><input type="text" id="endDate" class="form-control text-center" value="1403/10/30"></div>
         </div>
 
         <div class="mb-4">
@@ -139,7 +142,8 @@
 
         <hr>
         <button class="btn-action btn-preview" onclick="generatePreview()">پیش‌نمایش جدول</button>
-        <button class="btn-action btn-excel" onclick="exportToExcel()">دانلود فایل اکسل (اصلاح شده)</button>
+        <button class="btn-action btn-excel" onclick="exportToExcel()">دانلود فایل اکسل</button>
+        <button class="btn-action btn-pdf" onclick="exportToPDF()">دانلود فایل PDF</button>
     </aside>
 
     <!-- Preview -->
@@ -153,10 +157,11 @@
     </main>
 </div>
 
+<!-- Hidden container for PDF generation -->
 <div id="pdfSource" class="pdf-container"></div>
 
 <script>
-    // --- Logic & Data ---
+    // --- 1. Utilities ---
     const fixedHolidays = {
         "1-1": "عید نوروز", "1-2": "عید نوروز", "1-3": "عید نوروز", "1-4": "عید نوروز",
         "1-12": "روز جمهوری اسلامی", "1-13": "روز طبیعت",
@@ -165,7 +170,7 @@
     };
     let userEvents = [];
 
-    // Jalali Converter
+    // Jalali Converter Logic (Internal)
     const JalaliDate = {
         g_days_in_month: [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
         j_days_in_month: [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29],
@@ -210,50 +215,85 @@
         if(parts.length !== 3) return null;
         return { y: parseInt(parts[0]), m: parseInt(parts[1]), d: parseInt(parts[2]) };
     }
+    
     function dateToObj(jY, jM, jD) { return JalaliDate.jalaliToGregorian(jY, jM, jD); }
 
-    // --- Events ---
+    // --- 2. Event Functions ---
     function addEventRange() {
         const startStr = document.getElementById('evtStart').value;
         const endStr = document.getElementById('evtEnd').value;
         const desc = document.getElementById('evtDesc').value;
         const type = document.getElementById('eventType').value;
-        if(!startStr || !desc) { alert("تاریخ و توضیحات الزامی است"); return; }
+
+        if(!startStr || !desc) { alert("تاریخ شروع و توضیحات الزامی است"); return; }
         const s = parseDate(startStr);
         const e = endStr ? parseDate(endStr) : s;
-        if(!s || !e) { alert("فرمت تاریخ اشتباه است"); return; }
-        userEvents.push({ id: Date.now(), start: dateToObj(s.y, s.m, s.d), end: dateToObj(e.y, e.m, e.d), desc: desc, type: type });
+        if(!s || !e) { alert("فرمت تاریخ اشتباه است (مثال: 1403/08/10)"); return; }
+
+        userEvents.push({ 
+            id: Date.now(), 
+            start: dateToObj(s.y, s.m, s.d), 
+            end: dateToObj(e.y, e.m, e.d), 
+            desc: desc, 
+            type: type 
+        });
         renderEventsList();
         document.getElementById('evtDesc').value = "";
     }
-    function removeEvent(id) { userEvents = userEvents.filter(ev => ev.id !== id); renderEventsList(); }
+
+    function removeEvent(id) {
+        userEvents = userEvents.filter(ev => ev.id !== id);
+        renderEventsList();
+    }
+
     function renderEventsList() {
-        const container = document.getElementById('eventsList'); container.innerHTML = "";
+        const container = document.getElementById('eventsList');
+        container.innerHTML = "";
         userEvents.forEach(ev => {
             const sJ = JalaliDate.gregorianToJalali(ev.start.getFullYear(), ev.start.getMonth()+1, ev.start.getDate());
             const eJ = JalaliDate.gregorianToJalali(ev.end.getFullYear(), ev.end.getMonth()+1, ev.end.getDate());
-            let color = ev.type === 'holiday' ? "bg-danger" : (ev.type === 'exam' ? "bg-primary" : "bg-warning text-dark");
-            container.innerHTML += `<div class="event-list-item"><div><span class="badge ${color} ms-1">${ev.type==='holiday'?'تعطیل':(ev.type==='exam'?'امتحان':'رویداد')}</span><small>${sJ[0]}/${sJ[1]}/${sJ[2]} ${ev.start.getTime()!==ev.end.getTime()?`تا ${eJ[0]}/${eJ[1]}/${eJ[2]}`:''} : ${ev.desc}</small></div><button class="btn btn-sm text-danger" onclick="removeEvent(${ev.id})">×</button></div>`;
+            
+            let badgeClass = "bg-secondary";
+            if(ev.type === 'holiday') badgeClass = "bg-danger";
+            else if(ev.type === 'exam') badgeClass = "bg-primary";
+            else if(ev.type === 'event') badgeClass = "bg-warning text-dark";
+
+            container.innerHTML += `
+                <div class="event-list-item">
+                    <div>
+                        <span class="badge ${badgeClass} ms-1">${ev.type==='holiday'?'تعطیل':(ev.type==='exam'?'امتحان':'رویداد')}</span>
+                        <small><strong>${sJ[0]}/${sJ[1]}/${sJ[2]}</strong> تا <strong>${eJ[0]}/${eJ[1]}/${eJ[2]}</strong> : ${ev.desc}</small>
+                    </div>
+                    <button class="btn btn-sm text-danger" onclick="removeEvent(${ev.id})"><i class="fas fa-times"></i></button>
+                </div>`;
         });
     }
 
-    // --- Calculation ---
+    // --- 3. Calendar Engine ---
     function calculateCalendar() {
         const sStr = document.getElementById('startDate').value;
         const eStr = document.getElementById('endDate').value;
         const s = parseDate(sStr); const e = parseDate(eStr);
         const thRule = document.getElementById('thursdayMode').value;
+
         if(!s || !e) return null;
 
         let current = dateToObj(s.y, s.m, s.d);
         const end = dateToObj(e.y, e.m, e.d);
-        let rows = []; let weekCounter = 1; let sessionCounter = 1;
+        let rows = [];
+        let weekCounter = 1;
+        let sessionCounter = 1;
 
         while(current <= end) {
             const [jy, jm, jd] = JalaliDate.gregorianToJalali(current.getFullYear(), current.getMonth()+1, current.getDate());
-            const dayOfWeek = current.getDay(); 
-            let status = "active"; let reason = ""; let cssClass = ""; let count = sessionCounter;
+            const dayOfWeek = current.getDay(); // 0=Sun ... 6=Sat
+            
+            let status = "active";
+            let reason = "";
+            let cssClass = "";
+            let count = sessionCounter;
 
+            // Check User Events
             let userEvt = userEvents.find(ev => current >= ev.start && current <= ev.end);
             if(userEvt) {
                 reason = userEvt.desc;
@@ -262,141 +302,195 @@
                 else { status = "event"; cssClass = "row-event"; }
             }
 
+            // Check Fixed Holidays
             if(status !== 'holiday') {
                 const fKey = `${jm}-${jd}`;
                 if(fixedHolidays[fKey]) { status = "holiday"; reason = fixedHolidays[fKey]; cssClass = "row-holiday"; count = "-"; }
             }
 
-            if(dayOfWeek === 5) { status = "holiday"; reason = "جمعه"; cssClass = "row-friday"; count = "-"; }
+            // Check Friday
+            if(dayOfWeek === 5) {
+                status = "holiday"; reason = "جمعه"; cssClass = "row-friday"; count = "-";
+            }
+
+            // Check Thursday
             if(dayOfWeek === 4 && status !== 'holiday') {
                 if(thursdayRule === 'off') { status = "holiday"; reason = "تعطیل پنج‌شنبه"; cssClass = "row-holiday"; count = "-"; }
                 else if (thursdayRule === 'odd' && weekCounter % 2 !== 0) { status = "holiday"; reason = "تعطیل پنج‌شنبه (فرد)"; cssClass = "row-holiday"; count = "-"; }
             }
 
             if(status !== 'holiday' && status !== 'exam') sessionCounter++;
-            
-            rows.push({ jy, jm, jd, dayName: JalaliDate.getDayName(dayOfWeek), monthName: JalaliDate.getMonthName(jm), status, reason, count, cssClass });
+
+            rows.push({
+                idx: 0, 
+                dayName: JalaliDate.getDayName(dayOfWeek),
+                fullDate: `${jy}/${jm}/${jd}`,
+                monthName: JalaliDate.getMonthName(jm),
+                status: status === 'holiday' ? 'تعطیل' : (status === 'exam' ? 'امتحان' : 'آموزشی'),
+                reason: reason,
+                count: count,
+                cssClass: cssClass,
+                statusCode: status
+            });
+
             if(dayOfWeek === 5) weekCounter++;
             current.setDate(current.getDate() + 1);
         }
         return rows;
     }
 
+    // --- 4. Preview Generation ---
     function generatePreview() {
         const data = calculateCalendar();
-        if(!data) { alert("تاریخ نامعتبر"); return; }
+        if(!data) { alert("لطفا تاریخ شروع و پایان را صحیح وارد کنید"); return; }
+        
         const title = document.getElementById('calTitle').value;
         const sub = document.getElementById('calSubtitle').value;
-        
-        let html = `<div class="text-center mb-4"><h3 style="font-weight:900;color:#1e40af">${title}</h3><h5 class="text-muted">${sub}</h5></div><table class="calendar-table"><thead><tr><th width="5%">#</th><th width="10%">روز</th><th width="15%">تاریخ</th><th width="10%">ماه</th><th width="10%">وضعیت</th><th width="35%">شرح</th><th width="15%">جلسه</th></tr></thead><tbody>`;
+
+        let html = `
+            <div class="text-center mb-4">
+                <h3 style="font-weight:900; color:var(--primary-dark)">${title}</h3>
+                <h5 class="text-muted">${sub}</h5>
+            </div>
+            <table class="calendar-table">
+                <thead>
+                    <tr>
+                        <th width="5%">#</th>
+                        <th width="10%">روز</th>
+                        <th width="15%">تاریخ</th>
+                        <th width="10%">ماه</th>
+                        <th width="10%">وضعیت</th>
+                        <th width="35%">شرح</th>
+                        <th width="15%">جلسه</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
         data.forEach((r, i) => {
-            html += `<tr class="${r.cssClass}"><td class="text-center">${i+1}</td><td class="text-center">${r.dayName}</td><td class="text-center" dir="ltr">${r.jy}/${r.jm}/${r.jd}</td><td class="text-center">${r.monthName}</td><td class="text-center fw-bold">${r.status==='holiday'?'تعطیل':(r.status==='exam'?'امتحان':'آموزشی')}</td><td>${r.reason}</td><td class="text-center fw-bold">${r.count}</td></tr>`;
+            html += `
+                <tr class="${r.cssClass}">
+                    <td>${i + 1}</td>
+                    <td>${r.dayName}</td>
+                    <td dir="ltr">${r.fullDate}</td>
+                    <td>${r.monthName}</td>
+                    <td style="font-weight:bold">${r.status}</td>
+                    <td>${r.reason}</td>
+                    <td style="font-weight:bold">${r.count}</td>
+                </tr>
+            `;
         });
+
         html += `</tbody></table>`;
         document.getElementById('previewArea').innerHTML = html;
+        document.getElementById('pdfSource').innerHTML = html;
     }
 
-    // ==========================================
-    // 4. PROFESSIONAL EXCEL EXPORT
-    // ==========================================
+    // --- 5. Export Logic (ExcelJS) ---
     async function exportToExcel() {
-        const data = calculateCalendar();
-        if(!data) return;
+        try {
+            const data = calculateCalendar();
+            if(!data) { alert("ابتدا بازه زمانی را تنظیم کنید"); return; }
 
-        const workbook = new ExcelJS.Workbook();
-        const sheet = workbook.addWorksheet('تقویم آموزشی', {
-            views: [{ rightToLeft: true }] // Critical for Persian
-        });
+            const wb = new ExcelJS.Workbook();
+            const ws = wb.addWorksheet('تقویم آموزشی', {
+                views: [{ rightToLeft: true }]
+            });
 
-        const title = document.getElementById('calTitle').value;
-        const sub = document.getElementById('calSubtitle').value;
+            const title = document.getElementById('calTitle').value;
+            const sub = document.getElementById('calSubtitle').value;
 
-        // --- 1. Set Columns ---
-        sheet.columns = [
-            { key: 'idx', width: 8 },
-            { key: 'day', width: 15 },
-            { key: 'date', width: 15 },
-            { key: 'month', width: 12 },
-            { key: 'status', width: 15 },
-            { key: 'reason', width: 45 },
-            { key: 'count', width: 10 },
-        ];
+            // Columns
+            ws.columns = [
+                { key: 'idx', width: 8 },
+                { key: 'day', width: 15 },
+                { key: 'date', width: 15 },
+                { key: 'month', width: 12 },
+                { key: 'status', width: 15 },
+                { key: 'reason', width: 45 },
+                { key: 'count', width: 10 },
+            ];
 
-        // --- 2. Title & Subtitle Section ---
-        // Title (Row 1)
-        sheet.mergeCells('A1:G1');
-        const titleCell = sheet.getCell('A1');
-        titleCell.value = title;
-        titleCell.font = { name: 'B Nazanin', family: 4, size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
-        titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E40AF' } }; // Dark Blue
-        titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
-        sheet.getRow(1).height = 40;
+            // Header Rows
+            ws.mergeCells('A1:G1');
+            const titleRow = ws.getCell('A1');
+            titleRow.value = title;
+            titleRow.font = { name: 'Tahoma', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+            titleRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E40AF' } };
+            titleRow.alignment = { vertical: 'middle', horizontal: 'center' };
 
-        // Subtitle (Row 2)
-        sheet.mergeCells('A2:G2');
-        const subCell = sheet.getCell('A2');
-        subCell.value = sub;
-        subCell.font = { name: 'B Nazanin', family: 4, size: 14, bold: true };
-        subCell.alignment = { vertical: 'middle', horizontal: 'center' };
-        subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } }; // Light Gray
-        sheet.getRow(2).height = 30;
+            ws.mergeCells('A2:G2');
+            const subRow = ws.getCell('A2');
+            subRow.value = sub;
+            subRow.font = { name: 'Tahoma', size: 12, bold: true };
+            subRow.alignment = { vertical: 'middle', horizontal: 'center' };
+            subRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
 
-        // Statistics Row (Row 3 - Optional spacer or stats)
-        const totalHolidays = data.filter(d => d.status === 'holiday').length;
-        const totalSessions = data.length - totalHolidays;
-        sheet.mergeCells('A3:G3');
-        const statsCell = sheet.getCell('A3');
-        statsCell.value = `مجموع روزها: ${data.length}  |  روزهای آموزشی: ${totalSessions}  |  تعطیلات: ${totalHolidays}`;
-        statsCell.font = { name: 'Tahoma', size: 10 };
-        statsCell.alignment = { vertical: 'middle', horizontal: 'center' };
-        sheet.getRow(3).height = 25;
+            // Stats
+            const totalHolidays = data.filter(d => d.statusCode === 'holiday').length;
+            const totalSessions = data.length - totalHolidays;
+            ws.mergeCells('A3:G3');
+            ws.getCell('A3').value = `مجموع روزها: ${data.length} | روزهای آموزشی: ${totalSessions} | تعطیلات: ${totalHolidays}`;
+            ws.getCell('A3').alignment = { vertical: 'middle', horizontal: 'center' };
 
-        // --- 3. Table Header (Row 4) ---
-        const headerRow = sheet.getRow(4);
-        headerRow.values = ['ردیف', 'روز هفته', 'تاریخ', 'ماه', 'وضعیت', 'شرح رویداد / تعطیلی', 'جلسه'];
-        
-        // Style Header Cells
-        headerRow.eachCell((cell) => {
-            cell.font = { name: 'B Nazanin', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } }; // Blue
-            cell.alignment = { vertical: 'middle', horizontal: 'center' };
-            cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
-        });
-        headerRow.height = 30;
-
-        // --- 4. Data Rows ---
-        data.forEach((d, i) => {
-            const row = sheet.addRow([
-                i + 1,
-                d.dayName,
-                `${d.jy}/${d.jm}/${d.jd}`,
-                d.monthName,
-                d.status === 'holiday' ? 'تعطیل' : (d.status === 'exam' ? 'امتحان' : 'فعال'),
-                d.reason,
-                d.count
-            ]);
-
-            // Background Colors based on status
-            let bgColor = 'FFFFFFFF'; // White
-            if(d.status === 'holiday') bgColor = 'FFFEE2E2'; // Reddish
-            if(d.dayName === 'جمعه') bgColor = 'FFFCE7F3'; // Pinkish
-            if(d.status === 'exam') bgColor = 'FFEFF6FF'; // Blueish
-            if(d.status === 'event') bgColor = 'FFFFFBEB'; // Yellowish
-
-            // Apply Style to Row Cells
-            row.eachCell((cell) => {
-                cell.font = { name: 'B Nazanin', size: 11 };
+            // Table Header
+            const headerRow = ws.getRow(4);
+            headerRow.values = ['ردیف', 'روز هفته', 'تاریخ', 'ماه', 'وضعیت', 'شرح رویداد / تعطیلی', 'جلسه'];
+            headerRow.eachCell((cell) => {
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } };
+                cell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
                 cell.alignment = { vertical: 'middle', horizontal: 'center' };
-                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
                 cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
             });
-        });
 
-        // --- 5. Download File ---
-        const buffer = await workbook.xlsx.writeBuffer();
-        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        saveAs(blob, 'Educational_Calendar_Pro.xlsx');
+            // Data Rows
+            data.forEach((d, i) => {
+                const row = ws.addRow([i + 1, d.dayName, d.fullDate, d.monthName, d.status, d.reason, d.count]);
+                
+                let bgColor = 'FFFFFFFF'; // White
+                if(d.statusCode === 'holiday') bgColor = 'FFFEE2E2'; // Red
+                if(d.dayName === 'جمعه') bgColor = 'FFFCE7F3'; // Pink
+                if(d.statusCode === 'exam') bgColor = 'FFEFF6FF'; // Blue
+                if(d.statusCode === 'event') bgColor = 'FFFFFBEB'; // Yellow
+
+                row.eachCell((cell) => {
+                    cell.font = { name: 'Tahoma', size: 10 };
+                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+                    cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+                });
+            });
+
+            // Export
+            const buffer = await wb.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            saveAs(blob, 'Calendar_Pro.xlsx');
+
+        } catch(e) {
+            alert("خطا در ایجاد فایل اکسل: " + e.message);
+            console.error(e);
+        }
+    }
+
+    // --- 6. PDF Export ---
+    function exportToPDF() {
+        const element = document.getElementById('pdfSource');
+        if(element.innerHTML.trim() === "") generatePreview();
+        
+        element.style.display = 'block';
+        const opt = {
+            margin: 0.5,
+            filename: 'Calendar.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+        };
+        
+        html2pdf().set(opt).from(element).save().then(() => {
+            element.style.display = 'none';
+        });
     }
 </script>
+
 </body>
 </html>
