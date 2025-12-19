@@ -1,22 +1,19 @@
-  
+ 
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سامانه جامع تقویم آموزشی | نسخه نهایی</title>
+    <title>سامانه جامع تقویم آموزشی | نسخه کامل</title>
     
     <!-- استایل‌ها -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
     
-    <!-- کتابخانه‌های ضروری (نسخه‌های پایدار و تست شده) -->
-    <!-- ExcelJS برای خروجی اکسل حرفه‌ای -->
+    <!-- کتابخانه‌های پردازشی (ExcelJS + FileSaver + html2pdf) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-    <!-- FileSaver برای ذخیره فایل -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <!-- html2pdf برای خروجی PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
@@ -37,11 +34,12 @@
         }
 
         .app-container {
-            max-width: 1200px;
+            max-width: 1300px;
             margin: 30px auto;
             display: grid;
             grid-template-columns: 350px 1fr;
             gap: 25px;
+            padding: 0 20px;
         }
 
         .settings-panel, .preview-panel {
@@ -51,8 +49,8 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
         
-        .settings-panel { position: sticky; top: 20px; height: fit-content; }
-        .preview-panel { min-height: 80vh; }
+        .settings-panel { position: sticky; top: 20px; height: fit-content; z-index: 10; }
+        .preview-panel { min-height: 80vh; overflow-x: auto; }
 
         .section-title {
             font-weight: 800; color: var(--primary);
@@ -60,22 +58,25 @@
             padding-bottom: 10px; margin-bottom: 20px;
         }
 
-        .calendar-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-        .calendar-table th { background-color: var(--primary); color: white; padding: 12px; text-align: center; }
-        .calendar-table td { border: 1px solid #e5e7eb; padding: 10px; vertical-align: middle; text-align: center; }
+        /* جدول پیش‌نمایش */
+        .calendar-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 600px; }
+        .calendar-table th { background-color: var(--primary); color: white; padding: 12px; text-align: center; white-space: nowrap; }
+        .calendar-table td { border: 1px solid #e5e7eb; padding: 8px 10px; vertical-align: middle; text-align: center; }
         
-        .row-holiday { background-color: #fef2f2; color: #991b1b; }
-        .row-friday { background-color: #fce7f3; color: #831843; }
-        .row-event { background-color: #fffbeb; color: #92400e; }
-        .row-exam { background-color: #eff6ff; color: #1e40af; }
+        /* رنگ‌بندی ردیف‌ها */
+        .row-holiday { background-color: #fee2e2; color: #991b1b; } /* قرمز */
+        .row-friday { background-color: #fce7f3; color: #831843; } /* صورتی */
+        .row-event { background-color: #fef3c7; color: #92400e; } /* زرد */
+        .row-exam { background-color: #eff6ff; color: #1e40af; } /* آبی */
 
-        .btn-action { width: 100%; padding: 12px; border-radius: 10px; font-weight: 700; margin-bottom: 10px; transition: 0.3s; }
-        .btn-excel { background-color: #10b981; color: white; border: none; }
-        .btn-excel:hover { background-color: #059669; }
-        .btn-preview { background-color: var(--primary); color: white; border: none; }
+        /* دکمه‌ها */
+        .btn-action { width: 100%; padding: 12px; border-radius: 10px; font-weight: 700; margin-bottom: 10px; transition: 0.3s; border: none; color: white; cursor: pointer; }
+        .btn-excel { background-color: #16a34a; }
+        .btn-excel:hover { background-color: #15803d; }
+        .btn-preview { background-color: var(--primary); }
         .btn-preview:hover { background-color: var(--primary-dark); }
-        .btn-pdf { background-color: #ef4444; color: white; border: none; }
-        .btn-pdf:hover { background-color: #dc2626; }
+        .btn-pdf { background-color: #dc2626; }
+        .btn-pdf:hover { background-color: #b91c1c; }
 
         .event-list-item {
             display: flex; justify-content: space-between; align-items: center;
@@ -83,15 +84,24 @@
             margin-bottom: 5px; border: 1px solid #e5e7eb; font-size: 0.85rem;
         }
 
+        .badge-type { font-size: 0.75rem; padding: 3px 6px; border-radius: 4px; margin-left: 5px; color: white; }
+        .bg-holiday { background-color: #dc2626; }
+        .bg-exam { background-color: #2563eb; }
+        .bg-event { background-color: #d97706; }
+
         @media (max-width: 992px) { .app-container { grid-template-columns: 1fr; } }
-        .pdf-container { padding: 20px; background: white; display: none; }
+        
+        /* کانتینر مخفی برای PDF */
+        #pdfSource { padding: 20px; background: white; display: none; }
+        #pdfSource table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+        #pdfSource th, #pdfSource td { border: 1px solid #000; padding: 5px; text-align: center; }
     </style>
 </head>
 <body>
 
 <div class="app-container">
     
-    <!-- Sidebar -->
+    <!-- پنل تنظیمات -->
     <aside class="settings-panel">
         <div class="text-center mb-4">
             <h4 style="font-weight: 900; color: var(--primary-dark);">تنظیمات تقویم</h4>
@@ -108,8 +118,8 @@
         </div>
 
         <div class="row g-2 mb-3">
-            <div class="col-6"><label class="form-label">شروع (Y/M/D)</label><input type="text" id="startDate" class="form-control text-center" value="1403/07/01"></div>
-            <div class="col-6"><label class="form-label">پایان (Y/M/D)</label><input type="text" id="endDate" class="form-control text-center" value="1403/10/30"></div>
+            <div class="col-6"><label class="form-label">شروع (Y/M/D)</label><input type="text" id="startDate" class="form-control text-center" value="1403/07/01" placeholder="1403/07/01"></div>
+            <div class="col-6"><label class="form-label">پایان (Y/M/D)</label><input type="text" id="endDate" class="form-control text-center" value="1403/10/30" placeholder="1403/10/30"></div>
         </div>
 
         <div class="mb-4">
@@ -118,50 +128,58 @@
                 <option value="work">روز کاری (آموزشی)</option>
                 <option value="off">تعطیل کامل</option>
                 <option value="odd">هفته‌های فرد تعطیل</option>
+                <option value="even">هفته‌های زوج تعطیل</option>
             </select>
         </div>
 
-        <div class="section-title"><i class="fas fa-calendar-plus"></i> رویداد/تعطیلی</div>
+        <div class="section-title"><i class="fas fa-calendar-plus"></i> افزودن رویداد/تعطیلی</div>
         <div class="bg-light p-3 rounded mb-3 border">
             <div class="mb-2">
                 <select id="eventType" class="form-select form-select-sm">
-                    <option value="holiday">تعطیل رسمی/اضطراری</option>
-                    <option value="exam">ایام امتحانات</option>
-                    <option value="event">رویداد آموزشی</option>
+                    <option value="holiday">تعطیل (رسمی/اضطراری)</option>
+                    <option value="exam">امتحان / تحویل پروژه</option>
+                    <option value="event">رویداد آموزشی (غیر تعطیل)</option>
                 </select>
             </div>
             <div class="row g-2 mb-2">
                 <div class="col-6"><input type="text" id="evtStart" class="form-control form-control-sm text-center" placeholder="از: 1403/08/10"></div>
                 <div class="col-6"><input type="text" id="evtEnd" class="form-control form-control-sm text-center" placeholder="تا: 1403/08/12"></div>
             </div>
-            <input type="text" id="evtDesc" class="form-control form-control-sm mb-2" placeholder="توضیحات">
-            <button class="btn btn-sm btn-success w-100" onclick="addEventRange()">افزودن</button>
+            <input type="text" id="evtDesc" class="form-control form-control-sm mb-2" placeholder="توضیحات (الزامی)">
+            <button class="btn btn-sm btn-success w-100" onclick="addEventRange()">افزودن به لیست</button>
         </div>
 
         <div id="eventsList" class="mb-4"></div>
 
         <hr>
-        <button class="btn-action btn-preview" onclick="generatePreview()">پیش‌نمایش جدول</button>
-        <button class="btn-action btn-excel" onclick="exportToExcel()">دانلود فایل اکسل</button>
-        <button class="btn-action btn-pdf" onclick="exportToPDF()">دانلود فایل PDF</button>
+        <button class="btn-action btn-preview" onclick="generatePreview()">
+            <i class="fas fa-eye"></i> مشاهده پیش‌نمایش
+        </button>
+        <button class="btn-action btn-excel" onclick="exportToExcel()">
+            <i class="fas fa-file-excel"></i> دریافت فایل اکسل
+        </button>
+        <button class="btn-action btn-pdf" onclick="exportToPDF()">
+            <i class="fas fa-file-pdf"></i> دریافت فایل PDF
+        </button>
     </aside>
 
-    <!-- Preview -->
+    <!-- پنل نمایش -->
     <main class="preview-panel">
         <div id="previewArea">
             <div class="text-center text-muted mt-5">
                 <i class="fas fa-table fa-3x mb-3"></i>
-                <h5>برای مشاهده، دکمه پیش‌نمایش را بزنید.</h5>
+                <h5>جدول تقویم در اینجا نمایش داده می‌شود.</h5>
+                <p>ابتدا تنظیمات را انجام دهید و دکمه پیش‌نمایش را بزنید.</p>
             </div>
         </div>
     </main>
 </div>
 
-<!-- Hidden container for PDF generation -->
-<div id="pdfSource" class="pdf-container"></div>
+<!-- کانتینر مخفی برای PDF -->
+<div id="pdfSource"></div>
 
 <script>
-    // --- 1. Utilities ---
+    // --- 1. داده‌های پایه و توابع تاریخ ---
     const fixedHolidays = {
         "1-1": "عید نوروز", "1-2": "عید نوروز", "1-3": "عید نوروز", "1-4": "عید نوروز",
         "1-12": "روز جمهوری اسلامی", "1-13": "روز طبیعت",
@@ -170,7 +188,6 @@
     };
     let userEvents = [];
 
-    // Jalali Converter Logic (Internal)
     const JalaliDate = {
         g_days_in_month: [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
         j_days_in_month: [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29],
@@ -211,6 +228,7 @@
     };
 
     function parseDate(str) {
+        if(!str) return null;
         const parts = str.split('/');
         if(parts.length !== 3) return null;
         return { y: parseInt(parts[0]), m: parseInt(parts[1]), d: parseInt(parts[2]) };
@@ -218,7 +236,7 @@
     
     function dateToObj(jY, jM, jD) { return JalaliDate.jalaliToGregorian(jY, jM, jD); }
 
-    // --- 2. Event Functions ---
+    // --- 2. مدیریت رویدادها ---
     function addEventRange() {
         const startStr = document.getElementById('evtStart').value;
         const endStr = document.getElementById('evtEnd').value;
@@ -226,8 +244,10 @@
         const type = document.getElementById('eventType').value;
 
         if(!startStr || !desc) { alert("تاریخ شروع و توضیحات الزامی است"); return; }
+        
         const s = parseDate(startStr);
         const e = endStr ? parseDate(endStr) : s;
+
         if(!s || !e) { alert("فرمت تاریخ اشتباه است (مثال: 1403/08/10)"); return; }
 
         userEvents.push({ 
@@ -237,6 +257,7 @@
             desc: desc, 
             type: type 
         });
+        
         renderEventsList();
         document.getElementById('evtDesc').value = "";
     }
@@ -253,23 +274,25 @@
             const sJ = JalaliDate.gregorianToJalali(ev.start.getFullYear(), ev.start.getMonth()+1, ev.start.getDate());
             const eJ = JalaliDate.gregorianToJalali(ev.end.getFullYear(), ev.end.getMonth()+1, ev.end.getDate());
             
-            let badgeClass = "bg-secondary";
-            if(ev.type === 'holiday') badgeClass = "bg-danger";
-            else if(ev.type === 'exam') badgeClass = "bg-primary";
-            else if(ev.type === 'event') badgeClass = "bg-warning text-dark";
+            let bgClass = "bg-secondary";
+            if(ev.type === 'holiday') bgClass = "bg-holiday";
+            else if(ev.type === 'exam') bgClass = "bg-exam";
+            else if(ev.type === 'event') bgClass = "bg-event";
+
+            const endDateStr = ev.start.getTime() !== ev.end.getTime() ? ` تا <strong>${eJ[0]}/${eJ[1]}/${eJ[2]}</strong>` : '';
 
             container.innerHTML += `
                 <div class="event-list-item">
                     <div>
-                        <span class="badge ${badgeClass} ms-1">${ev.type==='holiday'?'تعطیل':(ev.type==='exam'?'امتحان':'رویداد')}</span>
-                        <small><strong>${sJ[0]}/${sJ[1]}/${sJ[2]}</strong> تا <strong>${eJ[0]}/${eJ[1]}/${eJ[2]}</strong> : ${ev.desc}</small>
+                        <span class="badge ${bgClass} badge-type">${ev.type==='holiday'?'تعطیل':(ev.type==='exam'?'امتحان':'رویداد')}</span>
+                        <small><strong>${sJ[0]}/${sJ[1]}/${sJ[2]}</strong>${endDateStr} : ${ev.desc}</small>
                     </div>
                     <button class="btn btn-sm text-danger" onclick="removeEvent(${ev.id})"><i class="fas fa-times"></i></button>
                 </div>`;
         });
     }
 
-    // --- 3. Calendar Engine ---
+    // --- 3. موتور محاسباتی تقویم ---
     function calculateCalendar() {
         const sStr = document.getElementById('startDate').value;
         const eStr = document.getElementById('endDate').value;
@@ -281,7 +304,7 @@
         let current = dateToObj(s.y, s.m, s.d);
         const end = dateToObj(e.y, e.m, e.d);
         let rows = [];
-        let weekCounter = 1;
+        let weekCounter = 1; 
         let sessionCounter = 1;
 
         while(current <= end) {
@@ -293,7 +316,7 @@
             let cssClass = "";
             let count = sessionCounter;
 
-            // Check User Events
+            // 1. بررسی رویدادهای کاربر (اولویت بالا)
             let userEvt = userEvents.find(ev => current >= ev.start && current <= ev.end);
             if(userEvt) {
                 reason = userEvt.desc;
@@ -302,21 +325,28 @@
                 else { status = "event"; cssClass = "row-event"; }
             }
 
-            // Check Fixed Holidays
-            if(status !== 'holiday') {
+            // 2. تعطیلات رسمی ثابت
+            if(status !== 'holiday' && status !== 'exam') {
                 const fKey = `${jm}-${jd}`;
                 if(fixedHolidays[fKey]) { status = "holiday"; reason = fixedHolidays[fKey]; cssClass = "row-holiday"; count = "-"; }
             }
 
-            // Check Friday
+            // 3. جمعه
             if(dayOfWeek === 5) {
                 status = "holiday"; reason = "جمعه"; cssClass = "row-friday"; count = "-";
             }
 
-            // Check Thursday
+            // 4. پنج‌شنبه‌ها
             if(dayOfWeek === 4 && status !== 'holiday') {
-                if(thursdayRule === 'off') { status = "holiday"; reason = "تعطیل پنج‌شنبه"; cssClass = "row-holiday"; count = "-"; }
-                else if (thursdayRule === 'odd' && weekCounter % 2 !== 0) { status = "holiday"; reason = "تعطیل پنج‌شنبه (فرد)"; cssClass = "row-holiday"; count = "-"; }
+                if(thursdayRule === 'off') { 
+                    status = "holiday"; reason = "تعطیل پنج‌شنبه"; cssClass = "row-holiday"; count = "-"; 
+                }
+                else if (thursdayRule === 'odd' && weekCounter % 2 !== 0) { 
+                    status = "holiday"; reason = "تعطیل پنج‌شنبه (فرد)"; cssClass = "row-holiday"; count = "-"; 
+                }
+                else if (thursdayRule === 'even' && weekCounter % 2 === 0) { 
+                    status = "holiday"; reason = "تعطیل پنج‌شنبه (زوج)"; cssClass = "row-holiday"; count = "-"; 
+                }
             }
 
             if(status !== 'holiday' && status !== 'exam') sessionCounter++;
@@ -326,7 +356,7 @@
                 dayName: JalaliDate.getDayName(dayOfWeek),
                 fullDate: `${jy}/${jm}/${jd}`,
                 monthName: JalaliDate.getMonthName(jm),
-                status: status === 'holiday' ? 'تعطیل' : (status === 'exam' ? 'امتحان' : 'آموزشی'),
+                status: status === 'holiday' ? 'تعطیل' : (status === 'exam' ? 'امتحان' : (status === 'event' ? 'رویداد' : 'آموزشی')),
                 reason: reason,
                 count: count,
                 cssClass: cssClass,
@@ -339,7 +369,7 @@
         return rows;
     }
 
-    // --- 4. Preview Generation ---
+    // --- 4. پیش‌نمایش HTML ---
     function generatePreview() {
         const data = calculateCalendar();
         if(!data) { alert("لطفا تاریخ شروع و پایان را صحیح وارد کنید"); return; }
@@ -386,98 +416,115 @@
         document.getElementById('pdfSource').innerHTML = html;
     }
 
-    // --- 5. Export Logic (ExcelJS) ---
+    // --- 5. خروجی اکسل (ExcelJS) ---
     async function exportToExcel() {
         try {
             const data = calculateCalendar();
             if(!data) { alert("ابتدا بازه زمانی را تنظیم کنید"); return; }
 
-            const wb = new ExcelJS.Workbook();
-            const ws = wb.addWorksheet('تقویم آموزشی', {
-                views: [{ rightToLeft: true }]
+            // ایجاد ورک‌بوک
+            const workbook = new ExcelJS.Workbook();
+            const sheet = workbook.addWorksheet('تقویم آموزشی', {
+                views: [{ rightToLeft: true }] // راست‌چین کردن کل شیت
             });
 
             const title = document.getElementById('calTitle').value;
             const sub = document.getElementById('calSubtitle').value;
 
-            // Columns
-            ws.columns = [
+            // تعریف ستون‌ها
+            sheet.columns = [
                 { key: 'idx', width: 8 },
                 { key: 'day', width: 15 },
                 { key: 'date', width: 15 },
                 { key: 'month', width: 12 },
                 { key: 'status', width: 15 },
-                { key: 'reason', width: 45 },
+                { key: 'reason', width: 40 },
                 { key: 'count', width: 10 },
             ];
 
-            // Header Rows
-            ws.mergeCells('A1:G1');
-            const titleRow = ws.getCell('A1');
-            titleRow.value = title;
-            titleRow.font = { name: 'Tahoma', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
-            titleRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E40AF' } };
-            titleRow.alignment = { vertical: 'middle', horizontal: 'center' };
+            // --- هدر اصلی (Title) ---
+            sheet.mergeCells('A1:G1');
+            const titleCell = sheet.getCell('A1');
+            titleCell.value = title;
+            titleCell.font = { name: 'Vazir', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+            titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E40AF' } }; // آبی تیره
+            titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+            sheet.getRow(1).height = 35;
 
-            ws.mergeCells('A2:G2');
-            const subRow = ws.getCell('A2');
-            subRow.value = sub;
-            subRow.font = { name: 'Tahoma', size: 12, bold: true };
-            subRow.alignment = { vertical: 'middle', horizontal: 'center' };
-            subRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
+            // --- زیر عنوان (Subtitle) ---
+            sheet.mergeCells('A2:G2');
+            const subCell = sheet.getCell('A2');
+            subCell.value = sub;
+            subCell.font = { name: 'Vazir', size: 12, bold: true };
+            subCell.alignment = { vertical: 'middle', horizontal: 'center' };
+            subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEEEEE' } };
+            sheet.getRow(2).height = 25;
 
-            // Stats
+            // --- آمار ---
             const totalHolidays = data.filter(d => d.statusCode === 'holiday').length;
             const totalSessions = data.length - totalHolidays;
-            ws.mergeCells('A3:G3');
-            ws.getCell('A3').value = `مجموع روزها: ${data.length} | روزهای آموزشی: ${totalSessions} | تعطیلات: ${totalHolidays}`;
-            ws.getCell('A3').alignment = { vertical: 'middle', horizontal: 'center' };
+            sheet.mergeCells('A3:G3');
+            const statCell = sheet.getCell('A3');
+            statCell.value = `تعداد کل روزها: ${data.length} | روزهای آموزشی: ${totalSessions} | تعطیلات: ${totalHolidays}`;
+            statCell.alignment = { vertical: 'middle', horizontal: 'center' };
+            sheet.getRow(3).height = 20;
 
-            // Table Header
-            const headerRow = ws.getRow(4);
+            // --- هدر جدول ---
+            const headerRow = sheet.getRow(4);
             headerRow.values = ['ردیف', 'روز هفته', 'تاریخ', 'ماه', 'وضعیت', 'شرح رویداد / تعطیلی', 'جلسه'];
             headerRow.eachCell((cell) => {
-                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } };
-                cell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } }; // آبی روشن
+                cell.font = { name: 'Vazir', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
                 cell.alignment = { vertical: 'middle', horizontal: 'center' };
                 cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
             });
+            headerRow.height = 30;
 
-            // Data Rows
+            // --- داده‌ها ---
             data.forEach((d, i) => {
-                const row = ws.addRow([i + 1, d.dayName, d.fullDate, d.monthName, d.status, d.reason, d.count]);
-                
-                let bgColor = 'FFFFFFFF'; // White
-                if(d.statusCode === 'holiday') bgColor = 'FFFEE2E2'; // Red
-                if(d.dayName === 'جمعه') bgColor = 'FFFCE7F3'; // Pink
-                if(d.statusCode === 'exam') bgColor = 'FFEFF6FF'; // Blue
-                if(d.statusCode === 'event') bgColor = 'FFFFFBEB'; // Yellow
+                const row = sheet.addRow([
+                    i + 1,
+                    d.dayName,
+                    d.fullDate,
+                    d.monthName,
+                    d.status,
+                    d.reason,
+                    d.count
+                ]);
+
+                // رنگ پس‌زمینه بر اساس وضعیت
+                let argbColor = 'FFFFFFFF'; // سفید
+                if(d.statusCode === 'holiday') argbColor = 'FFFEE2E2'; // قرمز
+                if(d.dayName === 'جمعه') argbColor = 'FFFCE7F3'; // صورتی
+                if(d.statusCode === 'exam') argbColor = 'FFEFF6FF'; // آبی
+                if(d.statusCode === 'event') argbColor = 'FFFFFBEB'; // زرد
 
                 row.eachCell((cell) => {
-                    cell.font = { name: 'Tahoma', size: 10 };
+                    cell.font = { name: 'Vazir', size: 10 };
                     cell.alignment = { vertical: 'middle', horizontal: 'center' };
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argbColor } };
                     cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
                 });
             });
 
-            // Export
-            const buffer = await wb.xlsx.writeBuffer();
+            // تولید فایل
+            const buffer = await workbook.xlsx.writeBuffer();
             const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
             saveAs(blob, 'Calendar_Pro.xlsx');
 
         } catch(e) {
-            alert("خطا در ایجاد فایل اکسل: " + e.message);
+            alert("خطا در ایجاد اکسل: " + e.message);
             console.error(e);
         }
     }
 
-    // --- 6. PDF Export ---
+    // --- 6. خروجی PDF (html2pdf) ---
     function exportToPDF() {
         const element = document.getElementById('pdfSource');
-        if(element.innerHTML.trim() === "") generatePreview();
+        if(element.innerHTML.trim() === "") generatePreview(); // اگر خالی بود اول بساز
         
-        element.style.display = 'block';
+        element.style.display = 'block'; // نمایش موقت برای عکس گرفتن
+        
         const opt = {
             margin: 0.5,
             filename: 'Calendar.pdf',
@@ -487,7 +534,7 @@
         };
         
         html2pdf().set(opt).from(element).save().then(() => {
-            element.style.display = 'none';
+            element.style.display = 'none'; // مخفی کردن دوباره
         });
     }
 </script>
