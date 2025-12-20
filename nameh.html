@@ -1,4 +1,4 @@
- 
+  
 <!DOCTYPE html> 
 <html lang="fa">
 <head>
@@ -182,29 +182,36 @@
             display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0;
             direction: rtl;
         }
-        /* تنظیمات فونت برای جلوگیری از جدا شدن حروف */
+        /* تنظیمات فونت */
         .sheet * { 
             font-family: 'Amiri', serif; 
             color: #000; 
             line-height: 1.8;
-            font-variant-ligatures: common-ligatures;
-            text-rendering: geometricPrecision; /* برای حل مشکل نیم فاصله */
         }
 
-        .letter-head { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; }
+        .letter-head { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; flex-shrink: 0; }
         .head-col { flex: 1; display: flex; flex-direction: column; justify-content: center; }
         .head-right { text-align: right; font-size: 11px; }
         .head-center { text-align: center; flex: 1.5; font-weight: bold; font-size: 17px; }
         .head-left { text-align: left; font-size: 11px; }
 
-        .letter-content { flex-grow: 1; display: flex; flex-direction: column; font-size: 14px; }
+        .letter-content { flex-grow: 1; display: flex; flex-direction: column; font-size: 14px; position: relative; }
         
         .text-body {
             text-align: justify;
             text-justify: inter-word;
-            text-align-last: right; /* خط آخر راست چین */
+            text-align-last: right;
             white-space: pre-wrap;
             margin-bottom: 20px;
+        }
+
+        /* کلاس ویژه برای حالت پرینت - حل مشکل بهم ریختگی */
+        .print-mode .text-body {
+            text-align: right !important;
+            text-justify: auto !important;
+            letter-spacing: normal !important;
+            font-variant-ligatures: none !important;
+            text-rendering: auto !important;
         }
 
         .images-container {
@@ -217,11 +224,14 @@
         .letter-img {
             display: block; border-radius: 4px;
             object-fit: contain; max-height: 80mm;
-            height: auto !important; /* جلوگیری از کش آمدن */
+            height: auto !important; 
         }
 
-        .signature-section { margin-top: auto; text-align: center; padding-top: 30px; }
+        .signature-section { margin-top: auto; text-align: center; padding-top: 30px; flex-shrink: 0; }
         .sig-text { font-weight: bold; font-size: 13px; margin-bottom: 5px; }
+
+        /* کلاس کمکی برای مخفی کردن در رندر */
+        .hidden-in-print { display: none !important; }
 
     </style>
 </head>
@@ -401,7 +411,7 @@
     function applyCrop() {
         if(!cropper) return;
         const canvas = cropper.getCroppedCanvas();
-        const croppedData = canvas.toDataURL('image/jpeg', 0.9); // فشرده سازی کم
+        const croppedData = canvas.toDataURL('image/jpeg', 0.9); 
         
         finalImages[currentCropKey] = croppedData;
         const preview = document.getElementById('prev_' + currentCropKey);
@@ -422,30 +432,17 @@
     function toEnglish(s) { return String(s).replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)); }
 
     // ساخت برگه A5
-    function createSheetHTML(data, isPage2) {
+    // mode: 'normal' | 'images_only'
+    function createSheetHTML(data, type = 'main') {
         const div = document.createElement('div');
         div.className = 'sheet';
 
-        const title = isPage2 ? "پیوست نامه" : "بسمه تعالی";
-        const bodyTxt = isPage2 ? data.attach : data.txt;
-        
-        // بلوک تصاویر
-        let imgBlock = '';
-        if(!isPage2 && (finalImages.img1 || finalImages.img2)) {
-            const layout = document.querySelector('input[name="layout"]:checked').value;
-            const size = document.getElementById('imgScale').value;
-            
-            // محاسبه عرض: در حالت افقی ماکسیمم ۴۸٪
-            const wVal = layout === 'vertical' ? `${size}%` : `${Math.min(size, 48)}%`;
-            
-            let imgs = '';
-            if(finalImages.img1) imgs += `<img src="${finalImages.img1}" class="letter-img" style="width:${wVal}">`;
-            if(finalImages.img2) imgs += `<img src="${finalImages.img2}" class="letter-img" style="width:${wVal}">`;
-            
-            imgBlock = `<div class="images-container ${layout}">${imgs}</div>`;
-        }
+        let content = '';
+        let header = '';
+        let sign = '';
 
-        div.innerHTML = `
+        // سربرگ
+        header = `
             <div class="letter-head">
                 <div class="head-col head-right">
                     <p>تلفن: ۰۹۱۳۵۰۷۶۵۸۷</p>
@@ -459,22 +456,62 @@
                     <p>شماره: ${toPersian(data.num)}</p>
                     <p>تاریخ: ${toPersian(data.date)}</p>
                 </div>
-            </div>
-            
-            <div class="letter-content">
-                <p style="text-align:center; font-weight:bold; margin-bottom:15px;">${title}</p>
-                ${!isPage2 ? `<p style="font-weight:bold; margin-bottom:10px;">ریاست محترم ${data.dept}</p>` : ''}
-                <p style="margin-bottom:15px;">موضوع: ${data.subj}</p>
-                
-                <div class="text-body">${bodyTxt.replace(/\n/g, '<br>')}</div>
-                ${imgBlock}
-            </div>
+            </div>`;
 
+        // امضا
+        sign = `
             <div class="signature-section">
                 <p class="sig-text">امضاء</p>
                 <p class="sig-text">مدیرعامل مؤسسه تعالی اندیشه و رشد</p>
-            </div>
-        `;
+            </div>`;
+
+        // بدنه اصلی
+        if(type === 'main') {
+            content = `
+                <div class="letter-content" id="mainContentArea">
+                    <p style="text-align:center; font-weight:bold; margin-bottom:15px;">بسمه تعالی</p>
+                    <p style="font-weight:bold; margin-bottom:10px;">ریاست محترم ${data.dept}</p>
+                    <p style="margin-bottom:15px;">موضوع: ${data.subj}</p>
+                    <div class="text-body">${data.txt.replace(/\n/g, '<br>')}</div>
+                    
+                    <!-- محل قرارگیری تصاویر (ممکن است بعداً با جاوااسکریپت جابجا شود) -->
+                    <div id="imgPlaceholder"></div>
+                </div>`;
+        } 
+        else if (type === 'attachment') {
+            content = `
+                <div class="letter-content">
+                    <p style="text-align:center; font-weight:bold; margin-bottom:15px;">پیوست نامه</p>
+                    <div class="text-body">${data.attach.replace(/\n/g, '<br>')}</div>
+                </div>`;
+        }
+        else if (type === 'images_page') {
+             content = `
+                <div class="letter-content" style="display:flex; align-items:center; justify-content:center; flex-direction:column; height:100%;">
+                    <p style="text-align:center; font-weight:bold; margin-bottom:15px;">تصاویر پیوست</p>
+                    <div id="extraImgContainer" style="width:100%;"></div>
+                </div>`;
+        }
+
+        div.innerHTML = header + content + sign;
+        return div;
+    }
+
+    // تولید بلوک تصاویر
+    function getImagesHTML() {
+        if(!finalImages.img1 && !finalImages.img2) return null;
+        
+        const layout = document.querySelector('input[name="layout"]:checked').value;
+        const size = document.getElementById('imgScale').value;
+        const wVal = layout === 'vertical' ? `${size}%` : `${Math.min(size, 48)}%`;
+        
+        let imgs = '';
+        if(finalImages.img1) imgs += `<img src="${finalImages.img1}" class="letter-img" style="width:${wVal}">`;
+        if(finalImages.img2) imgs += `<img src="${finalImages.img2}" class="letter-img" style="width:${wVal}">`;
+        
+        const div = document.createElement('div');
+        div.className = `images-container ${layout}`;
+        div.innerHTML = imgs;
         return div;
     }
 
@@ -484,14 +521,12 @@
         const msg = document.getElementById('msgBox');
         const btn = document.getElementById('submitBtn');
         
-        // بررسی کپچا
         if(parseInt(toEnglish(document.getElementById('mathAns').value)) !== captchaSum) {
             msg.textContent = "پاسخ سوال امنیتی اشتباه است.";
             msg.className = 'error-msg'; msg.style.display = 'block';
             initMath(); return;
         }
 
-        // حالت لودینگ
         msg.style.display = 'none';
         btn.disabled = true; 
         btn.classList.add('loading');
@@ -515,47 +550,87 @@
             imageStatus: imgState
         };
 
-        const payload = {
-            department: formData.dept,
-            subject: formData.subj,
-            letterText: formData.txt,
-            attachmentText: formData.attach,
-            verificationCode: formData.verificationCode,
-            issueDate: formData.issueDate,
-            letterNumber: formData.letterNumber,
-            imageStatus: formData.imageStatus
-        };
-
         try {
-            const req = await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+            const req = await fetch(GOOGLE_SCRIPT_URL, { 
+                method: 'POST', 
+                body: JSON.stringify({
+                    department: formData.dept,
+                    subject: formData.subj,
+                    letterText: formData.txt,
+                    attachmentText: formData.attach,
+                    verificationCode: formData.verificationCode,
+                    issueDate: formData.issueDate,
+                    letterNumber: formData.letterNumber,
+                    imageStatus: formData.imageStatus
+                }) 
+            });
             const res = await req.json();
 
             if(res.status === 'success') {
-                msg.textContent = "ثبت موفق! در حال تولید PDF...";
+                msg.textContent = "ثبت موفق! در حال پردازش و صفحه‌بندی...";
                 msg.className = 'success-msg'; msg.style.display = 'block';
                 
                 letterData = { ...formData, num: lNum, date: jDate };
                 
-                // رندر صفحات
+                // ----------------------------------------------------
+                // منطق هوشمند صفحه‌بندی (Overflow Logic)
+                // ----------------------------------------------------
                 const wrapper = document.getElementById('previewWrapper');
                 const canvasArea = document.getElementById('renderCanvas');
                 wrapper.innerHTML = ''; canvasArea.innerHTML = '';
 
-                const p1 = createSheetHTML(letterData, false);
-                wrapper.appendChild(p1);
-                canvasArea.appendChild(p1.cloneNode(true));
+                // 1. ساخت صفحه اول
+                const page1 = createSheetHTML(letterData, 'main');
+                canvasArea.appendChild(page1); // موقتاً به DOM اضافه میکنیم تا ارتفاع محاسبه شود
+                
+                // افزودن عکس به صفحه اول برای تست جا شدن
+                const imgBlock = getImagesHTML();
+                if(imgBlock) {
+                    page1.querySelector('#imgPlaceholder').appendChild(imgBlock);
+                }
 
+                // بررسی ارتفاع محتوا (تقریباً 180mm ارتفاع مفید A5 است = حدود 680 پیکسل در صفحه وب)
+                // ارتفاع کل صفحه 210mm است. هدر و امضا حدود 60mm میگیرند. فضای متن و عکس 150mm است.
+                // اگر اسکرول خورد، یعنی جا نمیشود.
+                
+                let imagesMoved = false;
+                const contentDiv = page1.querySelector('.letter-content');
+                
+                // بررسی سرریز شدن محتوا
+                if (page1.scrollHeight > page1.clientHeight + 5) {
+                    // اگر عکس داریم و صفحه سرریز کرده، عکس را بردار
+                    if(imgBlock) {
+                        imgBlock.remove(); // حذف از صفحه اول
+                        imagesMoved = true;
+                    }
+                }
+
+                // انتقال نهایی به کانتینر رندر
+                // (چون append child کردیم المنت جابجا میشود، پس دوباره اضافه میکنیم)
+                wrapper.appendChild(page1.cloneNode(true));
+                canvasArea.innerHTML = ''; // پاکسازی برای رندر تمیز
+                canvasArea.appendChild(page1); // نسخه اصلی برای عکس گرفتن
+
+                // 2. اگر عکس‌ها جا نشدند، صفحه جدید بساز
+                if(imagesMoved && imgBlock) {
+                    const pageImg = createSheetHTML(letterData, 'images_page');
+                    pageImg.querySelector('#extraImgContainer').appendChild(imgBlock.cloneNode(true));
+                    
+                    wrapper.appendChild(pageImg.cloneNode(true));
+                    canvasArea.appendChild(pageImg);
+                }
+
+                // 3. اگر پیوست متنی داشتیم
                 if(formData.attach.trim()) {
-                    const p2 = createSheetHTML(letterData, true);
-                    wrapper.appendChild(p2);
-                    canvasArea.appendChild(p2.cloneNode(true));
+                    const pageAttach = createSheetHTML(letterData, 'attachment');
+                    wrapper.appendChild(pageAttach.cloneNode(true));
+                    canvasArea.appendChild(pageAttach);
                 }
 
                 document.getElementById('appForm').style.display = 'none';
                 document.getElementById('finalArea').style.display = 'block';
                 
-                // تولید خودکار
-                setTimeout(downloadPDF, 1000); 
+                setTimeout(downloadPDF, 500); 
 
             } else {
                 throw new Error(res.message);
@@ -567,7 +642,7 @@
         }
     });
 
-    // تابع اصلی تولید PDF (اصلاح شده برای رفع مشکل نیم فاصله)
+    // تابع اصلی تولید PDF (بهینه شده کامل)
     async function downloadPDF() {
         const dBtn = document.getElementById('downloadPdfBtn');
         dBtn.disabled = true; dBtn.classList.add('loading');
@@ -576,48 +651,40 @@
         const sheets = document.querySelectorAll('#renderCanvas .sheet');
         const pdf = new jsPDF({ format: 'a5', unit: 'mm', compress: true });
 
+        // افزودن کلاس حالت پرینت به کل بدنه (بسیار سریعتر از onclone)
+        // این کلاس باعث میشود متن راست چین شود و حروف فارسی بهم نریزد
+        document.body.classList.add('print-mode');
+
         for(let i=0; i<sheets.length; i++) {
             if(i>0) pdf.addPage();
             
             const sheet = sheets[i];
             
-            // *** اعمال تغییرات برای جلوگیری از جدا شدن حروف فارسی ***
+            // تنظیمات بهینه شده html2canvas
             await html2canvas(sheet, {
-                scale: 3, // کیفیت بالا
+                scale: 2, // کیفیت استاندارد (جلوگیری از هنگ کردن)
                 useCORS: true,
-                onclone: (doc) => {
-                    const texts = doc.querySelectorAll('.text-body');
-                    texts.forEach(t => {
-                        // 1. مهمترین خط: راست‌چین کردن متن در لحظه عکس گرفتن
-                        // این کار باعث می‌شود موتور رندر سعی نکند فاصله‌های غیرعادی ایجاد کند
-                        t.style.textAlign = 'right'; 
-                        t.style.textAlignLast = 'right';
-                        
-                        // 2. صفر کردن فاصله حروف
-                        t.style.letterSpacing = 'normal';
-                        
-                        // 3. تنظیمات فونت برای جلوگیری از شکستگی لیگاچرها
-                        t.style.fontVariantLigatures = 'no-common-ligatures'; 
-                    });
-                }
+                allowTaint: true,
+                logging: false, // غیرفعال کردن لاگ برای سرعت
+                backgroundColor: '#ffffff'
             }).then(canvas => {
-                const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                const imgData = canvas.toDataURL('image/jpeg', 0.9);
                 pdf.addImage(imgData, 'JPEG', 0, 0, 148, 210);
             });
         }
 
+        // حذف حالت پرینت
+        document.body.classList.remove('print-mode');
+
         finalPdfBlob = pdf.output('blob');
         const fName = `${letterData.subj}.pdf`;
-        pdf.save(fName); // دانلود خودکار
+        pdf.save(fName); 
         
-        // بازگشت دکمه
         dBtn.disabled = false; dBtn.classList.remove('loading');
         
-        // نمایش مدال موفقیت
         const modal = document.getElementById('successModal');
         modal.style.display = 'flex';
         
-        // تنظیم دکمه‌های مدال
         document.getElementById('btnOpen').href = URL.createObjectURL(finalPdfBlob);
         
         document.getElementById('btnShare').onclick = async () => {
@@ -632,7 +699,6 @@
         };
     }
     
-    // دکمه دانلود دستی
     document.getElementById('downloadPdfBtn').onclick = downloadPDF;
 
 </script>
