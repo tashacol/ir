@@ -1,3 +1,4 @@
+  
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
@@ -5,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>آموزش قرآن کریم | خط عثمان طه</title>
     
-    <!-- فونت‌های گوگل -->
+    <!-- فونت‌های گوگل و وزیرمتن -->
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,6 +25,10 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
         }
 
         body {
@@ -46,6 +51,7 @@
             border-left: 1px solid #ddd;
             box-shadow: -2px 0 5px rgba(0,0,0,0.05);
             z-index: 1000;
+            transition: transform 0.3s ease-in-out;
         }
 
         .sidebar-header {
@@ -53,6 +59,9 @@
             background-color: var(--primary-color);
             color: white;
             text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
 
         .sidebar-header h2 {
@@ -84,6 +93,36 @@
             background-color: #e9ecef;
             color: var(--primary-color);
             border-right-color: var(--accent-color);
+            font-weight: bold;
+        }
+
+        /* دکمه باز کردن منو در موبایل */
+        .menu-toggle {
+            display: none;
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 1100;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-family: 'Vazirmatn', sans-serif;
+        }
+
+        /* پوشش تاریک پس‌زمینه برای موبایل */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
         }
 
         /* محتوای اصلی */
@@ -91,6 +130,7 @@
             margin-right: var(--sidebar-width);
             width: calc(100% - var(--sidebar-width));
             padding: 40px;
+            transition: margin-right 0.3s ease-in-out, width 0.3s ease-in-out;
         }
 
         .container {
@@ -106,6 +146,7 @@
             margin-bottom: 40px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.05);
             border-top: 5px solid var(--primary-color);
+            scroll-margin-top: 20px; /* فاصله از بالا هنگام اسکرول */
         }
 
         h1.lesson-title {
@@ -158,6 +199,7 @@
             font-family: 'Scheherazade New', serif;
             font-size: 1.5rem;
             transition: 0.3s;
+            cursor: default;
         }
 
         .letter-box:hover {
@@ -185,23 +227,31 @@
 
         /* رسپانسیو برای موبایل */
         @media (max-width: 768px) {
+            .menu-toggle {
+                display: block; /* نمایش دکمه منو */
+            }
+
             .sidebar {
-                width: 100%;
-                height: auto;
-                position: relative;
-                border-left: none;
-                border-bottom: 1px solid #ddd;
+                transform: translateX(100%); /* مخفی کردن سایدبار به سمت راست */
+                width: 280px;
+            }
+
+            .sidebar.active {
+                transform: translateX(0); /* نمایش سایدبار */
+            }
+
+            .overlay.active {
+                display: block;
             }
             
             .nav-links {
-                display: none; /* در حالت موبایل مخفی شود، با دکمه باز شود (ساده‌سازی فعلی: همیشه باز یا اسکرول افقی) */
-                text-align: center;
+                display: block; 
             }
 
             .main-content {
                 margin-right: 0;
                 width: 100%;
-                padding: 20px;
+                padding: 60px 20px 20px 20px; /* فضای بیشتر از بالا برای دکمه منو */
             }
 
             .quran-text {
@@ -225,18 +275,32 @@
             text-decoration: none;
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
             display: none;
+            z-index: 990;
+            transition: 0.3s;
+        }
+        
+        .back-to-top:hover {
+            transform: translateY(-5px);
         }
     </style>
 </head>
 <body>
 
+    <!-- دکمه منو برای موبایل -->
+    <button class="menu-toggle" id="menuToggle">
+        ☰ فهرست دروس
+    </button>
+    
+    <!-- پوشش تاریک -->
+    <div class="overlay" id="overlay"></div>
+
     <!-- سایدبار -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <h2>آموزش قرآن کریم</h2>
             <p>تهیه و تنظیم: امیرحسین دادگستر</p>
         </div>
-        <ul class="nav-links">
+        <ul class="nav-links" id="navLinks">
             <li><a href="#lesson1">درس اول: حروف الفبا</a></li>
             <li><a href="#lesson2">درس دوم: حرکات کوتاه</a></li>
             <li><a href="#lesson3">درس سوم: تفاوت صداها</a></li>
@@ -570,22 +634,50 @@
     <a href="#" class="back-to-top" id="backToTop">↑</a>
 
     <script>
-        // اسکریپت برای مدیریت نویگیشن و دکمه بازگشت به بالا
+        // اسکریپت برای مدیریت نویگیشن، دکمه بازگشت به بالا و منوی موبایل
         
+        // متغیرهای منوی موبایل
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+        const navLinksList = document.querySelectorAll('.nav-links li a');
+
+        // عملکرد دکمه منو
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        });
+
+        // بستن منو با کلیک روی پوشش
+        overlay.addEventListener('click', () => {
+            sidebar.classList.remove('active');
+            overlay.classList.remove('active');
+        });
+
+        // بستن منو با کلیک روی هر لینک (در حالت موبایل)
+        navLinksList.forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.remove('active');
+                    overlay.classList.remove('active');
+                }
+            });
+        });
+
         // فعال کردن لینک منو هنگام اسکرول
         const sections = document.querySelectorAll('section');
-        const navLi = document.querySelectorAll('.nav-links li a');
 
         window.addEventListener('scroll', () => {
             let current = '';
             sections.forEach(section => {
                 const sectionTop = section.offsetTop;
-                if (scrollY >= sectionTop - 100) {
+                // عدد 150 برای تشخیص بهتر هنگام اسکرول تنظیم شده است
+                if (scrollY >= sectionTop - 150) {
                     current = section.getAttribute('id');
                 }
             });
 
-            navLi.forEach(a => {
+            navLinksList.forEach(a => {
                 a.classList.remove('active');
                 if (a.getAttribute('href').includes(current)) {
                     a.classList.add('active');
