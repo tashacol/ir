@@ -1,635 +1,394 @@
- 
+
 <!DOCTYPE html> 
 <html lang="fa">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سامانه مکاتبات - نسخه حرفه‌ای برش تصویر</title>
+    <title>سامانه مکاتبات</title>
     
     <!-- فونت‌ها -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
-    
-    <!-- استایل و اسکریپت برش تصویر (Cropper.js) -->
+    <!-- استایل برش تصویر -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
     <style>
-        :root {
-            --primary: #2c3e50;
-            --accent: #2980b9;
-            --success: #27ae60;
-            --bg: #ecf0f1;
-            --card: #ffffff;
-            --border: #bdc3c7;
-        }
-
+        :root { --primary: #34495e; --accent: #3498db; --bg: #f5f6fa; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Vazirmatn', sans-serif;
             background: var(--bg);
-            color: var(--primary);
             direction: rtl;
             padding: 20px;
             display: flex;
             justify-content: center;
-            min-height: 100vh;
         }
 
         .container {
-            width: 100%;
-            max-width: 950px;
-            background: var(--card);
-            border-radius: 15px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
-            padding: 40px;
-            margin-bottom: 60px;
+            width: 100%; max-width: 900px;
+            background: #fff; padding: 30px;
+            border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
 
-        h2 { text-align: center; border-bottom: 2px solid #f0f0f0; padding-bottom: 15px; margin-bottom: 25px; color: var(--primary); }
-        h3 { font-size: 1.1rem; color: var(--accent); margin: 25px 0 15px 0; border-right: 4px solid var(--accent); padding-right: 10px; }
+        h2, h3 { color: var(--primary); margin-bottom: 15px; }
+        h3 { font-size: 1.1rem; border-right: 4px solid var(--accent); padding-right: 10px; margin-top: 25px; }
 
-        /* فرم‌ها */
-        .form-row { display: flex; gap: 20px; flex-wrap: wrap; }
-        .form-group { flex: 1; min-width: 250px; margin-bottom: 20px; position: relative; }
-        
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; margin-bottom: 5px; color: #555; font-size: 0.9rem; }
         .form-input {
-            width: 100%;
-            padding: 12px 15px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
+            width: 100%; padding: 10px;
+            border: 1px solid #ddd; border-radius: 5px;
             font-family: 'Vazirmatn', sans-serif;
-            font-size: 1rem;
-            background: #fdfdfd;
-            transition: 0.3s;
         }
-        .form-input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 4px rgba(41, 128, 185, 0.1); }
-        textarea.form-input { min-height: 130px; resize: vertical; line-height: 1.8; }
-        
-        .floating-label {
-            position: absolute; top: -11px; right: 10px;
-            background: var(--card); padding: 0 5px;
-            font-size: 0.85rem; color: var(--accent); font-weight: bold;
-        }
+        textarea.form-input { min-height: 120px; resize: vertical; }
 
-        /* پنل مدیریت تصاویر */
-        .image-manager {
-            border: 2px dashed var(--border);
-            border-radius: 12px;
-            padding: 20px;
-            background: #f8f9fa;
+        /* بخش تصاویر */
+        .image-box {
+            border: 2px dashed #ccc; padding: 15px; border-radius: 8px;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 15px;
         }
-        .upload-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        .upload-card {
-            background: #fff; border: 1px solid #e0e0e0; border-radius: 8px;
-            padding: 15px; text-align: center; cursor: pointer; transition: 0.2s;
+        .img-btn {
+            background: #ecf0f1; border: 1px solid #bdc3c7;
+            padding: 20px; text-align: center; cursor: pointer; border-radius: 5px;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        .upload-card:hover { border-color: var(--accent); background: #f0f8ff; }
+        .img-preview { max-width: 100%; height: 80px; object-fit: contain; margin-top: 10px; display: none; }
         
-        /* پیش‌نمایش تصویر برش خورده */
-        .cropped-preview { 
-            max-width: 100%; 
-            height: 120px; 
-            object-fit: contain; 
-            margin-top: 10px; 
-            display: none; 
-            border: 1px solid #ccc; 
-            border-radius: 4px; 
-            background: repeating-linear-gradient(45deg, #eee 0, #eee 10px, #fff 10px, #fff 20px);
-        }
-        
-        .img-controls {
-            display: flex; gap: 20px; align-items: center; flex-wrap: wrap;
-            border-top: 1px solid #e0e0e0; padding-top: 15px;
-        }
-        .radio-group { display: flex; gap: 15px; background: #fff; padding: 5px 15px; border-radius: 20px; border: 1px solid #ddd; }
-        .radio-label { cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; gap: 5px; }
-        .slider-wrapper { flex-grow: 1; display: flex; align-items: center; gap: 10px; }
-        input[type="range"] { flex-grow: 1; accent-color: var(--accent); cursor: pointer; }
+        .controls { margin-top: 15px; display: flex; align-items: center; gap: 20px; }
+        .radio-group label { margin-left: 15px; cursor: pointer; }
+        .range-group { flex: 1; display: flex; align-items: center; gap: 10px; }
+        input[type="range"] { flex: 1; }
 
-        /* مودال برش تصویر */
-        .cropper-modal {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.85); 
-            display: none; align-items: center; justify-content: center; z-index: 2000; 
-        }
-        .cropper-container-box {
-            background: #fff; width: 90%; max-width: 800px; height: 90%; max-height: 600px;
-            border-radius: 10px; overflow: hidden; display: flex; flex-direction: column;
-        }
-        .cropper-body { flex-grow: 1; background: #333; position: relative; }
-        .cropper-footer {
-            padding: 15px; background: #fff; display: flex; justify-content: space-between; gap: 10px;
-        }
-        /* تصویر خام داخل کراپ */
-        #rawImage { max-width: 100%; display: block; }
-
-        /* امنیت و دکمه ها */
-        .security-box {
-            background: #fffde7; border: 1px solid #fff59d; padding: 15px; border-radius: 8px;
-            display: flex; align-items: center; gap: 15px; margin-bottom: 20px;
-        }
-        .captcha-text { font-weight: bold; font-size: 1.2rem; letter-spacing: 2px; }
-        .captcha-inp { width: 80px; text-align: center; }
-
+        /* دکمه‌ها */
         .btn {
-            width: 100%; padding: 16px; border: none; border-radius: 8px;
-            font-size: 1.1rem; font-weight: bold; color: #fff; cursor: pointer;
-            transition: 0.3s; display: flex; justify-content: center; align-items: center; gap: 10px;
+            width: 100%; padding: 15px; border: none; border-radius: 5px;
+            font-size: 1rem; cursor: pointer; color: #fff; font-weight: bold; margin-top: 10px;
         }
         .btn-submit { background: var(--primary); }
-        .btn-submit:hover { background: #1a252f; transform: translateY(-2px); }
-        .btn-crop-confirm { background: var(--success); width: auto; min-width: 120px; }
-        .btn-crop-cancel { background: var(--danger); background-color: #c0392b; width: auto; min-width: 120px; }
-        .btn-download { background: var(--success); margin-top: 20px; }
-        .btn-download:hover { background: #1e8449; }
-        
-        .loading-spinner {
-            width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3);
-            border-top-color: #fff; border-radius: 50%; animation: spin 1s infinite linear;
-            display: none;
+        .btn-dl { background: #27ae60; display: none; margin-top: 20px; }
+        .btn:disabled { opacity: 0.7; cursor: wait; }
+
+        /* ناحیه پیش نمایش */
+        #previewArea { display: none; margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px; }
+        #sheetsContainer { background: #555; padding: 20px; overflow-x: auto; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+
+        /* مدال برش تصویر */
+        .crop-modal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000;
+            display: none; align-items: center; justify-content: center;
         }
-        .loading .loading-spinner { display: block; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .crop-content { background: #fff; padding: 15px; width: 90%; max-width: 500px; border-radius: 8px; }
+        .crop-img-container { height: 300px; background: #eee; overflow: hidden; }
+        .crop-img-container img { max-width: 100%; }
+        .crop-btns { margin-top: 15px; display: flex; gap: 10px; }
+        .btn-crop { flex: 1; padding: 10px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-cancel { flex: 1; padding: 10px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; }
 
-        #msgBox { text-align: center; padding: 15px; margin-top: 20px; border-radius: 8px; display: none; font-weight: bold; }
-        .success-msg { background: #d4efdf; color: #145a32; }
-        .error-msg { background: #fadbd8; color: #78281f; }
-
-        /* ناحیه نمایش نهایی */
-        #finalArea { display: none; margin-top: 50px; border-top: 3px double #ccc; padding-top: 30px; }
-        #previewWrapper { background: #525659; padding: 25px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; gap: 25px; overflow-x: auto; }
-
-        /* --- استایل کاغذ A5 --- */
+        /* استایل کاغذ A5 - دقیق */
         .sheet {
-            width: 148mm;
-            height: 210mm;
-            background: #fff;
-            padding: 10mm;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.4);
-            position: relative;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            flex-shrink: 0;
-            direction: rtl;
+            width: 148mm; height: 210mm;
+            background: #fff; padding: 10mm;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            position: relative; box-sizing: border-box;
+            display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0;
         }
         .sheet * { font-family: 'Amiri', serif; color: #000; line-height: 1.6; }
 
-        .letter-head { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px; }
-        .head-col { flex: 1; display: flex; flex-direction: column; justify-content: center; }
-        .head-right { text-align: right; font-size: 11px; }
-        .head-center { text-align: center; flex: 1.5; font-weight: bold; font-size: 16px; }
-        .head-left { text-align: left; font-size: 11px; }
+        .header { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 10px; }
+        .col { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+        .right { text-align: right; font-size: 11px; }
+        .center { text-align: center; flex: 1.5; font-weight: bold; font-size: 16px; }
+        .left { text-align: left; font-size: 11px; }
 
-        .letter-content { flex-grow: 1; display: flex; flex-direction: column; font-size: 14px; }
+        .body { flex-grow: 1; display: flex; flex-direction: column; font-size: 14px; }
         
-        /* تراز متن به صورت Justify */
-        .text-body {
-            text-align: justify;
+        .letter-txt {
+            text-align: justify; /* تراز کامل */
             text-justify: inter-word;
-            white-space: pre-wrap;
             margin-bottom: 15px;
+            white-space: pre-wrap;
         }
 
-        /* تصاویر داخل نامه */
-        .images-container {
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            margin: 10px 0;
-            width: 100%;
-        }
-        .images-container.vertical { flex-direction: column; gap: 15px; align-items: center; }
-        .images-container.horizontal { flex-direction: row; gap: 15px; }
+        .img-container { display: flex; justify-content: center; align-items: flex-start; margin: 10px 0; }
+        .img-container.vertical { flex-direction: column; align-items: center; gap: 15px; }
+        .img-container.horizontal { flex-direction: row; gap: 15px; }
+        
+        .final-img { border-radius: 4px; object-fit: contain; height: auto !important; }
 
-        .letter-img {
-            display: block;
-            border-radius: 4px;
-            object-fit: contain;
-            max-height: 90mm; /* ارتفاع مجاز */
-            height: auto !important;
-        }
-
-        /* بخش امضا - فقط متن */
-        .signature-section { margin-top: auto; text-align: center; padding-top: 30px; }
-        .sig-text { font-weight: bold; font-size: 14px; margin-bottom: 5px; }
-
-        /* مدال پایان */
-        .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
-        .modal-box { background: #fff; padding: 30px; border-radius: 15px; width: 90%; max-width: 400px; text-align: center; }
-        .modal-btn-row { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
-        .modal-btn { padding: 12px; border-radius: 8px; text-decoration: none; color: white; font-weight: bold; display: block; cursor: pointer; }
-
-        #renderCanvas { position: fixed; left: -9999px; top: 0; }
+        .footer { margin-top: auto; text-align: center; padding-top: 20px; }
+        .sign-text { font-weight: bold; font-size: 12px; margin-bottom: 5px; }
+        
+        #msg { padding: 10px; margin-top: 10px; text-align: center; display: none; border-radius: 5px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>سامانه صدور مکاتبات (با ابزار برش)</h2>
-    
-    <form id="appForm">
-        <h3>۱. مشخصات نامه</h3>
-        <div class="form-row">
-            <div class="form-group">
-                <input type="text" id="dept" class="form-input" required placeholder=" ">
-                <label class="floating-label">گیرنده (اداره/شخص)</label>
-            </div>
-            <div class="form-group">
-                <input type="text" id="subj" class="form-input" required placeholder=" ">
-                <label class="floating-label">موضوع نامه</label>
-            </div>
-        </div>
-        <div class="form-group">
-            <textarea id="txt" class="form-input" required placeholder=" "></textarea>
-            <label class="floating-label">متن اصلی نامه</label>
-        </div>
+    <h2>سامانه مکاتبات</h2>
+    <form id="form">
+        <div class="form-group"><label class="form-label">اداره / گیرنده</label><input type="text" id="dept" class="form-input" required></div>
+        <div class="form-group"><label class="form-label">موضوع</label><input type="text" id="subj" class="form-input" required></div>
+        <div class="form-group"><label class="form-label">متن نامه</label><textarea id="txt" class="form-input" required></textarea></div>
 
-        <h3>۲. تصاویر (با قابلیت برش)</h3>
-        <div class="image-manager">
-            <div class="upload-grid">
-                <!-- تصویر اول -->
-                <div class="upload-card">
-                    <span>➕ انتخاب تصویر اول</span>
-                    <input type="file" id="file1" accept="image/*" style="display:none;" onchange="initCrop(this, 1)">
-                    <button type="button" onclick="document.getElementById('file1').click()" style="margin-top:5px; cursor:pointer;">آپلود</button>
-                    <img id="prev1" class="cropped-preview">
-                </div>
-                <!-- تصویر دوم -->
-                <div class="upload-card">
-                    <span>➕ انتخاب تصویر دوم</span>
-                    <input type="file" id="file2" accept="image/*" style="display:none;" onchange="initCrop(this, 2)">
-                    <button type="button" onclick="document.getElementById('file2').click()" style="margin-top:5px; cursor:pointer;">آپلود</button>
-                    <img id="prev2" class="cropped-preview">
-                </div>
+        <h3>تصاویر (با قابلیت برش)</h3>
+        <div class="image-box">
+            <div class="img-btn" onclick="openCrop('img1')">
+                <span>انتخاب تصویر ۱</span>
+                <img id="prev1" class="img-preview">
             </div>
-            <div class="img-controls">
-                <div class="radio-group">
-                    <label class="radio-label"><input type="radio" name="layout" value="vertical" checked> عمودی (زیر هم)</label>
-                    <label class="radio-label"><input type="radio" name="layout" value="horizontal"> افقی (کنار هم)</label>
-                </div>
-                <div class="slider-wrapper">
-                    <label>سایز:</label>
-                    <input type="range" id="imgScale" min="20" max="100" value="80" oninput="document.getElementById('scaleVal').innerText=this.value+'%'">
-                    <span id="scaleVal" style="font-weight:bold; color:var(--accent);">80%</span>
-                </div>
+            <div class="img-btn" onclick="openCrop('img2')">
+                <span>انتخاب تصویر ۲</span>
+                <img id="prev2" class="img-preview">
+            </div>
+        </div>
+        <input type="file" id="fileInput" accept="image/*" hidden>
+
+        <div class="controls">
+            <div class="radio-group">
+                <label><input type="radio" name="layout" value="vertical" checked> عمودی</label>
+                <label><input type="radio" name="layout" value="horizontal"> افقی</label>
+            </div>
+            <div class="range-group">
+                <label>سایز:</label>
+                <input type="range" id="scale" min="20" max="100" value="80" oninput="document.getElementById('sv').innerText=this.value+'%'">
+                <span id="sv">80%</span>
             </div>
         </div>
 
-        <h3>۳. پیوست (در صورت نیاز)</h3>
-        <div class="form-group">
-            <textarea id="attach" class="form-input" placeholder=" "></textarea>
-            <label class="floating-label">متن پیوست (صفحه دوم)</label>
-        </div>
+        <h3>پیوست و تایید</h3>
+        <div class="form-group"><label class="form-label">متن پیوست</label><textarea id="attach" class="form-input"></textarea></div>
+        <div class="form-group"><label class="form-label">کد تایید مدیرعامل</label><input type="password" id="code" class="form-input" inputmode="numeric" required></div>
 
-        <h3>۴. تایید و امنیت</h3>
-        <div class="security-box">
-            <span>تست امنیتی:</span>
-            <span id="mathQ" class="captcha-text">...</span>
-            <input type="number" id="mathAns" class="form-input captcha-inp" placeholder="؟" required>
-        </div>
-        <div class="form-group">
-            <input type="password" id="passCode" class="form-input" inputmode="numeric" placeholder=" " required>
-            <label class="floating-label">کد تایید مدیرعامل</label>
-        </div>
-
-        <button type="submit" id="submitBtn" class="btn btn-submit">
-            <span class="loading-spinner"></span>
-            تولید و ثبت نهایی نامه
-        </button>
+        <button type="submit" id="btnGen" class="btn btn-submit">تولید نامه</button>
     </form>
 
-    <div id="msgBox"></div>
+    <div id="msg"></div>
 
-    <div id="finalArea">
-        <h3 style="text-align:center; color:#fff;">پیش‌نمایش چاپ</h3>
-        <div id="previewWrapper"></div>
-        <button id="downloadPdfBtn" class="btn btn-download">
-            <span class="loading-spinner"></span>
-            دانلود فایل PDF (کیفیت بالا)
-        </button>
+    <div id="previewArea">
+        <div id="sheetsContainer"></div>
+        <button id="btnDl" class="btn btn-dl" onclick="downloadPDF()">دانلود PDF</button>
     </div>
 </div>
 
-<!-- مودال برش تصویر -->
-<div id="cropperModal" class="cropper-modal">
-    <div class="cropper-container-box">
-        <div class="cropper-body">
-            <img id="rawImage" src="">
+<!-- مدال برش -->
+<div id="cropModal" class="crop-modal">
+    <div class="crop-content">
+        <h4>برش تصویر</h4>
+        <div class="crop-img-container">
+            <img id="cropImageSrc">
         </div>
-        <div class="cropper-footer">
-            <button type="button" class="btn btn-crop-cancel" onclick="closeCropper()">انصراف</button>
-            <button type="button" class="btn btn-crop-confirm" onclick="applyCrop()">تایید برش</button>
+        <div class="crop-btns">
+            <button class="btn-crop" onclick="cropAndSave()">تایید و برش</button>
+            <button class="btn-cancel" onclick="closeModal()">انصراف</button>
         </div>
     </div>
 </div>
 
-<div id="renderCanvas"></div>
-
-<!-- مدال پایان -->
-<div id="endModal" class="modal-bg">
-    <div class="modal-box">
-        <h3 style="color:var(--success);">موفقیت‌آمیز!</h3>
-        <p>فایل PDF شما آماده شد.</p>
-        <div class="modal-btn-row">
-            <a id="linkView" class="modal-btn" style="background:var(--success);" target="_blank">مشاهده فایل</a>
-            <a id="linkShare" class="modal-btn" style="background:var(--accent);">ارسال فایل</a>
-            <a onclick="document.getElementById('endModal').style.display='none'" class="modal-btn" style="background:#7f8c8d;">بستن</a>
-        </div>
-    </div>
-</div>
+<!-- رندر مخفی -->
+<div id="render" style="position:fixed; left:-9999px;"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
 <script>
-    // **********************************************
-    // آدرس اسکریپت گوگل خود را اینجا قرار دهید:
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzrJh6FWkNjydhbSUwXgXy9Etobnbs0hTq7LRkVWj9zC-2I2uOXqPyDXn159t5vcZoWlg/exec";
-    // **********************************************
-
-    let croppedImages = { 1: null, 2: null };
-    let activeCropIndex = 0;
-    let cropperInstance = null;
-    let captchaSum = 0;
-    let finalPdfBlob = null;
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzrJh6FWkNjydhbSUwXgXy9Etobnbs0hTq7LRkVWj9zC-2I2uOXqPyDXn159t5vcZoWlg/exec";
+    
+    let images = { img1: null, img2: null };
+    let currentCropTarget = null;
+    let cropper = null;
     let letterData = {};
 
-    // توابع اولیه
-    function initMath() {
-        let n1 = Math.floor(Math.random()*9)+1;
-        let n2 = Math.floor(Math.random()*9)+1;
-        captchaSum = n1 + n2;
-        document.getElementById('mathQ').innerText = `${n1} + ${n2} = ؟`;
-        document.getElementById('mathAns').value = '';
+    // مدیریت برش تصویر
+    const fileInput = document.getElementById('fileInput');
+    const modal = document.getElementById('cropModal');
+    const imageSrc = document.getElementById('cropImageSrc');
+
+    function openCrop(target) {
+        currentCropTarget = target;
+        fileInput.value = '';
+        fileInput.click();
     }
-    initMath();
 
-    // ---- مدیریت برش تصویر (Cropper) ----
-    function initCrop(input, index) {
-        if (input.files && input.files[0]) {
-            const file = input.files[0];
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
             const reader = new FileReader();
-            
-            reader.onload = function(e) {
-                // باز کردن مودال
-                const modal = document.getElementById('cropperModal');
-                const rawImg = document.getElementById('rawImage');
-                
-                rawImg.src = e.target.result;
+            reader.onload = (e) => {
+                imageSrc.src = e.target.result;
                 modal.style.display = 'flex';
-                activeCropIndex = index;
-
-                // اگر از قبل نمونه‌ای هست نابود کن
-                if (cropperInstance) {
-                    cropperInstance.destroy();
-                }
-
-                // ایجاد نمونه جدید Cropper
-                cropperInstance = new Cropper(rawImg, {
-                    viewMode: 1,
-                    autoCropArea: 0.9,
-                    responsive: true,
-                    restore: false,
-                });
-                
-                // ریست کردن اینپوت فایل برای انتخاب مجدد همان فایل در صورت نیاز
-                input.value = ''; 
+                if (cropper) cropper.destroy();
+                cropper = new Cropper(imageSrc, { viewMode: 1 });
             };
-            
             reader.readAsDataURL(file);
         }
+    });
+
+    function cropAndSave() {
+        if (!cropper) return;
+        const canvas = cropper.getCroppedCanvas();
+        const croppedData = canvas.toDataURL('image/jpeg');
+        
+        images[currentCropTarget] = croppedData;
+        const prev = document.getElementById(currentCropTarget === 'img1' ? 'prev1' : 'prev2');
+        prev.src = croppedData;
+        prev.style.display = 'block';
+        
+        closeModal();
     }
 
-    function applyCrop() {
-        if (!cropperInstance) return;
-
-        // گرفتن خروجی برش خورده
-        const canvas = cropperInstance.getCroppedCanvas();
-        if (canvas) {
-            const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.9); // کیفیت 90 درصد
-            
-            // ذخیره
-            croppedImages[activeCropIndex] = croppedDataUrl;
-            
-            // نمایش پیش نمایش کوچک
-            const previewImg = document.getElementById(`prev${activeCropIndex}`);
-            previewImg.src = croppedDataUrl;
-            previewImg.style.display = 'block';
-        }
-        closeCropper();
+    function closeModal() {
+        modal.style.display = 'none';
+        if (cropper) cropper.destroy();
     }
 
-    function closeCropper() {
-        document.getElementById('cropperModal').style.display = 'none';
-        if (cropperInstance) {
-            cropperInstance.destroy();
-            cropperInstance = null;
-        }
-        document.getElementById('rawImage').src = "";
-    }
-    // ----------------------------------------
+    function toFa(s) { return String(s).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]); }
+    function toEn(s) { return String(s).replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)); }
 
-    function toPersian(s) { return String(s).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]); }
-    function toEnglish(s) { return String(s).replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)); }
-
-    // ساخت برگه نامه
-    function createSheetHTML(data, isPage2) {
+    function createSheet(data, isAttach) {
         const div = document.createElement('div');
         div.className = 'sheet';
 
-        const title = isPage2 ? "پیوست نامه" : "بسمه تعالی";
-        const bodyTxt = isPage2 ? data.attach : data.txt;
+        const title = isAttach ? "پیوست نامه" : "بسمه تعالی";
+        const body = isAttach ? data.attach : data.txt;
         
-        // تصاویر (فقط اگر برش خورده باشند استفاده میشوند)
-        let imgBlock = '';
-        if(!isPage2 && (croppedImages[1] || croppedImages[2])) {
+        let imgHtml = '';
+        if (!isAttach && (images.img1 || images.img2)) {
             const layout = document.querySelector('input[name="layout"]:checked').value;
-            const size = document.getElementById('imgScale').value;
-            
-            // محاسبه عرض: افقی=نصف سایز، عمودی=کل سایز
-            const wVal = layout === 'vertical' ? `${size}%` : `${Math.min(size, 48)}%`;
+            const size = document.getElementById('scale').value;
+            // محاسبه عرض: در افقی ماکسیمم ۴۸ درصد
+            const w = layout === 'vertical' ? `${size}%` : `${Math.min(size, 48)}%`;
             
             let imgs = '';
-            if(croppedImages[1]) imgs += `<img src="${croppedImages[1]}" class="letter-img" style="width:${wVal}">`;
-            if(croppedImages[2]) imgs += `<img src="${croppedImages[2]}" class="letter-img" style="width:${wVal}">`;
+            if (images.img1) imgs += `<img src="${images.img1}" class="final-img" style="width:${w}">`;
+            if (images.img2) imgs += `<img src="${images.img2}" class="final-img" style="width:${w}">`;
             
-            imgBlock = `<div class="images-container ${layout}">${imgs}</div>`;
+            imgHtml = `<div class="img-container ${layout}">${imgs}</div>`;
         }
 
         div.innerHTML = `
-            <div class="letter-head">
-                <div class="head-col head-right">
+            <div class="header">
+                <div class="col right">
                     <p>تلفن: ۰۹۱۳۵۰۷۶۵۸۷</p>
                     <p>آدرس: جیرفت، خ استقلال</p>
                 </div>
-                <div class="head-col head-center">
+                <div class="col center">
                     <p>مؤسسه تعالی اندیشه و رشد</p>
-                    <p style="font-size:11px; font-weight:normal;">شناسه ملی: ۱۴۰۱۳۷۷۰۶۱۱</p>
+                    <p style="font-size:11px; font-weight:normal;">شناسه: ۱۴۰۱۳۷۷۰۶۱۱</p>
                 </div>
-                <div class="head-col head-left">
-                    <p>شماره: ${toPersian(data.num)}</p>
-                    <p>تاریخ: ${toPersian(data.date)}</p>
+                <div class="col left">
+                    <p>شماره: ${toFa(data.num)}</p>
+                    <p>تاریخ: ${toFa(data.date)}</p>
                 </div>
             </div>
-            
-            <div class="letter-content">
-                <p style="text-align:center; font-weight:bold; margin-bottom:15px;">${title}</p>
-                ${!isPage2 ? `<p style="font-weight:bold; margin-bottom:5px;">ریاست محترم ${data.dept}</p>` : ''}
+            <div class="body">
+                <p style="text-align:center; font-weight:bold; margin-bottom:10px;">${title}</p>
+                ${!isAttach ? `<p style="font-weight:bold;">گیرنده: ${data.dept}</p>` : ''}
                 <p style="margin-bottom:15px;">موضوع: ${data.subj}</p>
-                
-                <div class="text-body">${bodyTxt.replace(/\n/g, '<br>')}</div>
-                ${imgBlock}
+                <div class="letter-txt">${body.replace(/\n/g, '<br>')}</div>
+                ${imgHtml}
             </div>
-
-            <div class="signature-section">
-                <p class="sig-text">امضاء</p>
-                <p class="sig-text">مدیرعامل مؤسسه تعالی اندیشه و رشد</p>
+            <div class="footer">
+                <p class="sign-text">امضاء</p>
+                <p class="sign-text">مدیرعامل مؤسسه تعالی اندیشه و رشد</p>
             </div>
         `;
         return div;
     }
 
-    // ارسال فرم
-    document.getElementById('appForm').addEventListener('submit', async (e) => {
+    document.getElementById('form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const msg = document.getElementById('msgBox');
-        const btn = document.getElementById('submitBtn');
+        const btn = document.getElementById('btnGen');
+        const msg = document.getElementById('msg');
         
-        // چک ریاضی
-        if(parseInt(toEnglish(document.getElementById('mathAns').value)) !== captchaSum) {
-            msg.textContent = "پاسخ سوال امنیتی اشتباه است.";
-            msg.className = 'error-msg'; msg.style.display = 'block';
-            initMath(); return;
-        }
-
-        msg.style.display = 'none';
-        btn.disabled = true; btn.classList.add('loading');
+        btn.disabled = true; msg.style.display = 'none';
 
         const now = new Date();
         const jDate = now.toLocaleDateString('fa-IR');
         const lNum = `${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}4`;
         
-        let imgState = "بدون تصویر";
-        if(croppedImages[1] && croppedImages[2]) imgState = "دو تصویر";
-        else if(croppedImages[1] || croppedImages[2]) imgState = "یک تصویر";
-
-        const formData = {
-            dept: document.getElementById('dept').value,
-            subj: document.getElementById('subj').value,
-            txt: document.getElementById('txt').value,
-            attach: document.getElementById('attach').value,
-            verificationCode: toEnglish(document.getElementById('passCode').value),
-            issueDate: toEnglish(jDate),
+        const payload = {
+            verificationCode: toEn(document.getElementById('code').value),
+            department: document.getElementById('dept').value,
+            subject: document.getElementById('subj').value,
+            letterText: document.getElementById('txt').value,
+            attachmentText: document.getElementById('attach').value,
+            issueDate: toEn(jDate),
             letterNumber: lNum,
-            imageStatus: imgState
-        };
-
-        const serverPayload = {
-            department: formData.dept,
-            subject: formData.subj,
-            letterText: formData.txt,
-            attachmentText: formData.attach,
-            verificationCode: formData.verificationCode,
-            issueDate: formData.issueDate,
-            letterNumber: formData.letterNumber,
-            imageStatus: formData.imageStatus
+            imageStatus: (images.img1 || images.img2) ? "تصویر دارد" : "بدون تصویر"
         };
 
         try {
-            const req = await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify(serverPayload) });
+            const req = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
             const res = await req.json();
 
-            if(res.status === 'success') {
-                msg.textContent = "اطلاعات ثبت شد. در حال ساخت PDF...";
-                msg.className = 'success-msg'; msg.style.display = 'block';
+            if (res.status === 'success') {
+                msg.innerText = "تولید شد."; msg.style.color = "green"; msg.style.display = "block";
                 
-                letterData = { ...formData, num: lNum, date: jDate };
+                letterData = { ...payload, num: lNum, date: jDate, txt: payload.letterText, attach: payload.attachmentText, dept: payload.department, subj: payload.subject };
                 
-                // رندر
-                const previewWrap = document.getElementById('previewWrapper');
-                const renderCan = document.getElementById('renderCanvas');
-                previewWrap.innerHTML = ''; renderCan.innerHTML = '';
+                const container = document.getElementById('sheetsContainer');
+                const render = document.getElementById('render');
+                container.innerHTML = ''; render.innerHTML = '';
 
-                const p1 = createSheetHTML(letterData, false);
-                previewWrap.appendChild(p1);
-                renderCan.appendChild(p1.cloneNode(true));
+                const p1 = createSheet(letterData, false);
+                container.appendChild(p1);
+                render.appendChild(p1.cloneNode(true));
 
-                if(formData.attach.trim()) {
-                    const p2 = createSheetHTML(letterData, true);
-                    previewWrap.appendChild(p2);
-                    renderCan.appendChild(p2.cloneNode(true));
+                if (payload.attachmentText.trim()) {
+                    const p2 = createSheet(letterData, true);
+                    container.appendChild(p2);
+                    render.appendChild(p2.cloneNode(true));
                 }
 
-                document.getElementById('appForm').style.display = 'none';
-                document.getElementById('finalArea').style.display = 'block';
-                
-                setTimeout(downloadPDF, 1000); // دانلود خودکار
+                document.getElementById('form').style.display = 'none';
+                document.getElementById('previewArea').style.display = 'block';
+                document.getElementById('btnDl').style.display = 'block';
+
             } else {
                 throw new Error(res.message);
             }
-        } catch(err) {
-            msg.textContent = err.message || "خطا در ارتباط با سرور";
-            msg.className = 'error-msg'; msg.style.display = 'block';
-            btn.disabled = false; btn.classList.remove('loading');
+        } catch (err) {
+            msg.innerText = "خطا: " + err.message; msg.style.color = "red"; msg.style.display = "block";
+            btn.disabled = false;
         }
     });
 
-    // تولید PDF
     async function downloadPDF() {
-        const dBtn = document.getElementById('downloadPdfBtn');
-        dBtn.disabled = true; dBtn.classList.add('loading');
+        const btn = document.getElementById('btnDl');
+        btn.innerText = "در حال ساخت..."; btn.disabled = true;
 
         const { jsPDF } = window.jspdf;
-        const sheets = document.querySelectorAll('#renderCanvas .sheet');
-        const pdf = new jsPDF({ format: 'a5', unit: 'mm', compress: true });
+        const sheets = document.querySelectorAll('#render .sheet');
+        const pdf = new jsPDF({ format: 'a5', unit: 'mm' });
 
-        for(let i=0; i<sheets.length; i++) {
-            if(i>0) pdf.addPage();
+        for (let i = 0; i < sheets.length; i++) {
+            if (i > 0) pdf.addPage();
             
-            const sheet = sheets[i];
-            
-            // تنظیمات رندر برای جلوگیری از بهم ریختگی فونت در حالت Justify
-            await html2canvas(sheet, {
-                scale: 3, // کیفیت بالا
+            // حل مشکل حروف فارسی در حالت Justify
+            await html2canvas(sheets[i], {
+                scale: 3,
                 useCORS: true,
-                logging: false,
-                onclone: (doc) => {
-                    // در اینجا مطمئن میشویم که تراز متن حفظ شود
-                    // اگر در مرورگر خاصی حروف جدا شد، scale بالا این را معمولا حل میکند
-                    // اما اگر باز هم مشکل بود، میتوان موقتا در اینجا text-align: right کرد
+                onclone: (cloned) => {
+                    // ترفند: برای جلوگیری از بهم ریختن حروف، موقع عکس گرفتن
+                    // متن را موقتا راست چین میکنیم اما با text-align-last: right
+                    // این بهترین حالت برای حفظ ظاهر است
+                    cloned.querySelectorAll('.letter-txt').forEach(el => {
+                        el.style.textAlign = 'right'; 
+                    });
                 }
             }).then(canvas => {
-                const imgData = canvas.toDataURL('image/jpeg', 0.95);
-                pdf.addImage(imgData, 'JPEG', 0, 0, 148, 210);
+                pdf.addImage(canvas.toDataURL('image/jpeg', 0.98), 'JPEG', 0, 0, 148, 210);
             });
         }
 
-        finalPdfBlob = pdf.output('blob');
-        const fName = `${letterData.subj}.pdf`;
-        
-        dBtn.disabled = false; dBtn.classList.remove('loading');
-        dBtn.onclick = () => pdf.save(fName);
-        
-        document.getElementById('endModal').style.display = 'flex';
+        pdf.save(`${letterData.subj}.pdf`);
+        btn.innerText = "دانلود PDF"; btn.disabled = false;
     }
-
-    document.getElementById('linkView').onclick = () => {
-        if(finalPdfBlob) window.open(URL.createObjectURL(finalPdfBlob));
-    };
-    document.getElementById('linkShare').onclick = async () => {
-        if(finalPdfBlob) {
-            const f = new File([finalPdfBlob], `${letterData.subj}.pdf`, {type:'application/pdf'});
-            if(navigator.canShare && navigator.canShare({files:[f]})) {
-                await navigator.share({files:[f], title: letterData.subj});
-            } else { alert('مرورگر شما قدیمی است'); }
-        }
-    };
 </script>
+
 </body>
 </html>
