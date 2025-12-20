@@ -1,16 +1,20 @@
-
+ 
 <!DOCTYPE html> 
 <html lang="fa">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سامانه جامع مکاتبات - نسخه نهایی</title>
+    <title>سامانه مکاتبات - نسخه حرفه‌ای برش تصویر</title>
     
     <!-- فونت‌ها -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- استایل و اسکریپت برش تصویر (Cropper.js) -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
     <style>
         :root {
@@ -85,7 +89,18 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
         .upload-card:hover { border-color: var(--accent); background: #f0f8ff; }
-        .preview-thumb { max-width: 100%; height: 100px; object-fit: contain; margin-top: 10px; display: none; border-radius: 4px; }
+        
+        /* پیش‌نمایش تصویر برش خورده */
+        .cropped-preview { 
+            max-width: 100%; 
+            height: 120px; 
+            object-fit: contain; 
+            margin-top: 10px; 
+            display: none; 
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+            background: repeating-linear-gradient(45deg, #eee 0, #eee 10px, #fff 10px, #fff 20px);
+        }
         
         .img-controls {
             display: flex; gap: 20px; align-items: center; flex-wrap: wrap;
@@ -96,7 +111,23 @@
         .slider-wrapper { flex-grow: 1; display: flex; align-items: center; gap: 10px; }
         input[type="range"] { flex-grow: 1; accent-color: var(--accent); cursor: pointer; }
 
-        /* سوال امنیتی */
+        /* مودال برش تصویر */
+        .cropper-modal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85); 
+            display: none; align-items: center; justify-content: center; z-index: 2000; 
+        }
+        .cropper-container-box {
+            background: #fff; width: 90%; max-width: 800px; height: 90%; max-height: 600px;
+            border-radius: 10px; overflow: hidden; display: flex; flex-direction: column;
+        }
+        .cropper-body { flex-grow: 1; background: #333; position: relative; }
+        .cropper-footer {
+            padding: 15px; background: #fff; display: flex; justify-content: space-between; gap: 10px;
+        }
+        /* تصویر خام داخل کراپ */
+        #rawImage { max-width: 100%; display: block; }
+
+        /* امنیت و دکمه ها */
         .security-box {
             background: #fffde7; border: 1px solid #fff59d; padding: 15px; border-radius: 8px;
             display: flex; align-items: center; gap: 15px; margin-bottom: 20px;
@@ -104,7 +135,6 @@
         .captcha-text { font-weight: bold; font-size: 1.2rem; letter-spacing: 2px; }
         .captcha-inp { width: 80px; text-align: center; }
 
-        /* دکمه‌ها */
         .btn {
             width: 100%; padding: 16px; border: none; border-radius: 8px;
             font-size: 1.1rem; font-weight: bold; color: #fff; cursor: pointer;
@@ -112,10 +142,11 @@
         }
         .btn-submit { background: var(--primary); }
         .btn-submit:hover { background: #1a252f; transform: translateY(-2px); }
+        .btn-crop-confirm { background: var(--success); width: auto; min-width: 120px; }
+        .btn-crop-cancel { background: var(--danger); background-color: #c0392b; width: auto; min-width: 120px; }
         .btn-download { background: var(--success); margin-top: 20px; }
         .btn-download:hover { background: #1e8449; }
-        .btn:disabled { background: #95a5a6; cursor: wait; transform: none; }
-
+        
         .loading-spinner {
             width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3);
             border-top-color: #fff; border-radius: 50%; animation: spin 1s infinite linear;
@@ -124,7 +155,6 @@
         .loading .loading-spinner { display: block; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* پیام سیستم */
         #msgBox { text-align: center; padding: 15px; margin-top: 20px; border-radius: 8px; display: none; font-weight: bold; }
         .success-msg { background: #d4efdf; color: #145a32; }
         .error-msg { background: #fadbd8; color: #78281f; }
@@ -133,7 +163,7 @@
         #finalArea { display: none; margin-top: 50px; border-top: 3px double #ccc; padding-top: 30px; }
         #previewWrapper { background: #525659; padding: 25px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; gap: 25px; overflow-x: auto; }
 
-        /* --- استایل کاغذ A5 (بسیار دقیق) --- */
+        /* --- استایل کاغذ A5 --- */
         .sheet {
             width: 148mm;
             height: 210mm;
@@ -157,15 +187,16 @@
         .head-left { text-align: left; font-size: 11px; }
 
         .letter-content { flex-grow: 1; display: flex; flex-direction: column; font-size: 14px; }
+        
+        /* تراز متن به صورت Justify */
         .text-body {
             text-align: justify;
             text-justify: inter-word;
-            text-align-last: right; /* مهم برای فارسی */
             white-space: pre-wrap;
             margin-bottom: 15px;
         }
 
-        /* استایل تصاویر داخل نامه */
+        /* تصاویر داخل نامه */
         .images-container {
             display: flex;
             justify-content: center;
@@ -179,48 +210,28 @@
         .letter-img {
             display: block;
             border-radius: 4px;
-            object-fit: contain; /* جلوگیری از دفرمه شدن */
-            max-height: 80mm; /* جلوگیری از خروج از صفحه */
-            height: auto !important; /* حفظ نسبت تصویر */
+            object-fit: contain;
+            max-height: 90mm; /* ارتفاع مجاز */
+            height: auto !important;
         }
 
-        /* استایل مهر و امضا (پیش‌فرض گرافیکی) */
-        .signature-section { margin-top: auto; text-align: center; padding-top: 15px; position: relative; }
-        
-        /* مهر گرافیکی با CSS (جایگزین تصویر اگر نباشد) */
-        .digital-stamp {
-            width: 120px; height: 120px;
-            border: 3px double #000080;
-            border-radius: 50%;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            margin: 5px auto;
-            color: #000080;
-            transform: rotate(-10deg);
-            opacity: 0.8;
-            font-size: 10px; font-weight: bold;
-            padding: 5px; text-align: center;
-        }
-        .digital-stamp span { display: block; }
-        
-        .real-sig-img {
-            width: 140px; height: auto; display: block; margin: 0 auto;
-            mix-blend-mode: multiply; /* حذف سفیدی پس زمینه */
-        }
+        /* بخش امضا - فقط متن */
+        .signature-section { margin-top: auto; text-align: center; padding-top: 30px; }
+        .sig-text { font-weight: bold; font-size: 14px; margin-bottom: 5px; }
 
-        /* مدال نهایی */
+        /* مدال پایان */
         .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
         .modal-box { background: #fff; padding: 30px; border-radius: 15px; width: 90%; max-width: 400px; text-align: center; }
         .modal-btn-row { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
         .modal-btn { padding: 12px; border-radius: 8px; text-decoration: none; color: white; font-weight: bold; display: block; cursor: pointer; }
 
-        /* برای چاپ */
         #renderCanvas { position: fixed; left: -9999px; top: 0; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>سامانه صدور مکاتبات امن</h2>
+    <h2>سامانه صدور مکاتبات (با ابزار برش)</h2>
     
     <form id="appForm">
         <h3>۱. مشخصات نامه</h3>
@@ -239,18 +250,22 @@
             <label class="floating-label">متن اصلی نامه</label>
         </div>
 
-        <h3>۲. تصاویر و مستندات</h3>
+        <h3>۲. تصاویر (با قابلیت برش)</h3>
         <div class="image-manager">
             <div class="upload-grid">
-                <div class="upload-card" onclick="document.getElementById('file1').click()">
-                    <span>➕ تصویر اول</span>
-                    <input type="file" id="file1" accept="image/*" hidden onchange="previewImage(this, 'prev1')">
-                    <img id="prev1" class="preview-thumb">
+                <!-- تصویر اول -->
+                <div class="upload-card">
+                    <span>➕ انتخاب تصویر اول</span>
+                    <input type="file" id="file1" accept="image/*" style="display:none;" onchange="initCrop(this, 1)">
+                    <button type="button" onclick="document.getElementById('file1').click()" style="margin-top:5px; cursor:pointer;">آپلود</button>
+                    <img id="prev1" class="cropped-preview">
                 </div>
-                <div class="upload-card" onclick="document.getElementById('file2').click()">
-                    <span>➕ تصویر دوم</span>
-                    <input type="file" id="file2" accept="image/*" hidden onchange="previewImage(this, 'prev2')">
-                    <img id="prev2" class="preview-thumb">
+                <!-- تصویر دوم -->
+                <div class="upload-card">
+                    <span>➕ انتخاب تصویر دوم</span>
+                    <input type="file" id="file2" accept="image/*" style="display:none;" onchange="initCrop(this, 2)">
+                    <button type="button" onclick="document.getElementById('file2').click()" style="margin-top:5px; cursor:pointer;">آپلود</button>
+                    <img id="prev2" class="cropped-preview">
                 </div>
             </div>
             <div class="img-controls">
@@ -296,8 +311,21 @@
         <div id="previewWrapper"></div>
         <button id="downloadPdfBtn" class="btn btn-download">
             <span class="loading-spinner"></span>
-            دانلود فایل PDF (کیفیت اصلی)
+            دانلود فایل PDF (کیفیت بالا)
         </button>
+    </div>
+</div>
+
+<!-- مودال برش تصویر -->
+<div id="cropperModal" class="cropper-modal">
+    <div class="cropper-container-box">
+        <div class="cropper-body">
+            <img id="rawImage" src="">
+        </div>
+        <div class="cropper-footer">
+            <button type="button" class="btn btn-crop-cancel" onclick="closeCropper()">انصراف</button>
+            <button type="button" class="btn btn-crop-confirm" onclick="applyCrop()">تایید برش</button>
+        </div>
     </div>
 </div>
 
@@ -321,15 +349,13 @@
 
 <script>
     // **********************************************
-    // 1. آدرس اسکریپت گوگل خود را اینجا قرار دهید:
+    // آدرس اسکریپت گوگل خود را اینجا قرار دهید:
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzrJh6FWkNjydhbSUwXgXy9Etobnbs0hTq7LRkVWj9zC-2I2uOXqPyDXn159t5vcZoWlg/exec";
-    
-    // 2. اگر عکس مهر را تبدیل به کد Base64 کردید، اینجا بگذارید.
-    // اگر خالی بماند، سیستم خودش یک مهر دیجیتال شیک تولید میکند.
-    const USER_SIGNATURE_BASE64 = ""; 
     // **********************************************
 
-    let uploadedImages = { f1: null, f2: null };
+    let croppedImages = { 1: null, 2: null };
+    let activeCropIndex = 0;
+    let cropperInstance = null;
     let captchaSum = 0;
     let finalPdfBlob = null;
     let letterData = {};
@@ -344,23 +370,70 @@
     }
     initMath();
 
-    function previewImage(input, imgId) {
-        const f = input.files[0];
-        const prev = document.getElementById(imgId);
-        const key = input.id; 
-        if(f) {
+    // ---- مدیریت برش تصویر (Cropper) ----
+    function initCrop(input, index) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
             const reader = new FileReader();
-            reader.onload = (e) => {
-                uploadedImages[key] = e.target.result;
-                prev.src = e.target.result;
-                prev.style.display = 'block';
+            
+            reader.onload = function(e) {
+                // باز کردن مودال
+                const modal = document.getElementById('cropperModal');
+                const rawImg = document.getElementById('rawImage');
+                
+                rawImg.src = e.target.result;
+                modal.style.display = 'flex';
+                activeCropIndex = index;
+
+                // اگر از قبل نمونه‌ای هست نابود کن
+                if (cropperInstance) {
+                    cropperInstance.destroy();
+                }
+
+                // ایجاد نمونه جدید Cropper
+                cropperInstance = new Cropper(rawImg, {
+                    viewMode: 1,
+                    autoCropArea: 0.9,
+                    responsive: true,
+                    restore: false,
+                });
+                
+                // ریست کردن اینپوت فایل برای انتخاب مجدد همان فایل در صورت نیاز
+                input.value = ''; 
             };
-            reader.readAsDataURL(f);
-        } else {
-            uploadedImages[key] = null;
-            prev.style.display = 'none';
+            
+            reader.readAsDataURL(file);
         }
     }
+
+    function applyCrop() {
+        if (!cropperInstance) return;
+
+        // گرفتن خروجی برش خورده
+        const canvas = cropperInstance.getCroppedCanvas();
+        if (canvas) {
+            const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.9); // کیفیت 90 درصد
+            
+            // ذخیره
+            croppedImages[activeCropIndex] = croppedDataUrl;
+            
+            // نمایش پیش نمایش کوچک
+            const previewImg = document.getElementById(`prev${activeCropIndex}`);
+            previewImg.src = croppedDataUrl;
+            previewImg.style.display = 'block';
+        }
+        closeCropper();
+    }
+
+    function closeCropper() {
+        document.getElementById('cropperModal').style.display = 'none';
+        if (cropperInstance) {
+            cropperInstance.destroy();
+            cropperInstance = null;
+        }
+        document.getElementById('rawImage').src = "";
+    }
+    // ----------------------------------------
 
     function toPersian(s) { return String(s).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]); }
     function toEnglish(s) { return String(s).replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)); }
@@ -373,36 +446,20 @@
         const title = isPage2 ? "پیوست نامه" : "بسمه تعالی";
         const bodyTxt = isPage2 ? data.attach : data.txt;
         
-        // تصاویر
+        // تصاویر (فقط اگر برش خورده باشند استفاده میشوند)
         let imgBlock = '';
-        if(!isPage2 && (uploadedImages.file1 || uploadedImages.file2)) {
+        if(!isPage2 && (croppedImages[1] || croppedImages[2])) {
             const layout = document.querySelector('input[name="layout"]:checked').value;
             const size = document.getElementById('imgScale').value;
             
-            // در حالت افقی، حداکثر 48% برای هر عکس تا کنار هم جا شوند
+            // محاسبه عرض: افقی=نصف سایز، عمودی=کل سایز
             const wVal = layout === 'vertical' ? `${size}%` : `${Math.min(size, 48)}%`;
             
             let imgs = '';
-            if(uploadedImages.file1) imgs += `<img src="${uploadedImages.file1}" class="letter-img" style="width:${wVal}">`;
-            if(uploadedImages.file2) imgs += `<img src="${uploadedImages.file2}" class="letter-img" style="width:${wVal}">`;
+            if(croppedImages[1]) imgs += `<img src="${croppedImages[1]}" class="letter-img" style="width:${wVal}">`;
+            if(croppedImages[2]) imgs += `<img src="${croppedImages[2]}" class="letter-img" style="width:${wVal}">`;
             
             imgBlock = `<div class="images-container ${layout}">${imgs}</div>`;
-        }
-
-        // امضا (یا عکس کاربر یا مهر سیستمی)
-        let sigHtml = '';
-        if(USER_SIGNATURE_BASE64.length > 50) {
-            sigHtml = `<img src="${USER_SIGNATURE_BASE64}" class="real-sig-img">`;
-        } else {
-            // مهر سیستمی گرافیکی
-            sigHtml = `
-                <div class="digital-stamp">
-                    <span>مؤسسه تعالی</span>
-                    <span>اندیشه و رشد</span>
-                    <span style="font-size:14px; margin:5px 0;">ثبت ۱۴۰۱</span>
-                    <span>امضاء دیجیتال</span>
-                </div>
-            `;
         }
 
         div.innerHTML = `
@@ -431,9 +488,8 @@
             </div>
 
             <div class="signature-section">
-                <p style="font-weight:bold; font-size:12px;">امضاء</p>
-                <p style="font-weight:bold; font-size:12px; margin-bottom:5px;">مدیرعامل مؤسسه تعالی اندیشه و رشد</p>
-                ${sigHtml}
+                <p class="sig-text">امضاء</p>
+                <p class="sig-text">مدیرعامل مؤسسه تعالی اندیشه و رشد</p>
             </div>
         `;
         return div;
@@ -460,8 +516,8 @@
         const lNum = `${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}4`;
         
         let imgState = "بدون تصویر";
-        if(uploadedImages.file1 && uploadedImages.file2) imgState = "دو تصویر";
-        else if(uploadedImages.file1 || uploadedImages.file2) imgState = "یک تصویر";
+        if(croppedImages[1] && croppedImages[2]) imgState = "دو تصویر";
+        else if(croppedImages[1] || croppedImages[2]) imgState = "یک تصویر";
 
         const formData = {
             dept: document.getElementById('dept').value,
@@ -524,7 +580,7 @@
         }
     });
 
-    // تولید PDF (با حل مشکل جدا شدن حروف)
+    // تولید PDF
     async function downloadPDF() {
         const dBtn = document.getElementById('downloadPdfBtn');
         dBtn.disabled = true; dBtn.classList.add('loading');
@@ -538,19 +594,15 @@
             
             const sheet = sheets[i];
             
-            // *** راه حل نهایی مشکل حروف فارسی ***
-            // استفاده از رویداد onclone برای تغییر استایل فقط در زمان عکس گرفتن
+            // تنظیمات رندر برای جلوگیری از بهم ریختگی فونت در حالت Justify
             await html2canvas(sheet, {
-                scale: 3,
+                scale: 3, // کیفیت بالا
                 useCORS: true,
                 logging: false,
-                onclone: (clonedDoc) => {
-                    // تغییر تراز متن به راست در نسخه کلون شده (برای جلوگیری از کشیدگی و جدا شدن حروف)
-                    const texts = clonedDoc.querySelectorAll('.text-body');
-                    texts.forEach(t => {
-                        t.style.textAlign = 'right';
-                        t.style.textJustify = 'auto';
-                    });
+                onclone: (doc) => {
+                    // در اینجا مطمئن میشویم که تراز متن حفظ شود
+                    // اگر در مرورگر خاصی حروف جدا شد، scale بالا این را معمولا حل میکند
+                    // اما اگر باز هم مشکل بود، میتوان موقتا در اینجا text-align: right کرد
                 }
             }).then(canvas => {
                 const imgData = canvas.toDataURL('image/jpeg', 0.95);
