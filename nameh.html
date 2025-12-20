@@ -567,7 +567,7 @@
         }
     });
 
-    // تابع اصلی تولید PDF
+    // تابع اصلی تولید PDF (اصلاح شده برای رفع مشکل نیم فاصله)
     async function downloadPDF() {
         const dBtn = document.getElementById('downloadPdfBtn');
         dBtn.disabled = true; dBtn.classList.add('loading');
@@ -581,20 +581,23 @@
             
             const sheet = sheets[i];
             
-            // *** رفع مشکل نیم‌فاصله و جدا شدن حروف ***
+            // *** اعمال تغییرات برای جلوگیری از جدا شدن حروف فارسی ***
             await html2canvas(sheet, {
                 scale: 3, // کیفیت بالا
                 useCORS: true,
                 onclone: (doc) => {
-                    // اعمال تنظیمات اجباری برای جلوگیری از شکستن کلمات
                     const texts = doc.querySelectorAll('.text-body');
                     texts.forEach(t => {
-                        t.style.letterSpacing = 'normal'; // حذف فاصله اضافی
-                        t.style.fontVariantLigatures = 'common-ligatures'; // اتصال حروف
-                        t.style.textRendering = 'geometricPrecision'; // دقت هندسی
-                        // ترفند نهایی: در برخی مرورگرها فقط راست‌چین مشکل را کامل حل میکند
-                        // اگر همچنان مشکل داشتید، خط زیر را فعال کنید:
-                        // t.style.textAlign = 'right'; 
+                        // 1. مهمترین خط: راست‌چین کردن متن در لحظه عکس گرفتن
+                        // این کار باعث می‌شود موتور رندر سعی نکند فاصله‌های غیرعادی ایجاد کند
+                        t.style.textAlign = 'right'; 
+                        t.style.textAlignLast = 'right';
+                        
+                        // 2. صفر کردن فاصله حروف
+                        t.style.letterSpacing = 'normal';
+                        
+                        // 3. تنظیمات فونت برای جلوگیری از شکستگی لیگاچرها
+                        t.style.fontVariantLigatures = 'no-common-ligatures'; 
                     });
                 }
             }).then(canvas => {
