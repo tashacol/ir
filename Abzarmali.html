@@ -1,4 +1,3 @@
-
 <!DOCTYPE html> 
 <html lang="fa" dir="rtl">
 <head>
@@ -1005,6 +1004,21 @@
             background: rgba(255,255,255,0.05);
             border-color: rgba(255,255,255,0.1);
         }
+        
+        /* Calc Mode Banner */
+        .calc-mode-banner {
+            background: linear-gradient(135deg, #d97706, #f59e0b);
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            display: none;
+            box-shadow: 0 5px 15px rgba(245, 158, 11, 0.3);
+            animation: pulse-yellow 2s infinite;
+        }
     </style>
 </head>
 <body>
@@ -1194,6 +1208,11 @@
 
     <!-- TAB 2: BUDGET -->
     <div id="view-budget" class="tab-pane">
+        <!-- Instruction 3: Calc Mode Banner -->
+        <div id="calcModeBanner" class="calc-mode-banner">
+            <i class="fas fa-calculator"></i> حالت محاسباتی فعال است (آزمایشی)
+        </div>
+
         <div class="glass-panel" style="text-align:center; padding: 25px;">
             <span style="color:var(--text-sec); font-size:0.95rem; font-weight:bold;">بودجه کل توزیع شده (خالص):</span>
             <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-top:5px;">
@@ -1203,6 +1222,10 @@
             <p style="font-size:0.75rem; color:var(--warning); margin-top:5px;">(موجودی کیف پول‌های اقساط و بدهی در اینجا محاسبه نمی‌شود)</p>
             <button id="btnDistribute" class="btn btn-primary" style="margin-top:20px; width:100%; display:none; justify-content:center;" onclick="triggerDistribution()">
                 <i class="fas fa-sync-alt"></i> توزیع موجودی جدید
+            </button>
+            <!-- Instruction 3: Calculation Mode Button -->
+            <button id="btnCalcMode" class="btn btn-outline" style="margin-top:10px; width:100%; justify-content:center; border-style:dashed;" onclick="toggleCalculationMode()">
+                <i class="fas fa-calculator"></i> حالت توزیع محاسباتی
             </button>
         </div>
 
@@ -1401,7 +1424,7 @@
 <!-- GLOBAL HISTORY MODAL (Instruction 1: Redesigned) -->
 <div id="globalHistoryModal" class="modal">
     <div class="modal-content">
-        <h3>تاریخچه تراکنش‌ها</h3>
+        <h3>تاریخچه انتقال وجه</h3>
         <div class="search-bar">
             <input type="text" id="globalHistSearch" onkeyup="filterGlobalHistory()" placeholder="جستجو (شناسه، توضیحات)...">
             <i class="fas fa-search"></i>
@@ -2116,6 +2139,10 @@
     // Internal Transfer specific variable
     let tempInternalTargetName = "";
 
+    // Instruction 3: Calculation Mode Variables
+    let calculationModeActive = false;
+    let calculationBackup = null;
+
     async function googleApi(funcName, ...args) {
         const payload = { functionName: funcName, args: args };
         try {
@@ -2196,6 +2223,7 @@
     }
 
     function processDailyLog() {
+        if(calculationModeActive) return; // No logs in calc mode
         const today = new Date().toLocaleDateString('fa-IR');
         if(!app.dailyLogs) app.dailyLogs = [];
         const lastLog = app.dailyLogs.length > 0 ? app.dailyLogs[app.dailyLogs.length-1] : null;
@@ -2620,6 +2648,7 @@
 
     // Instruction 3: Refresh Data Function
     function refreshAppData() {
+        if(calculationModeActive) return alert("در حالت محاسباتی امکان بروزرسانی وجود ندارد.");
         toggleLoading(true);
         const natId = app.security.nationalId;
         const pass = app.security.password;
@@ -2732,6 +2761,7 @@
 
     // --- GLOBAL TRANSACTION LOGGING ---
     function logSystemTransaction(type, amount, from, to, desc) {
+        if(calculationModeActive) return; // No logging in simulation
         if(!app.transactionLog) app.transactionLog = [];
         app.transactionLog.unshift({
             id: Date.now() + Math.floor(Math.random() * 1000), // More unique
@@ -2754,12 +2784,12 @@
         openModal('globalHistoryModal');
     }
 
-    // Instruction 2: Fix Missing Transactions in Global History
+    // Instruction 1: Completely Redesigned for Transfer Only
     function filterGlobalHistory() {
         const query = document.getElementById('globalHistSearch').value.toLowerCase();
         const list = document.getElementById('globalHistoryList');
         
-        // 1. جمع‌آوری تمام تراکنش‌ها از منابع مختلف
+        // 1. جمع‌آوری تمام تراکنش‌ها
         let allTransactions = [];
 
         // الف) لاگ‌های سیستمی (موجود)
@@ -2767,40 +2797,17 @@
             allTransactions = allTransactions.concat(app.transactionLog.map(t => ({...t, source: 'system'})));
         }
 
-        // ب) تراکنش‌های بودجه (هزینه و واریز)
-        if (app.budgets) {
-            app.budgets.forEach(b => {
-                if (b.history) {
-                    b.history.forEach(h => {
-                        allTransactions.push({
-                            id: h.id || Date.now() + Math.random(),
-                            date: h.date,
-                            time: h.time,
-                            type: h.type, // expense, deposit, transferOut, transferIn
-                            amount: h.amount,
-                            desc: `${h.reason} (${b.name})`, // افزودن نام بودجه به توضیحات
-                            from: h.type === 'deposit' ? 'منبع خارجی' : b.name,
-                            to: h.type === 'expense' ? 'هزینه' : b.name,
-                            source: 'budget'
-                        });
-                    });
-                }
-            });
-        }
-
         // ج) انتقال‌های وجه به وجه (بانکی)
         if (app.transfers) {
             app.transfers.forEach(t => {
-                let type = t.type === 'incoming' ? 'deposit' : 'expense';
-                let desc = t.type === 'incoming' ? `دریافت از ${t.senderName || 'ناشناس'}` : `انتقال به ${t.destName || 'ناشناس'}`;
-                
+                // Bank transfers are definitely included
                 allTransactions.push({
                     id: t.id,
                     date: t.date,
-                    time: "00:00", // معمولاً در ترنسفرها ساعت دقیق نداریم مگر اینکه اضافه کرده باشید
-                    type: type,
+                    time: "00:00", 
+                    type: t.type === 'incoming' ? 'deposit' : 'transfer',
                     amount: t.amount,
-                    desc: desc,
+                    desc: t.type === 'incoming' ? `دریافت از ${t.senderName || 'ناشناس'}` : `انتقال به ${t.destName || 'ناشناس'}`,
                     from: t.type === 'incoming' ? t.senderName : 'کیف پول من',
                     to: t.type === 'incoming' ? 'کیف پول من' : t.destName,
                     source: 'transfer'
@@ -2808,14 +2815,19 @@
             });
         }
 
-        // 2. فیلتر کردن بر اساس جستجو
+        // 2. فیلتر کردن فقط برای انتقال وجه (Instruction 1 Strict Filter)
         const filtered = allTransactions.filter(t => {
-            const txt = (t.desc + " " + t.amount + " " + t.date + " " + t.from + " " + t.to).toLowerCase();
-            return txt.includes(query);
+            // فقط آیتم‌هایی که ذاتاً انتقال وجه هستند
+            // 'transfer' در لاگ سیستم = انتقال داخلی بین کیف پول‌ها
+            // source 'transfer' = تراکنش بانکی
+            // حذف هزینه‌های بودجه و واریزهای بودجه
+            const isTransferType = (t.source === 'transfer') || (t.type === 'transfer');
+            
+            const matchQuery = (t.desc + " " + t.amount + " " + t.date).toLowerCase().includes(query);
+            return isTransferType && matchQuery;
         });
 
         // 3. مرتب‌سازی بر اساس تاریخ و زمان (نزولی - جدیدترین اول)
-        // نکته: چون فرمت تاریخ شمسی است، مقایسه رشته‌ای معمولاً جواب می‌دهد (سال/ماه/روز)
         filtered.sort((a, b) => {
             const dateA = a.date + " " + a.time;
             const dateB = b.date + " " + b.time;
@@ -2824,7 +2836,7 @@
 
         // 4. نمایش در HTML
         if(filtered.length === 0) {
-            list.innerHTML = `<p style="text-align:center; padding:20px; color:var(--text-sec);">تراکنشی یافت نشد.</p>`;
+            list.innerHTML = `<p style="text-align:center; padding:20px; color:var(--text-sec);">هیچ تراکنش انتقال وجهی یافت نشد.</p>`;
             return;
         }
 
@@ -2842,13 +2854,6 @@
         html += filtered.map(t => {
             let iconClass = "ht-trf";
             let icon = "fa-exchange-alt";
-            // تشخیص نوع برای آیکون و رنگ
-            if(t.type === 'deposit' || t.type === 'incoming' || t.type === 'transferIn') { 
-                iconClass = "ht-inc"; icon = "fa-arrow-down"; 
-            }
-            if(t.type === 'expense' || t.type === 'outgoing' || t.type === 'transferOut') { 
-                iconClass = "ht-exp"; icon = "fa-arrow-up"; 
-            }
             
             // آماده‌سازی داده برای نمایش رسید (فقط فیلدهای ضروری)
             const receiptData = {
@@ -2867,7 +2872,7 @@
                 <td><div class="ht-icon ${iconClass}"><i class="fas ${icon}"></i></div></td>
                 <td>
                     <div style="font-weight:bold; font-size:0.85rem;">${t.desc}</div>
-                    <div style="font-size:0.7rem; color:var(--text-sec);">${t.source === 'budget' ? 'بودجه' : (t.source === 'transfer' ? 'بانکی' : 'سیستمی')}</div>
+                    <div style="font-size:0.7rem; color:var(--text-sec);">انتقال وجه</div>
                 </td>
                 <td class="ht-amount">${format(t.amount)}</td>
                 <td>
@@ -2922,8 +2927,6 @@
         document.getElementById('itSourceBalance').innerText = 'موجودی: ---';
         
         // Calculate Free Funds logic
-        // Logic: Total Money in Wallets - Money currently in Restricted Wallets (Debt/Check) - Money already allocated to Budgets (Manual Adds + Distributed %)
-        
         const income = app.wallets.reduce((a,b)=>a+b.value,0);
         const restrictedWallets = [CONST_WALLET_DEBT, CONST_WALLET_CHECK];
         const restrictedValue = app.wallets.filter(w => restrictedWallets.includes(w.name)).reduce((a,w) => a+w.value, 0);
@@ -2972,16 +2975,18 @@
         if (sourceWallet.value < amount) return alert("موجودی کیف پول مبدا کافی نیست.");
 
         // Condition 2: Not previously divided check (using Free Funds logic)
-        const income = app.wallets.reduce((a,b)=>a+b.value,0);
-        const restrictedWallets = [CONST_WALLET_DEBT, CONST_WALLET_CHECK];
-        const restrictedValue = app.wallets.filter(w => restrictedWallets.includes(w.name)).reduce((a,w) => a+w.value, 0);
-        const manualDeductions = app.budgets.reduce((a,b) => a + (b.manualAdd || 0), 0);
-        let distributableNet = income - restrictedValue - manualDeductions;
-        let freeFunds = distributableNet - app.distributedAmount;
-        
-        // This check ensures we aren't moving money that is already "claimed" by the budget distribution system
-        if (freeFunds < amount) {
-            return alert(`خطا: مبلغ وارد شده (${format(amount)}) بیشتر از مبلغ آزاد سیستم (${format(freeFunds)}) است. بخشی از این پول قبلاً در بودجه‌بندی توزیع شده است.`);
+        // In calculation mode, this check is less critical but we keep it for realism
+        if (!calculationModeActive) {
+            const income = app.wallets.reduce((a,b)=>a+b.value,0);
+            const restrictedWallets = [CONST_WALLET_DEBT, CONST_WALLET_CHECK];
+            const restrictedValue = app.wallets.filter(w => restrictedWallets.includes(w.name)).reduce((a,w) => a+w.value, 0);
+            const manualDeductions = app.budgets.reduce((a,b) => a + (b.manualAdd || 0), 0);
+            let distributableNet = income - restrictedValue - manualDeductions;
+            let freeFunds = distributableNet - app.distributedAmount;
+            
+            if (freeFunds < amount) {
+                return alert(`خطا: مبلغ وارد شده (${format(amount)}) بیشتر از مبلغ آزاد سیستم (${format(freeFunds)}) است.`);
+            }
         }
 
         // Execute Transfer
@@ -2994,7 +2999,9 @@
         saveData();
         renderUI();
         closeAllModals();
-        showToast("انتقال انجام شد");
+
+        // Instruction 2: Show Receipt immediately
+        showReceipt(true, amount, sourceWallet.name, app.user.name, targetWallet.name, "انتقال داخلی (شارژ کیف)", Date.now(), new Date().toLocaleTimeString('fa-IR'));
     }
 
 
@@ -3090,6 +3097,7 @@
     }
 
     function saveSectionSnap(section, description = "تغییر بدون توضیح") {
+        if(calculationModeActive) return; // No saving history in calc mode
         let snap = null;
         if(section === 'dashboard') {
             snap = JSON.stringify({ wallets: app.wallets, debts: app.debts, checks: app.checks, loans: app.loans });
@@ -3123,6 +3131,7 @@
     }
 
     function restoreSectionSnap(section, index) {
+        if(calculationModeActive) return alert("در حالت محاسباتی امکان بازیابی وجود ندارد.");
         if(!confirm("آیا مطمئن هستید؟ با این کار وضعیت به حالت انتخاب شده برمی‌گردد.")) return;
         withLoading(() => {
             const snap = JSON.parse(app.sectionHistory[section][index].data);
@@ -3269,27 +3278,10 @@
         document.getElementById(`trW_${idx}`).checked = true;
     }
 
-    function updateTransferTotal() {
-        const inputs = document.querySelectorAll('.wallet-deduct-input');
-        let total = 0;
-        inputs.forEach(inp => {
-            let val = inp.value.replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[^0-9]/g, '');
-            if(val) {
-                total += parseInt(val);
-                inp.value = parseInt(val).toLocaleString('en-US'); 
-            }
-        });
-
-        const req = app.wizardState.amount;
-        const el = document.getElementById('transferProgress');
-        el.innerText = `انتخاب شده: ${format(total)} / ${format(req)}`;
-        if(total === req) el.style.color = 'var(--success)';
-        else el.style.color = 'var(--danger)';
-    }
-
     function bankTransferCheckPin() {
         const pin = document.getElementById('btPinInput').value;
         if (pin !== app.security.password) return alert("رمز عبور اشتباه است!");
+        if (calculationModeActive) return alert("در حالت محاسباتی امکان انتقال وجه واقعی وجود ندارد.");
 
         toggleLoading(true);
         googleApi('apiInitiateTransfer', 
@@ -3303,11 +3295,13 @@
             toggleLoading(false);
             if(res.success) {
                 Object.assign(app, res.appData); 
-                
                 saveData(); 
                 renderUI();
                 closeAllModals();
-                showToast("انتقال انجام شد و در انتظار تایید گیرنده است.");
+                
+                // Instruction 2: Show Receipt immediately
+                showReceipt(true, app.wizardState.amount, "کیف پول شخصی", app.user.name, app.wizardState.destName, "انتقال وجه بانکی", res.txId || Date.now(), new Date().toLocaleTimeString('fa-IR'));
+                
             } else {
                 alert("خطا: " + res.message);
             }
@@ -3366,47 +3360,39 @@
     // Instruction 1: Fix Freeze on Download (Optimized)
     function downloadReceipt() {
         const el = document.getElementById('finalReceipt');
-        
-        // اطمینان از اینکه مودال باز است و المنت وجود دارد
         if (!el) {
             showToast("خطا: رسید یافت نشد", "exclamation-triangle");
             return;
         }
 
-        // نمایش لودینگ
         toggleLoading(true);
-
-        // استفاده از setTimeout برای جلوگیری از فریز شدن UI قبل از شروع رندر
         setTimeout(() => {
             html2canvas(el, { 
-                scale: 2, // کیفیت بهتر
-                useCORS: true, // حل مشکل آیکون‌ها و فونت‌های خارجی
-                logging: false, // غیرفعال کردن لاگ‌های اضافی
-                backgroundColor: '#ffffff' // اطمینان از پس‌زمینه سفید
+                scale: 2, 
+                useCORS: true, 
+                logging: false, 
+                backgroundColor: '#ffffff'
             }).then(canvas => {
                 try {
-                    // ایجاد لینک دانلود
                     const a = document.createElement('a');
                     a.download = `Receipt_${Date.now()}.png`;
                     a.href = canvas.toDataURL('image/png');
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
-                    
                     showToast("رسید با موفقیت ذخیره شد");
                 } catch (err) {
                     console.error("Save Error:", err);
                     alert("خطا در ذخیره فایل: " + err.message);
                 } finally {
-                    // * نکته کلیدی: حتماً لودینگ را خاموش کن *
                     toggleLoading(false);
                 }
             }).catch(err => {
                 console.error("Render Error:", err);
                 alert("خطا در ایجاد تصویر رسید: " + err.message);
-                toggleLoading(false); // در صورت خطا هم لودینگ خاموش شود
+                toggleLoading(false); 
             });
-        }, 100); // تاخیر 100 میلی‌ثانیه‌ای برای پایداری
+        }, 100); 
     }
 
     // --- OTHER UI LOGIC ---
@@ -3435,7 +3421,7 @@
 
             // دکمه‌های عملیات فقط برای گیرنده و زمانی که وضعیت pending_action است
             let actions = '';
-            if(isIncoming && t.status === 'pending_action') {
+            if(isIncoming && t.status === 'pending_action' && !calculationModeActive) {
                 actions = `
                   <div style="margin-top:10px; display:flex; gap:10px;">
                      <button class="btn btn-success" style="padding:6px 12px; font-size:0.8rem; width:100%" onclick="processTransfer('${t.id}', 'approve')">تایید و دریافت</button>
@@ -3463,7 +3449,6 @@
         let walletIdx = null;
         
         if (action === 'approve') {
-            // اگر تایید کرد، باید بپرسیم به کدام کیف پول واریز شود
             openUniversalInput("دریافت وجه", "واریز به کدام کیف پول؟", false, (val) => {
                 if(val === "new") walletIdx = 'new';
                 else walletIdx = parseInt(val);
@@ -3497,6 +3482,7 @@
     }
 
     function simulateIncomingTransfer() {
+        if(calculationModeActive) return alert("در حالت محاسباتی غیرفعال است.");
         const t = {
             id: Date.now(),
             type: 'incoming',
@@ -3513,41 +3499,6 @@
         showToast("درخواست دریافت ایجاد شد");
     }
 
-    function approveTransfer(id) {
-        const tIndex = app.transfers.findIndex(x => x.id === id);
-        if(tIndex === -1) return;
-
-        openUniversalInput("دریافت وجه", "واریز به کدام کیف پول؟", false, (val) => {
-            let wIdx;
-            if(val === "new") {
-                app.wallets.push({name: "دریافت وجه", value: 0});
-                wIdx = app.wallets.length - 1;
-            } else {
-                wIdx = parseInt(val);
-            }
-
-            app.transfers[tIndex].status = 'approved';
-            app.wallets[wIdx].value += app.transfers[tIndex].amount;
-            app.transfers[tIndex].details = `واریز به: ${app.wallets[wIdx].name}`;
-            logSystemTransaction('deposit', app.transfers[tIndex].amount, app.transfers[tIndex].senderName, app.wallets[wIdx].name, 'دریافت وجه');
-            saveData();
-            renderUI();
-            showToast("مبلغ به کیف پول افزوده شد");
-        }, true);
-    }
-
-    function rejectTransfer(id) {
-        const tIndex = app.transfers.findIndex(x => x.id === id);
-        if(tIndex === -1) return;
-
-        if(confirm("آیا این دریافت را رد می‌کنید؟")) {
-            app.transfers[tIndex].status = 'rejected';
-            saveData();
-            renderUI();
-            showToast("دریافت رد شد");
-        }
-    }
-
     // --- MAIN RENDER LOGIC (Modified Instruction 4) ---
     function renderUI() {
         applyTheme();
@@ -3562,7 +3513,6 @@
         if (!app.budgets || app.budgets.length === 0) {
             // بارگذاری قالب پیش‌فرض بدون پرسش از کاربر (چون بار اول است)
             app.budgets = JSON.parse(JSON.stringify(defaultState.budgets));
-            // ذخیره فوری تا در دفعات بعد هم بماند
             saveData();
         }
         // --------------------------------------------------------------
@@ -3574,7 +3524,7 @@
         const restrictedValue = app.wallets.filter(w => restrictedWallets.includes(w.name)).reduce((a,w) => a+w.value, 0);
         const manualDeductions = app.budgets.reduce((a,b) => a + (b.manualAdd || 0), 0);
         
-        let cardNet = income; // Card shows total assets
+        let cardNet = income; 
         
         // Distributable Calculation:
         let distributableNet = income - restrictedValue - manualDeductions;
@@ -3591,6 +3541,19 @@
         document.getElementById('settingsNatId').innerText = toPersianNum(app.security.nationalId) || 'کد ملی ثبت نشده';
 
         document.getElementById('cardAccountNumber').innerHTML = `<span id="accNumText">${getAccountNumber()}</span> <i class="fas fa-copy" style="font-size:1rem; cursor:pointer; opacity:0.8;" onclick="copyToClipboard(document.getElementById('accNumText').innerText)"></i>`;
+
+        // Instruction 3: Handle Calculation Mode UI
+        if(calculationModeActive) {
+            document.getElementById('calcModeBanner').style.display = 'block';
+            document.getElementById('btnCalcMode').innerHTML = '<i class="fas fa-times-circle"></i> بستن حالت محاسباتی';
+            document.getElementById('btnCalcMode').classList.remove('btn-outline');
+            document.getElementById('btnCalcMode').classList.add('btn-danger');
+        } else {
+            document.getElementById('calcModeBanner').style.display = 'none';
+            document.getElementById('btnCalcMode').innerHTML = '<i class="fas fa-calculator"></i> حالت توزیع محاسباتی';
+            document.getElementById('btnCalcMode').classList.remove('btn-danger');
+            document.getElementById('btnCalcMode').classList.add('btn-outline');
+        }
 
         renderWallets();
         renderDebts();
@@ -3875,6 +3838,7 @@
     }
 
     function paySpecificInstallment(debtIndex, dateStr, amount) {
+        if(calculationModeActive) return alert("در حالت محاسباتی امکان پرداخت وجود ندارد.");
         const debt = app.debts[debtIndex];
         const walletName = CONST_WALLET_DEBT;
         const walletIndex = app.wallets.findIndex(w => w.name === walletName);
@@ -3958,6 +3922,7 @@
     }
 
     function passCheck(i) {
+        if(calculationModeActive) return alert("در حالت محاسباتی امکان پرداخت وجود ندارد.");
         // Strict logic: Must pay from "Check Wallet"
         const check = app.checks[i];
         const walletName = CONST_WALLET_CHECK;
@@ -4037,6 +4002,7 @@
     }
 
     function receiveLoan(i) {
+        if(calculationModeActive) return alert("در حالت محاسباتی امکان وصول وجود ندارد.");
         if(confirm("آیا مبلغ قرض داده شده وصول شد؟")) {
             openUniversalInput(`وصول طلب ${app.loans[i].name}`, "واریز به کدام کیف پول؟", false, (val) => {
                 let wIdx;
@@ -4061,22 +4027,36 @@
     function renderBudgets(net) {
         const distributeBtn = document.getElementById('btnDistribute');
         const distributableDisplay = document.getElementById('distributable');
-
-        if(net !== app.distributedAmount) {
-            if (net > app.distributedAmount) {
-                const diff = net - app.distributedAmount;
-                distributeBtn.style.display = 'flex';
-                distributableDisplay.innerHTML = `<span style="color:var(--text-sec);">${format(app.distributedAmount)}</span> <span style="color:var(--success); font-size:0.9em; margin-right:5px;">(+${format(diff)})</span>`;
-            } else {
-                distributeBtn.style.display = 'flex';
-                distributableDisplay.style.color = 'var(--warning)';
-                distributableDisplay.innerText = format(app.distributedAmount) + " (کسری)";
-            }
+        
+        // Instruction 3: Calculation Mode Display Override
+        let baseAmount = app.distributedAmount;
+        let diff = 0;
+        
+        if (calculationModeActive) {
+             // In Calculation Mode, we pretend the input IS the base amount
+             distributableDisplay.innerText = format(app.distributedAmount);
+             distributableDisplay.style.color = 'var(--primary)';
+             distributeBtn.style.display = 'flex'; // Always show distribute in calc mode
+             distributeBtn.innerHTML = '<i class="fas fa-calculator"></i> محاسبه و توزیع (آزمایشی)';
         } else {
-            distributeBtn.style.display = 'none';
-            distributableDisplay.style.color = 'var(--primary)';
-            distributableDisplay.innerText = format(app.distributedAmount);
+             distributeBtn.innerHTML = '<i class="fas fa-sync-alt"></i> توزیع موجودی جدید';
+             if(net !== app.distributedAmount) {
+                if (net > app.distributedAmount) {
+                    diff = net - app.distributedAmount;
+                    distributeBtn.style.display = 'flex';
+                    distributableDisplay.innerHTML = `<span style="color:var(--text-sec);">${format(app.distributedAmount)}</span> <span style="color:var(--success); font-size:0.9em; margin-right:5px;">(+${format(diff)})</span>`;
+                } else {
+                    distributeBtn.style.display = 'flex';
+                    distributableDisplay.style.color = 'var(--warning)';
+                    distributableDisplay.innerText = format(app.distributedAmount) + " (کسری)";
+                }
+            } else {
+                distributeBtn.style.display = 'none';
+                distributableDisplay.style.color = 'var(--primary)';
+                distributableDisplay.innerText = format(app.distributedAmount);
+            }
         }
+
 
         const div = document.getElementById('budgetGrid');
         div.innerHTML = '';
@@ -4087,7 +4067,10 @@
         badge.innerText = toPersianNum(totalP) + '%';
         badge.style.background = totalP > 100 ? 'var(--danger)' : (totalP === 100 ? 'var(--success)' : 'var(--text-sec)');
 
-        const baseAmount = app.distributedAmount;
+        // In calc mode, we use the inputted amount as base. 
+        // In normal mode, we use app.distributedAmount.
+        // Actually, triggerDistribution in calc mode updates app.distributedAmount in memory, so logic is same.
+        
         const colors = ['#f87171', '#fbbf24', '#34d399', '#60a5fa', '#818cf8'];
 
         app.budgets.forEach((b, i) => {
@@ -4119,12 +4102,15 @@
                 subLegend = `<div class="sub-budget-legend">${legHtml}</div>`;
             }
 
+            // Disable actions in Calc Mode to prevent confusion
+            const disabledAttr = calculationModeActive ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : '';
+
             div.innerHTML += `<div class="bento-item ${status} ${pausedClass}">
                 <div class="bento-header">
-                    <span>${b.name} (${toPersianNum(b.percent)}%) ${b.isPaused ? '<small>(توقف)</small>' : ''} <i class="fas fa-edit" style="font-size:0.9rem; cursor:pointer; margin-right:5px; color:var(--text-sec);" onclick="openEdit('budget', ${i})"></i></span>
+                    <span>${b.name} (${toPersianNum(b.percent)}%) ${b.isPaused ? '<small>(توقف)</small>' : ''} <i class="fas fa-edit" style="font-size:0.9rem; cursor:pointer; margin-right:5px; color:var(--text-sec);" onclick="${calculationModeActive ? '' : `openEdit('budget', ${i})`}"></i></span>
                     <div style="display:flex; gap:8px;">
                         <i class="fas fa-list-alt" style="opacity:0.5; cursor:pointer;" onclick="openItemHistory(${i})" title="تاریخچه"></i>
-                        <i class="fas fa-trash" style="opacity:0.3; cursor:pointer;" onclick="delBudget(${i})"></i>
+                        <i class="fas fa-trash" style="opacity:0.3; cursor:pointer;" onclick="${calculationModeActive ? '' : `delBudget(${i})`}"></i>
                     </div>
                 </div>
                 <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-top:5px; color:var(--text-sec);">
@@ -4138,20 +4124,61 @@
                     ${format(remain)}
                 </div>
                 <div class="bento-actions">
-                    <button class="action-chip action-btn-exp" onclick="openExp(${i})" ${b.isPaused ? 'disabled' : ''}><i class="fas fa-minus-circle"></i> ثبت هزینه</button>
+                    <button class="action-chip action-btn-exp" onclick="openExp(${i})" ${b.isPaused || calculationModeActive ? 'disabled' : ''}><i class="fas fa-minus-circle"></i> ثبت هزینه</button>
                     <button class="action-chip action-btn-copy" onclick="copyTxt(${remain})"><i class="fas fa-copy"></i> کپی</button>
-                    <button class="action-chip action-btn-add" onclick="openDepositOptions(${i})"><i class="fas fa-plus-circle"></i> واریز</button>
-                    <button class="action-chip action-btn-transfer" onclick="openTransfer(${i})"><i class="fas fa-exchange-alt"></i> انتقال</button>
-                    <button class="action-chip action-btn-pause" onclick="togglePause(${i})">${b.isPaused ? '<i class="fas fa-play"></i> فعال' : '<i class="fas fa-pause"></i> توقف'}</button>
-                    <button class="action-chip action-btn-zero" onclick="zeroItem(${i})"><i class="fas fa-eraser"></i> تصفیه</button>
-                    <button class="action-chip action-btn-sub" onclick="openSubBudgetManager(${i})"><i class="fas fa-layer-group"></i> مدیریت زیرمجموعه</button>
+                    <button class="action-chip action-btn-add" onclick="openDepositOptions(${i})" ${disabledAttr}><i class="fas fa-plus-circle"></i> واریز</button>
+                    <button class="action-chip action-btn-transfer" onclick="openTransfer(${i})" ${disabledAttr}><i class="fas fa-exchange-alt"></i> انتقال</button>
+                    <button class="action-chip action-btn-pause" onclick="togglePause(${i})" ${disabledAttr}>${b.isPaused ? '<i class="fas fa-play"></i> فعال' : '<i class="fas fa-pause"></i> توقف'}</button>
+                    <button class="action-chip action-btn-zero" onclick="zeroItem(${i})" ${disabledAttr}><i class="fas fa-eraser"></i> تصفیه</button>
+                    <button class="action-chip action-btn-sub" onclick="openSubBudgetManager(${i})" ${disabledAttr}><i class="fas fa-layer-group"></i> مدیریت زیرمجموعه</button>
                 </div>
             </div>`;
         });
     }
 
+    // Instruction 3: Calculation Mode Logic
+    function toggleCalculationMode() {
+        if (!calculationModeActive) {
+            // Activate
+            openUniversalInput("حالت توزیع محاسباتی", "مبلغ مورد نظر برای محاسبه را وارد کنید:", true, (val) => {
+                if(val && !isNaN(val)) {
+                    calculationBackup = JSON.parse(JSON.stringify(app)); // Backup
+                    calculationModeActive = true;
+                    
+                    // Set the simulation amount as the distributed amount in memory
+                    app.distributedAmount = parseInt(val);
+                    
+                    // Reset 'spent' and 'manualAdd' in simulation to show pure distribution? 
+                    // Usually users want to see how X amount distributes.
+                    // Let's keep existing budgets structure but purely simulate the base amount change.
+                    
+                    renderUI();
+                    showToast("حالت محاسباتی فعال شد", "calculator");
+                }
+            });
+        } else {
+            // Deactivate and Restore
+            if(calculationBackup) {
+                app = calculationBackup;
+                calculationBackup = null;
+            }
+            calculationModeActive = false;
+            renderUI();
+            showToast("حالت محاسباتی بسته شد", "times");
+        }
+    }
+
     function triggerDistribution() {
         withLoading(() => {
+            if (calculationModeActive) {
+                // In Calc Mode, just refresh the view with the entered amount.
+                // The amount was already set in app.distributedAmount when mode started or updated.
+                // We just want to "Simulate" the distribution visualization.
+                renderUI();
+                showToast("توزیع آزمایشی محاسبه شد");
+                return;
+            }
+
             // FIX: Ensure Budgets Exist on first run
             if(!app.budgets || app.budgets.length === 0) {
                 applyTemplate('default'); // Load default immediately if empty
@@ -4179,10 +4206,11 @@
             saveData();
             renderUI();
             showToast("بودجه توزیع شد");
-        }, 1200);
+        }, 800);
     }
 
     function processAutoTransfer(addedAmount, currentNet) {
+        if(calculationModeActive) return; // No auto transfer in simulation
         let totalDeducted = 0;
         app.goals.forEach(g => {
             if(g.curr >= g.target) return;
@@ -4711,7 +4739,7 @@
 
         document.getElementById('editName').value = item.name;
 
-        if(showAmount) {
+ if(showAmount) {
             document.getElementById('editAmountWrapper').style.display = 'block';
             let val = 0;
             if(type === 'goal') val = item.target;
@@ -4800,6 +4828,8 @@
     }
 
     function performEdit() {
+        if(calculationModeActive) return alert("در حالت محاسباتی امکان ویرایش وجود ندارد.");
+        
         withLoading(() => {
             const type = document.getElementById('editType').value;
             const index = parseInt(document.getElementById('editIndex').value);
@@ -4886,6 +4916,7 @@
     }
 
     function applyTemplate(type) {
+        if(calculationModeActive) return alert("در حالت محاسباتی امکان تغییر قالب وجود ندارد.");
         if(!confirm("بودجه‌بندی فعلی پاک شده و قالب جدید اعمال می‌شود. ادامه می‌دهید؟")) return;
         saveSectionSnap('budget', 'اعمال قالب آماده');
         let newBudgets = [];
@@ -4923,6 +4954,7 @@
     }
 
     function addWallet() {
+        if(calculationModeActive) return alert("در حالت محاسباتی امکان افزودن وجود ندارد.");
         const n = document.getElementById('wName').value;
         const v = parseFormatted(document.getElementById('wVal').value);
         if(n && !isNaN(v)) {
@@ -4940,6 +4972,7 @@
     }
 
     function delWallet(i) {
+        if(calculationModeActive) return alert("در حالت محاسباتی امکان حذف وجود ندارد.");
         if(confirm('حذف؟')) {
             const wName = app.wallets[i].name;
             if(wName === CONST_WALLET_DEBT || wName === CONST_WALLET_CHECK) {
@@ -4954,6 +4987,7 @@
 
     // Instruction 6: Updated addDebt
     function addDebt() {
+        if(calculationModeActive) return alert("در حالت محاسباتی امکان افزودن وجود ندارد.");
         const n = document.getElementById('dName').value;
         const v = parseFormatted(document.getElementById('dVal').value);
         const start = getDateString('dStart');
@@ -4980,6 +5014,7 @@
     }
 
     function delDebt(i) {
+        if(calculationModeActive) return alert("در حالت محاسباتی امکان حذف وجود ندارد.");
         if(confirm('حذف؟')) {
             saveSectionSnap('dashboard', `حذف قسط ${app.debts[i].name}`);
             app.debts.splice(i,1);
@@ -4989,6 +5024,7 @@
     }
 
     function addCheck() {
+        if(calculationModeActive) return alert("در حالت محاسباتی امکان افزودن وجود ندارد.");
         const n = document.getElementById('cName').value;
         const v = parseFormatted(document.getElementById('cVal').value);
         const d = getDateString('c');
@@ -5005,6 +5041,7 @@
     }
 
     function delCheck(i) {
+        if(calculationModeActive) return alert("در حالت محاسباتی امکان حذف وجود ندارد.");
         if(confirm('حذف؟')) {
             saveSectionSnap('dashboard', `حذف چک ${app.checks[i].name}`);
             app.checks.splice(i,1);
@@ -5014,6 +5051,7 @@
     }
 
 function addLoan() {
+        if(calculationModeActive) return alert("در حالت محاسباتی امکان افزودن وجود ندارد.");
         const n = document.getElementById('lName').value;
         const v = parseFormatted(document.getElementById('lVal').value);
         const d = getDateString('l');
@@ -5028,6 +5066,7 @@ function addLoan() {
     }
 
     function delLoan(i) {
+        if(calculationModeActive) return alert("در حالت محاسباتی امکان حذف وجود ندارد.");
         if(confirm('حذف؟')) {
             saveSectionSnap('dashboard', `حذف طلب ${app.loans[i].name}`);
             app.loans.splice(i,1);
@@ -5037,6 +5076,7 @@ function addLoan() {
     }
 
     function addNewBudget() {
+        if(calculationModeActive) return alert("در حالت محاسباتی امکان افزودن وجود ندارد.");
         const n = document.getElementById('bName').value;
         const p = parseInt(document.getElementById('bPercent').value);
         if(!n || isNaN(p)) return alert("لطفا مقادیر صحیح وارد کنید");
@@ -5226,6 +5266,7 @@ function addLoan() {
     }
 
     function delBudget(i) {
+        if(calculationModeActive) return alert("در حالت محاسباتی امکان حذف وجود ندارد.");
         if(confirm('حذف ردیف؟')) {
             saveSectionSnap('budget', `حذف بودجه ${app.budgets[i].name}`);
             app.budgets.splice(i,1);
@@ -5244,8 +5285,6 @@ function addLoan() {
         const modalContent = document.querySelector('#expModal .modal-content'); 
         
         // بررسی و ایجاد فیلد انتخاب کیف پول اگر وجود ندارد 
-        // (Note: In the HTML structure I provided earlier, I already added expWalletWrapper, 
-        //  but this check ensures safety if HTML is modified)
         let walletSelectDiv = document.getElementById('expWalletWrapper'); 
         if (!walletSelectDiv) { 
             walletSelectDiv = document.createElement('div'); 
@@ -5285,6 +5324,7 @@ function addLoan() {
     }
 
     function submitExp() { 
+        if(calculationModeActive) return alert("در حالت محاسباتی امکان ثبت هزینه واقعی وجود ندارد.");
         const v = parseFormatted(document.getElementById('expAmt').value); 
         const r = document.getElementById('expReason').value || 'بدون توضیح'; 
         const wIdx = document.getElementById('expWalletSelect').value; 
@@ -5391,6 +5431,7 @@ function addLoan() {
     }
 
    function editHistoryItem(budgetIdx, histId) {
+        if(calculationModeActive) return alert("در حالت محاسباتی امکان ویرایش وجود ندارد.");
         closeAllModals();
         const budget = app.budgets[budgetIdx];
         const hIndex = budget.history.findIndex(h => h.id == histId);
@@ -5480,6 +5521,7 @@ function addLoan() {
     }
 
     function performAllocation() {
+        if(calculationModeActive) return alert("در حالت محاسباتی امکان تخصیص وجود ندارد.");
         const type = document.getElementById('allocType').value;
         const id = parseInt(document.getElementById('allocId').value);
         const bIdxStr = document.getElementById('allocBudgetSelect').value;
@@ -5838,6 +5880,7 @@ function addLoan() {
     }
 
     function restoreBackup(input) {
+        if(calculationModeActive) return alert("در حالت محاسباتی امکان بازیابی وجود ندارد.");
         withLoading(() => {
             const file = input.files[0];
             const reader = new FileReader();
@@ -5906,6 +5949,7 @@ function addLoan() {
     }
 
     function resetAll() {
+        if(calculationModeActive) return alert("در حالت محاسباتی امکان بازنشانی وجود ندارد.");
         if(confirm("هشدار: تمام اطلاعات مالی شما پاک خواهد شد (نام، کد ملی و رمز عبور باقی می‌ماند). آیا مطمئن هستید؟")) {
             // Keep security info
             const sec = app.security;
@@ -5937,6 +5981,9 @@ function addLoan() {
 
     // --- SAVING DATA (Updated for Instruction 7) ---
     function saveData() {
+        // Instruction 3: Disable Saving in Calculation Mode
+        if(calculationModeActive) return; 
+
         // Local Backup (Essential for offline access)
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(app));
 
@@ -5999,4 +6046,4 @@ function addLoan() {
     }
 </script>
 </body>
-  </html>
+</html>
