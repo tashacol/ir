@@ -1,4 +1,4 @@
- <!DOCTYPE html> 
+<!DOCTYPE html> 
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -1198,7 +1198,6 @@
         <div class="glass-panel">
             <div class="header-row">
                 <h3><i class="fas fa-comments-dollar"></i> وجه به وجه</h3>
-                <button class="btn btn-primary" style="font-size:0.8rem;" onclick="simulateIncomingTransfer()">+ شبیه‌سازی دریافت</button>
             </div>
             <div id="transfersList" style="max-height: 250px; overflow-y: auto;">
                 <p style="text-align:center; color:var(--text-sec); padding:10px;">تراکنشی یافت نشد.</p>
@@ -1240,7 +1239,7 @@
                 <div class="template-chip" onclick="applyTemplate('default')">پیش‌فرض</div>
                 <div class="template-chip" onclick="applyTemplate('student')">دانشجویی</div>
                 <div class="template-chip" onclick="applyTemplate('married')">متاهلی</div>
-                <div class="template-chip" onclick="applyTemplate('clear')">پاکسازی</div>
+                <div class="template-chip" onclick="applyTemplate('new')">(جدید)</div>
             </div>
         </div>
 
@@ -3043,7 +3042,7 @@
         if (selWrap.style.display !== 'none') {
             val = document.getElementById('uInputSelect').value;
         } else if(txtWrap.style.display === 'none') {
-            val = parseFormatted(document.getElementById('uInputMoney').value);
+            val = parseFormatted(document.getElementById('uInputMoneyWrapper').style.display !== 'none' ? document.getElementById('uInputMoney').value : '');
         } else {
             val = document.getElementById('uInputText').value;
         }
@@ -3479,24 +3478,6 @@
                 toggleLoading(false);
                 alert("خطا: " + err);
             });
-    }
-
-    function simulateIncomingTransfer() {
-        if(calculationModeActive) return alert("در حالت محاسباتی غیرفعال است.");
-        const t = {
-            id: Date.now(),
-            type: 'incoming',
-            amount: 500000,
-            date: new Date().toLocaleDateString('fa-IR'),
-            senderName: 'علی محمدی (تست)',
-            senderAccount: '60379971...',
-            status: 'pending'
-        };
-        if(!app.transfers) app.transfers = [];
-        app.transfers.push(t);
-        saveData();
-        renderUI();
-        showToast("درخواست دریافت ایجاد شد");
     }
 
     // --- MAIN RENDER LOGIC (Modified Instruction 4) ---
@@ -4088,6 +4069,12 @@
             let subBars = "";
             let subLegend = "";
             if(b.subs && b.subs.length > 0) {
+                // MODIFIED for Instruction 1: Use remaining amount (available) as base for sub-calc here too
+                // Though visual representation is percentage of total share. 
+                // The Modal logic (Manage Sub) is strictly modified as per instruction.
+                // Here, let's keep visual as % of totalShare for consistency, or user wants visual update too?
+                // "سهم کل مساوی موجودی قابل برداشت از آیتم بودجه مربوطه باشد" -> This refers to the Calculation Logic inside the Modal.
+                // For the bar chart here, we stick to standard view.
                 let subHtml = "";
                 let legHtml = "";
                 b.subs.forEach((s, idx) => {
@@ -4102,8 +4089,13 @@
                 subLegend = `<div class="sub-budget-legend">${legHtml}</div>`;
             }
 
-            // Disable actions in Calc Mode to prevent confusion
-            const disabledAttr = calculationModeActive ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : '';
+            // Disable actions in Calc Mode to prevent confusion - BUT instruction 5 & 7 says enable them
+            // Instruction 5: Can create sub categories in Calc mode
+            // Instruction 7: Can deposit in Calc mode
+            // Transfer? Not explicitly requested, but Deposit and Sub are.
+            // We disable Transfer only.
+            const transferDisabled = calculationModeActive ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : '';
+            // Sub and Add are ENABLED in calc mode per instruction.
 
             div.innerHTML += `<div class="bento-item ${status} ${pausedClass}">
                 <div class="bento-header">
@@ -4126,11 +4118,11 @@
                 <div class="bento-actions">
                     <button class="action-chip action-btn-exp" onclick="openExp(${i})" ${b.isPaused ? 'disabled' : ''}><i class="fas fa-minus-circle"></i> ثبت هزینه</button>
                     <button class="action-chip action-btn-copy" onclick="copyTxt(${remain})"><i class="fas fa-copy"></i> کپی</button>
-                    <button class="action-chip action-btn-add" onclick="openDepositOptions(${i})" ${disabledAttr}><i class="fas fa-plus-circle"></i> واریز</button>
-                    <button class="action-chip action-btn-transfer" onclick="openTransfer(${i})" ${disabledAttr}><i class="fas fa-exchange-alt"></i> انتقال</button>
+                    <button class="action-chip action-btn-add" onclick="openDepositOptions(${i})"><i class="fas fa-plus-circle"></i> واریز</button>
+                    <button class="action-chip action-btn-transfer" onclick="openTransfer(${i})" ${transferDisabled}><i class="fas fa-exchange-alt"></i> انتقال</button>
                     <button class="action-chip action-btn-pause" onclick="togglePause(${i})">${b.isPaused ? '<i class="fas fa-play"></i> فعال' : '<i class="fas fa-pause"></i> توقف'}</button>
                     <button class="action-chip action-btn-zero" onclick="zeroItem(${i})"><i class="fas fa-eraser"></i> تصفیه</button>
-                    <button class="action-chip action-btn-sub" onclick="openSubBudgetManager(${i})" ${disabledAttr}><i class="fas fa-layer-group"></i> مدیریت زیرمجموعه</button>
+                    <button class="action-chip action-btn-sub" onclick="openSubBudgetManager(${i})"><i class="fas fa-layer-group"></i> مدیریت زیرمجموعه</button>
                 </div>
             </div>`;
         });
@@ -4142,11 +4134,17 @@
             // Activate
             openUniversalInput("حالت توزیع محاسباتی", "مبلغ مورد نظر برای محاسبه را وارد کنید:", true, (val) => {
                 if(val && !isNaN(val)) {
+                    // Instruction 3: Add Zero if Rial
+                    let amount = parseInt(val);
+                    if(app.user.currency === 'rial') {
+                        amount = amount * 10;
+                    }
+
                     calculationBackup = JSON.parse(JSON.stringify(app)); // Backup
                     calculationModeActive = true;
                     
                     // Set the simulation amount as the distributed amount in memory
-                    app.distributedAmount = parseInt(val);
+                    app.distributedAmount = amount;
                     
                     // Reset 'spent' and 'manualAdd' in simulation to show pure distribution? 
                     // Usually users want to see how X amount distributes.
@@ -4331,12 +4329,15 @@
         const btn = document.getElementById('btnSystemDep');
         const msg = document.getElementById('systemDepMsg');
 
-        if (surplus > 0) {
+        // Allow buttons in calc mode for simulation
+        if (surplus > 0 || calculationModeActive) {
             btn.disabled = false;
             btn.classList.remove('btn-outline');
             btn.classList.add('btn-primary');
-            msg.innerHTML = `موجودی قابل واریز: <b style="color:var(--success)">${format(surplus)}</b> تومان`;
-            btn.dataset.max = surplus;
+            // If in Calc Mode, 'surplus' is not relevant in the same way, but let's allow "system" deposit simulation
+            const maxVal = calculationModeActive ? 999999999 : surplus; 
+            msg.innerHTML = `موجودی قابل واریز: <b style="color:var(--success)">${format(maxVal)}</b> تومان`;
+            btn.dataset.max = maxVal;
         } else {
             btn.disabled = true;
             btn.classList.remove('btn-primary');
@@ -4353,7 +4354,7 @@
             const max = parseFloat(document.getElementById('btnSystemDep').dataset.max) || 0;
             openUniversalInput('واریز از سیستم', `حداکثر قابل واریز: ${format(max)} تومان`, true, (val) => {
                 if(val && !isNaN(val)) {
-                    if (val > max) return alert("مبلغ وارد شده بیشتر از موجودی توزیع نشده است!");
+                    if (val > max && !calculationModeActive) return alert("مبلغ وارد شده بیشتر از موجودی توزیع نشده است!");
                     saveSectionSnap('budget', `واریز سیستمی به ${app.budgets[tempDepositIndex].name}: ${format(val)}`);
                     if(!app.budgets[tempDepositIndex].manualAdd) app.budgets[tempDepositIndex].manualAdd = 0;
                     app.budgets[tempDepositIndex].manualAdd += val;
@@ -4371,12 +4372,15 @@
                     app.budgets[tempDepositIndex].manualAdd += val;
                     addToHistory(tempDepositIndex, val, "واریز مستقیم (بیرونی)", 'deposit');
                     
-                    const targetWalletName = "پول بیرونی";
-                    let wIdx = app.wallets.findIndex(w => w.name === targetWalletName);
-                    if(wIdx > -1) {
-                        app.wallets[wIdx].value += val;
-                    } else {
-                        app.wallets.push({name: targetWalletName, value: val});
+                    // Instruction 7: Allow deposit in calc mode, but don't touch real wallet if in calc mode
+                    if (!calculationModeActive) {
+                        const targetWalletName = "پول بیرونی";
+                        let wIdx = app.wallets.findIndex(w => w.name === targetWalletName);
+                        if(wIdx > -1) {
+                            app.wallets[wIdx].value += val;
+                        } else {
+                            app.wallets.push({name: targetWalletName, value: val});
+                        }
                     }
                     saveData();
                     renderUI();
@@ -4630,23 +4634,30 @@
 
     function renderSubBudgets(budget, tempState = null) {
         const subsToRender = tempState || (budget.subs || []);
+        
+        // Instruction 1: Calculation based on available balance (not deducted)
         const baseAmount = app.distributedAmount;
-        const share = Math.round((baseAmount * budget.percent) / 100) + (budget.manualAdd || 0);
+        const totalShareAllocated = Math.round((baseAmount * budget.percent) / 100) + (budget.manualAdd || 0);
+        const availableBalance = totalShareAllocated - budget.spent; // This is the base for sub-calc
+        
+        // Use availableBalance as calculation base
+        const calculationBase = availableBalance > 0 ? availableBalance : 0;
+
         const totalPercentAllocated = subsToRender.reduce((acc, s) => acc + (s.percent || 0), 0);
         const remainPercent = 100 - totalPercentAllocated;
 
-        document.getElementById('subTotalBudget').innerText = "سهم کل: " + format(share);
+        document.getElementById('subTotalBudget').innerText = "قابل برداشت: " + format(calculationBase);
         document.getElementById('subRemainPercent').innerText = "باقی‌مانده: " + toPersianNum(remainPercent) + "%";
         if(remainPercent < 0) document.getElementById('subRemainPercent').style.color = 'var(--danger)';
         else document.getElementById('subRemainPercent').style.color = 'var(--success)';
 
         const div = document.getElementById('subBudgetList');
         div.innerHTML = subsToRender.map((s, idx) => {
-            const calculatedAmount = Math.round((share * (s.percent || 0)) / 100);
+            const calculatedAmount = Math.round((calculationBase * (s.percent || 0)) / 100);
             return `<div class="sub-budget-row">
                       <input type="text" value="${s.name}" class="sub-name" placeholder="عنوان" style="flex:1.5; margin:0; font-size:0.9rem; padding:10px;">
                       <div style="flex:1; position:relative;">
-                         <input type="number" value="${s.percent}" class="sub-percent-input" placeholder="%" oninput="updateSubCalculations(${share})" style="margin:0; text-align:center; padding:10px; font-size:0.95rem;">
+                         <input type="number" value="${s.percent}" class="sub-percent-input" placeholder="%" oninput="updateSubCalculations(${calculationBase})" style="margin:0; text-align:center; padding:10px; font-size:0.95rem;">
                       </div>
                       <div class="sub-budget-calc-display" id="subCalc_${idx}">${format(calculatedAmount)}</div>
                       <button class="btn-small-icon btn-copy" onclick="copySub(${calculatedAmount})" title="کپی مبلغ"><i class="fas fa-copy"></i></button>
@@ -4708,7 +4719,7 @@
         showToast("زیرمجموعه‌ها ذخیره شدند");
     }
 
-    // --- Instruction 6: Updated openEdit to keep original date ---
+// --- Instruction 6: Updated openEdit to keep original date ---
     function openEdit(type, index) {
         // Prevent editing External/Receive Wallets amount
         if (type === 'wallet') {
@@ -4827,7 +4838,7 @@
         }
     }
 
-function performEdit() {
+    function performEdit() {
         
         withLoading(() => {
             const type = document.getElementById('editType').value;
@@ -4915,6 +4926,24 @@ function performEdit() {
     }
 
     function applyTemplate(type) {
+        // Instruction 2: "New" Logic implementation
+        if (type === 'new') {
+            openUniversalInput('ایجاد قالب جدید', 'نام این قالب جدید را وارد کنید:', false, (name) => {
+                if (name) {
+                    if(!confirm(`آیا مطمئن هستید؟ با ایجاد قالب "${name}" تمام آیتم‌های بودجه فعلی پاک می‌شوند.`)) return;
+                    saveSectionSnap('budget', `ایجاد قالب جدید: ${name}`);
+                    // Empty the budget list so user can start fresh
+                    app.budgets = [];
+                    app.priorities = {};
+                    app.priorityTiers = [];
+                    saveData();
+                    renderUI();
+                    showToast(`قالب "${name}" ایجاد شد`);
+                }
+            });
+            return;
+        }
+
         if(!confirm("بودجه‌بندی فعلی پاک شده و قالب جدید اعمال می‌شود. ادامه می‌دهید؟")) return;
         saveSectionSnap('budget', 'اعمال قالب آماده');
         let newBudgets = [];
@@ -4941,6 +4970,7 @@ function performEdit() {
                 {id: 7, name: "تفریح", percent: 5, spent: 0, history: [], manualAdd: 0, subs:[]}
             ];
         } else if(type === 'clear') {
+            // Deprecated by Instruction 2, but kept for legacy safety
             newBudgets = [];
         }
 
@@ -5325,7 +5355,7 @@ function performEdit() {
         const budgetItem = app.budgets[activeIdx]; 
         
         // بررسی موجودی کیف پول 
-        if (wallet.value < v) { 
+        if (wallet.value < v && !calculationModeActive) { 
             return alert(`موجودی کیف پول "${wallet.name}" کافی نیست.`); 
         } 
         
@@ -5340,8 +5370,10 @@ function performEdit() {
         
         // --- انجام عملیات کسر --- 
         
-        // 1. کسر از کیف پول واقعی 
-        wallet.value -= v; 
+        // 1. کسر از کیف پول واقعی (فقط اگر حالت محاسباتی نباشد - دستور 6)
+        if (!calculationModeActive) {
+            wallet.value -= v; 
+        }
         
         // 2. کسر از پول توزیع شده سیستم (چون این پول خرج شده و دیگر در دسترس نیست) 
         if (app.distributedAmount >= v) { 
