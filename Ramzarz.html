@@ -1,20 +1,3 @@
- من دستورات شما را دقیقاً اجرا کردم. در این نسخه ویرایش شده:
-
-1.  **حذف قابلیت افزودن دستی:** تمامی دکمه‌ها و مودال‌هایی که اجازه می‌دادند پول بدون منبع (از هوا) اضافه شود (مثل واریز مستقیم، ثبت دستی بدهی و...) حذف شدند.
-2.  **حذف بخش‌های اضافی:** کدهای مربوط به اقساط ثابت، چک، بدهی، اهداف پس‌انداز، لیست خرید و طلب‌ها به طور کامل از `state`، `UI` و `Modals` پاک شدند.
-3.  **تغییرات بودجه:** در آیتم‌های بودجه، تمام دکمه‌ها حذف شدند و **فقط دکمه کپی** باقی ماند.
-4.  **قلک (جایگزین ابزارها):** تب ابزارها به **قلک** تغییر نام داد. کاربر می‌تواند تا ۱۰ قلک بسازد. واریز به قلک از موجودی کیف پول اصلی کسر می‌شود و برداشت از قلک به کیف پول اصلی برمی‌گردد.
-5.  **جابجایی تب‌ها و مدرن‌سازی داشبورد:**
-    *   **داشبورد (صفحه اول):** اکنون شامل نمودارها و گزارشات مدرن (که قبلا در تب گزارشات بود) + کارت بانکی است.
-    *   **بودجه:** تب دوم است.
-    *   **قلک:** تب سوم است.
-    *   **تنظیمات:** تب چهارم.
-6.  **حفظ منطق اصلی:** سیستم انتقال وجه، کارت به کارت، ورود/خروج، اتصال به گوگل شیت و تنظیمات امنیتی کاملاً حفظ شده‌اند.
-
-کد کامل و یکپارچه (شامل HTML, CSS, JS و Google Script) در زیر آمده است:
-
-```html
-<!-- START OF FILE -->
 <!DOCTYPE html> 
 <html lang="fa" dir="rtl">
 <head>
@@ -643,25 +626,34 @@
         .stat-yellow .progress-fill { background: linear-gradient(90deg, var(--warning), #fbbf24); }
         .stat-red .progress-fill { background: linear-gradient(90deg, var(--danger), #f87171); }
 
-        .bento-actions { margin-top: 8px; display: grid; grid-template-columns: 1fr; gap: 8px; }
+        .bento-actions { margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
 
         .action-chip {
-            padding: 10px;
-            font-size: 0.8rem;
-            border-radius: 12px;
+            padding: 8px 5px;
+            font-size: 0.75rem;
+            border-radius: 10px;
             border: none;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
+            gap: 4px;
             cursor: pointer;
             font-weight: 700;
             white-space: nowrap;
             transition: 0.2s;
         }
 
-        .action-btn-copy { background: rgba(79, 70, 229, 0.1); color: var(--primary); }
+        .action-btn-copy { background: rgba(79, 70, 229, 0.1); color: var(--primary); grid-column: span 3; }
         .action-btn-copy:hover { background: var(--primary); color: white; }
+        
+        .action-btn-dep { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+        .action-btn-dep:hover { background: var(--success); color: white; }
+        
+        .action-btn-with { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+        .action-btn-with:hover { background: var(--danger); color: white; }
+        
+        .action-btn-pause { background: rgba(148, 163, 184, 0.1); color: var(--text-sec); }
+        .action-btn-pause:hover { background: var(--text-sec); color: white; }
 
         /* --- Piggy Bank (Qolak) --- */
         .piggy-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
@@ -1037,7 +1029,7 @@
         </div>
     </div>
 
-    <!-- TAB 1: DASHBOARD (Modern Reports Style) -->
+    <!-- TAB 1: DASHBOARD (Replaces old Reports/Tools structure per new instruction) -->
     <div id="view-dashboard" class="tab-pane active">
         <!-- Hero Card (Bank) -->
         <div class="hero-card">
@@ -1084,11 +1076,15 @@
             </div>
         </div>
 
-        <div class="header-row">
-            <h3><i class="fas fa-wallet"></i> منابع مالی (کیف پول)</h3>
-            <button class="btn btn-primary" onclick="openModal('walletModal')"><i class="fas fa-plus"></i> افزودن</button>
+        <!-- Moved Transfers List Here -->
+        <div class="glass-panel">
+            <div class="header-row">
+                <h3><i class="fas fa-comments-dollar"></i> وجه به وجه</h3>
+            </div>
+            <div id="transfersList" style="max-height: 250px; overflow-y: auto;">
+                <p style="text-align:center; color:var(--text-sec); padding:10px;">تراکنشی یافت نشد.</p>
+            </div>
         </div>
-        <div id="walletList"></div>
 
         <div class="glass-panel">
             <div class="header-row"><h3><i class="fas fa-chart-pie"></i> توزیع مخارج</h3></div>
@@ -1102,35 +1098,34 @@
                 <canvas id="netWorthChart"></canvas>
             </div>
         </div>
-
-        <div class="glass-panel">
-            <div class="header-row">
-                <h3><i class="fas fa-comments-dollar"></i> وجه به وجه</h3>
-            </div>
-            <div id="transfersList" style="max-height: 250px; overflow-y: auto;">
-                <p style="text-align:center; color:var(--text-sec); padding:10px;">تراکنشی یافت نشد.</p>
-            </div>
-        </div>
     </div>
 
-    <!-- TAB 2: BUDGET (Renamed from Piggy Bank in prompt structure, but physically replacing it) -->
+    <!-- TAB 2: BUDGET (Replaces old Dashboard) -->
     <div id="view-budget" class="tab-pane">
         <div id="calcModeBanner" class="calc-mode-banner">
             <i class="fas fa-calculator"></i> حالت محاسباتی فعال است
         </div>
 
-        <div class="glass-panel" style="text-align:center; padding: 25px;">
-            <span style="color:var(--text-sec); font-size:0.95rem; font-weight:bold;">بودجه کل توزیع شده (خالص):</span>
-            <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-top:5px;">
-                <div id="distributable" style="font-size:2rem; font-weight:800; color:var(--primary); direction:ltr; display: flex; align-items: baseline; gap: 8px;">۰</div>
-                <small id="totalPercentBadge" style="background:var(--text-sec); color:white; padding:4px 10px; border-radius:10px; font-weight:bold;">۰%</small>
+        <div class="glass-panel" style="padding: 20px;">
+            <label style="font-size:0.9rem; color:var(--text-sec);">مبلغ پایه برای بودجه‌بندی (تومان):</label>
+            <div class="money-input-wrapper">
+                <input type="text" id="budgetBaseInput" onkeyup="formatCurrency(this)" inputmode="numeric" placeholder="۰">
+                <span class="money-unit currency-text">تومان</span>
             </div>
-            <button id="btnDistribute" class="btn btn-primary" style="margin-top:20px; width:100%; display:none; justify-content:center;" onclick="triggerDistribution()">
-                <i class="fas fa-sync-alt"></i> توزیع موجودی جدید
-            </button>
-            <button id="btnCalcMode" class="btn btn-outline" style="margin-top:10px; width:100%; justify-content:center; border-style:dashed;" onclick="toggleCalculationMode()">
-                <i class="fas fa-calculator"></i> حالت توزیع محاسباتی
-            </button>
+            
+            <div style="display:flex; justify-content:center; gap:10px; margin-top:10px;">
+                <button id="btnDistribute" class="btn btn-primary" style="flex:1;" onclick="triggerDistribution()">
+                    <i class="fas fa-sync-alt"></i> محاسبه و توزیع
+                </button>
+                <button id="btnCalcMode" class="btn btn-outline" style="flex:1;" onclick="toggleCalculationMode()">
+                    <i class="fas fa-calculator"></i> حالت محاسباتی
+                </button>
+            </div>
+            <div style="text-align:center; margin-top:10px;">
+                <span style="color:var(--text-sec); font-size:0.8rem;">بودجه توزیع شده فعلی: </span>
+                <span id="distributable" style="font-size:1rem; font-weight:bold; color:var(--primary);">۰</span>
+                <small id="totalPercentBadge" style="background:var(--text-sec); color:white; padding:2px 8px; border-radius:10px; font-weight:bold; margin-right:5px;">۰%</small>
+            </div>
         </div>
 
         <div class="header-row" style="margin: 0 5px 20px 5px; flex-direction: column; align-items: flex-start; border:none;">
@@ -1147,7 +1142,7 @@
         <div id="budgetGrid" class="budget-grid"></div>
     </div>
 
-    <!-- TAB 3: PIGGY BANK (Gholak) -->
+    <!-- TAB 3: PIGGY BANK (Replaces old Tools) -->
     <div id="view-piggybank" class="tab-pane">
         <div class="header-row" style="padding:0 5px;">
             <h3>قلک (پس‌انداز خرد)</h3>
@@ -1190,13 +1185,6 @@
                     <div style="display:flex; align-items:center;">
                         <div class="settings-item-icon si-orange"><i class="fas fa-sort-amount-up"></i></div>
                         <div class="settings-text">مدیریت اولویت‌ها</div>
-                    </div>
-                    <i class="fas fa-chevron-left settings-chevron"></i>
-                </div>
-                <div class="settings-item" onclick="changeecUserName()">
-                    <div style="display:flex; align-items:center;">
-                        <div class="settings-item-icon si-blue"><i class="fas fa-user-edit"></i></div>
-                        <div class="settings-text">تغییر نام</div>
                     </div>
                     <i class="fas fa-chevron-left settings-chevron"></i>
                 </div>
@@ -1272,8 +1260,8 @@
 
 <!-- BOTTOM NAV -->
 <nav class="bottom-nav">
-    <button class="nav-btn active" onclick="switchTab('dashboard')"><i class="fas fa-chart-pie"></i> داشبورد</button>
-    <button class="nav-btn" onclick="switchTab('budget')"><i class="fas fa-home"></i> بودجه</button>
+    <button class="nav-btn active" onclick="switchTab('dashboard')"><i class="fas fa-home"></i> داشبورد</button>
+    <button class="nav-btn" onclick="switchTab('budget')"><i class="fas fa-chart-pie"></i> بودجه</button>
     <button class="nav-btn" onclick="switchTab('piggybank')"><i class="fas fa-piggy-bank"></i> قلک</button>
     <button class="nav-btn" onclick="switchTab('settings')"><i class="fas fa-cog"></i> تنظیمات</button>
 </nav>
@@ -1318,6 +1306,10 @@
                     <div class="id-row">
                         <span class="id-label">کد بازیابی (PUK)</span>
                         <span class="id-value-big" id="idCardPuk" style="color:#22d3ee;">---</span>
+                    </div>
+                    <div class="id-row" style="margin-top:15px; border-top:1px dashed rgba(255,255,255,0.2); padding-top:10px;">
+                        <span class="id-label" style="color:#4ade80;">هدیه ثبت نام:</span>
+                        <span class="id-value" style="font-size:1.2rem;">۱۰۰,۰۰۰ تومان</span>
                     </div>
                 </div>
                 <div class="id-footer">
@@ -1383,9 +1375,11 @@
             <span class="money-unit currency-text">تومان</span>
         </div>
         
-        <!-- Piggy Logic Select -->
+        <!-- Piggy/Budget Logic Select -->
         <input type="hidden" id="uPiggyId">
         <input type="hidden" id="uPiggyAction">
+        <input type="hidden" id="uBudgetId">
+        <input type="hidden" id="uBudgetAction">
 
         <div style="margin-top:25px; display:flex; gap:12px;">
             <button class="btn btn-primary" style="flex:1" onclick="submitUniversalInput()">تایید</button>
@@ -1464,19 +1458,6 @@
         <h3>تاریخچه تغییرات (۱۰ مورد آخر)</h3>
         <div id="sectionHistoryList" style="max-height:300px; overflow-y:auto; margin-top:5px;"></div>
         <button class="btn btn-outline" style="width:100%; margin-top:20px;" onclick="closeAllModals()">بستن</button>
-    </div>
-</div>
-
-<div id="walletModal" class="modal">
-    <div class="modal-content">
-        <h3>افزودن کیف پول</h3>
-        <label>نام کیف پول:</label>
-        <input type="text" id="wName" placeholder="مثلاً: کارت ملی">
-        <p style="color:var(--text-sec); font-size:0.8rem;">توجه: موجودی اولیه ۰ خواهد بود. برای افزایش موجودی از انتقال وجه استفاده کنید.</p>
-        <div style="margin-top:25px; display:flex; gap:12px;">
-            <button class="btn btn-primary" style="flex:1" onclick="addWallet()">ثبت</button>
-            <button class="btn btn-outline" style="flex:1" onclick="closeAllModals()">لغو</button>
-        </div>
     </div>
 </div>
 
@@ -1559,7 +1540,7 @@
     </div>
     <div class="print-summary">
         <div>کل دارایی: <b id="printInc">۰</b></div>
-        <div>خالص قابل خرج: <b id="printNet">۰</b></div>
+        <div>خالص قابل برداشت: <b id="printNet">۰</b></div>
     </div>
     <div class="print-section-title">نمودار پیشرفت مالی (روزانه)</div>
     <div class="print-chart-container">
@@ -1583,13 +1564,13 @@
     // IMPORTANT: Web App URL Placeholder
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwWX4agkq1Myl9nQ4RjuzR64knZbuexA7hRWJSAYQsQqi_9C-yBJIrB-OZiyS62j3_Bow/exec";
 
-    const LOCAL_STORAGE_KEY = 'amir_fin_v10_mod';
+    const LOCAL_STORAGE_KEY = 'amir_fin_v11_mod';
 
     const defaultState = {
         security: { hasPin: false, pin: "", isSetup: false, questionId: 0, answer: "", nationalId: "" },
         user: { name: "", theme: "light", currency: "toman", startDate: Date.now() },
         settings: { globalDeduct: true, biometricEnabled: false, biometricId: null },
-        wallets: [],
+        wallets: [], // Single Main Wallet Concept
         transfers: [],
         transactionLog: [], 
         budgets: [
@@ -1604,7 +1585,7 @@
             {id: 9, name: "تفریح", percent: 3, spent: 0, history: [], manualAdd: 0},
             {id: 10, name: "پس‌انداز کل", percent: 11, spent: 0, history: [], manualAdd: 0}
         ],
-        piggyBanks: [], // New Feature: Max 10 items
+        piggyBanks: [], 
         priorities: {},
         priorityTiers: [],
         distributedAmount: 0,
@@ -1711,7 +1692,8 @@
         const lastLog = app.dailyLogs.length > 0 ? app.dailyLogs[app.dailyLogs.length-1] : null;
 
         if (!lastLog || lastLog.date !== today) {
-            const income = app.wallets.reduce((a,b)=>a+b.value,0);
+            // Main Wallet + Piggy Banks = Total Capital
+            const income = (app.wallets.length > 0 ? app.wallets[0].value : 0) + app.piggyBanks.reduce((a,b)=>a+b.balance,0);
             const spent = app.budgets.reduce((a,b)=>a+b.spent,0);
             app.dailyLogs.push({ date: today, net: income, spent: spent, timestamp: Date.now() });
             saveData();
@@ -1857,6 +1839,9 @@
                     app = { ...defaultState, ...cloudData };
                     if(!app.transactionLog) app.transactionLog = []; 
                     if(!app.piggyBanks) app.piggyBanks = [];
+                    // Ensure main wallet exists if not from server
+                    if(app.wallets.length === 0) app.wallets.push({name: "حساب اصلی", value: 0});
+                    
                     app.security = securityData;
                     
                     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(app));
@@ -1887,6 +1872,7 @@
                         if (json.security && json.security.nationalId === natId && json.security.password === pass) {
                             app = json;
                             if(!app.piggyBanks) app.piggyBanks = [];
+                            if(app.wallets.length === 0) app.wallets.push({name: "حساب اصلی", value: 0});
                             toggleLoading(false);
                             document.getElementById('authModal').style.display = 'none';
                             document.getElementById('appContent').style.display = 'block';
@@ -2000,6 +1986,7 @@
             if (credential) {
                 app = parsedApp;
                 if(!app.piggyBanks) app.piggyBanks = [];
+                if(app.wallets.length === 0) app.wallets.push({name: "حساب اصلی", value: 0});
                 document.getElementById('authModal').style.display = 'none';
                 document.getElementById('appContent').style.display = 'block';
                 processDailyLog();
@@ -2024,6 +2011,7 @@
                  if(res.success) {
                      app = {...defaultState, ...res.userData.appData};
                      if(!app.piggyBanks) app.piggyBanks = [];
+                     if(app.wallets.length === 0) app.wallets.push({name: "حساب اصلی", value: 0});
                      renderUI();
                      showToast("بروزرسانی شد");
                  } else {
@@ -2222,7 +2210,7 @@
         showReceipt(true, t.amount, t.from || 'سیستم', app.user.name, t.to || '---', t.desc, t.id, t.date + ' ' + t.time);
     }
 
-    function openUniversalInput(title, label, isMoney, callback, isSelectWallet = false, piggyId = null, piggyAction = null) {
+    function openUniversalInput(title, label, isMoney, callback, isSelectWallet = false, piggyId = null, piggyAction = null, budgetId = null, budgetAction = null) {
         document.getElementById('uInputTitle').innerText = title;
         document.getElementById('uInputLabel').innerText = label;
         const txtWrap = document.getElementById('uInputTextWrapper');
@@ -2232,6 +2220,8 @@
         document.getElementById('uInputMoney').value = '';
         document.getElementById('uPiggyId').value = piggyId;
         document.getElementById('uPiggyAction').value = piggyAction;
+        document.getElementById('uBudgetId').value = budgetId;
+        document.getElementById('uBudgetAction').value = budgetAction;
 
         txtWrap.style.display = 'none';
         monWrap.style.display = 'none';
@@ -2258,25 +2248,21 @@
 
         const pId = document.getElementById('uPiggyId').value;
         const pAction = document.getElementById('uPiggyAction').value;
+        const bId = document.getElementById('uBudgetId').value;
+        const bAction = document.getElementById('uBudgetAction').value;
 
         if (pId && pAction) {
             handlePiggyAction(parseInt(pId), pAction, val);
+        } else if (bId && bAction) {
+            handleBudgetAction(parseInt(bId), bAction, val);
         } else if(universalCallback) {
             universalCallback(val);
         }
         closeAllModals();
     }
 
-    function changeecUserName() {
-        openUniversalInput('تغییر نام', 'نام جدید را وارد کنید:', false, (val) => {
-            if(val && val.trim() !== "") {
-                app.user.name = val;
-                saveData();
-                renderUI();
-            }
-        });
-        document.getElementById('uInputText').value = app.user.name;
-    }
+    // Removed specific name change function, now generic only if needed internally
+    // but the UI option is gone as requested.
 
     function formatCurrency(input) {
         let val = input.value;
@@ -2438,55 +2424,31 @@
             if(amt <= 0) return alert("مبلغ نامعتبر است");
             app.wizardState.amount = amt;
             
-            let walletsHtml = '';
-            app.wallets.forEach((w, idx) => {
-                walletsHtml += 
-                 `<div class="checkbox-wrapper" onclick="selectTransferWallet(${idx})" style="border:1px solid #eee; justify-content:space-between;">
-                    <span>${w.name} (${format(w.value)})</span>
-                    <input type="radio" name="trWallet" id="trW_${idx}" value="${idx}">
-                 </div>`;
-            });
-
-            content.innerHTML = 
-              `<h3>انتخاب کیف پول مبدا</h3>
-              <p style="font-size:0.9rem;">مبلغ: <b>${format(amt)}</b></p>
-              <div style="max-height:200px; overflow-y:auto;">${walletsHtml}</div>
-              <div style="display:flex; gap:10px; margin-top:10px;">
-                 <button class="btn btn-outline" style="flex:1" onclick="bankTransferNext(1)">بازگشت</button>
-                 <button class="btn btn-primary" style="flex:1" onclick="bankTransferNext(3)">تایید نهایی</button>
-              </div>`;
-        } else if (step === 3) {
-            const selectedWallet = document.querySelector('input[name="trWallet"]:checked');
-            if(!selectedWallet) return alert("لطفاً یک کیف پول انتخاب کنید.");
-            app.wizardState.walletIdx = parseInt(selectedWallet.value);
-
+            // Only Main Wallet Exists now
             content.innerHTML = 
               `<h3>تایید نهایی</h3>
-              <p style="text-align:center;">انتقال <b>${format(app.wizardState.amount)}</b><br>به <b>${app.wizardState.destName}</b></p>
+              <p style="text-align:center;">انتقال <b>${format(app.wizardState.amount)}</b><br>از حساب اصلی<br>به <b>${app.wizardState.destName}</b></p>
               <label>رمز عبور (۴ رقم):</label>
               <input type="password" id="btPinInput" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="****" style="text-align:center;">
               <div style="display:flex; gap:10px; margin-top:15px;">
                  <button class="btn btn-outline" style="flex:1" onclick="closeAllModals()">لغو</button>
                  <button class="btn btn-primary" style="flex:1" onclick="bankTransferCheckPin()">انتقال</button>
               </div>`;
-        }
+        } 
     }
     
-    function selectTransferWallet(idx) {
-        document.getElementById(`trW_${idx}`).checked = true;
-    }
-
     function bankTransferCheckPin() {
         const pin = document.getElementById('btPinInput').value;
         if (pin !== app.security.password) return alert("رمز عبور اشتباه است!");
         if (calculationModeActive) return alert("در حالت محاسباتی امکان انتقال وجه واقعی وجود ندارد.");
 
         toggleLoading(true);
+        // Correct API call structure
         googleApi('apiInitiateTransfer', 
             app.security.nationalId, 
             app.wizardState.destNatId, 
             app.wizardState.amount, 
-            app.wizardState.walletIdx,
+            0, // Always use main wallet index 0
             app.user.name,
             getAccountNumber()
         ).then(res => {
@@ -2497,7 +2459,7 @@
                 renderUI();
                 closeAllModals();
                 
-                showReceipt(true, app.wizardState.amount, "کیف پول شخصی", app.user.name, app.wizardState.destName, "انتقال وجه بانکی", res.txId || Date.now(), new Date().toLocaleTimeString('fa-IR'));
+                showReceipt(true, app.wizardState.amount, "حساب اصلی", app.user.name, app.wizardState.destName, "انتقال وجه بانکی", res.txId || Date.now(), new Date().toLocaleTimeString('fa-IR'));
                 
             } else {
                 alert("خطا: " + res.message);
@@ -2628,11 +2590,8 @@
 
     function processTransfer(txId, action) {
         if (action === 'approve') {
-             // For simplicity, always add to first wallet or create default
-             if (app.wallets.length === 0) {
-                 app.wallets.push({name: "کیف پول اصلی", value: 0});
-             }
-             sendProcessRequest(txId, 'approve', 0); // Default to first wallet
+             if (app.wallets.length === 0) app.wallets.push({name: "حساب اصلی", value: 0});
+             sendProcessRequest(txId, 'approve', 0); // Always to Main Wallet
         } else {
             if(!confirm("آیا مطمئن هستید؟ وجه به فرستنده برگشت داده می‌شود.")) return;
             sendProcessRequest(txId, 'reject', null);
@@ -2675,13 +2634,17 @@
             }
         }
 
-        const income = app.wallets.reduce((a,b)=>a+b.value,0);
+        // Ensure we always have a main wallet
+        if(app.wallets.length === 0) app.wallets.push({name: "حساب اصلی", value: 0});
+
+        const mainBalance = app.wallets[0].value;
+        const piggyTotal = app.piggyBanks ? app.piggyBanks.reduce((a,b) => a + b.balance, 0) : 0;
         
-        let cardNet = income; 
-        let distributableNet = income;
+        // Total Capital = Main + Piggy
+        let totalCapital = mainBalance + piggyTotal; 
 
         const balEl = document.getElementById('totalBalance');
-        if(!isBalanceHidden) balEl.innerText = format(cardNet);
+        if(!isBalanceHidden) balEl.innerText = format(totalCapital);
 
         const uName = app.user.name || 'کاربر';
         document.getElementById('userNameDisplay').innerText = uName;
@@ -2697,13 +2660,12 @@
             document.getElementById('btnCalcMode').classList.add('btn-danger');
         } else {
             document.getElementById('calcModeBanner').style.display = 'none';
-            document.getElementById('btnCalcMode').innerHTML = '<i class="fas fa-calculator"></i> حالت توزیع محاسباتی';
+            document.getElementById('btnCalcMode').innerHTML = '<i class="fas fa-calculator"></i> حالت محاسباتی';
             document.getElementById('btnCalcMode').classList.remove('btn-danger');
             document.getElementById('btnCalcMode').classList.add('btn-outline');
         }
 
-        renderWallets();
-        renderBudgets(distributableNet);
+        renderBudgets();
         renderPiggyBanks();
         renderReports();
         renderTransfers();
@@ -2729,18 +2691,26 @@
     }
 
     function showCardDetails() {
-        const income = app.wallets.reduce((a,b)=>a+b.value,0);
-        let net = income; 
+        // Total Capital = Main + Piggy
+        const main = app.wallets[0].value;
+        const piggy = app.piggyBanks.reduce((a,b)=>a+b.balance,0);
+        const total = main + piggy;
+        // Available (Not blocked) = Main
+        const available = main;
         
         const content = document.getElementById('cardDetailsContent');
         content.innerHTML = 
           `<div class="detail-row">
-             <span class="detail-label">مجموع موجودی:</span>
-             <span class="detail-val" id="cpGross">${format(income)}</span>
+             <span class="detail-label">کل سرمایه (با قلک‌ها):</span>
+             <span class="detail-val" id="cpGross">${format(total)}</span>
           </div>
           <div class="detail-row">
-             <span class="detail-label">خالص قابل خرج:</span>
-             <span class="detail-val" style="color:var(--primary)" id="cpNet">${format(net)}</span>
+             <span class="detail-label">قابل برداشت (بلوکه نشده):</span>
+             <span class="detail-val" style="color:var(--primary)" id="cpNet">${format(available)}</span>
+          </div>
+          <div class="detail-row">
+             <span class="detail-label">مجموع قلک‌ها (بلوکه):</span>
+             <span class="detail-val" style="color:var(--danger)">${format(piggy)}</span>
           </div>`;
         openModal('cardDetailsModal');
     }
@@ -2753,22 +2723,7 @@
         showToast("اطلاعات کپی شد");
     }
 
-    function renderWallets() {
-        const div = document.getElementById('walletList');
-        div.innerHTML = app.wallets.map((w, i) => 
-            `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:12px; align-items:center;">
-                <span style="font-weight:600;">${w.name}</span>
-                <div style="display:flex; align-items:center;">
-                    <b style="font-size:1.1rem; color:var(--primary);">${format(w.value)}</b>
-                    <span style="margin-right:15px; display:flex;">
-                       <button class="btn-small-icon btn-edit" onclick="openEdit('wallet', ${i})"><i class="fas fa-edit"></i></button>
-                       <button class="btn-small-icon btn-del" onclick="delWallet(${i})"><i class="fas fa-trash"></i></button>
-                    </span>
-                </div>
-            </div>`).join('');
-    }
-
-    // --- PIGGY BANK LOGIC (Replacement for Tools) ---
+    // --- PIGGY BANK LOGIC ---
     function openAddPiggyModal() {
         if(app.piggyBanks.length >= 10) return alert("حداکثر ۱۰ قلک می‌توانید بسازید.");
         openUniversalInput('ایجاد قلک جدید', 'نام قلک را وارد کنید:', false, (val) => {
@@ -2822,41 +2777,18 @@
         if(isNaN(amount) || amount <= 0) return alert("مبلغ نامعتبر است");
         
         const piggy = app.piggyBanks[index];
+        const mainWallet = app.wallets[0];
         
         if (action === 'deposit') {
-            // Check Main Wallet Balance
-            const income = app.wallets.reduce((a,b)=>a+b.value,0);
-            if(income < amount) return alert("موجودی اصلی کافی نیست.");
-            
-            // Deduct from first wallet (simplified for UX, or logic to split)
-            // Strategy: Deduct from wallets sequentially
-            let remainingToDeduct = amount;
-            for(let w of app.wallets) {
-                if(w.value >= remainingToDeduct) {
-                    w.value -= remainingToDeduct;
-                    remainingToDeduct = 0;
-                    break;
-                } else {
-                    remainingToDeduct -= w.value;
-                    w.value = 0;
-                }
-            }
-            
+            if(mainWallet.value < amount) return alert("موجودی حساب اصلی کافی نیست.");
+            mainWallet.value -= amount;
             piggy.balance += amount;
-            logSystemTransaction('transfer', amount, 'کیف پول‌ها', `قلک ${piggy.name}`, 'واریز به قلک');
-            
+            logSystemTransaction('transfer', amount, 'حساب اصلی', `قلک ${piggy.name}`, 'واریز به قلک');
         } else {
-            // Withdraw
             if(piggy.balance < amount) return alert("موجودی قلک کافی نیست.");
-            
             piggy.balance -= amount;
-            // Add back to first wallet
-            if(app.wallets.length > 0) {
-                app.wallets[0].value += amount;
-            } else {
-                app.wallets.push({name: "کیف پول اصلی", value: amount});
-            }
-            logSystemTransaction('transfer', amount, `قلک ${piggy.name}`, 'کیف پول‌ها', 'برداشت از قلک');
+            mainWallet.value += amount;
+            logSystemTransaction('transfer', amount, `قلک ${piggy.name}`, 'حساب اصلی', 'برداشت از قلک');
         }
         
         saveData();
@@ -2864,35 +2796,19 @@
         showToast("عملیات انجام شد");
     }
 
-    function renderBudgets(net) {
+    function renderBudgets() {
         const distributeBtn = document.getElementById('btnDistribute');
         const distributableDisplay = document.getElementById('distributable');
         
+        // Use user input base amount or distributedAmount for calc
         let baseAmount = app.distributedAmount;
-        let diff = 0;
         
         if (calculationModeActive) {
              distributableDisplay.innerText = format(app.distributedAmount);
-             distributableDisplay.style.color = 'var(--primary)';
              distributeBtn.style.display = 'flex'; 
-             distributeBtn.innerHTML = '<i class="fas fa-calculator"></i> محاسبه و توزیع';
         } else {
-             distributeBtn.innerHTML = '<i class="fas fa-sync-alt"></i> توزیع موجودی جدید';
-             if(net !== app.distributedAmount) {
-                if (net > app.distributedAmount) {
-                    diff = net - app.distributedAmount;
-                    distributeBtn.style.display = 'flex';
-                    distributableDisplay.innerHTML = `<span style="color:var(--text-sec);">${format(app.distributedAmount)}</span> <span style="color:var(--success); font-size:0.9em; margin-right:5px;">(+${format(diff)})</span>`;
-                } else {
-                    distributeBtn.style.display = 'flex';
-                    distributableDisplay.style.color = 'var(--warning)';
-                    distributableDisplay.innerText = format(app.distributedAmount) + " (کسری)";
-                }
-            } else {
-                distributeBtn.style.display = 'none';
-                distributableDisplay.style.color = 'var(--primary)';
-                distributableDisplay.innerText = format(app.distributedAmount);
-            }
+             distributableDisplay.innerText = format(app.distributedAmount);
+             distributeBtn.style.display = 'flex';
         }
 
         const div = document.getElementById('budgetGrid');
@@ -2904,24 +2820,40 @@
         badge.innerText = toPersianNum(totalP) + '%';
         badge.style.background = totalP > 100 ? 'var(--danger)' : (totalP === 100 ? 'var(--success)' : 'var(--text-sec)');
 
-        const colors = ['#f87171', '#fbbf24', '#34d399', '#60a5fa', '#818cf8'];
-
         app.budgets.forEach((b, i) => {
             const shareFromPercent = Math.round((baseAmount * b.percent) / 100);
-            const totalShare = shareFromPercent + (b.manualAdd || 0);
-            const remain = totalShare - b.spent;
-            const percent = totalShare > 0 ? (b.spent / totalShare) * 100 : 0;
+            const totalShare = shareFromPercent + (b.manualAdd || 0); // manualAdd acts as the real balance in bucket
+            // In new logic: manualAdd stores "Real Money Deposited" into bucket.
+            // spent tracks expenses.
+            // The display should be: manualAdd - spent (Current Balance in Bucket).
+            // But strict instruction says "Budget amount chosen by user".
+            // Implementation: manualAdd holds accumulated real transfers + dist.
+            // Let's use manualAdd as the "Current Balance" bucket directly for simplicity in new logic.
+            // Or stick to: (Percent Share of Base) + (Direct Transfers In) - (Direct Transfers Out) - (Spent)
+            
+            // Re-interpreting instruction 8 & 9:
+            // "Transfer direct budget to item ... sit in budget item ... reduce from main account"
+            // This suggests Budget Item holds real value.
+            
+            // Let's treat 'manualAdd' as the persistent bucket balance offset.
+            
+            const totalAllocated = shareFromPercent + (b.manualAdd || 0);
+            const remain = totalAllocated - b.spent;
+            const percent = totalAllocated > 0 ? (b.spent / totalAllocated) * 100 : 0;
 
             let status = 'stat-green';
             if(percent > 50) status = 'stat-yellow';
             if(percent > 90) status = 'stat-red';
+            const pausedClass = b.isPaused ? 'paused' : '';
 
-            div.innerHTML += `<div class="bento-item ${status}">
+            const disabledAttr = calculationModeActive ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : '';
+
+            div.innerHTML += `<div class="bento-item ${status} ${pausedClass}">
                 <div class="bento-header">
-                    <span>${b.name} (${toPersianNum(b.percent)}%) <i class="fas fa-edit" style="font-size:0.9rem; cursor:pointer; margin-right:5px; color:var(--text-sec);" onclick="openEdit('budget', ${i})"></i></span>
+                    <span>${b.name} (${toPersianNum(b.percent)}%) ${b.isPaused ? '<small>(توقف)</small>' : ''} <i class="fas fa-edit" style="font-size:0.9rem; cursor:pointer; margin-right:5px; color:var(--text-sec);" onclick="openEdit('budget', ${i})"></i></span>
                 </div>
                 <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-top:5px; color:var(--text-sec);">
-                    <span>سهم: ${format(shareFromPercent)} ${b.manualAdd ? `+ ${format(b.manualAdd)}` : ''}</span>
+                    <span>کل اعتبار: ${format(totalAllocated)}</span>
                     <span style="color:var(--danger)">خرج: ${format(b.spent)}</span>
                 </div>
                 <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(percent,100)}%"></div></div>
@@ -2929,80 +2861,110 @@
                     ${format(remain)}
                 </div>
                 <div class="bento-actions">
-                    <button class="action-chip action-btn-copy" onclick="copyTxt(${remain})"><i class="fas fa-copy"></i> کپی موجودی</button>
+                    <button class="action-chip action-btn-copy" onclick="copyTxt(${remain})"><i class="fas fa-copy"></i> کپی</button>
+                    <button class="action-chip action-btn-dep" onclick="budgetDeposit(${i})" ${disabledAttr}><i class="fas fa-arrow-down"></i> واریز به آیتم</button>
+                    <button class="action-chip action-btn-with" onclick="budgetWithdraw(${i})" ${disabledAttr}><i class="fas fa-arrow-up"></i> برداشت از آیتم</button>
+                    <button class="action-chip action-btn-pause" onclick="togglePause(${i})">${b.isPaused ? 'فعال' : 'توقف'}</button>
                 </div>
             </div>`;
         });
     }
 
     function toggleCalculationMode() {
-        if (!calculationModeActive) {
-            openUniversalInput("حالت توزیع محاسباتی", "مبلغ مورد نظر برای محاسبه را وارد کنید:", true, (val) => {
-                if(val && !isNaN(val)) {
-                    calculationBackup = JSON.parse(JSON.stringify(app)); 
-                    calculationModeActive = true;
-                    
-                    let amount = parseInt(val);
-                    if(app.user.currency === 'rial') {
-                        amount = amount / 10;
-                    }
-
-                    app.distributedAmount = amount;
-                    
-                    renderUI();
-                    showToast("حالت محاسباتی فعال شد", "calculator");
-                }
-            });
+        calculationModeActive = !calculationModeActive;
+        // If active, we might want to capture current state or just toggle UI
+        if(calculationModeActive) {
+            calculationBackup = JSON.parse(JSON.stringify(app)); 
+            showToast("حالت محاسباتی فعال شد", "calculator");
         } else {
-            if(calculationBackup) {
-                app = calculationBackup;
-                calculationBackup = null;
-            }
-            calculationModeActive = false;
-            renderUI();
+            if(calculationBackup) app = calculationBackup;
             showToast("حالت محاسباتی بسته شد", "times");
         }
+        renderUI();
     }
 
     function triggerDistribution() {
+        const val = parseFormatted(document.getElementById('budgetBaseInput').value);
+        if (isNaN(val) || val < 0) return alert("مبلغ معتبر نیست");
+        
         withLoading(() => {
-            if (calculationModeActive) {
-                renderUI();
-                showToast("توزیع آزمایشی محاسبه شد");
-                return;
-            }
-
-            if(!app.budgets || app.budgets.length === 0) {
-                applyTemplate('default'); 
-            }
-
-            const income = app.wallets.reduce((a,b)=>a+b.value,0);
+            app.distributedAmount = val; // Store base for % calc
+            // This doesn't move money automatically, just updates the view calculation base
+            // per instruction 8: "able to choose budget amount... calculation distribution".
+            // Money is moved via direct item transfers.
             
-            let net = income;
-
-            app.distributedAmount = net;
-            logSystemTransaction('system', net, 'Income', 'Budget', 'توزیع خودکار بودجه');
-            saveSectionSnap('budget', 'توزیع موجودی جدید');
+            saveSectionSnap('budget', 'تغییر مبنای محاسبه بودجه');
             saveData();
             renderUI();
-            showToast("بودجه توزیع شد");
-        }, 800);
+            showToast("مبنای بودجه بروز شد");
+        }, 500);
+    }
+
+    // --- BUDGET ACTIONS ---
+    function budgetDeposit(index) {
+        openUniversalInput('واریز به آیتم بودجه', 'مبلغ (از حساب اصلی کسر می‌شود):', true, null, false, null, null, index, 'deposit');
+    }
+
+    function budgetWithdraw(index) {
+        openUniversalInput('برداشت از آیتم بودجه', 'مبلغ (به حساب اصلی برمی‌گردد):', true, null, false, null, null, index, 'withdraw');
+    }
+
+    function handleBudgetAction(index, action, amount) {
+        if(isNaN(amount) || amount <= 0) return alert("مبلغ نامعتبر است");
+        
+        const budget = app.budgets[index];
+        const mainWallet = app.wallets[0];
+        
+        if (action === 'deposit') {
+            if(mainWallet.value < amount) return alert("موجودی حساب اصلی کافی نیست.");
+            mainWallet.value -= amount;
+            if(!budget.manualAdd) budget.manualAdd = 0;
+            budget.manualAdd += amount; // Increases available in bucket
+            logSystemTransaction('transfer', amount, 'حساب اصلی', `بودجه ${budget.name}`, 'واریز به بودجه');
+        } else {
+            // Check available in budget
+            const baseAmount = app.distributedAmount;
+            const totalAllocated = Math.round((baseAmount * budget.percent) / 100) + (budget.manualAdd || 0);
+            const remain = totalAllocated - budget.spent;
+            
+            if(remain < amount) return alert("موجودی این ردیف بودجه کافی نیست.");
+            
+            if(!budget.manualAdd) budget.manualAdd = 0;
+            budget.manualAdd -= amount; // Decreases bucket
+            mainWallet.value += amount;
+            logSystemTransaction('transfer', amount, `بودجه ${budget.name}`, 'حساب اصلی', 'برداشت از بودجه');
+        }
+        
+        saveData();
+        renderUI();
+        showToast("عملیات انجام شد");
+    }
+
+    function togglePause(index) {
+        saveSectionSnap('budget', `تغییر وضعیت توقف برای ${app.budgets[index].name}`);
+        const b = app.budgets[index];
+        b.isPaused = !b.isPaused;
+        saveData();
+        renderUI();
     }
 
     function openEdit(type, index) {
-        if (type === 'wallet') {
-           // Standard wallet edit
-        }
         openModal('editModal');
         document.getElementById('editType').value = type;
         document.getElementById('editIndex').value = index;
 
         let item;
         let showPercent = false;
-        let showAmount = true;
+        let showAmount = false;
 
-        if(type === 'wallet') item = app.wallets[index];
-        else if(type === 'budget') { item = app.budgets[index]; showPercent = true; showAmount = false; }
+        if(type === 'wallet') { 
+            // Wallet editing restricted mostly, but kept code structure if needed
+            item = app.wallets[index]; 
+            showAmount = true; 
+        } else if(type === 'budget') { 
+            item = app.budgets[index]; 
+            showPercent = true; 
+        }
 
         document.getElementById('editName').value = item.name;
 
@@ -3134,27 +3096,6 @@
         saveData();
         renderUI();
         showToast("قالب بارگذاری شد");
-    }
-
-    function addWallet() {
-        const n = document.getElementById('wName').value;
-        if(n) {
-            saveSectionSnap('dashboard', `افزودن کیف پول ${n}`);
-            app.wallets.push({name:n, value:0}); // Force 0 initial balance
-            saveData();
-            renderUI();
-            closeAllModals();
-        }
-    }
-
-    function delWallet(i) {
-        if(confirm('حذف؟')) {
-            const wName = app.wallets[i].name;
-            saveSectionSnap('dashboard', `حذف کیف پول ${wName}`);
-            app.wallets.splice(i,1);
-            saveData();
-            renderUI();
-        }
     }
 
     function addNewBudget() {
@@ -3433,7 +3374,7 @@
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'موجودی خالص',
+                    label: 'موجودی کل',
                     data: data,
                     borderColor: '#4f46e5',
                     backgroundColor: 'rgba(79, 70, 229, 0.1)',
@@ -3502,15 +3443,15 @@
 
     function generateReportImage() {
         withLoading(() => {
-            const income = app.wallets.reduce((a,b)=>a+b.value,0);
-            let net = income; 
             const days = app.user.startDate ? Math.floor((Date.now() - app.user.startDate)/(1000*60*60*24))+1 : 0;
-
+            const main = app.wallets[0].value;
+            const piggy = app.piggyBanks.reduce((a,b)=>a+b.balance,0);
+            
             document.getElementById('printDate').innerText = toPersianNum(new Date().toLocaleDateString('fa-IR'));
             document.getElementById('printUser').innerText = app.user.name;
             document.getElementById('printDays').innerText = toPersianNum(days);
-            document.getElementById('printInc').innerText = format(income);
-            document.getElementById('printNet').innerText = format(net);
+            document.getElementById('printInc').innerText = format(main + piggy);
+            document.getElementById('printNet').innerText = format(main);
 
             if(app.dailyLogs && app.dailyLogs.length > 0) {
                 const ctx = document.getElementById('printChart').getContext('2d');
@@ -3602,6 +3543,8 @@
                     if(!app.transfers) app.transfers = [];
                     if(!app.transactionLog) app.transactionLog = [];
                     if(!app.piggyBanks) app.piggyBanks = [];
+                    // Ensure wallet
+                    if(app.wallets.length === 0) app.wallets.push({name: "حساب اصلی", value: 0});
 
                     app.budgets.forEach(b => {
                         if(!b.history) b.history = [];
@@ -3637,6 +3580,7 @@
             const pass = app.security.password;
             
             app = JSON.parse(JSON.stringify(defaultState));
+            app.wallets.push({name: "حساب اصلی", value: 0}); // Reset to 0
             
             app.security = sec;
             app.security.nationalId = natId;
