@@ -1,0 +1,756 @@
+<!DOCTYPE html> 
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>مدیریت سرمایه تعالی</title>
+    
+    <!-- فونت وزیرمتن -->
+    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
+    <!-- آیکون‌ها -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- کتابخانه نمودار -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- کتابخانه تبدیل به تصویر -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        :root {
+            --bg-body: #f1f5f9;
+            --surface: #ffffff;
+            --primary: #4f46e5;
+            --primary-dark: #3730a3;
+            --text-main: #1e293b;
+            --text-light: #64748b;
+            --success: #10b981;
+            --danger: #ef4444;
+            --nav-height: 70px;
+            --radius: 16px;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        [data-theme="dark"] {
+            --bg-body: #0f172a;
+            --surface: #1e293b;
+            --text-main: #f8fafc;
+            --text-light: #94a3b8;
+            --primary: #818cf8;
+            --primary-dark: #6366f1;
+            --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+        }
+
+        * { box-sizing: border-box; font-family: 'Vazirmatn', sans-serif; -webkit-tap-highlight-color: transparent; outline: none; }
+        body { background-color: var(--bg-body); color: var(--text-main); margin: 0; padding: 0 0 var(--nav-height) 0; min-height: 100vh; transition: 0.3s; user-select: none; }
+
+        /* --- UI Components --- */
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        
+        .card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+            transition: 0.3s;
+        }
+
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        h2, h3, h4 { margin: 0; font-weight: 800; }
+
+        .btn {
+            border: none; padding: 12px 20px; border-radius: 12px;
+            font-size: 0.95rem; font-weight: bold; cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            transition: 0.2s; width: 100%;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:active { transform: scale(0.98); background: var(--primary-dark); }
+        .btn-outline { background: transparent; border: 2px solid var(--text-light); color: var(--text-light); }
+        .btn-danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+        .btn-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--surface); color: var(--text-main); border: 1px solid var(--text-light); cursor: pointer; }
+
+        input {
+            width: 100%; padding: 14px; border-radius: 12px; border: 1px solid var(--text-light);
+            background: var(--bg-body); color: var(--text-main); font-size: 1rem; margin-bottom: 15px;
+        }
+        input:focus { border-color: var(--primary); }
+
+        /* --- Dashboard Specific --- */
+        .wallet-card {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white; text-align: center; padding: 30px;
+            border-radius: 24px; margin-bottom: 25px;
+            box-shadow: 0 10px 25px rgba(79, 70, 229, 0.4);
+        }
+        .balance-amount { font-size: 2.5rem; font-weight: 900; margin: 10px 0; direction: ltr; }
+        
+        /* --- Gholak (Piggy Bank) --- */
+        .gholak-grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
+        .gholak-item {
+            background: var(--surface); border-radius: 16px; padding: 15px;
+            box-shadow: var(--shadow); border-right: 5px solid var(--primary);
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .gholak-header { display: flex; justify-content: space-between; align-items: center; }
+        .gholak-val { font-size: 1.2rem; font-weight: bold; color: var(--primary); direction: ltr; }
+        .gholak-actions { display: flex; gap: 10px; margin-top: 5px; }
+        .btn-small { padding: 8px; font-size: 0.8rem; border-radius: 8px; flex: 1; }
+
+        /* --- Budget --- */
+        .budget-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .budget-item {
+            background: var(--surface); border-radius: 16px; padding: 15px;
+            text-align: center; box-shadow: var(--shadow);
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .budget-val { font-size: 1.1rem; font-weight: bold; color: var(--text-main); direction: ltr; }
+
+        /* --- Navigation --- */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; width: 100%; height: var(--nav-height);
+            background: var(--surface); border-top: 1px solid rgba(0,0,0,0.05);
+            display: flex; justify-content: space-around; align-items: center; z-index: 1000;
+        }
+        .nav-item {
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            color: var(--text-light); font-size: 0.75rem; background: none; border: none; cursor: pointer;
+        }
+        .nav-item i { font-size: 1.4rem; }
+        .nav-item.active { color: var(--primary); }
+
+        /* --- Modals --- */
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+            display: none; justify-content: center; align-items: flex-end; z-index: 2000;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: var(--surface); width: 100%; max-width: 600px;
+            padding: 25px; border-radius: 25px 25px 0 0;
+            animation: slideUp 0.3s ease;
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        /* --- Auth Screen --- */
+        #auth-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-body); z-index: 5000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 30px;
+        }
+        
+        /* --- Loading --- */
+        #loader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 6000;
+            display: none; justify-content: center; align-items: center; color: white; flex-direction: column;
+        }
+        .spinner {
+            width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 10px;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <!-- Loading Overlay -->
+    <div id="loader">
+        <div class="spinner"></div>
+        <div>درحال ارتباط با سرور...</div>
+    </div>
+
+    <!-- Auth Screen -->
+    <div id="auth-screen">
+        <h1 style="color:var(--primary); margin-bottom:10px;">مدیریت سرمایه</h1>
+        <p style="color:var(--text-light); margin-bottom:40px;">لطفاً وارد شوید یا ثبت‌نام کنید</p>
+        
+        <div id="auth-forms" style="width:100%;">
+            <input type="text" id="auth-nat-id" placeholder="کد ملی (نام کاربری)" inputmode="numeric">
+            <input type="password" id="auth-pass" placeholder="رمز عبور">
+            
+            <button class="btn btn-primary" onclick="handleLogin()">ورود</button>
+            <button class="btn btn-outline" style="margin-top:10px;" onclick="toggleAuthMode()">حساب ندارید؟ ثبت نام</button>
+        </div>
+        
+        <div id="reg-forms" class="hidden" style="width:100%;">
+            <input type="text" id="reg-name" placeholder="نام و نام خانوادگی">
+            <input type="text" id="reg-nat-id" placeholder="کد ملی" inputmode="numeric">
+            <input type="password" id="reg-pass" placeholder="رمز عبور">
+            
+            <button class="btn btn-primary" onclick="handleRegister()">ثبت نام</button>
+            <button class="btn btn-outline" style="margin-top:10px;" onclick="toggleAuthMode()">بازگشت به ورود</button>
+        </div>
+    </div>
+
+    <!-- App Content -->
+    <div id="app-content" class="container hidden">
+        
+        <!-- Tab 1: Dashboard -->
+        <div id="tab-dashboard" class="tab-pane">
+            <div class="header-row">
+                <h3>داشبورد</h3>
+                <button class="btn-icon" onclick="toggleTheme()"><i class="fas fa-moon"></i></button>
+            </div>
+
+            <div class="wallet-card">
+                <div style="opacity:0.8; font-size:0.9rem;">موجودی اصلی (کیف پول)</div>
+                <div class="balance-amount" id="main-balance">0</div>
+                <div style="font-size:0.9rem;">تومان</div>
+                <button class="btn btn-outline" style="margin-top:20px; border-color:rgba(255,255,255,0.3); color:white;" onclick="openModal('modal-edit-wallet')">
+                    <i class="fas fa-edit"></i> ویرایش موجودی
+                </button>
+            </div>
+
+            <div class="card">
+                <h4><i class="fas fa-chart-pie" style="color:var(--primary)"></i> نمودار دارایی</h4>
+                <div style="height:250px; position:relative;">
+                    <canvas id="assetChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h4><i class="fas fa-list" style="color:var(--success)"></i> خلاصه وضعیت</h4>
+                <div style="margin-top:15px; font-size:0.9rem; color:var(--text-light);">
+                    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
+                        <span>تعداد قلک‌ها:</span>
+                        <span id="summary-gholak-count" style="font-weight:bold; color:var(--text-main);">0</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
+                        <span>موجودی کل قلک‌ها:</span>
+                        <span id="summary-gholak-total" style="font-weight:bold; color:var(--text-main);">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Gholak (Piggy Bank) -->
+        <div id="tab-gholak" class="tab-pane hidden">
+            <div class="header-row">
+                <h3>قلک‌ها</h3>
+                <button class="btn btn-primary" style="width:auto;" onclick="openAddGholakModal()">
+                    <i class="fas fa-plus"></i> جدید
+                </button>
+            </div>
+            <p style="font-size:0.8rem; color:var(--text-light); margin-bottom:15px;">
+                * امکان افزودن حداکثر ۱۰ قلک. مبالغ فقط از کیف پول منتقل می‌شوند.
+            </p>
+            <div id="gholak-list" class="gholak-grid">
+                <!-- Items injected via JS -->
+            </div>
+        </div>
+
+        <!-- Tab 3: Budget -->
+        <div id="tab-budget" class="tab-pane hidden">
+            <div class="header-row">
+                <h3>بودجه‌بندی</h3>
+                <button class="btn btn-outline" style="width:auto;" onclick="openModal('modal-add-budget')">
+                    <i class="fas fa-plus"></i> ردیف جدید
+                </button>
+            </div>
+            
+            <div class="card" style="text-align:center;">
+                <span style="font-size:0.9rem; color:var(--text-light);">موجودی قابل توزیع:</span>
+                <div id="budget-distributable" style="font-size:1.4rem; font-weight:bold; color:var(--primary); direction:ltr;">0</div>
+                <button class="btn btn-primary" style="margin-top:10px;" onclick="calculateBudgets()">
+                    <i class="fas fa-calculator"></i> محاسبه و توزیع
+                </button>
+            </div>
+
+            <div id="budget-list" class="budget-grid">
+                <!-- Items injected via JS -->
+            </div>
+        </div>
+
+        <!-- Tab 4: Settings -->
+        <div id="tab-settings" class="tab-pane hidden">
+            <h3>تنظیمات</h3>
+            <div class="card" style="margin-top:20px;">
+                <button class="btn btn-outline" onclick="syncData()" style="margin-bottom:15px;">
+                    <i class="fas fa-sync"></i> ذخیره در سرور (Sync)
+                </button>
+                <button class="btn btn-primary" onclick="exportToExcel()" style="margin-bottom:15px;">
+                    <i class="fas fa-file-excel"></i> خروجی اکسل (CSV)
+                </button>
+                <button class="btn btn-primary" onclick="exportToPDF()" style="margin-bottom:15px;">
+                    <i class="fas fa-file-image"></i> خروجی گزارش (تصویر)
+                </button>
+                <button class="btn btn-danger" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> خروج
+                </button>
+            </div>
+            <div style="text-align:center; color:var(--text-light); font-size:0.8rem;">
+                نسخه: 3.0.0 (اختصاصی)
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Navigation -->
+    <nav id="navbar" class="bottom-nav hidden">
+        <button class="nav-item active" onclick="switchTab('dashboard')">
+            <i class="fas fa-home"></i> داشبورد
+        </button>
+        <button class="nav-item" onclick="switchTab('gholak')">
+            <i class="fas fa-piggy-bank"></i> قلک
+        </button>
+        <button class="nav-item" onclick="switchTab('budget')">
+            <i class="fas fa-chart-pie"></i> بودجه
+        </button>
+        <button class="nav-item" onclick="switchTab('settings')">
+            <i class="fas fa-cog"></i> تنظیمات
+        </button>
+    </nav>
+
+    <!-- Modals -->
+    
+    <!-- Edit Wallet Modal -->
+    <div id="modal-edit-wallet" class="modal">
+        <div class="modal-content">
+            <h3>ویرایش موجودی اصلی</h3>
+            <p style="font-size:0.8rem; color:var(--text-light); margin-bottom:15px;">این مبلغ کل دارایی نقد شماست.</p>
+            <input type="text" id="inp-wallet-val" placeholder="مبلغ جدید به تومان" inputmode="numeric" onkeyup="formatInput(this)">
+            <button class="btn btn-primary" onclick="saveWallet()">ذخیره</button>
+            <button class="btn btn-outline" style="margin-top:10px;" onclick="closeModal()">لغو</button>
+        </div>
+    </div>
+
+    <!-- Add Gholak Modal -->
+    <div id="modal-add-gholak" class="modal">
+        <div class="modal-content">
+            <h3>قلک جدید</h3>
+            <input type="text" id="inp-gholak-name" placeholder="نام قلک (مثلاً: گوشی جدید)">
+            <button class="btn btn-primary" onclick="addGholak()">ایجاد قلک (با موجودی صفر)</button>
+            <button class="btn btn-outline" style="margin-top:10px;" onclick="closeModal()">لغو</button>
+        </div>
+    </div>
+
+    <!-- Gholak Transfer Modal -->
+    <div id="modal-gholak-trans" class="modal">
+        <div class="modal-content">
+            <h3 id="gt-title">تراکنش قلک</h3>
+            <p id="gt-desc" style="font-size:0.8rem; color:var(--text-light); margin-bottom:15px;"></p>
+            <input type="hidden" id="gt-index">
+            <input type="hidden" id="gt-type"> <!-- deposit or withdraw -->
+            <input type="text" id="gt-amount" placeholder="مبلغ به تومان" inputmode="numeric" onkeyup="formatInput(this)">
+            <button class="btn btn-primary" onclick="processGholakTrans()">تایید تراکنش</button>
+            <button class="btn btn-outline" style="margin-top:10px;" onclick="closeModal()">لغو</button>
+        </div>
+    </div>
+
+    <!-- Add Budget Modal -->
+    <div id="modal-add-budget" class="modal">
+        <div class="modal-content">
+            <h3>ردیف بودجه جدید</h3>
+            <input type="text" id="inp-budget-name" placeholder="نام ردیف (مثلاً: کرایه)">
+            <input type="number" id="inp-budget-percent" placeholder="درصد سهم (عدد)">
+            <button class="btn btn-primary" onclick="addBudget()">افزودن</button>
+            <button class="btn btn-outline" style="margin-top:10px;" onclick="closeModal()">لغو</button>
+        </div>
+    </div>
+
+<script>
+    // **********************************************
+    // کانفیگ و متغیرهای اصلی
+    // **********************************************
+    // آدرس وب‌اپ اسکریپت گوگل خود را اینجا قرار دهید:
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw72Q6yqYQ_REPLACE_THIS_WITH_YOUR_DEPLOYMENT_ID/exec"; 
+    
+    // وضعیت برنامه
+    let state = {
+        nationalId: null,
+        name: null,
+        wallet: 0,
+        gholak: [], // {name, balance}
+        budgets: [
+            {name: 'ضروری', percent: 50, share: 0},
+            {name: 'تفریح', percent: 20, share: 0},
+            {name: 'آموزش', percent: 10, share: 0}
+        ]
+    };
+    
+    let chartInstance = null;
+
+    // **********************************************
+    // توابع پایه و کمکی
+    // **********************************************
+    
+    function format(n) { return Number(n).toLocaleString('fa-IR'); }
+    function parse(n) { return parseInt(n.replace(/,/g, '').replace(/[^0-9]/g, '')) || 0; }
+    
+    function formatInput(elm) {
+        let val = elm.value.replace(/[^0-9]/g, '');
+        if(val) elm.value = Number(val).toLocaleString('en-US');
+    }
+
+    function toggleLoader(show) {
+        document.getElementById('loader').style.display = show ? 'flex' : 'none';
+    }
+
+    function toggleTheme() {
+        if(document.body.getAttribute('data-theme') === 'dark') {
+            document.body.removeAttribute('data-theme');
+        } else {
+            document.body.setAttribute('data-theme', 'dark');
+        }
+    }
+
+    // **********************************************
+    // مدیریت صفحات (Tabs)
+    // **********************************************
+    
+    function switchTab(tabId) {
+        // مخفی کردن همه تب‌ها
+        document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        
+        // نمایش تب فعال
+        document.getElementById('tab-' + tabId).classList.remove('hidden');
+        
+        // آپدیت نوار پایین
+        const navIndex = ['dashboard', 'gholak', 'budget', 'settings'].indexOf(tabId);
+        document.querySelectorAll('.nav-item')[navIndex].classList.add('active');
+
+        if(tabId === 'dashboard') renderDashboard();
+        if(tabId === 'gholak') renderGholak();
+        if(tabId === 'budget') renderBudget();
+    }
+
+    // **********************************************
+    // احراز هویت و ارتباط با سرور
+    // **********************************************
+
+    function toggleAuthMode() {
+        const loginForm = document.getElementById('auth-forms');
+        const regForm = document.getElementById('reg-forms');
+        if(loginForm.classList.contains('hidden')) {
+            loginForm.classList.remove('hidden');
+            regForm.classList.add('hidden');
+        } else {
+            loginForm.classList.add('hidden');
+            regForm.classList.remove('hidden');
+        }
+    }
+
+    async function callAPI(action, data) {
+        toggleLoader(true);
+        try {
+            const response = await fetch(WEB_APP_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: action, data: data })
+            });
+            const result = await response.json();
+            toggleLoader(false);
+            return result;
+        } catch (error) {
+            toggleLoader(false);
+            alert("خطا در ارتباط با سرور: " + error);
+            return { success: false };
+        }
+    }
+
+    async function handleRegister() {
+        const name = document.getElementById('reg-name').value;
+        const nid = document.getElementById('reg-nat-id').value;
+        const pass = document.getElementById('reg-pass').value;
+        
+        if(!name || !nid || !pass) return alert("همه فیلدها الزامی است.");
+
+        const res = await callAPI('register', { name: name, nationalId: nid, password: pass });
+        if(res.success) {
+            alert(res.message);
+            toggleAuthMode();
+        } else {
+            alert(res.message);
+        }
+    }
+
+    async function handleLogin() {
+        const nid = document.getElementById('auth-nat-id').value;
+        const pass = document.getElementById('auth-pass').value;
+
+        if(!nid || !pass) return alert("اطلاعات ورود را کامل کنید.");
+
+        const res = await callAPI('login', { nationalId: nid, password: pass });
+        if(res.success) {
+            state.nationalId = nid;
+            state.name = res.name;
+            if(res.appState) {
+                // بارگذاری داده‌های سرور روی state
+                state.wallet = res.appState.wallet || 0;
+                state.gholak = res.appState.gholak || [];
+                state.budgets = res.appState.budgets || [];
+            }
+            
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('app-content').classList.remove('hidden');
+            document.getElementById('navbar').classList.remove('hidden');
+            switchTab('dashboard');
+        } else {
+            alert(res.message);
+        }
+    }
+
+    async function syncData() {
+        if(!state.nationalId) return;
+        const res = await callAPI('save', {
+            nationalId: state.nationalId,
+            appState: {
+                wallet: state.wallet,
+                gholak: state.gholak,
+                budgets: state.budgets
+            }
+        });
+        if(res.success) alert("اطلاعات با موفقیت در سرور ذخیره شد.");
+        else alert("خطا در ذخیره سازی: " + res.message);
+    }
+
+    function logout() {
+        location.reload();
+    }
+
+    // **********************************************
+    // لاجیک اصلی (داشبورد، قلک، بودجه)
+    // **********************************************
+
+    function renderDashboard() {
+        document.getElementById('main-balance').innerText = format(state.wallet);
+        
+        // محاسبات خلاصه
+        const gholakTotal = state.gholak.reduce((acc, curr) => acc + curr.balance, 0);
+        document.getElementById('summary-gholak-count').innerText = format(state.gholak.length);
+        document.getElementById('summary-gholak-total').innerText = format(gholakTotal) + " تومان";
+
+        // نمودار
+        const ctx = document.getElementById('assetChart').getContext('2d');
+        if(chartInstance) chartInstance.destroy();
+        
+        chartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['موجودی در دسترس', 'ذخیره قلک'],
+                datasets: [{
+                    data: [state.wallet, gholakTotal],
+                    backgroundColor: ['#4f46e5', '#10b981'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { font: { family: 'Vazirmatn' } } }
+                }
+            }
+        });
+    }
+
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal() { 
+        document.querySelectorAll('.modal').forEach(m => m.classList.remove('active')); 
+        // پاک کردن ورودی‌ها
+        document.querySelectorAll('.modal input').forEach(i => i.value = '');
+    }
+
+    // --- Wallet Logic ---
+    function saveWallet() {
+        const val = parse(document.getElementById('inp-wallet-val').value);
+        state.wallet = val;
+        closeModal();
+        renderDashboard();
+    }
+
+    // --- Gholak Logic ---
+    function renderGholak() {
+        const list = document.getElementById('gholak-list');
+        list.innerHTML = '';
+        state.gholak.forEach((g, index) => {
+            list.innerHTML += `
+                <div class="gholak-item">
+                    <div class="gholak-header">
+                        <span style="font-weight:bold;">${g.name}</span>
+                        <button class="btn-icon" style="width:30px; height:30px; border:none;" onclick="deleteGholak(${index})">
+                            <i class="fas fa-trash" style="color:var(--text-light); font-size:0.9rem;"></i>
+                        </button>
+                    </div>
+                    <div class="gholak-val">${format(g.balance)} تومان</div>
+                    <div class="gholak-actions">
+                        <button class="btn-small btn-success" onclick="prepGholakTrans(${index}, 'deposit')">
+                            <i class="fas fa-arrow-down"></i> واریز
+                        </button>
+                        <button class="btn-small btn-danger" onclick="prepGholakTrans(${index}, 'withdraw')">
+                            <i class="fas fa-arrow-up"></i> برداشت
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function openAddGholakModal() {
+        if(state.gholak.length >= 10) return alert("حداکثر ۱۰ قلک مجاز است.");
+        openModal('modal-add-gholak');
+    }
+
+    function addGholak() {
+        const name = document.getElementById('inp-gholak-name').value;
+        if(!name) return;
+        state.gholak.push({ name: name, balance: 0 }); // شروع با صفر طبق دستور
+        closeModal();
+        renderGholak();
+    }
+
+    function deleteGholak(index) {
+        if(state.gholak[index].balance > 0) return alert("قلک موجودی دارد. ابتدا موجودی را خارج کنید.");
+        if(confirm("قلک حذف شود؟")) {
+            state.gholak.splice(index, 1);
+            renderGholak();
+        }
+    }
+
+    function prepGholakTrans(index, type) {
+        const g = state.gholak[index];
+        document.getElementById('gt-index').value = index;
+        document.getElementById('gt-type').value = type;
+        document.getElementById('gt-title').innerText = type === 'deposit' ? 'واریز به قلک' : 'برداشت از قلک';
+        document.getElementById('gt-desc').innerText = type === 'deposit' 
+            ? `انتقال از موجودی اصلی به "${g.name}"` 
+            : `انتقال از "${g.name}" به موجودی اصلی`;
+        openModal('modal-gholak-trans');
+    }
+
+    function processGholakTrans() {
+        const index = document.getElementById('gt-index').value;
+        const type = document.getElementById('gt-type').value;
+        const amount = parse(document.getElementById('gt-amount').value);
+
+        if(amount <= 0) return alert("مبلغ نامعتبر است.");
+
+        if(type === 'deposit') {
+            if(state.wallet < amount) return alert("موجودی اصلی کافی نیست!");
+            state.wallet -= amount;
+            state.gholak[index].balance += amount;
+        } else {
+            if(state.gholak[index].balance < amount) return alert("موجودی قلک کافی نیست!");
+            state.gholak[index].balance -= amount;
+            state.wallet += amount;
+        }
+
+        closeModal();
+        renderGholak();
+    }
+
+    // --- Budget Logic ---
+    function renderBudget() {
+        const grid = document.getElementById('budget-list');
+        const dist = document.getElementById('budget-distributable');
+        
+        dist.innerText = format(state.wallet) + " تومان"; // مبنای توزیع، موجودی اصلی است
+        grid.innerHTML = '';
+        
+        state.budgets.forEach((b, index) => {
+            const calculatedShare = Math.round((state.wallet * b.percent) / 100);
+            b.share = calculatedShare; // بروزرسانی مقدار محاسبه شده
+            
+            grid.innerHTML += `
+                <div class="budget-item">
+                    <div style="display:flex; justify-content:space-between; width:100%; font-size:0.85rem;">
+                        <span style="font-weight:bold;">${b.name}</span>
+                        <span>${b.percent}%</span>
+                    </div>
+                    <div class="budget-val">${format(b.share)}</div>
+                    <button class="btn btn-outline" style="padding:6px; font-size:0.8rem; margin-top:5px;" onclick="copyToClipboard('${b.share}')">
+                        <i class="fas fa-copy"></i> کپی مبلغ
+                    </button>
+                    <button class="btn-icon" style="width:25px; height:25px; align-self:center; border:none; margin-top:5px;" onclick="deleteBudget(${index})">
+                        <i class="fas fa-trash" style="font-size:0.8rem; color:var(--text-light);"></i>
+                    </button>
+                </div>
+            `;
+        });
+    }
+
+    function calculateBudgets() {
+        // صرفاً جهت رندر مجدد و نمایش ویژوال
+        renderBudget();
+        alert("توزیع بودجه بر اساس موجودی فعلی بروزرسانی شد.");
+    }
+
+    function addBudget() {
+        const name = document.getElementById('inp-budget-name').value;
+        const percent = parseInt(document.getElementById('inp-budget-percent').value);
+        if(name && percent) {
+            state.budgets.push({ name: name, percent: percent, share: 0 });
+            closeModal();
+            renderBudget();
+        }
+    }
+
+    function deleteBudget(index) {
+        if(confirm("این ردیف بودجه حذف شود؟")) {
+            state.budgets.splice(index, 1);
+            renderBudget();
+        }
+    }
+
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text);
+        alert("مبلغ کپی شد: " + text);
+    }
+
+    // **********************************************
+    // خروجی‌ها (Excel / Image)
+    // **********************************************
+    
+    function exportToExcel() {
+        // ایجاد محتوای CSV با استفاده از BOM برای پشتیبانی فارسی
+        let csvContent = "\uFEFF"; 
+        csvContent += "نوع,عنوان,مبلغ (تومان)\n";
+        
+        // 1. موجودی اصلی
+        csvContent += `کیف پول,موجودی اصلی,${state.wallet}\n`;
+        
+        // 2. قلک‌ها
+        state.gholak.forEach(g => {
+            csvContent += `قلک,${g.name},${g.balance}\n`;
+        });
+
+        // 3. بودجه
+        state.budgets.forEach(b => {
+            csvContent += `بودجه,${b.name} (${b.percent}%),${b.share}\n`;
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", "financial_report.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function exportToPDF() {
+        toggleLoader(true);
+        // موقتا دکمه‌ها را مخفی می‌کنیم برای عکس
+        const buttons = document.querySelectorAll('button');
+        buttons.forEach(b => b.style.display = 'none');
+        
+        // عکس گرفتن از کل کانتینر اپ
+        html2canvas(document.querySelector("#app-content"), { scale: 2 }).then(canvas => {
+            // بازگرداندن دکمه‌ها
+            buttons.forEach(b => b.style.display = '');
+            toggleLoader(false);
+            
+            const link = document.createElement('a');
+            link.download = 'financial_report.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        });
+    }
+
+</script>
+</body>
+</html>
