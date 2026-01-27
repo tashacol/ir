@@ -1,9 +1,9 @@
-<!DOCTYPE html> 
+ <!DOCTYPE html> 
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>مدیریت سرمایه تعالی (نسخه بانکی)</title>
+    <title>مدیریت سرمایه تعالی</title>
     <!-- فونت وزیرمتن -->
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
     <!-- آیکون‌ها -->
@@ -172,6 +172,12 @@
 
         /* --- Chart Container --- */
         .chart-wrapper { background: var(--glass-bg); border: var(--glass-border); border-radius: 20px; padding: 15px; margin-bottom: 20px; box-shadow: var(--shadow-soft); height: 300px; position: relative; }
+        
+        /* --- Settings Item --- */
+        .settings-item { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; border-bottom: 1px solid rgba(0,0,0,0.04); transition: background 0.2s; }
+        .settings-item:hover { background: rgba(0,0,0,0.02); }
+        .settings-item-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-left: 15px; font-size: 1.1rem; }
+        .si-green { background: rgba(16, 185, 129, 0.1); color: var(--success); }
     </style>
 </head>
 <body>
@@ -341,7 +347,13 @@
     <div id="view-settings" class="tab-pane">
         <div class="glass-panel">
             <h3>تنظیمات</h3>
-            <button class="btn btn-outline" style="width:100%; margin-bottom:10px;" onclick="exportExcel()"><i class="fas fa-file-excel"></i> خروجی اکسل</button>
+            <div class="settings-item" onclick="setupBiometric()">
+                <div style="display:flex; align-items:center;">
+                    <div class="settings-item-icon si-green"><i class="fas fa-fingerprint"></i></div>
+                    <div class="settings-text">فعال‌سازی ورود با اثرانگشت</div>
+                </div>
+            </div>
+            <button class="btn btn-outline" style="width:100%; margin-bottom:10px; margin-top:15px;" onclick="exportExcel()"><i class="fas fa-file-excel"></i> خروجی اکسل</button>
             <button class="btn btn-outline" style="width:100%; margin-bottom:10px;" onclick="generateReportImage()"><i class="fas fa-file-image"></i> خروجی تصویری</button>
             <button class="btn btn-danger" style="width:100%;" onclick="resetAll()"><i class="fas fa-trash"></i> بازنشانی کامل</button>
         </div>
@@ -437,8 +449,8 @@
 
 <script>
     // URL وب‌اپ گوگل اسکریپت خود را اینجا قرار دهید
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwWX4agkq1Myl9nQ4RjuzR64knZbuexA7hRWJSAYQsQqi_9C-yBJIrB-OZiyS62j3_Bow/exec";
-    const LOCAL_STORAGE_KEY = 'amir_fin_bank_v3';
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw72Q6yqYQ_REPLACE_THIS_WITH_YOUR_DEPLOYMENT_ID/exec";
+    const LOCAL_STORAGE_KEY = 'amir_fin_bank_v5';
 
     const defaultState = {
         security: { hasPin: false, pin: "", isSetup: false, nationalId: "" },
@@ -452,7 +464,8 @@
         ],
         transfers: [],
         transactionLog: [],
-        distributedAmount: 0
+        distributedAmount: 0,
+        settings: { biometricEnabled: false, biometricId: null }
     };
 
     let app = JSON.parse(JSON.stringify(defaultState));
@@ -466,27 +479,56 @@
     function checkAuth() {
         const localData = localStorage.getItem(LOCAL_STORAGE_KEY);
         if (localData) {
-            app = JSON.parse(localData);
-            document.getElementById('authModal').style.display = 'none';
-            document.getElementById('appContent').style.display = 'block';
-            renderUI();
-        } else {
-            document.getElementById('authModal').style.display = 'flex';
+            try {
+                app = JSON.parse(localData);
+                if(app.settings && app.settings.biometricEnabled) {
+                    document.getElementById('bioLoginBtnInitial').style.display = 'block';
+                }
+            } catch(e) { console.error(e); }
         }
+        document.getElementById('authModal').style.display = 'flex';
+    }
+
+    function resetAuthView() {
+        document.getElementById('authInitial').style.display = 'block';
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('authStep1').style.display = 'none';
+    }
+
+    function showLoginForm() {
+        document.getElementById('authInitial').style.display = 'none';
+        document.getElementById('loginForm').style.display = 'block';
+    }
+
+    function showRegisterForm() {
+        document.getElementById('authInitial').style.display = 'none';
+        document.getElementById('authStep1').style.display = 'block';
     }
 
     function processLogin() {
         const natId = document.getElementById('loginNatId').value;
         const pass = document.getElementById('loginPass').value;
-        // شبیه‌سازی لاگین (در نسخه واقعی به سرور وصل می‌شود)
+        
+        // Simple local check for offline capability
+        if(app.security.nationalId === natId && app.security.password === pass) {
+             loginSuccess();
+             return;
+        }
+
+        // If not local, try server (simulated here for stability)
         if(natId && pass) {
             app.security.nationalId = natId;
+            app.security.password = pass; // In real app, don't store plain pass
             app.user.name = "کاربر";
             saveData();
-            document.getElementById('authModal').style.display = 'none';
-            document.getElementById('appContent').style.display = 'block';
-            renderUI();
+            loginSuccess();
         }
+    }
+
+    function loginSuccess() {
+        document.getElementById('authModal').style.display = 'none';
+        document.getElementById('appContent').style.display = 'block';
+        renderUI();
     }
 
     function saveData() {
@@ -511,6 +553,56 @@
         if(val) input.value = Number(val).toLocaleString('en-US');
     }
     function parseFormatted(val) { return parseInt(val.replace(/,/g, '').replace(/[^0-9]/g, '')) || 0; }
+
+    // --- BIOMETRIC ---
+    function bufferToBase64(buffer) {
+        return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+    }
+    function base64ToBuffer(base64) {
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) { bytes[i] = binaryString.charCodeAt(i); }
+        return bytes.buffer;
+    }
+
+    async function setupBiometric() {
+        if (!window.PublicKeyCredential) return alert("دستگاه پشتیبانی نمی‌کند.");
+        try {
+            const challenge = new Uint8Array(32);
+            window.crypto.getRandomValues(challenge);
+            const publicKey = {
+                challenge: challenge,
+                rp: { name: "Capital App" },
+                user: { id: Uint8Array.from(app.security.nationalId, c => c.charCodeAt(0)), name: app.security.nationalId, displayName: app.user.name },
+                pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+                authenticatorSelection: { authenticatorAttachment: "platform" },
+                timeout: 60000
+            };
+            const credential = await navigator.credentials.create({ publicKey });
+            if (credential) {
+                app.settings.biometricEnabled = true;
+                app.settings.biometricId = bufferToBase64(credential.rawId);
+                saveData();
+                alert("اثر انگشت فعال شد.");
+            }
+        } catch (err) { alert("خطا: " + err.message); }
+    }
+
+    async function loginWithBiometric() {
+        if (!app.settings.biometricId) return alert("اثر انگشت فعال نیست.");
+        try {
+            const challenge = new Uint8Array(32);
+            window.crypto.getRandomValues(challenge);
+            const credential = await navigator.credentials.get({
+                publicKey: {
+                    challenge: challenge,
+                    allowCredentials: [{ id: base64ToBuffer(app.settings.biometricId), type: 'public-key', transports: ['internal'] }],
+                    userVerification: "required"
+                }
+            });
+            if (credential) loginSuccess();
+        } catch (err) { alert("عدم تطابق."); }
+    }
 
     // --- WALLET ---
     function renderWallets() {
