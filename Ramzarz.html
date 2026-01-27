@@ -1,756 +1,718 @@
-<!DOCTYPE html> 
+ <!DOCTYPE html> 
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>مدیریت سرمایه تعالی</title>
-    
+    <title>مدیریت سرمایه تعالی (نسخه بانکی)</title>
     <!-- فونت وزیرمتن -->
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
     <!-- آیکون‌ها -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- کتابخانه نمودار -->
+    <!-- نمودار -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- کتابخانه تبدیل به تصویر -->
+    <!-- تبدیل به عکس -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
     <style>
         :root {
             --bg-body: #f1f5f9;
-            --surface: #ffffff;
-            --primary: #4f46e5;
-            --primary-dark: #3730a3;
-            --text-main: #1e293b;
-            --text-light: #64748b;
-            --success: #10b981;
-            --danger: #ef4444;
-            --nav-height: 70px;
-            --radius: 16px;
-            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --glass-bg: rgba(255, 255, 255, 0.98);
+            --glass-border: 1px solid rgba(255, 255, 255, 1);
+            --shadow-soft: 0 4px 15px rgba(148, 163, 184, 0.15);
+            --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.08);
+            --primary: #3730a3; 
+            --primary-dark: #312e81;
+            --primary-light: #6366f1;
+            --text-main: #0f172a;
+            --text-sec: #64748b;
+            --success: #059669;
+            --danger: #dc2626;
+            --warning: #d97706;
+            --info: #0284c7;
+            --card-radius: 16px;
+            --nav-height: 75px;
         }
 
         [data-theme="dark"] {
             --bg-body: #0f172a;
-            --surface: #1e293b;
+            --glass-bg: rgba(30, 41, 59, 0.98);
+            --glass-border: 1px solid rgba(255, 255, 255, 0.08);
             --text-main: #f8fafc;
-            --text-light: #94a3b8;
-            --primary: #818cf8;
-            --primary-dark: #6366f1;
-            --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+            --text-sec: #94a3b8;
+            --primary: #6366f1;
+            --primary-light: #818cf8;
+            --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.4);
         }
 
-        * { box-sizing: border-box; font-family: 'Vazirmatn', sans-serif; -webkit-tap-highlight-color: transparent; outline: none; }
-        body { background-color: var(--bg-body); color: var(--text-main); margin: 0; padding: 0 0 var(--nav-height) 0; min-height: 100vh; transition: 0.3s; user-select: none; }
+        * { box-sizing: border-box; font-family: 'Vazirmatn', sans-serif; outline: none; -webkit-tap-highlight-color: transparent; }
+        body { background-color: var(--bg-body); color: var(--text-main); margin: 0; padding: 0 0 var(--nav-height) 0; min-height: 100vh; overflow-x: hidden; transition: background 0.3s ease; }
 
-        /* --- UI Components --- */
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        /* --- Loading Overlay --- */
+        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px); z-index: 20000; display: none; justify-content: center; align-items: center; flex-direction: column; opacity: 0; transition: opacity 0.3s; }
+        .loading-overlay.active { display: flex; opacity: 1; }
+        .loading-spinner { width: 60px; height: 60px; border: 4px solid rgba(255, 255, 255, 0.1); border-top: 4px solid var(--primary-light); border-radius: 50%; animation: spin 1s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite; box-shadow: 0 0 20px rgba(79, 70, 229, 0.4); }
+        .loading-text { margin-top: 20px; color: white; font-weight: bold; font-size: 1rem; letter-spacing: 1px; text-shadow: 0 2px 5px rgba(0,0,0,0.5); animation: pulse 1.5s infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; transform: scale(1.05); } }
+
+        /* --- Toast --- */
+        .toast-container { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); z-index: 12000; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        .toast { background: rgba(30, 41, 59, 0.95); color: white; padding: 12px 24px; border-radius: 50px; font-size: 0.9rem; box-shadow: 0 10px 30px rgba(0,0,0,0.2); backdrop-filter: blur(10px); opacity: 0; transform: translateY(20px); transition: all 0.4s; display: flex; align-items: center; gap: 10px; }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast i { color: var(--success); }
+
+        /* --- Components --- */
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; padding-bottom: 40px; }
+        .glass-panel { background: var(--glass-bg); border: var(--glass-border); border-radius: var(--card-radius); box-shadow: var(--shadow-soft); padding: 20px; margin-bottom: 24px; transition: transform 0.2s, box-shadow 0.2s; }
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid rgba(0,0,0,0.06); }
+        [data-theme="dark"] .header-row { border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .header-row h3 { margin: 0; font-size: 1.1rem; color: var(--primary); display: flex; align-items: center; gap: 10px; font-weight: 800; }
+
+        /* Buttons */
+        .btn { padding: 12px 20px; border-radius: 12px; font-size: 0.9rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; border: none; box-shadow: 0 4px 12px rgba(55, 48, 163, 0.15); min-height: 46px; }
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
+        .btn-primary:active { transform: scale(0.97); }
+        .btn-outline { background: transparent; border: 2px solid var(--text-sec); color: var(--text-sec); box-shadow: none; opacity: 0.8; }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); background: rgba(55, 48, 163, 0.05); opacity: 1; }
+        .btn-danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); box-shadow: none; }
+        .btn-danger:hover { background: var(--danger); color: white; }
+        .btn-success { background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.2); box-shadow: none; }
+        .btn-success:hover { background: var(--success); color: white; }
         
-        .card {
-            background: var(--surface);
-            border-radius: var(--radius);
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: var(--shadow);
-            transition: 0.3s;
-        }
+        .btn-icon { width: 44px; height: 44px; border-radius: 12px; background: var(--glass-bg); border: var(--glass-border); color: var(--text-main); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: var(--shadow-soft); transition: all 0.2s; }
+        .btn-icon:hover { background: var(--primary); color: white; transform: translateY(-3px); }
+        .btn-small-icon { width: 32px; height: 32px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; margin-right: 5px; font-size: 0.9rem; transition: all 0.2s; border: none; }
+        .btn-edit { color: var(--warning); background: rgba(245, 158, 11, 0.15); }
+        .btn-del { color: var(--danger); background: rgba(239, 68, 68, 0.15); }
+        .btn-copy { color: var(--text-sec); background: rgba(100, 116, 139, 0.15); }
+        .btn-copy:hover { background: var(--text-main); color: white; }
 
-        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        h2, h3, h4 { margin: 0; font-weight: 800; }
+        .currency-toggle-btn { background: var(--glass-bg); border: 1px solid var(--primary); color: var(--primary); padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.3s; }
+        .currency-toggle-btn.active { background: var(--primary); color: white; box-shadow: 0 4px 15px rgba(55, 48, 163, 0.3); }
 
-        .btn {
-            border: none; padding: 12px 20px; border-radius: 12px;
-            font-size: 0.95rem; font-weight: bold; cursor: pointer;
-            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-            transition: 0.2s; width: 100%;
-        }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-primary:active { transform: scale(0.98); background: var(--primary-dark); }
-        .btn-outline { background: transparent; border: 2px solid var(--text-light); color: var(--text-light); }
-        .btn-danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
-        .btn-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--surface); color: var(--text-main); border: 1px solid var(--text-light); cursor: pointer; }
+        /* Inputs */
+        input, select { background: var(--bg-body); border: 1px solid transparent; color: var(--text-main); padding: 16px; border-radius: 14px; font-size: 1rem; width: 100%; margin-bottom: 15px; transition: all 0.2s; font-weight: 500; }
+        input:focus, select:focus { border-color: var(--primary); background: var(--glass-bg); box-shadow: 0 0 0 3px rgba(55, 48, 163, 0.1); }
+        .money-input-wrapper { position: relative; margin-bottom: 15px; }
+        .money-input-wrapper input { padding-left: 80px; margin-bottom: 0; direction: ltr; text-align: right; font-weight: 800; letter-spacing: 1px; font-size: 1.1rem; }
+        .money-unit { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--primary); font-size: 0.8rem; font-weight: bold; pointer-events: none; background: rgba(55, 48, 163, 0.1); padding: 6px 10px; border-radius: 10px; }
 
-        input {
-            width: 100%; padding: 14px; border-radius: 12px; border: 1px solid var(--text-light);
-            background: var(--bg-body); color: var(--text-main); font-size: 1rem; margin-bottom: 15px;
-        }
-        input:focus { border-color: var(--primary); }
+        /* --- Bank Card --- */
+        .hero-card { perspective: 1500px; height: 240px; margin-bottom: 30px; cursor: pointer; }
+        .card-inner { position: relative; width: 100%; height: 100%; text-align: right; transition: transform 0.8s; transform-style: preserve-3d; border-radius: 28px; box-shadow: 0 25px 50px -12px rgba(55, 48, 163, 0.5); }
+        .hero-card.flipped .card-inner { transform: rotateY(180deg); }
+        .card-front, .card-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 28px; padding: 25px; color: white; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; }
+        .card-front { background: linear-gradient(110deg, #1e3a8a 0%, #3b82f6 100%); }
+        .card-front::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); }
+        .card-chip { width: 50px; height: 38px; background: linear-gradient(135deg, #fbbf24 0%, #d97706 50%, #fbbf24 100%); border-radius: 6px; position: relative; box-shadow: inset 0 1px 2px rgba(255,255,255,0.4), 0 2px 5px rgba(0,0,0,0.2); border: 1px solid rgba(0,0,0,0.1); }
+        .card-number-top { font-family: 'Vazirmatn', sans-serif; font-size: 1.2rem; letter-spacing: 2px; color: rgba(255, 255, 255, 0.9); text-align: center; margin-bottom: 5px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .card-back { background: #0f172a; transform: rotateY(180deg); align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.1); }
+        .balance-value { font-size: clamp(1.4rem, 4vw, 2rem); font-weight: 800; text-shadow: 0 4px 10px rgba(0,0,0,0.3); letter-spacing: -1px; font-family: 'Vazirmatn', sans-serif; white-space: nowrap; overflow-x: auto; scrollbar-width: none; text-align: center; }
+        .balance-value::-webkit-scrollbar { display: none; }
+        .card-icon-btn { background: transparent; border: none; color: white; font-size: 1.4rem; cursor: pointer; padding: 5px; transition: transform 0.2s, opacity 0.2s; opacity: 0.85; }
+        .card-icon-btn:hover { transform: scale(1.1); opacity: 1; }
 
-        /* --- Dashboard Specific --- */
-        .wallet-card {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: white; text-align: center; padding: 30px;
-            border-radius: 24px; margin-bottom: 25px;
-            box-shadow: 0 10px 25px rgba(79, 70, 229, 0.4);
-        }
-        .balance-amount { font-size: 2.5rem; font-weight: 900; margin: 10px 0; direction: ltr; }
-        
-        /* --- Gholak (Piggy Bank) --- */
-        .gholak-grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
-        .gholak-item {
-            background: var(--surface); border-radius: 16px; padding: 15px;
-            box-shadow: var(--shadow); border-right: 5px solid var(--primary);
-            display: flex; flex-direction: column; gap: 10px;
-        }
+        /* --- BENTO GRID (Budget) --- */
+        .budget-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100%, 1fr)); gap: 20px; }
+        @media(min-width: 600px) { .budget-grid { grid-template-columns: 1fr 1fr; } }
+        .bento-item { background: var(--glass-bg); border: var(--glass-border); border-radius: 22px; padding: 20px; position: relative; display: flex; flex-direction: column; gap: 12px; box-shadow: var(--shadow-soft); transition: all 0.3s; }
+        .bento-item:hover { transform: translateY(-5px); box-shadow: var(--shadow-card); }
+        .bento-header { display: flex; justify-content: space-between; align-items: center; font-weight: 800; font-size: 1.1rem; color: var(--text-main); }
+        .progress-bar { height: 14px; background: rgba(0,0,0,0.06); border-radius: 10px; overflow: hidden; margin: 5px 0; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); }
+        .progress-fill { height: 100%; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 10px; }
+        .stat-green .progress-fill { background: linear-gradient(90deg, var(--success), #34d399); }
+        .stat-yellow .progress-fill { background: linear-gradient(90deg, var(--warning), #fbbf24); }
+        .stat-red .progress-fill { background: linear-gradient(90deg, var(--danger), #f87171); }
+        .bento-actions { margin-top: 8px; display: grid; grid-template-columns: 1fr; gap: 8px; }
+        .action-chip { padding: 10px; font-size: 0.8rem; border-radius: 12px; border: none; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; font-weight: 700; white-space: nowrap; transition: 0.2s; }
+        .action-btn-copy { background: rgba(79, 70, 229, 0.1); color: var(--primary); }
+        .action-btn-copy:hover { background: var(--primary); color: white; }
+
+        /* --- Gholak Styles --- */
+        .gholak-item { background: var(--glass-bg); border-radius: 20px; padding: 20px; margin-bottom: 15px; box-shadow: var(--shadow-soft); border-right: 4px solid var(--info); display: flex; flex-direction: column; gap: 15px; }
         .gholak-header { display: flex; justify-content: space-between; align-items: center; }
-        .gholak-val { font-size: 1.2rem; font-weight: bold; color: var(--primary); direction: ltr; }
-        .gholak-actions { display: flex; gap: 10px; margin-top: 5px; }
-        .btn-small { padding: 8px; font-size: 0.8rem; border-radius: 8px; flex: 1; }
+        .gholak-title { font-weight: 800; font-size: 1.1rem; }
+        .gholak-bal { font-size: 1.4rem; font-weight: 900; color: var(--info); direction: ltr; }
+        .gholak-actions { display: flex; gap: 10px; }
+        .btn-g-action { flex: 1; padding: 10px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .btn-g-in { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+        .btn-g-out { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
 
-        /* --- Budget --- */
-        .budget-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .budget-item {
-            background: var(--surface); border-radius: 16px; padding: 15px;
-            text-align: center; box-shadow: var(--shadow);
-            display: flex; flex-direction: column; gap: 8px;
-        }
-        .budget-val { font-size: 1.1rem; font-weight: bold; color: var(--text-main); direction: ltr; }
+        /* --- BOTTOM NAV --- */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: var(--nav-height); background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(25px); border-top: 1px solid rgba(255,255,255,0.5); display: flex; justify-content: space-around; align-items: center; z-index: 9000; box-shadow: 0 -10px 40px rgba(0,0,0,0.05); padding-bottom: 15px; }
+        [data-theme="dark"] .bottom-nav { background: rgba(15, 23, 42, 0.9); border-top: 1px solid rgba(255,255,255,0.05); }
+        .nav-btn { background: none; border: none; display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--text-sec); font-size: 0.75rem; cursor: pointer; width: 60px; font-weight: bold; opacity: 0.6; transition: 0.3s; }
+        .nav-btn i { font-size: 1.4rem; margin-bottom: 4px; transition: transform 0.2s; padding: 8px; border-radius: 12px; }
+        .nav-btn.active { color: var(--primary); opacity: 1; }
+        .nav-btn.active i { background: rgba(79, 70, 229, 0.1); transform: translateY(-5px); }
 
-        /* --- Navigation --- */
-        .bottom-nav {
-            position: fixed; bottom: 0; left: 0; width: 100%; height: var(--nav-height);
-            background: var(--surface); border-top: 1px solid rgba(0,0,0,0.05);
-            display: flex; justify-content: space-around; align-items: center; z-index: 1000;
-        }
-        .nav-item {
-            display: flex; flex-direction: column; align-items: center; gap: 4px;
-            color: var(--text-light); font-size: 0.75rem; background: none; border: none; cursor: pointer;
-        }
-        .nav-item i { font-size: 1.4rem; }
-        .nav-item.active { color: var(--primary); }
+        /* --- MODALS --- */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 11000; display: none; justify-content: center; align-items: flex-end; backdrop-filter: blur(8px); opacity: 0; transition: opacity 0.3s; }
+        .modal.active { display: flex; opacity: 1; }
+        .modal-content { background: var(--glass-bg); backdrop-filter: blur(25px); width: 100%; max-width: 600px; padding: 35px 25px; border-radius: 35px 35px 0 0; border-top: 1px solid rgba(255,255,255,0.6); box-shadow: 0 -20px 80px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto; transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1); }
+        .modal.active .modal-content { transform: translateY(0); }
+        .tab-pane { display: none; padding-bottom: 20px; animation: fadeIn 0.4s ease; }
+        .tab-pane.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* --- Modals --- */
-        .modal {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
-            display: none; justify-content: center; align-items: flex-end; z-index: 2000;
-        }
-        .modal.active { display: flex; }
-        .modal-content {
-            background: var(--surface); width: 100%; max-width: 600px;
-            padding: 25px; border-radius: 25px 25px 0 0;
-            animation: slideUp 0.3s ease;
-        }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        /* --- Lock Screen --- */
+        .pin-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(20px); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; }
+        .auth-card { background: var(--glass-bg); border: 1px solid rgba(255,255,255,0.2); border-radius: 32px; padding: 40px 30px; width: 100%; max-width: 350px; box-shadow: 0 30px 60px rgba(0,0,0,0.3); text-align: center; display: flex; flex-direction: column; align-items: center; }
+        .auth-avatar { width: 70px; height: 70px; border-radius: 20px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; margin-bottom: 15px; box-shadow: 0 10px 25px rgba(55, 48, 163, 0.3); }
+        .auth-label { display: block; text-align: right; font-size: 0.85rem; color: var(--text-sec); margin-bottom: 8px; margin-right: 5px; font-weight: bold; }
 
-        /* --- Auth Screen --- */
-        #auth-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: var(--bg-body); z-index: 5000;
-            display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 30px;
-        }
-        
-        /* --- Loading --- */
-        #loader {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); z-index: 6000;
-            display: none; justify-content: center; align-items: center; color: white; flex-direction: column;
-        }
-        .spinner {
-            width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.3);
-            border-top: 4px solid white; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 10px;
-        }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
+        /* --- Transfer List --- */
+        .transfer-list-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: var(--glass-bg); border-bottom: 1px solid rgba(0,0,0,0.05); border-radius: 12px; margin-bottom: 10px; }
+        .t-info h4 { margin: 0; font-size: 0.95rem; color: var(--text-main); }
+        .t-info p { margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-sec); }
+        .t-amount { font-weight: 800; direction: ltr; font-size: 1rem; }
+        .t-status { font-size: 0.75rem; padding: 2px 8px; border-radius: 8px; font-weight: bold; margin-right: 5px; }
+        .ts-pending { background: #fef9c3; color: #854d0e; }
+        .ts-approved { background: #dcfce7; color: #166534; }
+        .ts-rejected { background: #fee2e2; color: #991b1b; }
 
-        .hidden { display: none !important; }
+        /* --- Chart Container --- */
+        .chart-wrapper { background: var(--glass-bg); border: var(--glass-border); border-radius: 20px; padding: 15px; margin-bottom: 20px; box-shadow: var(--shadow-soft); height: 300px; position: relative; }
     </style>
 </head>
 <body>
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">درحال پردازش...</div>
+</div>
+<div id="toastContainer" class="toast-container"></div>
 
-    <!-- Loading Overlay -->
-    <div id="loader">
-        <div class="spinner"></div>
-        <div>درحال ارتباط با سرور...</div>
+<!-- 1. AUTH SCREEN -->
+<div id="authModal" class="pin-screen" style="display: flex;">
+    <div class="auth-card">
+        <div class="auth-avatar" id="authIcon"><i class="fas fa-fingerprint"></i></div>
+        <h2 id="authTitle" style="margin: 0 0 5px 0; color: var(--primary); font-size: 1.4rem;">مدیریت سرمایه</h2>
+        <p id="authSub" style="font-size: 0.9rem; color: var(--text-sec); margin-bottom: 25px;">لطفاً وارد شوید یا ثبت نام کنید</p>
+
+        <div id="authInitial" style="width:100%;">
+            <button id="bioLoginBtnInitial" class="btn btn-success" style="width:100%; margin-bottom:10px; display:none;" onclick="loginWithBiometric()"><i class="fas fa-fingerprint"></i> ورود با اثر انگشت</button>
+            <button class="btn btn-primary" style="width:100%; margin-bottom:10px;" onclick="showLoginForm()">ورود با رمز عبور</button>
+            <button class="btn btn-outline" style="width:100%;" onclick="showRegisterForm()">ثبت نام جدید</button>
+        </div>
+
+        <div id="loginForm" style="display:none; width:100%;">
+            <label class="auth-label">کد ملی (۱۰ رقم):</label>
+            <input type="text" id="loginNatId" inputmode="numeric" pattern="[0-9]*" maxlength="10" placeholder="کد ملی خود را وارد کنید">
+            <label class="auth-label">رمز عبور (۴ رقم):</label>
+            <input type="password" id="loginPass" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="رمز عبور...">
+            <button class="btn btn-primary" style="width:100%; margin-top:10px;" onclick="processLogin()">ورود</button>
+            <button class="btn btn-outline" style="width:100%; margin-top:10px;" onclick="resetAuthView()">بازگشت</button>
+        </div>
+
+        <div id="authStep1" style="display:none; width:100%;">
+            <input type="hidden" id="setupStepVal" value="1">
+            <div id="setupS1">
+                <label class="auth-label">مرحله ۱: نام و نام خانوادگی</label>
+                <input type="text" id="setupNameInput" placeholder="نام خود را وارد کنید">
+            </div>
+            <div id="setupS2" style="display:none;">
+                <label class="auth-label">مرحله ۲: کد ملی (۱۰ رقم)</label>
+                <input type="text" id="setupNatId" inputmode="numeric" pattern="[0-9]*" maxlength="10" placeholder="کد ملی خود را وارد کنید">
+            </div>
+            <div id="setupS3" style="display:none;">
+                <label class="auth-label">مرحله ۳: تعیین رمز عبور (۴ رقم)</label>
+                <input type="password" id="setupPassword" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="رمز عبور ۴ رقمی">
+            </div>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn btn-outline" style="flex:1;" onclick="resetAuthView()">انصراف</button>
+                <button class="btn btn-primary" style="flex:1;" onclick="nextSetupStep()" id="setupNextBtn">بعدی</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 2. MAIN APP -->
+<div class="container" id="appContent" style="display:none;">
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-top: 10px;">
+        <div style="display:flex; flex-direction:column;">
+            <h2 style="margin:0; color:var(--primary); font-weight:900; font-size:1.3rem;" id="headerDate">---</h2>
+        </div>
+        <div style="display:flex; gap:10px; align-items: center;">
+            <button class="currency-toggle-btn" id="currBtn" onclick="toggleCurrency()" title="تغییر واحد پول">
+                <i class="fas fa-coins"></i> <span id="currBtnText">تومان</span>
+            </button>
+            <button class="btn-icon" onclick="refreshAppData()" title="بروزرسانی"><i class="fas fa-sync-alt"></i></button>
+            <button class="btn-icon" style="color:var(--danger); border-color:rgba(220,38,38,0.3);" onclick="logout()" title="خروج"><i class="fas fa-sign-out-alt"></i></button>
+        </div>
     </div>
 
-    <!-- Auth Screen -->
-    <div id="auth-screen">
-        <h1 style="color:var(--primary); margin-bottom:10px;">مدیریت سرمایه</h1>
-        <p style="color:var(--text-light); margin-bottom:40px;">لطفاً وارد شوید یا ثبت‌نام کنید</p>
-        
-        <div id="auth-forms" style="width:100%;">
-            <input type="text" id="auth-nat-id" placeholder="کد ملی (نام کاربری)" inputmode="numeric">
-            <input type="password" id="auth-pass" placeholder="رمز عبور">
-            
-            <button class="btn btn-primary" onclick="handleLogin()">ورود</button>
-            <button class="btn btn-outline" style="margin-top:10px;" onclick="toggleAuthMode()">حساب ندارید؟ ثبت نام</button>
+    <!-- TAB 1: DASHBOARD -->
+    <div id="view-dashboard" class="tab-pane active">
+        <!-- Hero Card -->
+        <div class="hero-card">
+            <div class="card-inner">
+                <div class="card-front" onclick="if(!event.target.closest('button')) showCardDetails()">
+                    <div class="card-number-top" id="cardAccountNumber">
+                        <span id="accNumText">۰۰۰۰ ۰۰۰۰ ۰۰۰۰ ۰۰۰۰</span>
+                        <i class="fas fa-copy" style="font-size:1rem; cursor:pointer; opacity:0.8;" onclick="copyToClipboard(document.getElementById('accNumText').innerText)"></i>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-top:10px;">
+                        <div class="card-chip"></div>
+                        <i class="fas fa-wifi" style="opacity:0.7; transform: rotate(90deg); font-size:1.5rem;"></i>
+                    </div>
+                    <div style="margin-top: auto; text-align:center;"> 
+                        <span class="balance-label">موجودی کل</span>
+                        <div class="balance-wrapper">
+                            <div class="balance-value" id="totalBalance">۰</div>
+                            <span class="balance-currency currency-text" id="cardCurrency">تومان</span>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+                        <div style="display:flex; gap:15px;">
+                            <button class="card-icon-btn" onclick="openBankTransfer(event)" title="انتقال وجه"><i class="fas fa-exchange-alt"></i></button>
+                        </div>
+                        <div style="flex:1; text-align:left; overflow:hidden; white-space:nowrap;">
+                            <span id="userNameDisplay" style="font-weight:bold; opacity:0.9; display:inline-block;">کاربر</span> 
+                        </div>
+                    </div>
+                </div>
+                <div class="card-back"></div>
+            </div>
         </div>
-        
-        <div id="reg-forms" class="hidden" style="width:100%;">
-            <input type="text" id="reg-name" placeholder="نام و نام خانوادگی">
-            <input type="text" id="reg-nat-id" placeholder="کد ملی" inputmode="numeric">
-            <input type="password" id="reg-pass" placeholder="رمز عبور">
-            
-            <button class="btn btn-primary" onclick="handleRegister()">ثبت نام</button>
-            <button class="btn btn-outline" style="margin-top:10px;" onclick="toggleAuthMode()">بازگشت به ورود</button>
+
+        <div class="glass-panel">
+            <div class="header-row">
+                <h3><i class="fas fa-wallet"></i> کیف پول‌ها</h3>
+                <button class="btn btn-primary" onclick="openModal('walletModal')"><i class="fas fa-plus"></i> افزودن</button>
+            </div>
+            <div id="walletList"></div>
+        </div>
+
+        <div class="glass-panel">
+            <div class="header-row">
+                <h3><i class="fas fa-comments-dollar"></i> تراکنش‌های اخیر</h3>
+            </div>
+            <div id="transfersList" style="max-height: 250px; overflow-y: auto;">
+                <p style="text-align:center; color:var(--text-sec); padding:10px;">تراکنشی یافت نشد.</p>
+            </div>
         </div>
     </div>
 
-    <!-- App Content -->
-    <div id="app-content" class="container hidden">
-        
-        <!-- Tab 1: Dashboard -->
-        <div id="tab-dashboard" class="tab-pane">
-            <div class="header-row">
-                <h3>داشبورد</h3>
-                <button class="btn-icon" onclick="toggleTheme()"><i class="fas fa-moon"></i></button>
-            </div>
+    <!-- TAB 2: GHOLAK (PIGGY BANK) -->
+    <div id="view-gholak" class="tab-pane">
+        <div class="header-row">
+            <h3>قلک‌ها (ذخیره)</h3>
+            <button class="btn btn-primary" onclick="openAddGholakModal()"><i class="fas fa-plus"></i> قلک جدید</button>
+        </div>
+        <p style="font-size:0.85rem; color:var(--text-sec); margin-bottom:20px;">
+            <i class="fas fa-info-circle"></i> حداکثر ۱۰ قلک. واریز و برداشت فقط از طریق کیف پول اصلی.
+        </p>
+        <div id="gholakList"></div>
+    </div>
 
-            <div class="wallet-card">
-                <div style="opacity:0.8; font-size:0.9rem;">موجودی اصلی (کیف پول)</div>
-                <div class="balance-amount" id="main-balance">0</div>
-                <div style="font-size:0.9rem;">تومان</div>
-                <button class="btn btn-outline" style="margin-top:20px; border-color:rgba(255,255,255,0.3); color:white;" onclick="openModal('modal-edit-wallet')">
-                    <i class="fas fa-edit"></i> ویرایش موجودی
-                </button>
+    <!-- TAB 3: BUDGET -->
+    <div id="view-budget" class="tab-pane">
+        <div class="glass-panel" style="text-align:center; padding: 25px;">
+            <span style="color:var(--text-sec); font-size:0.95rem; font-weight:bold;">بودجه کل توزیع شده:</span>
+            <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-top:5px;">
+                <div id="distributable" style="font-size:2rem; font-weight:800; color:var(--primary); direction:ltr;">۰</div>
             </div>
-
-            <div class="card">
-                <h4><i class="fas fa-chart-pie" style="color:var(--primary)"></i> نمودار دارایی</h4>
-                <div style="height:250px; position:relative;">
-                    <canvas id="assetChart"></canvas>
-                </div>
-            </div>
-            
-            <div class="card">
-                <h4><i class="fas fa-list" style="color:var(--success)"></i> خلاصه وضعیت</h4>
-                <div style="margin-top:15px; font-size:0.9rem; color:var(--text-light);">
-                    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
-                        <span>تعداد قلک‌ها:</span>
-                        <span id="summary-gholak-count" style="font-weight:bold; color:var(--text-main);">0</span>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
-                        <span>موجودی کل قلک‌ها:</span>
-                        <span id="summary-gholak-total" style="font-weight:bold; color:var(--text-main);">0</span>
-                    </div>
-                </div>
-            </div>
+            <button id="btnDistribute" class="btn btn-primary" style="margin-top:20px; width:100%; justify-content:center;" onclick="triggerDistribution()">
+                <i class="fas fa-sync-alt"></i> توزیع موجودی جدید
+            </button>
         </div>
 
-        <!-- Tab 2: Gholak (Piggy Bank) -->
-        <div id="tab-gholak" class="tab-pane hidden">
-            <div class="header-row">
-                <h3>قلک‌ها</h3>
-                <button class="btn btn-primary" style="width:auto;" onclick="openAddGholakModal()">
-                    <i class="fas fa-plus"></i> جدید
-                </button>
-            </div>
-            <p style="font-size:0.8rem; color:var(--text-light); margin-bottom:15px;">
-                * امکان افزودن حداکثر ۱۰ قلک. مبالغ فقط از کیف پول منتقل می‌شوند.
-            </p>
-            <div id="gholak-list" class="gholak-grid">
-                <!-- Items injected via JS -->
-            </div>
+        <div class="header-row">
+            <h3>مدیریت ردیف‌ها</h3>
+            <button class="btn btn-primary" onclick="openModal('addBudgetModal')"><i class="fas fa-plus"></i> جدید</button>
         </div>
+        <div id="budgetGrid" class="budget-grid"></div>
+    </div>
 
-        <!-- Tab 3: Budget -->
-        <div id="tab-budget" class="tab-pane hidden">
-            <div class="header-row">
-                <h3>بودجه‌بندی</h3>
-                <button class="btn btn-outline" style="width:auto;" onclick="openModal('modal-add-budget')">
-                    <i class="fas fa-plus"></i> ردیف جدید
-                </button>
-            </div>
-            
-            <div class="card" style="text-align:center;">
-                <span style="font-size:0.9rem; color:var(--text-light);">موجودی قابل توزیع:</span>
-                <div id="budget-distributable" style="font-size:1.4rem; font-weight:bold; color:var(--primary); direction:ltr;">0</div>
-                <button class="btn btn-primary" style="margin-top:10px;" onclick="calculateBudgets()">
-                    <i class="fas fa-calculator"></i> محاسبه و توزیع
-                </button>
-            </div>
-
-            <div id="budget-list" class="budget-grid">
-                <!-- Items injected via JS -->
-            </div>
+    <!-- TAB 4: REPORTS -->
+    <div id="view-reports" class="tab-pane">
+        <div class="header-row"><h3>گزارشات و نمودارها</h3></div>
+        <div class="glass-panel">
+            <div class="header-row"><h3><i class="fas fa-chart-pie"></i> توزیع مخارج</h3></div>
+            <div class="chart-wrapper"><canvas id="expenseChart"></canvas></div>
         </div>
+        <div class="glass-panel">
+            <div class="header-row"><h3><i class="fas fa-chart-line"></i> روند سلامت مالی</h3></div>
+            <div class="chart-wrapper"><canvas id="netWorthChart"></canvas></div>
+        </div>
+    </div>
 
-        <!-- Tab 4: Settings -->
-        <div id="tab-settings" class="tab-pane hidden">
+    <!-- TAB 5: SETTINGS -->
+    <div id="view-settings" class="tab-pane">
+        <div class="glass-panel">
             <h3>تنظیمات</h3>
-            <div class="card" style="margin-top:20px;">
-                <button class="btn btn-outline" onclick="syncData()" style="margin-bottom:15px;">
-                    <i class="fas fa-sync"></i> ذخیره در سرور (Sync)
-                </button>
-                <button class="btn btn-primary" onclick="exportToExcel()" style="margin-bottom:15px;">
-                    <i class="fas fa-file-excel"></i> خروجی اکسل (CSV)
-                </button>
-                <button class="btn btn-primary" onclick="exportToPDF()" style="margin-bottom:15px;">
-                    <i class="fas fa-file-image"></i> خروجی گزارش (تصویر)
-                </button>
-                <button class="btn btn-danger" onclick="logout()">
-                    <i class="fas fa-sign-out-alt"></i> خروج
-                </button>
-            </div>
-            <div style="text-align:center; color:var(--text-light); font-size:0.8rem;">
-                نسخه: 3.0.0 (اختصاصی)
-            </div>
-        </div>
-
-    </div>
-
-    <!-- Navigation -->
-    <nav id="navbar" class="bottom-nav hidden">
-        <button class="nav-item active" onclick="switchTab('dashboard')">
-            <i class="fas fa-home"></i> داشبورد
-        </button>
-        <button class="nav-item" onclick="switchTab('gholak')">
-            <i class="fas fa-piggy-bank"></i> قلک
-        </button>
-        <button class="nav-item" onclick="switchTab('budget')">
-            <i class="fas fa-chart-pie"></i> بودجه
-        </button>
-        <button class="nav-item" onclick="switchTab('settings')">
-            <i class="fas fa-cog"></i> تنظیمات
-        </button>
-    </nav>
-
-    <!-- Modals -->
-    
-    <!-- Edit Wallet Modal -->
-    <div id="modal-edit-wallet" class="modal">
-        <div class="modal-content">
-            <h3>ویرایش موجودی اصلی</h3>
-            <p style="font-size:0.8rem; color:var(--text-light); margin-bottom:15px;">این مبلغ کل دارایی نقد شماست.</p>
-            <input type="text" id="inp-wallet-val" placeholder="مبلغ جدید به تومان" inputmode="numeric" onkeyup="formatInput(this)">
-            <button class="btn btn-primary" onclick="saveWallet()">ذخیره</button>
-            <button class="btn btn-outline" style="margin-top:10px;" onclick="closeModal()">لغو</button>
+            <button class="btn btn-outline" style="width:100%; margin-bottom:10px;" onclick="exportExcel()"><i class="fas fa-file-excel"></i> خروجی اکسل</button>
+            <button class="btn btn-outline" style="width:100%; margin-bottom:10px;" onclick="generateReportImage()"><i class="fas fa-file-image"></i> خروجی تصویری</button>
+            <button class="btn btn-danger" style="width:100%;" onclick="resetAll()"><i class="fas fa-trash"></i> بازنشانی کامل</button>
         </div>
     </div>
+</div>
 
-    <!-- Add Gholak Modal -->
-    <div id="modal-add-gholak" class="modal">
-        <div class="modal-content">
-            <h3>قلک جدید</h3>
-            <input type="text" id="inp-gholak-name" placeholder="نام قلک (مثلاً: گوشی جدید)">
-            <button class="btn btn-primary" onclick="addGholak()">ایجاد قلک (با موجودی صفر)</button>
-            <button class="btn btn-outline" style="margin-top:10px;" onclick="closeModal()">لغو</button>
-        </div>
-    </div>
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+    <button class="nav-btn active" onclick="switchTab('dashboard')"><i class="fas fa-home"></i> داشبورد</button>
+    <button class="nav-btn" onclick="switchTab('gholak')"><i class="fas fa-piggy-bank"></i> قلک</button>
+    <button class="nav-btn" onclick="switchTab('budget')"><i class="fas fa-chart-pie"></i> بودجه</button>
+    <button class="nav-btn" onclick="switchTab('reports')"><i class="fas fa-chart-bar"></i> گزارشات</button>
+    <button class="nav-btn" onclick="switchTab('settings')"><i class="fas fa-cog"></i> تنظیمات</button>
+</nav>
 
-    <!-- Gholak Transfer Modal -->
-    <div id="modal-gholak-trans" class="modal">
-        <div class="modal-content">
-            <h3 id="gt-title">تراکنش قلک</h3>
-            <p id="gt-desc" style="font-size:0.8rem; color:var(--text-light); margin-bottom:15px;"></p>
-            <input type="hidden" id="gt-index">
-            <input type="hidden" id="gt-type"> <!-- deposit or withdraw -->
-            <input type="text" id="gt-amount" placeholder="مبلغ به تومان" inputmode="numeric" onkeyup="formatInput(this)">
-            <button class="btn btn-primary" onclick="processGholakTrans()">تایید تراکنش</button>
-            <button class="btn btn-outline" style="margin-top:10px;" onclick="closeModal()">لغو</button>
-        </div>
-    </div>
+<!-- MODALS -->
 
-    <!-- Add Budget Modal -->
-    <div id="modal-add-budget" class="modal">
-        <div class="modal-content">
-            <h3>ردیف بودجه جدید</h3>
-            <input type="text" id="inp-budget-name" placeholder="نام ردیف (مثلاً: کرایه)">
-            <input type="number" id="inp-budget-percent" placeholder="درصد سهم (عدد)">
-            <button class="btn btn-primary" onclick="addBudget()">افزودن</button>
-            <button class="btn btn-outline" style="margin-top:10px;" onclick="closeModal()">لغو</button>
+<!-- Wallet Modal -->
+<div id="walletModal" class="modal">
+    <div class="modal-content">
+        <h3>افزودن کیف پول</h3>
+        <label>نام کیف پول:</label>
+        <input type="text" id="wName" placeholder="مثلاً: کارت ملی">
+        <label>موجودی اولیه (تومان):</label>
+        <div class="money-input-wrapper">
+            <input type="text" id="wVal" onkeyup="formatCurrency(this)" inputmode="numeric" placeholder="۰">
+            <span class="money-unit currency-text">تومان</span>
         </div>
+        <button class="btn btn-primary" style="width:100%" onclick="addWallet()">ثبت</button>
+        <button class="btn btn-outline" style="width:100%; margin-top:10px;" onclick="closeAllModals()">لغو</button>
     </div>
+</div>
+
+<!-- Add Gholak Modal -->
+<div id="addGholakModal" class="modal">
+    <div class="modal-content">
+        <h3>ساخت قلک جدید</h3>
+        <label>نام قلک:</label>
+        <input type="text" id="gholakNameInput" placeholder="مثلاً: پس‌انداز گوشی">
+        <button class="btn btn-primary" style="width:100%" onclick="createGholak()">ساختن</button>
+        <button class="btn btn-outline" style="width:100%; margin-top:10px;" onclick="closeAllModals()">لغو</button>
+    </div>
+</div>
+
+<!-- Gholak Transaction Modal -->
+<div id="gholakTransModal" class="modal">
+    <div class="modal-content">
+        <h3 id="gtTitle">تراکنش قلک</h3>
+        <p id="gtDesc" style="font-size:0.9rem; color:var(--text-sec); margin-bottom:15px;"></p>
+        <input type="hidden" id="gtIndex">
+        <input type="hidden" id="gtType">
+        
+        <label>انتخاب کیف پول:</label>
+        <select id="gtWalletSelect"></select>
+
+        <label>مبلغ (تومان):</label>
+        <div class="money-input-wrapper">
+            <input type="text" id="gtAmount" inputmode="numeric" onkeyup="formatCurrency(this)">
+            <span class="money-unit">تومان</span>
+        </div>
+        <button class="btn btn-primary" style="width:100%" onclick="submitGholakTrans()">تایید</button>
+        <button class="btn btn-outline" style="width:100%; margin-top:10px;" onclick="closeAllModals()">لغو</button>
+    </div>
+</div>
+
+<!-- Add Budget Modal -->
+<div id="addBudgetModal" class="modal">
+    <div class="modal-content">
+        <h3>افزودن ردیف بودجه</h3>
+        <label>عنوان:</label>
+        <input type="text" id="bName" placeholder="مثلاً: پوشاک">
+        <label>درصد سهم:</label>
+        <input type="number" id="bPercent" inputmode="numeric" placeholder="مثلاً: ۱۰">
+        <button class="btn btn-primary" style="width:100%" onclick="addNewBudget()">ثبت</button>
+        <button class="btn btn-outline" style="width:100%; margin-top:10px;" onclick="closeAllModals()">لغو</button>
+    </div>
+</div>
+
+<!-- Bank Transfer Modal -->
+<div id="bankTransferModal" class="modal">
+    <div class="modal-content" id="btContent"></div>
+</div>
+
+<!-- Receipt Modal -->
+<div id="receiptModal" class="modal">
+    <div class="modal-content" style="text-align:center;">
+        <h3>رسید تراکنش</h3>
+        <div id="receiptContainer" style="display:flex; justify-content:center; margin-bottom:20px;"></div>
+        <button class="btn btn-primary" style="width:100%" onclick="downloadReceipt()">دانلود رسید</button>
+        <button class="btn btn-outline" style="width:100%; margin-top:10px;" onclick="closeAllModals()">بستن</button>
+    </div>
+</div>
 
 <script>
-    // **********************************************
-    // کانفیگ و متغیرهای اصلی
-    // **********************************************
-    // آدرس وب‌اپ اسکریپت گوگل خود را اینجا قرار دهید:
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwWX4agkq1Myl9nQ4RjuzR64knZbuexA7hRWJSAYQsQqi_9C-yBJIrB-OZiyS62j3_Bow/exec"; 
-    
-    // وضعیت برنامه
-    let state = {
-        nationalId: null,
-        name: null,
-        wallet: 0,
-        gholak: [], // {name, balance}
+    // URL وب‌اپ گوگل اسکریپت خود را اینجا قرار دهید
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw72Q6yqYQ_REPLACE_THIS_WITH_YOUR_DEPLOYMENT_ID/exec";
+    const LOCAL_STORAGE_KEY = 'amir_fin_bank_v3';
+
+    const defaultState = {
+        security: { hasPin: false, pin: "", isSetup: false, nationalId: "" },
+        user: { name: "", theme: "light", currency: "toman", startDate: Date.now() },
+        wallets: [],
+        gholaks: [],
         budgets: [
-            {name: 'ضروری', percent: 50, share: 0},
-            {name: 'تفریح', percent: 20, share: 0},
-            {name: 'آموزش', percent: 10, share: 0}
-        ]
+            {id: 1, name: "ضروری", percent: 50, spent: 0, manualAdd: 0},
+            {id: 2, name: "تفریح", percent: 30, spent: 0, manualAdd: 0},
+            {id: 3, name: "پس‌انداز", percent: 20, spent: 0, manualAdd: 0}
+        ],
+        transfers: [],
+        transactionLog: [],
+        distributedAmount: 0
     };
-    
-    let chartInstance = null;
 
-    // **********************************************
-    // توابع پایه و کمکی
-    // **********************************************
-    
+    let app = JSON.parse(JSON.stringify(defaultState));
+    let rate = 1;
+
+    // --- CORE FUNCTIONS ---
+    window.onload = () => {
+        checkAuth();
+    };
+
+    function checkAuth() {
+        const localData = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (localData) {
+            app = JSON.parse(localData);
+            document.getElementById('authModal').style.display = 'none';
+            document.getElementById('appContent').style.display = 'block';
+            renderUI();
+        } else {
+            document.getElementById('authModal').style.display = 'flex';
+        }
+    }
+
+    function processLogin() {
+        const natId = document.getElementById('loginNatId').value;
+        const pass = document.getElementById('loginPass').value;
+        // شبیه‌سازی لاگین (در نسخه واقعی به سرور وصل می‌شود)
+        if(natId && pass) {
+            app.security.nationalId = natId;
+            app.user.name = "کاربر";
+            saveData();
+            document.getElementById('authModal').style.display = 'none';
+            document.getElementById('appContent').style.display = 'block';
+            renderUI();
+        }
+    }
+
+    function saveData() {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(app));
+    }
+
+    function renderUI() {
+        const income = app.wallets.reduce((a,b)=>a+b.value,0);
+        document.getElementById('totalBalance').innerText = format(income);
+        document.getElementById('userNameDisplay').innerText = app.user.name;
+        
+        renderWallets();
+        renderGholak();
+        renderBudgets();
+        renderTransfers();
+        renderReports();
+    }
+
     function format(n) { return Number(n).toLocaleString('fa-IR'); }
-    function parse(n) { return parseInt(n.replace(/,/g, '').replace(/[^0-9]/g, '')) || 0; }
-    
-    function formatInput(elm) {
-        let val = elm.value.replace(/[^0-9]/g, '');
-        if(val) elm.value = Number(val).toLocaleString('en-US');
+    function formatCurrency(input) {
+        let val = input.value.replace(/[^0-9]/g, '');
+        if(val) input.value = Number(val).toLocaleString('en-US');
     }
+    function parseFormatted(val) { return parseInt(val.replace(/,/g, '').replace(/[^0-9]/g, '')) || 0; }
 
-    function toggleLoader(show) {
-        document.getElementById('loader').style.display = show ? 'flex' : 'none';
-    }
-
-    function toggleTheme() {
-        if(document.body.getAttribute('data-theme') === 'dark') {
-            document.body.removeAttribute('data-theme');
-        } else {
-            document.body.setAttribute('data-theme', 'dark');
-        }
-    }
-
-    // **********************************************
-    // مدیریت صفحات (Tabs)
-    // **********************************************
-    
-    function switchTab(tabId) {
-        // مخفی کردن همه تب‌ها
-        document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
-        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-        
-        // نمایش تب فعال
-        document.getElementById('tab-' + tabId).classList.remove('hidden');
-        
-        // آپدیت نوار پایین
-        const navIndex = ['dashboard', 'gholak', 'budget', 'settings'].indexOf(tabId);
-        document.querySelectorAll('.nav-item')[navIndex].classList.add('active');
-
-        if(tabId === 'dashboard') renderDashboard();
-        if(tabId === 'gholak') renderGholak();
-        if(tabId === 'budget') renderBudget();
-    }
-
-    // **********************************************
-    // احراز هویت و ارتباط با سرور
-    // **********************************************
-
-    function toggleAuthMode() {
-        const loginForm = document.getElementById('auth-forms');
-        const regForm = document.getElementById('reg-forms');
-        if(loginForm.classList.contains('hidden')) {
-            loginForm.classList.remove('hidden');
-            regForm.classList.add('hidden');
-        } else {
-            loginForm.classList.add('hidden');
-            regForm.classList.remove('hidden');
-        }
-    }
-
-    async function callAPI(action, data) {
-        toggleLoader(true);
-        try {
-            const response = await fetch(WEB_APP_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: action, data: data })
-            });
-            const result = await response.json();
-            toggleLoader(false);
-            return result;
-        } catch (error) {
-            toggleLoader(false);
-            alert("خطا در ارتباط با سرور: " + error);
-            return { success: false };
-        }
-    }
-
-    async function handleRegister() {
-        const name = document.getElementById('reg-name').value;
-        const nid = document.getElementById('reg-nat-id').value;
-        const pass = document.getElementById('reg-pass').value;
-        
-        if(!name || !nid || !pass) return alert("همه فیلدها الزامی است.");
-
-        const res = await callAPI('register', { name: name, nationalId: nid, password: pass });
-        if(res.success) {
-            alert(res.message);
-            toggleAuthMode();
-        } else {
-            alert(res.message);
-        }
-    }
-
-    async function handleLogin() {
-        const nid = document.getElementById('auth-nat-id').value;
-        const pass = document.getElementById('auth-pass').value;
-
-        if(!nid || !pass) return alert("اطلاعات ورود را کامل کنید.");
-
-        const res = await callAPI('login', { nationalId: nid, password: pass });
-        if(res.success) {
-            state.nationalId = nid;
-            state.name = res.name;
-            if(res.appState) {
-                // بارگذاری داده‌های سرور روی state
-                state.wallet = res.appState.wallet || 0;
-                state.gholak = res.appState.gholak || [];
-                state.budgets = res.appState.budgets || [];
-            }
-            
-            document.getElementById('auth-screen').classList.add('hidden');
-            document.getElementById('app-content').classList.remove('hidden');
-            document.getElementById('navbar').classList.remove('hidden');
-            switchTab('dashboard');
-        } else {
-            alert(res.message);
-        }
-    }
-
-    async function syncData() {
-        if(!state.nationalId) return;
-        const res = await callAPI('save', {
-            nationalId: state.nationalId,
-            appState: {
-                wallet: state.wallet,
-                gholak: state.gholak,
-                budgets: state.budgets
-            }
-        });
-        if(res.success) alert("اطلاعات با موفقیت در سرور ذخیره شد.");
-        else alert("خطا در ذخیره سازی: " + res.message);
-    }
-
-    function logout() {
-        location.reload();
-    }
-
-    // **********************************************
-    // لاجیک اصلی (داشبورد، قلک، بودجه)
-    // **********************************************
-
-    function renderDashboard() {
-        document.getElementById('main-balance').innerText = format(state.wallet);
-        
-        // محاسبات خلاصه
-        const gholakTotal = state.gholak.reduce((acc, curr) => acc + curr.balance, 0);
-        document.getElementById('summary-gholak-count').innerText = format(state.gholak.length);
-        document.getElementById('summary-gholak-total').innerText = format(gholakTotal) + " تومان";
-
-        // نمودار
-        const ctx = document.getElementById('assetChart').getContext('2d');
-        if(chartInstance) chartInstance.destroy();
-        
-        chartInstance = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['موجودی در دسترس', 'ذخیره قلک'],
-                datasets: [{
-                    data: [state.wallet, gholakTotal],
-                    backgroundColor: ['#4f46e5', '#10b981'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'bottom', labels: { font: { family: 'Vazirmatn' } } }
-                }
-            }
-        });
-    }
-
-    function openModal(id) { document.getElementById(id).classList.add('active'); }
-    function closeModal() { 
-        document.querySelectorAll('.modal').forEach(m => m.classList.remove('active')); 
-        // پاک کردن ورودی‌ها
-        document.querySelectorAll('.modal input').forEach(i => i.value = '');
-    }
-
-    // --- Wallet Logic ---
-    function saveWallet() {
-        const val = parse(document.getElementById('inp-wallet-val').value);
-        state.wallet = val;
-        closeModal();
-        renderDashboard();
-    }
-
-    // --- Gholak Logic ---
-    function renderGholak() {
-        const list = document.getElementById('gholak-list');
-        list.innerHTML = '';
-        state.gholak.forEach((g, index) => {
-            list.innerHTML += `
-                <div class="gholak-item">
-                    <div class="gholak-header">
-                        <span style="font-weight:bold;">${g.name}</span>
-                        <button class="btn-icon" style="width:30px; height:30px; border:none;" onclick="deleteGholak(${index})">
-                            <i class="fas fa-trash" style="color:var(--text-light); font-size:0.9rem;"></i>
-                        </button>
-                    </div>
-                    <div class="gholak-val">${format(g.balance)} تومان</div>
-                    <div class="gholak-actions">
-                        <button class="btn-small btn-success" onclick="prepGholakTrans(${index}, 'deposit')">
-                            <i class="fas fa-arrow-down"></i> واریز
-                        </button>
-                        <button class="btn-small btn-danger" onclick="prepGholakTrans(${index}, 'withdraw')">
-                            <i class="fas fa-arrow-up"></i> برداشت
-                        </button>
-                    </div>
+    // --- WALLET ---
+    function renderWallets() {
+        const div = document.getElementById('walletList');
+        div.innerHTML = app.wallets.map((w, i) => `
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:12px; align-items:center;">
+                <span style="font-weight:600;">${w.name}</span>
+                <div style="display:flex; align-items:center;">
+                    <b style="font-size:1.1rem; color:var(--primary);">${format(w.value)}</b>
+                    <button class="btn-small-icon btn-del" onclick="delWallet(${i})"><i class="fas fa-trash"></i></button>
                 </div>
-            `;
-        });
+            </div>`).join('');
+    }
+
+    function addWallet() {
+        const n = document.getElementById('wName').value;
+        const v = parseFormatted(document.getElementById('wVal').value);
+        if(n) {
+            app.wallets.push({name:n, value:v});
+            saveData();
+            renderUI();
+            closeAllModals();
+        }
+    }
+
+    function delWallet(i) {
+        if(confirm('حذف کیف پول؟')) {
+            app.wallets.splice(i,1);
+            saveData();
+            renderUI();
+        }
+    }
+
+    // --- GHOLAK ---
+    function renderGholak() {
+        const div = document.getElementById('gholakList');
+        div.innerHTML = app.gholaks.map((g, i) => `
+            <div class="gholak-item">
+                <div class="gholak-header">
+                    <span class="gholak-title">${g.name}</span>
+                    <button class="btn-icon" style="width:30px; height:30px;" onclick="deleteGholak(${i})"><i class="fas fa-trash"></i></button>
+                </div>
+                <div class="gholak-bal">${format(g.balance)}</div>
+                <div class="gholak-actions">
+                    <button class="btn-g-action btn-g-in" onclick="openGholakTrans('deposit', ${i})"><i class="fas fa-arrow-down"></i> واریز</button>
+                    <button class="btn-g-action btn-g-out" onclick="openGholakTrans('withdraw', ${i})"><i class="fas fa-arrow-up"></i> برداشت</button>
+                </div>
+            </div>`).join('');
     }
 
     function openAddGholakModal() {
-        if(state.gholak.length >= 10) return alert("حداکثر ۱۰ قلک مجاز است.");
-        openModal('modal-add-gholak');
+        if(app.gholaks.length >= 10) return alert("حداکثر ۱۰ قلک مجاز است.");
+        openModal('addGholakModal');
     }
 
-    function addGholak() {
-        const name = document.getElementById('inp-gholak-name').value;
-        if(!name) return;
-        state.gholak.push({ name: name, balance: 0 }); // شروع با صفر طبق دستور
-        closeModal();
-        renderGholak();
-    }
-
-    function deleteGholak(index) {
-        if(state.gholak[index].balance > 0) return alert("قلک موجودی دارد. ابتدا موجودی را خارج کنید.");
-        if(confirm("قلک حذف شود؟")) {
-            state.gholak.splice(index, 1);
-            renderGholak();
+    function createGholak() {
+        const name = document.getElementById('gholakNameInput').value;
+        if(name) {
+            app.gholaks.push({name: name, balance: 0});
+            saveData();
+            renderUI();
+            closeAllModals();
         }
     }
 
-    function prepGholakTrans(index, type) {
-        const g = state.gholak[index];
-        document.getElementById('gt-index').value = index;
-        document.getElementById('gt-type').value = type;
-        document.getElementById('gt-title').innerText = type === 'deposit' ? 'واریز به قلک' : 'برداشت از قلک';
-        document.getElementById('gt-desc').innerText = type === 'deposit' 
-            ? `انتقال از موجودی اصلی به "${g.name}"` 
-            : `انتقال از "${g.name}" به موجودی اصلی`;
-        openModal('modal-gholak-trans');
+    function deleteGholak(i) {
+        if(app.gholaks[i].balance > 0) return alert("قلک موجودی دارد. ابتدا خالی کنید.");
+        if(confirm("حذف قلک؟")) {
+            app.gholaks.splice(i, 1);
+            saveData();
+            renderUI();
+        }
     }
 
-    function processGholakTrans() {
-        const index = document.getElementById('gt-index').value;
-        const type = document.getElementById('gt-type').value;
-        const amount = parse(document.getElementById('gt-amount').value);
+    function openGholakTrans(type, index) {
+        document.getElementById('gtIndex').value = index;
+        document.getElementById('gtType').value = type;
+        document.getElementById('gtAmount').value = '';
+        
+        const g = app.gholaks[index];
+        document.getElementById('gtTitle').innerText = type === 'deposit' ? 'واریز به قلک' : 'برداشت از قلک';
+        document.getElementById('gtDesc').innerText = type === 'deposit' ? `انتقال از کیف پول به "${g.name}"` : `انتقال از "${g.name}" به کیف پول`;
 
-        if(amount <= 0) return alert("مبلغ نامعتبر است.");
+        const sel = document.getElementById('gtWalletSelect');
+        sel.innerHTML = app.wallets.map((w, i) => `<option value="${i}">${w.name} (${format(w.value)})</option>`).join('');
+        
+        openModal('gholakTransModal');
+    }
+
+    function submitGholakTrans() {
+        const idx = document.getElementById('gtIndex').value;
+        const type = document.getElementById('gtType').value;
+        const wIdx = document.getElementById('gtWalletSelect').value;
+        const amt = parseFormatted(document.getElementById('gtAmount').value);
+
+        if(amt <= 0) return alert("مبلغ نامعتبر است.");
+        if(wIdx === "") return alert("کیف پول انتخاب نشده.");
 
         if(type === 'deposit') {
-            if(state.wallet < amount) return alert("موجودی اصلی کافی نیست!");
-            state.wallet -= amount;
-            state.gholak[index].balance += amount;
+            if(app.wallets[wIdx].value < amt) return alert("موجودی کیف پول کافی نیست.");
+            app.wallets[wIdx].value -= amt;
+            app.gholaks[idx].balance += amt;
         } else {
-            if(state.gholak[index].balance < amount) return alert("موجودی قلک کافی نیست!");
-            state.gholak[index].balance -= amount;
-            state.wallet += amount;
+            if(app.gholaks[idx].balance < amt) return alert("موجودی قلک کافی نیست.");
+            app.gholaks[idx].balance -= amt;
+            app.wallets[wIdx].value += amt;
         }
 
-        closeModal();
-        renderGholak();
+        saveData();
+        renderUI();
+        closeAllModals();
     }
 
-    // --- Budget Logic ---
-    function renderBudget() {
-        const grid = document.getElementById('budget-list');
-        const dist = document.getElementById('budget-distributable');
-        
-        dist.innerText = format(state.wallet) + " تومان"; // مبنای توزیع، موجودی اصلی است
-        grid.innerHTML = '';
-        
-        state.budgets.forEach((b, index) => {
-            const calculatedShare = Math.round((state.wallet * b.percent) / 100);
-            b.share = calculatedShare; // بروزرسانی مقدار محاسبه شده
-            
-            grid.innerHTML += `
-                <div class="budget-item">
-                    <div style="display:flex; justify-content:space-between; width:100%; font-size:0.85rem;">
-                        <span style="font-weight:bold;">${b.name}</span>
-                        <span>${b.percent}%</span>
-                    </div>
-                    <div class="budget-val">${format(b.share)}</div>
-                    <button class="btn btn-outline" style="padding:6px; font-size:0.8rem; margin-top:5px;" onclick="copyToClipboard('${b.share}')">
-                        <i class="fas fa-copy"></i> کپی مبلغ
-                    </button>
-                    <button class="btn-icon" style="width:25px; height:25px; align-self:center; border:none; margin-top:5px;" onclick="deleteBudget(${index})">
-                        <i class="fas fa-trash" style="font-size:0.8rem; color:var(--text-light);"></i>
-                    </button>
+    // --- BUDGET ---
+    function renderBudgets() {
+        const div = document.getElementById('budgetGrid');
+        const income = app.wallets.reduce((a,b)=>a+b.value,0);
+        document.getElementById('distributable').innerText = format(income);
+
+        div.innerHTML = app.budgets.map((b, i) => {
+            const share = Math.round((income * b.percent) / 100);
+            return `
+            <div class="bento-item">
+                <div class="bento-header">
+                    <span>${b.name} (${b.percent}%)</span>
+                    <i class="fas fa-trash" style="opacity:0.3; cursor:pointer;" onclick="delBudget(${i})"></i>
                 </div>
-            `;
-        });
+                <div style="text-align:left; font-weight:800; font-size:1.4rem; color:var(--primary); direction:ltr; margin: 10px 0;">
+                    ${format(share)}
+                </div>
+                <div class="bento-actions">
+                    <button class="action-chip action-btn-copy" onclick="copyTxt(${share})"><i class="fas fa-copy"></i> کپی مبلغ</button>
+                </div>
+            </div>`;
+        }).join('');
     }
 
-    function calculateBudgets() {
-        // صرفاً جهت رندر مجدد و نمایش ویژوال
-        renderBudget();
-        alert("توزیع بودجه بر اساس موجودی فعلی بروزرسانی شد.");
-    }
-
-    function addBudget() {
-        const name = document.getElementById('inp-budget-name').value;
-        const percent = parseInt(document.getElementById('inp-budget-percent').value);
-        if(name && percent) {
-            state.budgets.push({ name: name, percent: percent, share: 0 });
-            closeModal();
-            renderBudget();
+    function addNewBudget() {
+        const n = document.getElementById('bName').value;
+        const p = parseInt(document.getElementById('bPercent').value);
+        if(n && p) {
+            app.budgets.push({id:Date.now(), name:n, percent:p, spent:0, manualAdd:0});
+            saveData();
+            renderUI();
+            closeAllModals();
         }
     }
 
-    function deleteBudget(index) {
-        if(confirm("این ردیف بودجه حذف شود؟")) {
-            state.budgets.splice(index, 1);
-            renderBudget();
+    function delBudget(i) {
+        if(confirm('حذف ردیف بودجه؟')) {
+            app.budgets.splice(i,1);
+            saveData();
+            renderUI();
         }
     }
 
-    function copyToClipboard(text) {
-        navigator.clipboard.writeText(text);
-        alert("مبلغ کپی شد: " + text);
+    function triggerDistribution() {
+        renderUI();
+        alert("بودجه بر اساس موجودی فعلی کیف پول‌ها بروزرسانی شد.");
     }
 
-    // **********************************************
-    // خروجی‌ها (Excel / Image)
-    // **********************************************
-    
-    function exportToExcel() {
-        // ایجاد محتوای CSV با استفاده از BOM برای پشتیبانی فارسی
-        let csvContent = "\uFEFF"; 
-        csvContent += "نوع,عنوان,مبلغ (تومان)\n";
-        
-        // 1. موجودی اصلی
-        csvContent += `کیف پول,موجودی اصلی,${state.wallet}\n`;
-        
-        // 2. قلک‌ها
-        state.gholak.forEach(g => {
-            csvContent += `قلک,${g.name},${g.balance}\n`;
-        });
-
-        // 3. بودجه
-        state.budgets.forEach(b => {
-            csvContent += `بودجه,${b.name} (${b.percent}%),${b.share}\n`;
-        });
-
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", "financial_report.csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    // --- TRANSFERS & REPORTS ---
+    function renderTransfers() {
+        const list = document.getElementById('transfersList');
+        if(!app.transfers || app.transfers.length === 0) {
+            list.innerHTML = '<p style="text-align:center; color:var(--text-sec); padding:10px;">تراکنشی یافت نشد.</p>';
+            return;
+        }
+        list.innerHTML = app.transfers.slice().reverse().map(t => `
+             <div class="transfer-list-item">
+               <div style="flex:1">
+                 <div class="t-info">
+                   <h4>${t.type === 'incoming' ? 'دریافت' : 'ارسال'}</h4>
+                   <p>${t.date} | ${format(t.amount)} تومان</p>
+                 </div>
+               </div>
+             </div>`).join('');
     }
 
-    function exportToPDF() {
-        toggleLoader(true);
-        // موقتا دکمه‌ها را مخفی می‌کنیم برای عکس
-        const buttons = document.querySelectorAll('button');
-        buttons.forEach(b => b.style.display = 'none');
-        
-        // عکس گرفتن از کل کانتینر اپ
-        html2canvas(document.querySelector("#app-content"), { scale: 2 }).then(canvas => {
-            // بازگرداندن دکمه‌ها
-            buttons.forEach(b => b.style.display = '');
-            toggleLoader(false);
-            
-            const link = document.createElement('a');
-            link.download = 'financial_report.png';
-            link.href = canvas.toDataURL();
-            link.click();
-        });
+    function renderReports() {
+        if(document.getElementById('view-reports').classList.contains('active')) {
+            const ctx = document.getElementById('expenseChart').getContext('2d');
+            // Simple chart logic here
+        }
     }
 
+    // --- UTILS ---
+    function switchTab(id) {
+        document.querySelectorAll('.tab-pane').forEach(e => e.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(e => e.classList.remove('active'));
+        document.getElementById('view-'+id).classList.add('active');
+        document.querySelectorAll('.nav-btn').forEach(b => {
+            if(b.getAttribute('onclick').includes(id)) b.classList.add('active');
+        });
+        if(id === 'reports') renderReports();
+    }
+
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeAllModals() { document.querySelectorAll('.modal').forEach(e => e.classList.remove('active')); }
+    function copyTxt(n) { navigator.clipboard.writeText(n); alert('کپی شد: ' + n); }
+    function resetAll() { if(confirm('تمام اطلاعات پاک شود؟')) { localStorage.removeItem(LOCAL_STORAGE_KEY); location.reload(); } }
+    function logout() { location.reload(); }
 </script>
 </body>
 </html>
