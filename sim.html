@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>سوشیال پلاس</title>
+    <title>سامانه اجتماعی</title>
     <style>
         :root {
             --p: #2563eb; --pd: #1e40af; --bg: #f8fafc; --s: #ffffff;
@@ -18,8 +18,7 @@
         .flex-al { display:flex; align-items:center; gap:10px; }
         
         /* UI Components */
-        .card { background:var(--s); border-radius:var(--rad); padding:15px; margin-bottom:12px; box-shadow:var(--sh); border:1px solid var(--bor); position:relative; animation: fadeIn 0.3s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .card { background:var(--s); border-radius:var(--rad); padding:15px; margin-bottom:12px; box-shadow:var(--sh); border:1px solid var(--bor); position:relative; }
         
         .inp { width:100%; padding:12px; border:1px solid var(--bor); border-radius:12px; background:var(--bg); font-size:0.95rem; margin-bottom:12px; transition:0.3s; }
         .inp:focus { border-color:var(--p); background:var(--s); }
@@ -35,7 +34,7 @@
         @keyframes rot { to { transform:translate(-50%,-50%) rotate(360deg); } }
         
         /* User Avatar */
-        .av { width:45px; height:45px; border-radius:50%; object-fit:cover; background:#e2e8f0; border:1px solid var(--bor); flex-shrink:0; }
+        .av { width:45px; height:45px; border-radius:50%; object-fit:cover; background:#e2e8f0; border:1px solid var(--bor); flex-shrink:0; cursor: pointer; }
         .av-s { width:35px; height:35px; }
         .av-l { width:80px; height:80px; border:3px solid var(--s); box-shadow:var(--sh); }
 
@@ -58,10 +57,9 @@
         .ment { color:var(--p); cursor:pointer; font-weight:bold; text-decoration:none; }
 
         /* Uploading & Progress */
-        .sending { opacity:0.7; pointer-events:none; position:relative; }
         .prog { height:4px; background:#e2e8f0; width:100%; margin-top:10px; overflow:hidden; border-radius:2px; display:none; }
         .fill { height:100%; background:linear-gradient(90deg, var(--p), var(--pd)); width:0%; transition:width 0.3s ease-out; }
-        .up-msg { font-size:0.8rem; color:green; text-align:center; display:none; margin-top:5px; font-weight:bold; }
+        .uploading-state { opacity: 0.7; pointer-events: none; }
 
         /* Messages */
         .msg-r { display:flex; gap:10px; padding:12px; border-bottom:1px solid var(--bor); align-items:center; cursor:pointer; background:var(--s); transition:0.2s; }
@@ -69,8 +67,8 @@
         .msg-u { font-weight:bold; font-size:0.95rem; }
         .msg-l { font-size:0.85rem; color:var(--tg); overflow:hidden; white-space:nowrap; text-overflow:ellipsis; max-width:200px; }
         .tik { font-size:0.75rem; margin-right:3px; font-family:sans-serif; }
-        .tik.ok { color:var(--p); }
-        .tik.no { color:var(--tg); } /* ساعت یا تیک خاکستری */
+        .tik.ok { color:var(--p); } /* تیک آبی */
+        .tik.wait { color:var(--tg); } /* ساعت */
 
         /* Toast Notification */
         #tst { position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#1e293b; color:white; padding:10px 20px; border-radius:30px; z-index:2000; font-size:0.85rem; opacity:0; pointer-events:none; transition:0.3s; box-shadow:0 5px 15px rgba(0,0,0,0.2); }
@@ -129,7 +127,7 @@
         <!-- 1. HOME FEED -->
         <section id="s-hm" class="con">
             <div class="flex-bw" style="margin-bottom:10px"><h2>خانه</h2><div onclick="app.sync(true)" style="font-size:1.2rem; cursor:pointer">🔄</div></div>
-            <div id="feed-up" style="display:none;"></div> <!-- For uploading post -->
+            <div id="feed-up"></div> <!-- کانتینر برای پست در حال آپلود -->
             <div id="feed"></div>
             <div id="ldr" style="text-align:center; padding:20px; color:var(--tg); display:none">در حال بارگذاری...</div>
         </section>
@@ -154,7 +152,7 @@
                 
                 <!-- Upload Progress -->
                 <div class="prog" id="p-prg"><div class="fill" id="p-fil"></div></div>
-                <div class="up-msg" id="p-msg">پست شما با موفقیت ارسال شد!</div>
+                <div style="text-align:center; display:none; color:var(--tg); font-size:0.8rem" id="p-stt">در حال آپلود...</div>
 
                 <button class="btn btn-p" style="margin-top:10px" onclick="app.pub(this)">ارسال</button>
             </div>
@@ -283,22 +281,15 @@
                     else document.getElementById('sc-auth').classList.remove('hide');
                 } else document.getElementById('sc-auth').classList.remove('hide');
 
-                // باز کردن لینک‌های مستقیم
                 const p = new URLSearchParams(location.search);
                 if(p.get('u')) setTimeout(()=>this.nav('pr', p.get('u')), 1000);
-                if(p.get('p')) setTimeout(()=>{
-                    // برای پست خاص (ساده‌سازی شده: رفتن به خانه و اسکرول به پست)
-                    this.nav('hm');
-                    // در نسخه پیشرفته باید مودال پست باز شود
-                }, 1000);
 
-                // Infinite Scroll Simulation
-                window.onscroll = () => {
-                    if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 100) {
-                        // منطق بارگذاری بیشتر در اینجا قرار می‌گیرد
-                        // چون همه دیتا فعلا لوکال است، نیازی نیست
+                // Polling for real-time updates (every 5 seconds)
+                setInterval(() => {
+                    if(!document.getElementById('sc-app').classList.contains('hide')) {
+                        this.sync(false);
                     }
-                };
+                }, 5000);
             },
 
             // CORE API CALL
@@ -318,11 +309,29 @@
                 if(m) app.toast('در حال بروزرسانی...');
                 const d = await this.call('getAll', {});
                 if(d.status==='success') {
-                    this.st.users=d.users; this.st.posts=d.posts; this.st.msgs=d.msgs;
+                    // Update Local Data
+                    this.st.users=d.users; 
+                    
+                    // Add new posts only
+                    d.posts.forEach(np => {
+                        if(!this.st.posts.find(op=>op.pid===np.pid)) this.st.posts.push(np);
+                        else {
+                            // Update likes/comments of existing posts
+                            const op = this.st.posts.find(x=>x.pid===np.pid);
+                            op.likes = np.likes; op.comments = np.comments;
+                        }
+                    });
+                    
+                    this.st.msgs=d.msgs;
                     localStorage.setItem('db', JSON.stringify(d));
+                    
                     if(this.st.user && !this.st.guest) this.st.user = this.st.users.find(u=>u.id===this.st.user.id);
+                    
+                    // Update UI if needed
                     if(!document.getElementById('s-hm').classList.contains('hide')) this.feed();
                     if(!document.getElementById('s-ms').classList.contains('hide')) this.msList();
+                    if(!document.getElementById('s-ch').classList.contains('hide')) this.rnCh();
+                    
                     this.bdg();
                     if(m) app.toast('بروزرسانی شد');
                 }
@@ -387,10 +396,12 @@
             // 1. HOME FEED
             feed: function() {
                 const c = document.getElementById('feed'); c.innerHTML='';
-                // اضافه کردن پست در حال آپلود اگر وجود دارد
+                
+                // چک کردن برای پست در حال آپلود
                 const upBox = document.getElementById('feed-up');
                 if(upBox.innerHTML) c.innerHTML = upBox.innerHTML;
 
+                // نمایش پست‌های واقعی
                 const ps = this.st.posts.sort((a,b)=>b.time-a.time);
                 ps.slice(0, 50).forEach(p => c.innerHTML += this.htmlP(p));
             },
@@ -411,7 +422,7 @@
                 </div>`;
             },
 
-            // 2. CREATE POST (Optimistic & Background Upload)
+            // 2. CREATE POST (Wait for server confirmation)
             pub: async function(btn) {
                 const p = {
                     pid: 'tmp-'+Date.now(), uid: this.st.user.id,
@@ -425,59 +436,63 @@
                 // UI: Start Upload Animation
                 btn.style.display='none';
                 document.getElementById('p-prg').style.display='block';
+                document.getElementById('p-stt').style.display='block';
                 const fill = document.getElementById('p-fil');
                 
-                // شبیه‌سازی پر شدن نوار
+                // شبیه‌سازی لودینگ
                 setTimeout(()=>fill.style.width='40%', 200);
                 setTimeout(()=>fill.style.width='75%', 800);
 
-                // Add to feed immediately (top) as "Sending..."
-                const sendingHTML = `<div class="card sending" id="sending-post">
+                // Show "Sending..." post in feed (Home)
+                const pendingHTML = `<div class="card sending" id="pending-post">
                     <div class="p-hd"><img src="${this.st.user.pic}" class="av av-s"><div><div class="p-nm">${this.st.user.name}</div></div></div>
                     <div class="p-txt">${p.text}</div>
-                    <div style="font-size:0.8rem;color:var(--p)">در حال ارسال...</div>
+                    <div style="font-size:0.8rem;color:var(--p)">در حال ارسال به سرور...</div>
+                    <div class="prog" style="display:block"><div class="fill" style="width:75%"></div></div>
                 </div>`;
                 
-                // Go to home and show pending post
                 this.nav('hm');
-                const feed = document.getElementById('feed');
-                feed.insertAdjacentHTML('afterbegin', sendingHTML);
+                document.getElementById('feed-up').innerHTML = pendingHTML;
+                document.getElementById('feed-up').style.display = 'block';
 
-                // Send to Server
+                // Send to Server & Wait
                 try {
                     await this.call('createPost', {pid:this.st.user.id+'_'+Date.now(), ...p});
                     
-                    // Success UI
-                    const pendingEl = document.getElementById('sending-post');
-                    if(pendingEl) pendingEl.remove(); // Remove temp UI
+                    // DONE:
+                    fill.style.width='100%';
                     
-                    // Add real post to local data
-                    this.st.posts.unshift(p);
-                    this.feed(); // Re-render real feed
-                    
-                    // Reset Form
-                    document.getElementById('p-ti').value=''; document.getElementById('p-tx').value='';
-                    document.getElementById('p-prg').style.display='none'; fill.style.width='0%';
-                    btn.style.display='block';
-                    app.toast('پست با موفقیت منتشر شد');
+                    setTimeout(() => {
+                        // Clean Up
+                        document.getElementById('p-ti').value=''; document.getElementById('p-tx').value='';
+                        document.getElementById('p-prg').style.display='none'; fill.style.width='0%';
+                        document.getElementById('p-stt').style.display='none';
+                        btn.style.display='block';
+                        
+                        // Remove pending, Add real
+                        document.getElementById('feed-up').innerHTML = '';
+                        this.st.posts.unshift(p);
+                        this.feed();
+                        app.toast('پست ارسال شد ✓');
+                        
+                    }, 1000);
                     
                 } catch(e) {
                     app.toast('خطا در ارسال پست');
                     btn.style.display='block';
+                    document.getElementById('feed-up').innerHTML = '';
                 }
             },
 
-            // 3. ACTIONS (Optimistic)
+            // 3. ACTIONS
             like: function(pid) {
                 const p = this.st.posts.find(x=>x.pid===pid);
                 const me = this.st.user.id;
                 
-                // Update Local
                 let isL = p.likes.includes(me);
                 if(isL) p.likes = p.likes.filter(x=>x!==me);
                 else p.likes.push(me);
                 
-                // Update DOM Instantly
                 const el = document.getElementById('p-'+pid);
                 if(el) {
                     const icn = el.querySelector('.act span');
@@ -486,8 +501,6 @@
                     el.querySelector('.act').classList.toggle('lk');
                     cnt.innerText = p.likes.length;
                 }
-                
-                // Send Background
                 this.call('updatePost', {pid:p.pid, likes:p.likes, comments:p.comments});
             },
             comm: function(pid) {
@@ -511,23 +524,19 @@
                 p.comments.push({uid:this.st.user.id, text:t});
                 document.getElementById('cm-in').value='';
                 
-                // Update DOM
+                // Show comment immediately
                 const c = document.getElementById('cm-ls');
                 if(c.innerHTML.includes('اولین')) c.innerHTML='';
-                c.innerHTML += `<div style="margin-bottom:10px; opacity:0.5"><b>${this.st.user.name}</b>: ${t} (ارسال...)</div>`;
+                c.innerHTML += `<div style="margin-bottom:10px; opacity:0.5"><b>${this.st.user.name}</b>: ${t} (در حال ارسال...)</div>`;
                 c.scrollTop = c.scrollHeight;
 
                 this.call('updatePost', {pid:p.pid, likes:p.likes, comments:p.comments}).then(()=>{
                     this.rnCm(); // Refresh to remove opacity
-                    // Update comment count on post card
-                    const cnt = document.querySelector(`#p-${p.pid} .act:nth-child(2)`);
-                    if(cnt) cnt.innerText = `💬 ${p.comments.length}`;
                 });
             },
 
-            // 4. MESSAGES & REQUESTS (Updated Logic)
+            // 4. MESSAGES & REQUESTS
             msList: function() {
-                // Requests
                 const reqs = this.st.user.requests;
                 const rb = document.getElementById('req-bx');
                 const rc = document.getElementById('req-con');
@@ -546,7 +555,6 @@
                     rc.style.display = 'none';
                 }
 
-                // Chats
                 const chats = [...new Set(this.st.msgs.filter(x=>x.from===this.st.user.id||x.to===this.st.user.id).map(x=>x.from===this.st.user.id?x.to:x.from))];
                 const cl = document.getElementById('chat-ls'); cl.innerHTML='';
                 if(chats.length===0) cl.innerHTML='<div style="text-align:center;padding:20px;color:gray">پیامی ندارید</div>';
@@ -556,7 +564,6 @@
                     const last = this.st.msgs.filter(x=>(x.from===this.st.user.id&&x.to===cid)||(x.from===cid&&x.to===this.st.user.id)).pop();
                     const unseen = this.st.msgs.filter(x=>x.from===cid && x.to===this.st.user.id && !x.read).length;
                     
-                    // تیک وضعیت پیام
                     let tick = '';
                     if(last.from === this.st.user.id) {
                         tick = last.read ? '<span class="tik ok">✓✓</span>' : '<span class="tik no">✓</span>';
@@ -588,13 +595,12 @@
                 document.getElementById('s-ch').classList.remove('hide');
                 this.rnCh();
                 
-                // Mark read logic
+                // Mark read
                 const unread = this.st.msgs.filter(x=>x.from===id && x.to===this.st.user.id && !x.read);
                 if(unread.length > 0) {
                     unread.forEach(m => m.read = true);
-                    this.bdg(); // Update badge immediately
-                    // Send update to server (assuming createMsg handles updates or just create logic for simplicity here)
-                    // Note: In a real app, you'd have a 'markRead' API. Here we just update local state visually.
+                    this.bdg();
+                    // Just update locally, real sync happens on poll
                 }
             },
             rnCh: function() {
@@ -617,21 +623,21 @@
                 const t = document.getElementById('ch-in').value; if(!t) return;
                 const m = {from:this.st.user.id, to:this.st.cpid, text:t, time:Date.now(), read:false};
                 
-                // Optimistic Append
+                // Add temp message (Clock Icon)
+                const tempHTML = `<div class="ch-bub ch-me" style="opacity:0.7" id="tmp-msg">
+                    ${this.lnk(t)}
+                    <div class="ch-tm"><span class="tik wait">🕑</span> ${this.time(Date.now())}</div>
+                </div>`;
+                
                 const b = document.getElementById('ch-bx');
-                b.innerHTML += `<div style="display:flex; flex-direction:column; align-items:flex-end">
-                        <div class="ch-bub ch-me" style="opacity:0.7">
-                            ${this.lnk(t)}
-                            <div class="ch-tm">🕒 ${this.time(Date.now())}</div>
-                        </div>
-                    </div>`;
+                b.insertAdjacentHTML('beforeend', `<div style="display:flex; flex-direction:column; align-items:flex-end">${tempHTML}</div>`);
                 b.scrollTop = b.scrollHeight;
                 document.getElementById('ch-in').value='';
 
-                // Send
+                // Send & Confirm
                 this.call('createMsg', m).then(() => {
                     this.st.msgs.push(m);
-                    this.rnCh(); // Re-render with correct tick
+                    this.rnCh(); // Refresh to show single tick
                 });
             },
 
@@ -653,7 +659,7 @@
                 const act = document.getElementById('pr-act'); act.innerHTML='';
                 if(!isMe) {
                     let txt='دنبال کردن', cls='btn-p';
-                    if(me.following.includes(id)) { txt='لغو دنبال'; cls='btn-o'; }
+                    if(me.following.includes(id)) { txt='لغو'; cls='btn-o'; }
                     else if(u.requests.includes(me.id)) { txt='درخواست شده'; cls='btn-o'; }
                     
                     act.innerHTML = `<button class="btn ${cls}" style="flex:1" onclick="app.fol('${id}')">${txt}</button>
@@ -690,7 +696,6 @@
             // HELPER FUNCTIONS
             lnk: function(t) {
                 if(!t) return '';
-                // تبدیل منشن @username به لینک پروفایل (با استفاده از ستون B/nc)
                 return t.replace(/@(\w+)/g, (match, nc) => {
                     const target = this.st.users.find(x=>x.nc === nc);
                     if(target) return `<span class="ment" onclick="event.stopPropagation();app.nav('pr','${target.id}')">${match}</span>`;
