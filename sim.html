@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -85,7 +85,8 @@
         <div id="f-log">
             <div class="card">
                 <h2 style="text-align:center; margin-bottom:20px">ورود</h2>
-                <input type="text" id="l-nc" class="inp" placeholder="کد ملی (ستون B)" inputmode="numeric">
+                <!-- تغییر: آیدی به l-user مطابق منطق کد ساده -->
+                <input type="text" id="l-user" class="inp" placeholder="کد ملی (ستون B)" inputmode="numeric">
                 <input type="password" id="l-ps" class="inp" placeholder="رمز عبور">
                 <div style="margin-bottom:15px; font-size:0.9rem"><label><input type="checkbox" id="l-rem" checked> ذخیره ورود</label></div>
                 <button class="btn btn-p" onclick="app.login(this)">ورود</button>
@@ -110,7 +111,6 @@
 
     <!-- APP -->
     <div id="scr-app" class="hide">
-        
         <!-- HOME -->
         <section id="s-hm" class="con">
             <div class="flex-bw" style="margin-bottom:15px"><h2>خانه</h2><button class="btn-i" onclick="app.sync(true)">🔄</button></div>
@@ -259,7 +259,7 @@
     </div>
 
     <script>
-        // *** لینک جدید اسکریپت (DEPLOY) را اینجا بگذار ***
+        // *** لینک جدید اسکریپت را اینجا بگذار ***
         const API = 'https://script.google.com/macros/s/AKfycbyf_X4VQfe1YC95wWXkUkFrHAHDOCTmC6qzzsNCp-O57HvGikcAPZWlPAbS_9_kWrYI/exec';
 
         const app = {
@@ -283,19 +283,21 @@
                 if(p.get('u')) setTimeout(()=>this.nav('pr', p.get('u')), 1500);
             },
 
-            // *** تابع اتصال (text/plain) ***
+            // *** تابع اتصال (کپی شده از کد ساده) ***
+            // استفاده از text/plain و redirect:follow
             call: async function(act, pl) {
                 try {
                     const res = await fetch(API, {
                         method: 'POST',
                         redirect: "follow",
-                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        headers: { "Content-Type": "text/plain;charset=utf-8" },
                         body: JSON.stringify({ action: act, payload: pl })
                     });
-                    return await res.json();
+                    const json = await res.json();
+                    return json;
                 } catch(e) { 
                     console.log(e);
-                    return {status:'error', msg:'خطا در اتصال به اینترنت'}; 
+                    return {status:'error', msg:'خطا در اتصال به سرور'}; 
                 }
             },
 
@@ -323,14 +325,15 @@
                 this.start(); this.msg('حالت مهمان');
             },
             login: async function(btn) {
-                const nc=document.getElementById('l-nc').value;
-                const pass=document.getElementById('l-ps').value;
+                // نام ورودی ها را مطابق کد ساده (l-user) تغییر دادم
+                const u = document.getElementById('l-user').value;
+                const p = document.getElementById('l-ps').value;
                 
-                if(!nc || !pass) return this.msg('اطلاعات ناقص است');
+                if(!u || !p) return this.msg('اطلاعات ناقص است');
                 btn.classList.add('loading');
                 
-                // ارسال دقیقا با کلیدهای nc و pass که در کد ساده بود
-                const d = await this.call('login', {nc: nc, pass: pass});
+                // ارسال با کلیدهای user و pass دقیقاً مثل کد ساده
+                const d = await this.call('login', { user: u, pass: p });
                 
                 if(d.status === 'success') {
                     this.st.user = d.user;
@@ -345,12 +348,13 @@
             reg: async function(btn) {
                 const p = {
                     id:document.getElementById('r-us').value.toLowerCase(), 
-                    nc:document.getElementById('r-nc').value, 
+                    // در کد ساده پارامتر user فرستاده می‌شد که میرفت در ستون B
+                    user:document.getElementById('r-nc').value, 
                     pass:document.getElementById('r-ps').value, 
                     name:document.getElementById('r-nm').value,
                     refCode:document.getElementById('r-rf').value
                 };
-                if(!p.id || !p.nc || !p.pass || !p.refCode) return this.msg('همه فیلدها الزامی است');
+                if(!p.id || !p.user || !p.pass || !p.refCode) return this.msg('همه فیلدها الزامی است');
                 btn.classList.add('loading');
                 const d = await this.call('register', p);
                 if(d.status === 'success') { this.msg('ثبت شد. وارد شوید'); this.togAuth(); }
