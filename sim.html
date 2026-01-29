@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -146,7 +146,7 @@
         <section id="s-hm" class="con">
             <div class="flex-bw" style="margin-bottom:20px; padding:0 5px">
                 <h2 style="font-size:1.8rem; color:var(--pd)">خانه</h2>
-                <div style="font-size:1.5rem">🔔</div> 
+                <div style="font-size:1.5rem; cursor:pointer;" onclick="app.showNotifs()">🔔</div> 
             </div>
             <input type="text" class="inp" placeholder="🔍 جستجو در کاربران..." onkeyup="if(event.key==='Enter') app.srch(this.value)" style="border-radius:20px; border:none; box-shadow:var(--sh)">
             
@@ -172,7 +172,7 @@
                     <h3 id="p-hd" style="font-size:1.1rem"></h3>
                     <button class="btn-i" onclick="document.getElementById('p-mn').classList.toggle('hide')">⋮</button>
                     <div id="p-mn" class="card hide" style="position:absolute; top:50px; left:20px; width:160px; z-index:10; padding:10px;">
-                        <div style="padding:10px; cursor:pointer; border-bottom:1px solid #eee" onclick="app.share('prof')">🔗 کپی لینک</div>
+                        <div style="padding:10px; cursor:pointer; border-bottom:1px solid #eee" onclick="app.share('prof')">🔗 اشتراک‌گذاری</div>
                         <div style="padding:10px; color:var(--err); cursor:pointer" onclick="app.block()">🚫 مسدود کردن</div>
                     </div>
                 </div>
@@ -296,8 +296,8 @@
         <div class="mod">
             <h3>اشتراک گذاری</h3>
             <div style="margin-top:25px; display:flex; flex-direction:column; gap:10px">
-                <button class="btn btn-o" onclick="app.doSh()">📤 اشتراک در سایر برنامه‌ها</button>
-                <button class="btn btn-p" onclick="app.pkUs()">💬 ارسال به دوستان (داخل برنامه)</button>
+                <button class="btn btn-o" onclick="app.copyLink()">🔗 کپی کردن لینک</button>
+                <button class="btn btn-p" onclick="app.doSh()">📤 ارسال لینک</button>
             </div>
         </div>
     </div>
@@ -315,6 +315,13 @@
             <h3>نظرات</h3>
             <div id="cm-bd" style="height:350px; overflow-y:auto; margin:15px 0; background:#f8fafc; border-radius:15px; padding:10px; border:1px solid #eee"></div>
             <div class="flex-bw" style="gap:10px"><input type="text" id="cm-in" class="inp" placeholder="نظر شما..." style="margin:0"><button class="btn btn-p" style="width:50px" onclick="app.sndC(this)">➤</button></div>
+        </div>
+    </div>
+
+    <div id="m-nt" class="mod-bg" onclick="if(event.target==this) this.classList.remove('show')">
+        <div class="mod">
+            <h3>🔔 اعلان‌ها</h3>
+            <div id="nt-bd" style="margin-top:15px; max-height:400px; overflow-y:auto"></div>
         </div>
     </div>
 
@@ -358,12 +365,10 @@
                     document.getElementById('scr-auth').classList.remove('hide');
                 }
 
-                // Check link params for profile or post
                 const p = new URLSearchParams(location.search);
                 const showUser = p.get('u');
                 const showPost = p.get('p');
 
-                // Wait for data to load before showing linked content
                 setTimeout(() => {
                     if (showUser) {
                         this.nav('pr', showUser);
@@ -372,24 +377,19 @@
                     }
                 }, 1500);
 
-
-                // Polling (Real-time updates without full refresh)
                 setInterval(() => { if(!document.getElementById('scr-app').classList.contains('hide')) app.sync(false); }, 4000);
 
-                // Infinite Scroll Handler
                 window.onscroll = () => {
                     if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200) {
                         if(this.st.limit < this.st.posts.length) {
                             this.st.limit += 5;
-                            this.feed(); // Render more posts
+                            this.feed();
                         }
                     }
                 };
             },
 
-            // --- NETWORKING (Optimized) ---
             call: async function(act, pl) {
-                // This runs in background. We don't block UI unless necessary.
                 try {
                     const res = await fetch(API_URL, {
                         method: 'POST',
@@ -431,7 +431,6 @@
                 }
             },
 
-            // --- AUTH ---
             togAuth: () => { document.getElementById('f-log').classList.toggle('hide'); document.getElementById('f-reg').classList.toggle('hide'); },
             login: async function(btn) {
                 const nc=document.getElementById('l-nc').value, pass=document.getElementById('l-ps').value;
@@ -465,7 +464,6 @@
                 this.nav('hm');
             },
 
-            // --- NAVIGATION ---
             nav: function(p, arg) {
                 document.querySelectorAll('section').forEach(s=>s.classList.add('hide'));
                 document.querySelectorAll('.n-it').forEach(i=>i.classList.remove('active'));
@@ -488,7 +486,6 @@
                 else if(p==='st') { document.getElementById('s-st').classList.remove('hide'); document.getElementById('n-st').classList.add('active'); this.sets(); }
             },
 
-            // --- FEED & POSTS ---
             feed: function() {
                 const c = document.getElementById('feed'), nb = document.getElementById('new-bx');
                 nb.innerHTML='';
@@ -517,8 +514,8 @@
             },
             
             showPost: function(pid) {
-                if (this.st.posts.length === 0) { // Data might not be synced yet
-                    setTimeout(() => this.showPost(pid), 500); // Retry after a short delay
+                if (this.st.posts.length === 0) {
+                    setTimeout(() => this.showPost(pid), 500);
                     return;
                 }
                 const post = this.st.posts.find(p => p.pid === pid);
@@ -531,22 +528,20 @@
                 const canView = !author || author.id === this.st.user.id || !author.isPrivate || (author.isPrivate && this.st.user.following.includes(author.id));
 
                 if (!canView) {
-                    this.nav('pr', author.id); // Show locked profile instead
+                    this.nav('pr', author.id);
                     this.notif('این پست خصوصی است و شما دسترسی ندارید', 'err');
                     return;
                 }
 
-                // Show the single post on the home screen
                 document.querySelectorAll('section').forEach(s => s.classList.add('hide'));
                 document.getElementById('s-hm').classList.remove('hide');
                 document.getElementById('n-hm').classList.add('active');
 
-                // Clear feed and show only the specific post
-                document.getElementById('new-bx').parentElement.classList.add('hide'); // Hide suggestions block
-                document.querySelector('#s-hm .inp').classList.add('hide'); // Hide search bar
+                document.getElementById('new-bx').parentElement.classList.add('hide');
+                document.querySelector('#s-hm .inp').classList.add('hide');
                 document.getElementById('feed-up').innerHTML = '';
                 document.getElementById('feed').innerHTML = this.htmlP(post);
-                document.getElementById('feed-ldr').style.display = 'none'; // Hide loader
+                document.getElementById('feed-ldr').style.display = 'none';
                  window.scrollTo(0, 0);
             },
 
@@ -569,7 +564,6 @@
                     </div></div>`;
             },
 
-            // --- ACTIONS (OPTIMISTIC UI) ---
             pub: async function(btn) {
                 const p = { 
                     pid: this.st.user.id + '_' + Date.now(), 
@@ -686,14 +680,12 @@
                 this.call('updateUser', [me, u]);
             },
 
-            // --- MESSAGING & CHAT (Real-time Ticks) ---
             msg: function() {
                 const reqBox = document.getElementById('req-box');
                 const msgBox = document.getElementById('msg-bx');
                 reqBox.innerHTML = '';
                 msgBox.innerHTML = '';
                 
-                // Requests
                 if (this.st.user.requests && this.st.user.requests.length > 0) {
                     reqBox.innerHTML += '<h4 style="margin:15px 5px 10px;color:var(--tg);font-size:0.9rem;">درخواست‌های دنبال کردن</h4>';
                     this.st.user.requests.forEach(rid => {
@@ -704,7 +696,6 @@
                     });
                 }
                 
-                // Chats List
                 const chats = [...new Set(this.st.msgs.filter(x => x.from === this.st.user.id || x.to === this.st.user.id).map(x => x.from === this.st.user.id ? x.to : x.from))];
                 if (chats.length === 0 && (!this.st.user.requests || this.st.user.requests.length === 0)) {
                     msgBox.innerHTML = '<div style="text-align:center;padding:50px;color:gray"><div style="font-size:3rem">💬</div><p>هنوز پیامی ندارید</p></div>';
@@ -733,7 +724,7 @@
                     msgBox.innerHTML += `
                     <div class="card" onclick="app.chat('${pid}')" style="cursor:pointer; padding: 12px;">
                         <div class="flex-bw">
-                            <div class="u-blk" onclick="event.stopPropagation(); app.nav('pr', '${u.id}')">
+                            <div class="u-blk">
                                 ${avatar}
                                 <div>
                                     <div class="u-nm">${u.name}</div>
@@ -812,7 +803,6 @@
                 }
             },
 
-            // --- HELPERS ---
             notif: (t, s) => { 
                 const b=document.getElementById('tst'); 
                 b.innerHTML = (s==='err'?'⛔ ':'✅ ') + t; 
@@ -823,7 +813,6 @@
             
             lnk: function(t) {
                 if(!t) return '';
-                // Converts @username to clickable link
                 return t.replace(/@(\w+)/g, (match, username) => {
                     const u = this.st.users.find(x => x.id === username);
                     if (u) {
@@ -841,7 +830,6 @@
                 if(r+u>0) { b1.innerText=r+u; b1.classList.remove('hide'); } else b1.classList.add('hide');
             },
 
-            // Other necessary funcs from original code kept intact
             prof: function(uid) {
                 const u = this.st.users.find(x=>x.id===uid);
                 if (!u) {
@@ -850,7 +838,7 @@
                 const me = this.st.user; this.st.vid = uid; const isMe = uid === me.id;
                 document.getElementById('bp-bk').classList.toggle('hide', isMe);
                 document.getElementById('p-im').src = u.pic||''; 
-                document.getElementById('p-nm').innerText = u.name; document.getElementById('p-id').innerText = u.id; // Changed from nc to id
+                document.getElementById('p-nm').innerText = u.name; document.getElementById('p-id').innerText = u.id;
                 document.getElementById('p-bi').innerHTML = this.lnk(u.bio);
                 
                 const lnk = document.getElementById('p-lnk'); lnk.innerHTML='';
@@ -908,10 +896,30 @@
                 btn.innerHTML = '<span class="loading"></span>'; await this.call('updateUser', u); this.notif('تنظیمات ذخیره شد', 'suc'); btn.innerHTML='ذخیره تغییرات';
             },
             share: (t, id) => {
-                const url = location.origin + location.pathname + (t === 'prof' ? '?u=' + this.st.vid : '?p=' + id);
-                this.st.shr={txt:'لینک:', lnk:url}; document.getElementById('m-sh').classList.add('show');
+                const url = location.origin + location.pathname + (t === 'prof' ? '?u=' + (id || this.st.vid) : '?p=' + id);
+                this.st.shr = { txt:'لینک:', lnk:url }; 
+                document.getElementById('m-sh').classList.add('show');
             },
-            doSh: () => { if(navigator.share) navigator.share({title:'Social', url:this.st.shr.lnk}); else prompt('لینک را کپی کنید:', this.st.shr.lnk); },
+            copyLink: function() {
+                if (navigator.clipboard && this.st.shr.lnk) {
+                    navigator.clipboard.writeText(this.st.shr.lnk).then(() => {
+                        this.notif('لینک با موفقیت کپی شد!', 'suc');
+                    }, (err) => {
+                        this.notif('خطا در کپی کردن لینک', 'err');
+                    });
+                } else {
+                    prompt('لینک را کپی کنید:', this.st.shr.lnk);
+                }
+                document.getElementById('m-sh').classList.remove('show');
+            },
+            doSh: () => { 
+                if(navigator.share) {
+                    navigator.share({title:'اشتراک‌گذاری از سوشیال', url:app.st.shr.lnk});
+                } else {
+                    app.notif('مرورگر شما از اشتراک‌گذاری پشتیبانی نمی‌کند', 'err');
+                }
+                document.getElementById('m-sh').classList.remove('show');
+            },
             pkUs: () => { document.getElementById('m-sh').classList.remove('show'); document.getElementById('m-pk').classList.add('show'); },
             flP: (v) => {
                 const l=document.getElementById('pk-ls'); l.innerHTML='';
@@ -934,6 +942,56 @@
                 l.forEach(id => b.innerHTML+=`<div style="margin-bottom:10px">${app.htmlU(id)}</div>`);
                 document.getElementById('ls-tt').innerText = t==='fol'?'دنبال‌کنندگان':'دنبال‌شوندگان';
                 document.getElementById('m-ls').classList.add('show');
+            },
+            showNotifs: function() {
+                const b = document.getElementById('nt-bd');
+                b.innerHTML = '';
+                let notifications = [];
+
+                const myPosts = this.st.posts.filter(p => p.uid === this.st.user.id);
+                myPosts.forEach(p => {
+                    p.likes.forEach(uid => {
+                        if (uid !== this.st.user.id) {
+                            notifications.push({ time: p.time, type: 'like', uid: uid, post: p });
+                        }
+                    });
+                    p.comments.forEach(c => {
+                        if (c.uid !== this.st.user.id) {
+                            notifications.push({ time: p.time, type: 'comment', uid: c.uid, post: p });
+                        }
+                    });
+                });
+                
+                this.st.user.followers.forEach(uid => {
+                     notifications.push({ time: Date.now(), type: 'follow', uid: uid });
+                });
+                
+                (this.st.user.requests || []).forEach(uid => {
+                    notifications.push({ time: Date.now(), type: 'request', uid: uid });
+                });
+
+                notifications.sort((a, b) => b.time - a.time);
+
+                if (notifications.length === 0) {
+                    b.innerHTML = '<p style="text-align:center;color:gray;padding:20px;">هیچ اعلان جدیدی وجود ندارد.</p>';
+                } else {
+                    notifications.slice(0, 20).forEach(n => { // Show latest 20
+                        const u = this.st.users.find(usr => usr.id === n.uid);
+                        if (!u) return;
+                        let html = '';
+                        let text = '';
+                        switch (n.type) {
+                            case 'like': text = `❤️ <b>${u.name}</b> پست شما را پسندید: <i>"${n.post.title}"</i>`; break;
+                            case 'comment': text = `💬 <b>${u.name}</b> برای پست شما نظر داد: <i>"${n.post.title}"</i>`; break;
+                            case 'follow': text = `👤 <b>${u.name}</b> شما را دنبال کرد.`; break;
+                            case 'request': text = `➕ <b>${u.name}</b> یک درخواست دنبال کردن برای شما ارسال کرد.`; break;
+                        }
+                        html = `<div class="card" style="padding:12px; font-size:0.9rem;">${text}</div>`;
+                        b.innerHTML += html;
+                    });
+                }
+
+                document.getElementById('m-nt').classList.add('show');
             }
         };
         app.init();
