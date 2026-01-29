@@ -85,8 +85,8 @@
         <div id="f-log">
             <div class="card">
                 <h2 style="text-align:center; margin-bottom:20px">ورود</h2>
-                <!-- تغییر: تایپ تکست برای دریافت هر نوع ورودی -->
-                <input type="text" id="l-nc" class="inp" placeholder="کد ملی / نام کاربری (ستون B)">
+                <!-- ورودی کد ملی (Type Text برای جلوگیری از تغییر اعداد) -->
+                <input type="text" id="l-nc" class="inp" placeholder="کد ملی / نام کاربری">
                 <input type="password" id="l-ps" class="inp" placeholder="رمز عبور">
                 <div style="margin-bottom:15px; font-size:0.9rem"><label><input type="checkbox" id="l-rem" checked> ذخیره ورود</label></div>
                 <button class="btn btn-p" onclick="app.login(this)">ورود</button>
@@ -98,9 +98,9 @@
         <div id="f-reg" class="hide">
             <div class="card">
                 <h2 style="text-align:center; margin-bottom:20px">ثبت نام</h2>
-                <input type="text" id="r-nc" class="inp" placeholder="کد ملی / نام کاربری (ستون B)">
+                <input type="text" id="r-nc" class="inp" placeholder="کد ملی / نام کاربری" inputmode="numeric">
                 <input type="text" id="r-nm" class="inp" placeholder="نام نمایشی">
-                <input type="text" id="r-us" class="inp" placeholder="نام کاربری (انگلیسی - ID)">
+                <input type="text" id="r-us" class="inp" placeholder="نام کاربری (انگلیسی)">
                 <input type="number" id="r-rf" class="inp" placeholder="کد معرف" inputmode="numeric">
                 <input type="password" id="r-ps" class="inp" placeholder="رمز عبور">
                 <button class="btn btn-p" style="background:var(--success)" onclick="app.reg(this)">ثبت نام</button>
@@ -197,7 +197,7 @@
             <h2>تنظیمات</h2>
             <div class="card" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; margin-top:15px;">
                 <div class="flex-bw"><h3 id="st-nm"></h3> <small id="st-id"></small></div>
-                <div style="margin-top:10px">نام کاربری/ملی: <span id="st-nc"></span></div>
+                <div style="margin-top:10px">کد ملی: <span id="st-nc"></span></div>
                 <div style="margin-top:5px">کد دعوت: <b id="st-cd" style="font-size:1.2rem"></b></div>
             </div>
             <div class="card">
@@ -260,7 +260,7 @@
     </div>
 
     <script>
-        // *** لینک جدید اسکریپت (Deploy شده) را اینجا بگذارید ***
+        // *** لینک جدید اسکریپت را اینجا بگذارید ***
         const API = 'https://script.google.com/macros/s/AKfycbyf_X4VQfe1YC95wWXkUkFrHAHDOCTmC6qzzsNCp-O57HvGikcAPZWlPAbS_9_kWrYI/exec';
 
         const app = {
@@ -274,7 +274,7 @@
                 const uid = localStorage.getItem('uid');
                 if(uid) {
                     const u = this.st.users.find(x=>x.id===uid);
-                    if(u) { this.st.user=u; this.start(); this.sync(false); } // Sync added
+                    if(u) { this.st.user=u; this.start(); this.sync(false); }
                     else { document.getElementById('scr-auth').classList.remove('hide'); }
                 } else {
                     document.getElementById('scr-auth').classList.remove('hide');
@@ -284,10 +284,9 @@
                 if(p.get('u')) setTimeout(()=>this.nav('pr', p.get('u')), 1500);
             },
 
-            // *** تابع اتصال حیاتی (اصلاح شده برای کارکرد صحیح ورود) ***
+            // *** تابع اتصال (استفاده از text/plain) ***
             call: async function(act, pl) {
                 try {
-                    // تغییر هدر به text/plain برای جلوگیری از خطای CORS گوگل
                     const res = await fetch(API, {
                         method: 'POST',
                         redirect: "follow",
@@ -297,7 +296,7 @@
                     return await res.json();
                 } catch(e) { 
                     console.log(e);
-                    return {status:'error', msg:'خطا در اتصال'}; 
+                    return {status:'error', msg:'خطا در اتصال به اینترنت'}; 
                 }
             },
 
@@ -310,14 +309,14 @@
                     if(this.st.user && !this.st.guest) {
                         this.st.user = this.st.users.find(u=>u.id===this.st.user.id)||this.st.user;
                         this.bdg();
-                        this.sets(); // آپدیت صفحه تنظیمات
+                        this.sets();
                     }
                     if(!document.getElementById('s-hm').classList.contains('hide')) this.feed();
                     if(manual) this.msg('انجام شد');
                 } else if(manual) this.msg('خطا در دریافت');
             },
 
-            // AUTH - بخش لاگین و ثبت نام
+            // AUTH
             togAuth: () => { document.getElementById('f-log').classList.toggle('hide'); document.getElementById('f-reg').classList.toggle('hide'); },
             guest: function() {
                 this.st.guest=true;
@@ -325,14 +324,14 @@
                 this.start(); this.msg('حالت مهمان');
             },
             login: async function(btn) {
-                // دریافت نام کاربری و رمز
-                const nc=document.getElementById('l-nc').value;
-                const pass=document.getElementById('l-ps').value;
+                // دریافت نام کاربری و رمز از ورودی ها
+                const nc = document.getElementById('l-nc').value;
+                const pass = document.getElementById('l-ps').value;
                 
-                if(!nc || !pass) return this.msg('ناقص');
+                if(!nc || !pass) return this.msg('لطفا هر دو فیلد را پر کنید');
                 btn.classList.add('loading');
                 
-                // ارسال درخواست لاگین
+                // ارسال درخواست ورود به سرور
                 const d = await this.call('login', {nc: nc, pass: pass});
                 
                 if(d.status === 'success') {
@@ -341,19 +340,19 @@
                     this.start(); 
                     this.sync(false);
                 } else {
-                    this.msg(d.msg);
+                    this.msg(d.msg); // نمایش پیام خطای سرور
                 }
                 btn.classList.remove('loading');
             },
             reg: async function(btn) {
                 const p = {
                     id:document.getElementById('r-us').value.toLowerCase(), 
-                    nc:document.getElementById('r-nc').value, // ستون B
-                    pass:document.getElementById('r-ps').value, // ستون C
+                    nc:document.getElementById('r-nc').value, 
+                    pass:document.getElementById('r-ps').value, 
                     name:document.getElementById('r-nm').value,
                     refCode:document.getElementById('r-rf').value
                 };
-                if(!p.id || !p.nc || !p.pass || !p.refCode) return this.msg('همه فیلدها الزامی');
+                if(!p.id || !p.nc || !p.pass || !p.refCode) return this.msg('همه فیلدها الزامی است');
                 btn.classList.add('loading');
                 const d = await this.call('register', p);
                 if(d.status === 'success') { this.msg('ثبت شد. وارد شوید'); this.togAuth(); }
@@ -547,7 +546,7 @@
                 if(this.st.guest) return document.getElementById('s-st').innerHTML='<p class="card" style="text-align:center">مهمان</p>';
                 const u=this.st.user;
                 document.getElementById('st-nm').innerText=u.name; document.getElementById('st-id').innerText='@'+u.id;
-                document.getElementById('st-nc').innerText=u.nc; // اینجا مقدار صحیح از ستون B نشان داده میشود
+                document.getElementById('st-nc').innerText=u.nc; 
                 document.getElementById('st-cd').innerText=u.refCode;
                 document.getElementById('st-pc').value=u.pic||''; document.getElementById('st-nn').value=u.name;
                 document.getElementById('st-bi').value=u.bio; document.getElementById('st-ln').value=u.web||'';
