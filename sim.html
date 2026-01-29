@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -61,7 +61,7 @@
         .chip.active { background:var(--t); color:white; border-color:var(--t); transform:scale(1.05); }
 
         /* Post Styles */
-        .p-act { display:flex; gap:25px; margin-top:15px; border-top:1px solid var(--bor); padding-top:12px; color:var(--tg); }
+        .p-act { display:flex; justify-content:space-around; align-items:center; gap:10px; margin-top:15px; border-top:1px solid var(--bor); padding-top:12px; color:var(--tg); }
         .act-b { display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.95rem; transition:0.2s; }
         .act-b:hover { color:var(--p); }
         .act-b.lk { color:var(--err); animation:pop 0.3s; }
@@ -148,7 +148,7 @@
                 <h2 style="font-size:1.8rem; color:var(--pd)">خانه</h2>
                 <div style="font-size:1.5rem; cursor:pointer;" onclick="app.showNotifs()">🔔</div> 
             </div>
-            <input type="text" class="inp" placeholder="🔍 جستجو در کاربران..." onkeyup="if(event.key==='Enter') app.srch(this.value)" style="border-radius:20px; border:none; box-shadow:var(--sh)">
+            <input type="text" class="inp" placeholder="🔍 جستجوی شناسه کاربری (ID)..." onkeyup="if(event.key==='Enter') app.srch(this)" style="border-radius:20px; border:none; box-shadow:var(--sh)">
             
             <!-- Story/New Users -->
             <div style="margin-bottom:25px; margin-top:15px">
@@ -246,6 +246,7 @@
             <div class="flex-bw" style="margin-bottom:20px">
                 <h2 style="color:var(--pd)">پیام‌ها</h2>
             </div>
+            <input type="text" class="inp" placeholder="🔍 جستجوی گفتگو بر اساس شناسه (ID)..." onkeyup="app.filterChats(this.value)" style="margin-bottom: 20px;">
             <div id="req-box"></div> 
             <div id="msg-bx"></div>
         </section>
@@ -303,7 +304,7 @@
     </div>
     
     <div id="m-pk" class="mod-bg" onclick="if(event.target==this) this.classList.remove('show')">
-        <div class="mod"><h3>ارسال به...</h3><input type="text" class="inp" onkeyup="app.flP(this.value)" placeholder="جستجوی نام..." style="margin-top:10px"><div id="pk-ls" style="max-height:300px; overflow-y:auto; margin-top:10px"></div></div>
+        <div class="mod"><h3 id="pk-tt">ارسال به...</h3><input type="text" class="inp" onkeyup="app.flP(this.value)" placeholder="جستجوی شناسه (ID)..." style="margin-top:10px"><div id="pk-ls" style="max-height:300px; overflow-y:auto; margin-top:10px"></div></div>
     </div>
     
     <div id="m-ls" class="mod-bg" onclick="if(event.target==this) this.classList.remove('show')">
@@ -348,10 +349,9 @@
         const API_URL = 'https://script.google.com/macros/s/AKfycbyf_X4VQfe1YC95wWXkUkFrHAHDOCTmC6qzzsNCp-O57HvGikcAPZWlPAbS_9_kWrYI/exec';
 
         const app = {
-            st: { user:null, users:[], posts:[], msgs:[], vid:null, shr:null, cpid:null, guest:false, page:1, limit:10, syncing:false },
+            st: { user:null, users:[], posts:[], msgs:[], vid:null, shr:null, cpid:null, guest:false, page:1, limit:10, syncing:false, postToSend: null, pickerMode: null },
             
             init: async function() {
-                // Load cached data
                 if(localStorage.getItem('db')) {
                     const db = JSON.parse(localStorage.getItem('db'));
                     this.st.users=db.users||[]; this.st.posts=db.posts||[]; this.st.msgs=db.msgs||[];
@@ -427,7 +427,7 @@
                     }
                     if(!document.getElementById('s-hm').classList.contains('hide')) this.feed(); 
                     if(document.getElementById('sc-ch').classList.contains('show')) this.rnC(); 
-                    if(!document.getElementById('s-ms').classList.contains('hide')) this.msg('chat');
+                    if(!document.getElementById('s-ms').classList.contains('hide')) this.msg();
                 }
             },
 
@@ -482,7 +482,7 @@
                     this.prof(arg||this.st.user.id);
                 }
                 else if(p==='ad') { document.getElementById('s-ad').classList.remove('hide'); document.getElementById('n-ad').classList.add('active'); }
-                else if(p==='ms') { document.getElementById('s-ms').classList.remove('hide'); document.getElementById('n-ms').classList.add('active'); this.msg('chat'); }
+                else if(p==='ms') { document.getElementById('s-ms').classList.remove('hide'); document.getElementById('n-ms').classList.add('active'); this.msg(); }
                 else if(p==='st') { document.getElementById('s-st').classList.remove('hide'); document.getElementById('n-st').classList.add('active'); this.sets(); }
             },
 
@@ -558,9 +558,13 @@
                     <h4 style="margin-top:12px;font-size:1.05rem">${p.title}</h4>
                     <p style="margin-top:8px;line-height:1.7;font-size:0.95rem;white-space:pre-wrap;color:#334155">${app.lnk(p.text)}</p>
                     <div class="p-act">
-                        <div class="act-b ${lk}" id="lb-${p.pid}" onclick="app.like('${p.pid}')"><span>${lk?'❤️':'🤍'}</span> <span id="ln-${p.pid}">${p.likes.length}</span></div>
+                        <div>
+                          <div class="act-b ${lk}" id="lb-${p.pid}" onclick="app.like('${p.pid}')"><span>${lk?'❤️':'🤍'}</span> <span id="ln-${p.pid}">${p.likes.length}</span></div>
+                        </div>
                         <div class="act-b" onclick="app.comm('${p.pid}')">💬 ${p.comments.length}</div>
-                        <div class="act-b" onclick="app.share('post','${p.pid}')">📤</div>
+                        <div class="act-b" onclick="app.copyPostText('${p.pid}')" title="کپی متن پست">📋</div>
+                        <div class="act-b" onclick="app.openSendPostModal('${p.pid}')" title="ارسال پست به دوستان">➤</div>
+                        <div class="act-b" onclick="app.share('post','${p.pid}')" title="اشتراک‌گذاری لینک">📤</div>
                     </div></div>`;
             },
 
@@ -722,7 +726,7 @@
                     const avatar = u.pic ? `<img class="u-img" src="${u.pic}">` : `<div class="u-img" style="display:flex;align-items:center;justify-content:center;background:#cbd5e1;font-weight:bold">${u.name[0]}</div>`;
                     
                     msgBox.innerHTML += `
-                    <div class="card" onclick="app.chat('${pid}')" style="cursor:pointer; padding: 12px;">
+                    <div class="card" onclick="app.chat('${pid}')" style="cursor:pointer; padding: 12px;" data-chat-id="${u.id}">
                         <div class="flex-bw">
                             <div class="u-blk">
                                 ${avatar}
@@ -920,18 +924,39 @@
                 }
                 document.getElementById('m-sh').classList.remove('show');
             },
-            pkUs: () => { document.getElementById('m-sh').classList.remove('show'); document.getElementById('m-pk').classList.add('show'); },
+            pkUs: () => { 
+                this.st.pickerMode = 'link';
+                document.querySelector('#m-pk #pk-tt').innerText = 'ارسال لینک به...';
+                document.getElementById('m-sh').classList.remove('show'); 
+                document.getElementById('m-pk').classList.add('show'); 
+            },
             flP: (v) => {
                 const l=document.getElementById('pk-ls'); l.innerHTML='';
-                this.st.users.filter(u=>u.id.includes(v)||u.name.includes(v)&&u.id!==this.st.user.id).forEach(u=>{ l.innerHTML+=`<div class="card flex-bw">${this.htmlU(u.id)} <button class="btn-s btn-p" onclick="app.snSh('${u.id}')">ارسال</button></div>`; });
+                const searchTerm = v.toLowerCase().replace('@', '');
+                this.st.users.filter(u=> u.id.toLowerCase().includes(searchTerm) && u.id!==this.st.user.id).forEach(u=>{ 
+                    const action = this.st.pickerMode === 'post' ? `app.doSendPost('${u.id}')` : `app.snSh('${u.id}')`;
+                    l.innerHTML+=`<div class="card flex-bw">${this.htmlU(u.id)} <button class="btn-s btn-p" onclick="${action}">ارسال</button></div>`;
+                });
             },
             snSh: (uid) => {
                 const m={from:this.st.user.id, to:uid, text:this.st.shr.lnk, time:Date.now(), read:false};
                 this.st.msgs.push(m); this.call('createMsg', m); document.getElementById('m-pk').classList.remove('show'); this.notif('ارسال شد', 'suc');
             },
-            srch: (v) => {
-                this.nav('sr'); const b=document.getElementById('sr-res'); b.innerHTML='';
-                this.st.users.filter(u=>u.id.includes(v)||u.name.includes(v)).forEach(u=>b.innerHTML+=`<div class="card">${this.htmlU(u.id)}</div>`);
+            srch: async function(el) {
+                const v = el.value.toLowerCase().replace('@', '').trim();
+                if (!v) return;
+                this.nav('sr'); 
+                const b = document.getElementById('sr-res');
+                b.innerHTML = '<div style="text-align:center; padding: 20px;"><span class="loading" style="color:var(--p)!important"></span></div>';
+                el.disabled = true;
+                const d = await this.call('searchUser', { id: v });
+                el.disabled = false;
+                b.innerHTML = '';
+                if (d.status === 'success' && d.users.length > 0) {
+                    d.users.forEach(u => b.innerHTML += `<div class="card">${this.htmlU(u.id)}</div>`);
+                } else {
+                    b.innerHTML = '<p style="text-align:center; padding:20px; color:var(--tg);">کاربری با این شناسه یافت نشد.</p>';
+                }
             },
             list: (t) => {
                 const u=this.st.users.find(x=>x.id===this.st.vid);
@@ -975,7 +1000,7 @@
                 if (notifications.length === 0) {
                     b.innerHTML = '<p style="text-align:center;color:gray;padding:20px;">هیچ اعلان جدیدی وجود ندارد.</p>';
                 } else {
-                    notifications.slice(0, 20).forEach(n => { // Show latest 20
+                    notifications.slice(0, 20).forEach(n => {
                         const u = this.st.users.find(usr => usr.id === n.uid);
                         if (!u) return;
                         let html = '';
@@ -990,8 +1015,49 @@
                         b.innerHTML += html;
                     });
                 }
-
                 document.getElementById('m-nt').classList.add('show');
+            },
+            copyPostText: function(pid) {
+                const post = this.st.posts.find(p => p.pid === pid);
+                if (!post) return;
+                const fullText = `عنوان: ${post.title}\n\n${post.text}`;
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(fullText).then(() => {
+                        this.notif('متن پست کپی شد', 'suc');
+                    });
+                }
+            },
+            openSendPostModal: function(pid) {
+                this.st.postToSend = pid;
+                this.st.pickerMode = 'post';
+                document.querySelector('#m-pk #pk-tt').innerText = 'ارسال پست به...';
+                document.getElementById('m-pk').classList.add('show');
+                document.querySelector('#m-pk .inp').value = '';
+                this.flP('');
+            },
+            doSendPost: function(recipientId) {
+                const post = this.st.posts.find(p => p.pid === this.st.postToSend);
+                if (!post) return;
+                const formattedText = `[پست ارسال شده از طرف @${this.st.user.id}]\n\nعنوان: ${post.title}\n\n${post.text}`;
+                const m = { from: this.st.user.id, to: recipientId, text: formattedText, time: Date.now(), read: false };
+                this.st.msgs.push(m);
+                this.call('createMsg', m);
+                document.getElementById('m-pk').classList.remove('show');
+                this.notif('پست با موفقیت ارسال شد', 'suc');
+                this.st.postToSend = null;
+                this.st.pickerMode = null;
+            },
+            filterChats: function(val) {
+                const searchTerm = val.toLowerCase().replace('@','');
+                const chatItems = document.querySelectorAll('#msg-bx .card');
+                chatItems.forEach(item => {
+                    const chatId = item.dataset.chatId.toLowerCase();
+                    if (chatId.includes(searchTerm)) {
+                        item.style.display = 'block';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
             }
         };
         app.init();
