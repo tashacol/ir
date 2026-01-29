@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -495,6 +495,7 @@
                     this.msg(); 
                 }
                 else if(p==='st') { document.getElementById('s-st').classList.remove('hide'); document.getElementById('n-st').classList.add('active'); this.sets(); }
+                 else if(p==='sr') { document.getElementById('s-sr').classList.remove('hide'); }
             },
 
             feed: function() {
@@ -564,7 +565,6 @@
             
             htmlP: (p) => {
                 const lk = p.likes.includes(app.st.user.id) ? 'lk' : '';
-                // تغییری که اعمال شد: کلیک روی عدد لایک، تابع showLikes را صدا میزند
                 return `<div class="card" id="p-${p.pid}">
                     <div class="flex-bw">${app.htmlU(p.uid)} <span style="font-size:0.7rem;background:#e0f2fe;color:#0284c7;padding:3px 10px;border-radius:10px">${p.cat||'عمومی'}</span></div>
                     <h4 style="margin-top:12px;font-size:1.05rem">${p.title}</h4>
@@ -574,7 +574,7 @@
                         <div class="act-b" onclick="app.comm('${p.pid}')">💬 ${p.comments.length}</div>
                         <div class="act-b" onclick="app.copyPostText('${p.pid}')" title="کپی متن پست">📋</div>
                         <div class="act-b" onclick="app.openSendPostModal('${p.pid}')" title="ارسال پست به دوستان">➤</div>
-                        <div class="act-b" onclick="app.share('post','${p.pid}')" title="اشتراک‌گذاری لینک">📤</div>
+                        <div class="act-b" onclick="app.share('post','${p.pid}')" title="اشتراک‌گذاری">📤</div>
                     </div></div>`;
             },
 
@@ -637,7 +637,6 @@
                 num.innerText = p.likes.length;
                 this.call('updatePost', {pid, likes:p.likes, comments:p.comments});
             },
-            // تابع جدید برای نمایش لیست لایک‌کنندگان
             showLikes: function(pid, e) {
                 if(e) e.stopPropagation();
                 const p = this.st.posts.find(x=>x.pid===pid);
@@ -915,10 +914,31 @@
                 u.allowMsg=document.getElementById('st-al').checked;
                 btn.innerHTML = '<span class="loading"></span>'; await this.call('updateUser', u); this.notif('تنظیمات ذخیره شد', 'suc'); btn.innerHTML='ذخیره تغییرات';
             },
-            share: (t, id) => {
-                const url = location.origin + location.pathname + (t === 'prof' ? '?u=' + (id || this.st.vid) : '?p=' + id);
-                this.st.shr = { txt:'لینک:', lnk:url }; 
-                document.getElementById('m-sh').classList.add('show');
+            share: function(t, id) {
+                if (t !== 'post') {
+                    const url = location.origin + location.pathname + '?u=' + (id || this.st.vid);
+                    if (navigator.share) {
+                        navigator.share({ title: 'پروفایل کاربر', text: 'این پروفایل را ببینید', url: url });
+                    } else {
+                        this.st.shr = { txt: 'لینک پروفایل:', lnk: url };
+                        document.getElementById('m-sh').classList.add('show');
+                    }
+                    return;
+                }
+                const post = this.st.posts.find(p => p.pid === id);
+                const author = this.st.users.find(u => u.id === post.uid);
+                if (!post || !author) return;
+                const url = location.origin + location.pathname + '?p=' + id;
+                const textToShare = `کاربر: @${author.id}\nعنوان: ${post.title}\n\n${post.text}\n\nلینک:\n${url}`;
+                if (navigator.share) {
+                    navigator.share({
+                        title: `پست از ${author.name}: ${post.title}`,
+                        text: textToShare,
+                    }).catch(err => console.log('Share failed:', err));
+                } else {
+                    this.copyPostText(id);
+                    this.notif('مرورگر از اشتراک‌گذاری پشتیبانی نمی‌کند. محتوای پست کپی شد.', 'err');
+                }
             },
             copyLink: function() {
                 if (navigator.clipboard && this.st.shr.lnk) {
@@ -933,51 +953,36 @@
                 document.getElementById('m-sh').classList.remove('show');
             },
             doSh: () => { 
-                if(navigator.share) {
+                if(navigator.share && app.st.shr.lnk) {
                     navigator.share({title:'اشتراک‌گذاری از سوشیال', url:app.st.shr.lnk});
                 } else {
                     app.notif('مرورگر شما از اشتراک‌گذاری پشتیبانی نمی‌کند', 'err');
                 }
                 document.getElementById('m-sh').classList.remove('show');
             },
-            pkUs: () => { 
-                this.st.pickerMode = 'link';
-                document.querySelector('#m-pk #pk-tt').innerText = 'ارسال لینک به...';
-                document.getElementById('m-sh').classList.remove('show'); 
-                document.getElementById('m-pk').classList.add('show'); 
-                this.flP(''); 
-            },
             flP: (v) => {
-                const l=document.getElementById('pk-ls'); 
+                const l=document.getElementById('pk-ls');
                 const searchTerm = v.toLowerCase().replace('@', '');
-                
-                // نمایش لودینگ استخوانی هنگام جستجو یا باز کردن
-                l.innerHTML = this.htmlSkelUser(3);
-                
+                l.innerHTML = app.htmlSkelUser(3);
                 setTimeout(() => {
                     l.innerHTML='';
                     let usersToList = [];
-                    
-                    // استخراج کسانی که با آنها چت داشته‌ایم
-                    const recentChatIds = [...new Set(this.st.msgs.filter(x => x.from === this.st.user.id || x.to === this.st.user.id).map(x => x.from === this.st.user.id ? x.to : x.from))];
-                    
-                    if (searchTerm === '') { 
-                        // اگر جستجو خالی است، کاربرانی که با آنها چت کرده‌ایم را نشان بده
-                        usersToList = this.st.users.filter(u => recentChatIds.includes(u.id));
-                    } else { 
-                        // جستجو فقط در بین کاربرانی که با آنها پیام رد و بدل کرده‌ایم (طبق دستور)
-                        usersToList = this.st.users.filter(u=> u.id.toLowerCase().includes(searchTerm) && recentChatIds.includes(u.id) && u.id!==this.st.user.id);
+                    const recentChatIds = [...new Set(app.st.msgs.filter(x => x.from === app.st.user.id || x.to === app.st.user.id).map(x => x.from === app.st.user.id ? x.to : x.from))];
+                    let sourceUsers = app.st.users.filter(u => recentChatIds.includes(u.id));
+                    if (searchTerm === '') {
+                        usersToList = sourceUsers;
+                    } else {
+                        usersToList = sourceUsers.filter(u=> u.id.toLowerCase().includes(searchTerm));
                     }
-
                     if (usersToList.length === 0) {
                         l.innerHTML = '<p style="text-align:center;color:var(--tg);padding:15px;">کاربری یافت نشد.</p>';
                     } else {
                         usersToList.forEach(u=>{ 
-                            const action = this.st.pickerMode === 'post' ? `app.doSendPost('${u.id}')` : `app.snSh('${u.id}')`;
-                            l.innerHTML+=`<div class="card flex-bw">${this.htmlU(u.id)} <button class="btn-s btn-p" onclick="${action}">ارسال</button></div>`;
+                            const action = app.st.pickerMode === 'post' ? `app.doSendPost('${u.id}')` : `app.snSh('${u.id}')`;
+                            l.innerHTML+=`<div class="card flex-bw">${app.htmlU(u.id)} <button class="btn-s btn-p" onclick="${action}">ارسال</button></div>`;
                         });
                     }
-                }, 300); // تاخیر کوتاه برای دیده شدن انیمیشن استخوانی
+                }, 300);
             },
             snSh: (uid) => {
                 const m={from:this.st.user.id, to:uid, text:this.st.shr.lnk, time:Date.now(), read:false};
@@ -988,15 +993,11 @@
                 if (!v) return;
                 this.nav('sr'); 
                 const b = document.getElementById('sr-res');
-                
-                // نمایش لودینگ استخوانی قبل از دریافت نتایج
                 b.innerHTML = this.htmlSkelUser(3);
-                window.scrollTo(0, 100); // اسکرول کمی به پایین
-
+                window.scrollTo({ top: 150, behavior: 'smooth' });
                 el.disabled = true;
                 const d = await this.call('searchUser', { id: v });
                 el.disabled = false;
-                
                 b.innerHTML = '';
                 if (d.status === 'success' && d.users.length > 0) {
                     d.users.forEach(u => {
@@ -1030,7 +1031,6 @@
                     });
                     p.comments.forEach(c => {
                         if (c.uid !== this.st.user.id) {
-                            // اضافه کردن متن نظر به آبجکت اعلان
                             notifications.push({ time: p.time, type: 'comment', uid: c.uid, post: p, text: c.text });
                         }
                     });
@@ -1046,7 +1046,7 @@
 
                 notifications.sort((a, b) => b.time - a.time);
 
-                b.innerHTML = ''; // Clear skeleton
+                b.innerHTML = '';
                 if (notifications.length === 0) {
                     b.innerHTML = '<p style="text-align:center;color:gray;padding:20px;">هیچ اعلان جدیدی وجود ندارد.</p>';
                 } else {
@@ -1054,10 +1054,9 @@
                         const u = this.st.users.find(usr => usr.id === n.uid);
                         if (!u) return;
                         let text = '';
-                        // نمایش متن کامل نظر در اعلان
                         switch (n.type) {
                             case 'like': text = `پست شما را پسندید: <i>"${n.post.title}"</i>`; break;
-                            case 'comment': text = `نظر داد: <span style="display:block;margin-top:5px;padding:5px;background:#f1f5f9;border-radius:8px;font-size:0.85rem">"${n.text}"</span><small style="opacity:0.7;display:block;margin-top:5px">در پست: ${n.post.title}</small>`; break;
+                            case 'comment': text = `نظر داد: <span style="display:block;margin-top:5px;padding:8px;background:#f1f5f9;border-radius:8px;font-size:0.85rem;border:1px solid #e2e8f0;">"${n.text}"</span><small style="opacity:0.7;display:block;margin-top:5px">در پست: ${n.post.title}</small>`; break;
                             case 'follow': text = `شما را دنبال کرد.`; break;
                             case 'request': text = `یک درخواست دنبال کردن ارسال کرد.`; break;
                         }
@@ -1071,11 +1070,13 @@
             },
             copyPostText: function(pid) {
                 const post = this.st.posts.find(p => p.pid === pid);
-                if (!post) return;
-                const fullText = `عنوان: ${post.title}\n\n${post.text}`;
+                const author = this.st.users.find(u => u.id === post.uid);
+                if (!post || !author) return;
+                const url = location.origin + location.pathname + '?p=' + pid;
+                const fullText = `کاربر: @${author.id}\nعنوان: ${post.title}\n\n${post.text}\n\nلینک:\n${url}`;
                 if (navigator.clipboard) {
                     navigator.clipboard.writeText(fullText).then(() => {
-                        this.notif('متن پست کپی شد', 'suc');
+                        this.notif('اطلاعات کامل پست کپی شد', 'suc');
                     });
                 }
             },
@@ -1086,13 +1087,14 @@
                 document.getElementById('m-pk').classList.add('show');
                 const searchInput = document.querySelector('#m-pk .inp');
                 searchInput.value = '';
-                // Pre-populate with recent chats (and skeleton)
                 this.flP('');
             },
             doSendPost: function(recipientId) {
                 const post = this.st.posts.find(p => p.pid === this.st.postToSend);
-                if (!post) return;
-                const formattedText = `[پست ارسال شده از طرف @${this.st.user.id}]\n\nعنوان: ${post.title}\n\n${post.text}`;
+                const author = this.st.users.find(u => u.id === post.uid);
+                if (!post || !author) return;
+                const url = location.origin + location.pathname + '?p=' + this.st.postToSend;
+                const formattedText = `[پست ارسال شده از طرف @${this.st.user.id}]\n\nکاربر: @${author.id}\nعنوان: ${post.title}\n\n${post.text}\n\nلینک:\n${url}`;
                 const m = { from: this.st.user.id, to: recipientId, text: formattedText, time: Date.now(), read: false };
                 this.st.msgs.push(m);
                 this.call('createMsg', m);
