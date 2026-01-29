@@ -1,9 +1,9 @@
-   <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>سامانه اجتماعی</title>
+    <title>سوشیال</title>
     <style>
         :root {
             --p: #2563eb; --pd: #1e40af; --bg: #f1f5f9; --s: #ffffff;
@@ -85,7 +85,7 @@
         <div id="f-log">
             <div class="card">
                 <h2 style="text-align:center; margin-bottom:20px">ورود</h2>
-                <!-- تغییر مهم: type="text" برای حفظ صفر اول -->
+                <!-- نوع ورودی text شده تا صفر اول را نگه دارد -->
                 <input type="text" id="l-nc" class="inp" placeholder="کد ملی" inputmode="numeric">
                 <input type="password" id="l-ps" class="inp" placeholder="رمز عبور">
                 <div style="margin-bottom:15px; font-size:0.9rem"><label><input type="checkbox" id="l-rem" checked> ذخیره ورود</label></div>
@@ -259,7 +259,7 @@
     </div>
 
     <script>
-        // *** شناسه اسکریپت جدید خود را اینجا بگذارید ***
+        // *** لینک اسکریپت جدید را اینجا بگذارید ***
         const API = 'https://script.google.com/macros/s/AKfycbzqj-Sri9jiGA0PMYLqgFHloN1ff-9zy1qncpZMeP-N_96p0B_dbv2YL-fcfe8YuF84/exec';
 
         const app = {
@@ -274,44 +274,44 @@
                 if(uid) {
                     const u = this.st.users.find(x=>x.id===uid);
                     if(u) { this.st.user=u; this.start(); }
-                    else { document.getElementById('scr-auth').classList.remove('hide'); }
+                    this.sync(false);
                 } else {
                     document.getElementById('scr-auth').classList.remove('hide');
-                    this.sync(false);
                 }
-                const p = new URLSearchParams(location.search);
-                if(p.get('u')) setTimeout(()=>this.nav('pr', p.get('u')), 1500);
             },
 
-            // *** تابع اتصال بازنویسی شده بر اساس کد صحیح ***
+            // اتصال امن به اسکریپت
             call: async function(act, pl) {
-                // ارسال به صورت متنی برای جلوگیری از Preflight اما مدیریت درست در سرور
-                const res = await fetch(API, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: act, payload: pl })
-                });
-                // اینجا اگر اروری باشد، کد اسکریپت جدید باز هم JSON برمی‌گرداند
-                return await res.json();
+                try {
+                    const res = await fetch(API, {
+                        method: 'POST',
+                        body: JSON.stringify({ action: act, payload: pl })
+                    });
+                    const txt = await res.text();
+                    // تلاش برای تبدیل پاسخ به JSON
+                    try { return JSON.parse(txt); } 
+                    catch(e) { return { status: 'error', msg: 'پاسخ سرور نامعتبر است: ' + txt }; }
+                } catch(e) {
+                    return { status: 'error', msg: 'خطا در اتصال اینترنت' };
+                }
             },
 
             sync: async function(manual) {
                 if(manual) this.msg('بروزرسانی...');
-                try {
-                    const d = await this.call('getAll', {});
-                    if(d.status === 'success') {
-                        this.st.users=d.users; this.st.posts=d.posts; this.st.msgs=d.msgs;
-                        localStorage.setItem('db', JSON.stringify(d));
-                        if(this.st.user && !this.st.guest) {
-                            this.st.user = this.st.users.find(u=>u.id===this.st.user.id)||this.st.user;
-                            this.bdg();
-                        }
-                        if(!document.getElementById('s-hm').classList.contains('hide')) this.feed();
-                        if(manual) this.msg('انجام شد');
+                const d = await this.call('getAll', {});
+                if(d.status === 'success') {
+                    this.st.users=d.users; this.st.posts=d.posts; this.st.msgs=d.msgs;
+                    localStorage.setItem('db', JSON.stringify(d));
+                    if(this.st.user && !this.st.guest) {
+                        const fresh = this.st.users.find(u=>u.id===this.st.user.id);
+                        if(fresh) { this.st.user = fresh; this.bdg(); }
+                        else { this.out(); } // کاربر حذف شده
                     }
-                } catch(e) { if(manual) this.msg('خطا در دریافت'); }
+                    if(!document.getElementById('s-hm').classList.contains('hide')) this.feed();
+                    if(manual) this.msg('انجام شد');
+                }
             },
 
-            // AUTH
             togAuth: () => { document.getElementById('f-log').classList.toggle('hide'); document.getElementById('f-reg').classList.toggle('hide'); },
             guest: function() {
                 this.st.guest=true;
@@ -320,19 +320,17 @@
             },
             login: async function(btn) {
                 const nc=document.getElementById('l-nc').value, pass=document.getElementById('l-ps').value;
-                if(!nc || !pass) return this.msg('ناقص');
+                if(!nc || !pass) return this.msg('لطفا همه فیلدها را پر کنید');
                 btn.classList.add('loading');
-                try {
-                    const d = await this.call('login', {nc, pass});
-                    if(d.status === 'success') {
-                        this.st.user = d.user;
-                        if(document.getElementById('l-rem').checked) localStorage.setItem('uid', d.user.id);
-                        this.start(); this.sync(false);
-                    } else this.msg(d.msg);
-                } catch(e) { 
-                    this.msg('خطا اتصال: ' + e.message); 
-                }
+                const d = await this.call('login', {nc, pass});
                 btn.classList.remove('loading');
+                if(d.status === 'success') {
+                    this.st.user = d.user;
+                    if(document.getElementById('l-rem').checked) localStorage.setItem('uid', d.user.id);
+                    this.start(); this.sync(false);
+                } else {
+                    this.msg(d.msg || 'خطا در ورود');
+                }
             },
             reg: async function(btn) {
                 const p = {
@@ -342,12 +340,10 @@
                 };
                 if(!p.id || !p.nc || !p.pass || !p.refCode) return this.msg('همه فیلدها الزامی');
                 btn.classList.add('loading');
-                try {
-                    const d = await this.call('register', p);
-                    if(d.status === 'success') { this.msg('ثبت شد. وارد شوید'); this.togAuth(); }
-                    else this.msg(d.msg);
-                } catch(e) { this.msg('خطا'); }
+                const d = await this.call('register', p);
                 btn.classList.remove('loading');
+                if(d.status === 'success') { this.msg('ثبت شد. وارد شوید'); this.togAuth(); }
+                else this.msg(d.msg || 'خطا در ثبت نام');
             },
             out: () => { localStorage.removeItem('uid'); location.reload(); },
             start: function() {
@@ -357,36 +353,25 @@
                 this.nav('hm');
             },
 
-            // NAV
+            // سایر توابع (بدون تغییر منطقی، فقط ظاهر)
             nav: function(p, arg) {
                 document.querySelectorAll('section').forEach(s=>s.classList.add('hide'));
                 document.querySelectorAll('.n-it').forEach(i=>i.classList.remove('active'));
                 if(p==='hm') { document.getElementById('s-hm').classList.remove('hide'); document.getElementById('n-hm').classList.add('active'); this.feed(); }
-                else if(p==='pr') { 
-                    document.getElementById('s-pr').classList.remove('hide'); 
-                    if(!arg || (this.st.user && arg===this.st.user.id)) document.getElementById('n-pr').classList.add('active');
-                    this.prof(arg||this.st.user.id);
-                }
+                else if(p==='pr') { document.getElementById('s-pr').classList.remove('hide'); if(!arg || (this.st.user && arg===this.st.user.id)) document.getElementById('n-pr').classList.add('active'); this.prof(arg||this.st.user.id); }
                 else if(p==='ad') { document.getElementById('s-ad').classList.remove('hide'); document.getElementById('n-ad').classList.add('active'); }
                 else if(p==='ms') { document.getElementById('s-ms').classList.remove('hide'); document.getElementById('n-ms').classList.add('active'); this.msg('chat'); }
                 else if(p==='st') { document.getElementById('s-st').classList.remove('hide'); document.getElementById('n-st').classList.add('active'); this.sets(); }
             },
-
-            // FEED
             feed: function() {
                 const c = document.getElementById('feed'), nb = document.getElementById('new-bx');
                 nb.innerHTML='';
                 this.st.users.filter(u=>u.id!==this.st.user.id).slice(-5).forEach(u=>{
                     const img = u.pic ? `<img src="${u.pic}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : u.name[0];
-                    nb.innerHTML += `<div style="min-width:70px;text-align:center;cursor:pointer" onclick="app.nav('pr','${u.id}')">
-                        <div style="width:50px;height:50px;border-radius:50%;background:#e2e8f0;margin:auto;display:flex;align-items:center;justify-content:center;overflow:hidden">${img}</div>
-                        <div style="font-size:0.7rem;margin-top:4px">${u.name}</div></div>`;
+                    nb.innerHTML += `<div style="min-width:70px;text-align:center;cursor:pointer" onclick="app.nav('pr','${u.id}')"><div style="width:50px;height:50px;border-radius:50%;background:#e2e8f0;margin:auto;display:flex;align-items:center;justify-content:center;overflow:hidden">${img}</div><div style="font-size:0.7rem;margin-top:4px">${u.name}</div></div>`;
                 });
                 c.innerHTML=''; if(this.st.posts.length===0) return c.innerHTML=this.skel();
-                const sh = this.st.posts.filter(p=>{
-                    const au = this.st.users.find(u=>u.id===p.uid); if(!au) return false;
-                    return !au.isPrivate || this.st.user.following.includes(p.uid) || p.uid===this.st.user.id;
-                });
+                const sh = this.st.posts.filter(p=>{ const au = this.st.users.find(u=>u.id===p.uid); if(!au) return false; return !au.isPrivate || this.st.user.following.includes(p.uid) || p.uid===this.st.user.id; });
                 sh.sort((a,b)=>b.time-a.time).forEach(p=>c.innerHTML+=this.htmlP(p));
             },
             skel: () => `<div class="card"><div class="flex-bw"><div class="sk-av skel"></div><div style="width:75%"><div class="sk-ln skel"></div><div class="sk-ln skel" style="width:50%"></div></div></div><div class="sk-ln skel" style="height:100px;margin-top:10px"></div></div>`,
@@ -397,14 +382,8 @@
             },
             htmlP: (p) => {
                 const lk = p.likes.includes(app.st.user.id) ? 'lk' : '';
-                return `<div class="card"><div class="flex-bw">${app.htmlU(p.uid)} <span style="font-size:0.7rem;background:#e0f2fe;color:#0284c7;padding:2px 8px;border-radius:8px">${p.cat}</span></div>
-                    <h4 style="margin-top:10px">${p.title}</h4><p style="margin-top:5px;line-height:1.6;font-size:0.95rem;white-space:pre-wrap">${p.text}</p>
-                    <div class="p-act"><div class="act-b ${lk}" onclick="app.like('${p.pid}')"><span>${lk?'❤️':'🤍'}</span> ${p.likes.length}</div>
-                    <div class="act-b" onclick="app.comm('${p.pid}')">💬 ${p.comments.length}</div>
-                    <div class="act-b" onclick="app.share('post','${p.pid}')">🔗</div></div></div>`;
+                return `<div class="card"><div class="flex-bw">${app.htmlU(p.uid)} <span style="font-size:0.7rem;background:#e0f2fe;color:#0284c7;padding:2px 8px;border-radius:8px">${p.cat}</span></div><h4 style="margin-top:10px">${p.title}</h4><p style="margin-top:5px;line-height:1.6;font-size:0.95rem;white-space:pre-wrap">${p.text}</p><div class="p-act"><div class="act-b ${lk}" onclick="app.like('${p.pid}')"><span>${lk?'❤️':'🤍'}</span> ${p.likes.length}</div><div class="act-b" onclick="app.comm('${p.pid}')">💬 ${p.comments.length}</div><div class="act-b" onclick="app.share('post','${p.pid}')">🔗</div></div></div>`;
             },
-
-            // ACTS
             pub: async function(btn) {
                 if(this.st.guest) return this.msg('مهمان');
                 const p = { pid:this.st.user.id+'_'+Date.now(), uid:this.st.user.id, title:document.getElementById('a-ti').value, cat:document.getElementById('a-ct').value, text:document.getElementById('a-tx').value, time:Date.now() };
@@ -416,63 +395,40 @@
             },
             like: function(pid) {
                 if(this.st.guest) return this.msg('مهمان');
-                const p = this.st.posts.find(x=>x.pid===pid);
-                const uid = this.st.user.id;
+                const p = this.st.posts.find(x=>x.pid===pid); const uid = this.st.user.id;
                 if(p.likes.includes(uid)) p.likes = p.likes.filter(x=>x!==uid); else p.likes.push(uid);
-                this.feed();
-                this.call('updatePost', {pid, likes:p.likes, comments:p.comments});
+                this.feed(); this.call('updatePost', {pid, likes:p.likes, comments:p.comments});
             },
             comm: function(pid) {
-                this.st.cpid = pid;
-                const p = this.st.posts.find(x=>x.pid===pid);
-                const b = document.getElementById('cm-bd');
+                this.st.cpid = pid; const p = this.st.posts.find(x=>x.pid===pid); const b = document.getElementById('cm-bd');
                 b.innerHTML = p.comments.length ? '' : '<p style="text-align:center;color:gray">خالی</p>';
-                p.comments.forEach(c => {
-                    const u = this.st.users.find(x=>x.id===c.uid);
-                    b.innerHTML += `<div style="background:#f1f5f9;padding:10px;border-radius:10px;margin-top:8px"><b>${u?u.name:'?'}</b>: ${c.text}</div>`;
-                });
+                p.comments.forEach(c => { const u = this.st.users.find(x=>x.id===c.uid); b.innerHTML += `<div style="background:#f1f5f9;padding:10px;border-radius:10px;margin-top:8px"><b>${u?u.name:'?'}</b>: ${c.text}</div>`; });
                 document.getElementById('m-cm').classList.remove('hide');
             },
             sndC: function(btn) {
                 if(this.st.guest) return this.msg('مهمان');
-                const txt = document.getElementById('cm-in').value;
-                if(!txt) return;
-                const p = this.st.posts.find(x=>x.pid===this.st.cpid);
-                p.comments.push({uid:this.st.user.id, text:txt});
-                this.comm(this.st.cpid);
-                document.getElementById('cm-in').value='';
+                const txt = document.getElementById('cm-in').value; if(!txt) return;
+                const p = this.st.posts.find(x=>x.pid===this.st.cpid); p.comments.push({uid:this.st.user.id, text:txt});
+                this.comm(this.st.cpid); document.getElementById('cm-in').value='';
                 this.call('updatePost', {pid:p.pid, likes:p.likes, comments:p.comments});
             },
-
-            // PROF
             prof: function(uid) {
-                const u = this.st.users.find(x=>x.id===uid);
-                const me = this.st.user; this.st.vid = uid; const isMe = uid === me.id;
+                const u = this.st.users.find(x=>x.id===uid); const me = this.st.user; this.st.vid = uid; const isMe = uid === me.id;
                 document.getElementById('bp-bk').classList.toggle('hide', isMe);
                 document.getElementById('p-im').src = u.pic||''; if(!u.pic) document.getElementById('p-im').style.background='#cbd5e1';
                 document.getElementById('p-nm').innerText = u.name; document.getElementById('p-id').innerText = u.id; document.getElementById('p-bi').innerText = u.bio;
-                const lnk = document.getElementById('p-lnk'); lnk.innerHTML='';
-                if(u.web) lnk.innerHTML += `<div>🌐 <a href="${u.web}">${u.web}</a></div>`;
+                const lnk = document.getElementById('p-lnk'); lnk.innerHTML=''; if(u.web) lnk.innerHTML += `<div>🌐 <a href="${u.web}">${u.web}</a></div>`;
                 const ps = this.st.posts.filter(x=>x.uid===uid);
                 document.getElementById('c-pt').innerText=ps.length; document.getElementById('c-fl').innerText=u.followers.length; document.getElementById('c-fi').innerText=u.following.length;
                 const acts = document.getElementById('p-act');
-                if(isMe) acts.classList.add('hide');
-                else {
-                    acts.classList.remove('hide');
-                    const b = document.getElementById('b-fl');
-                    if(me.following.includes(uid)) { b.innerText='لغو'; b.className='btn btn-o'; }
-                    else if(u.requests.includes(me.id)) { b.innerText='انتظار'; b.className='btn btn-o'; }
-                    else { b.innerText='دنبال'; b.className='btn btn-p'; }
-                }
+                if(isMe) acts.classList.add('hide'); else { acts.classList.remove('hide'); const b = document.getElementById('b-fl'); if(me.following.includes(uid)) { b.innerText='لغو'; b.className='btn btn-o'; } else if(u.requests.includes(me.id)) { b.innerText='انتظار'; b.className='btn btn-o'; } else { b.innerText='دنبال'; b.className='btn btn-p'; } }
                 const acc = isMe || !u.isPrivate || (u.isPrivate && u.followers.includes(me.id));
-                document.getElementById('p-con').classList.toggle('hide', !acc);
-                document.getElementById('p-lck').classList.toggle('hide', acc);
+                document.getElementById('p-con').classList.toggle('hide', !acc); document.getElementById('p-lck').classList.toggle('hide', acc);
                 if(acc) this.flt('all', document.querySelector('.chip'));
             },
             flt: function(cat, el) {
                 document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active')); el.classList.add('active');
-                const c = document.getElementById('p-pts'); c.innerHTML='';
-                let p = this.st.posts.filter(x=>x.uid===this.st.vid);
+                const c = document.getElementById('p-pts'); c.innerHTML=''; let p = this.st.posts.filter(x=>x.uid===this.st.vid);
                 if(cat!=='all') p = p.filter(x=>x.cat===cat);
                 if(p.length===0) c.innerHTML='<p style="text-align:center;padding:20px;color:gray">خالی</p>';
                 p.sort((a,b)=>b.time-a.time).forEach(x=>c.innerHTML+=this.htmlP(x));
@@ -481,108 +437,29 @@
                 if(this.st.guest) return this.msg('مهمان');
                 const uid = this.st.vid; const me = this.st.user; const u = this.st.users.find(x=>x.id===uid);
                 let t = 'follow'; if(me.following.includes(uid)) t = 'unfollow';
-                if(t==='follow') { if(u.isPrivate) u.requests.push(me.id); else { me.following.push(uid); u.followers.push(me.id); } }
-                else { me.following = me.following.filter(x=>x!==uid); u.followers = u.followers.filter(x=>x!==me.id); }
-                this.prof(uid);
-                this.call('updateUser', [me, u]);
+                if(t==='follow') { if(u.isPrivate) u.requests.push(me.id); else { me.following.push(uid); u.followers.push(me.id); } } else { me.following = me.following.filter(x=>x!==uid); u.followers = u.followers.filter(x=>x!==me.id); }
+                this.prof(uid); this.call('updateUser', [me, u]);
             },
-
-            // MSG & SET
             msg: function(m) {
-                const c=document.getElementById('msg-bx'); c.innerHTML='';
-                if(this.st.guest) return c.innerHTML='<p style="text-align:center">دسترسی ندارید</p>';
-                if(m==='req') {
-                    if(this.st.user.requests.length===0) c.innerHTML='<p style="text-align:center">خالی</p>';
-                    this.st.user.requests.forEach(rid=>{
-                        c.innerHTML += `<div class="card flex-bw">${this.htmlU(rid)}<div><button class="btn-s btn-p" onclick="app.ans('${rid}',true)">✔</button><button class="btn-s btn-o" onclick="app.ans('${rid}',false)">✖</button></div></div>`;
-                    });
-                } else {
-                    const ch = [...new Set(this.st.msgs.filter(x=>x.from===this.st.user.id||x.to===this.st.user.id).map(x=>x.from===this.st.user.id?x.to:x.from))];
-                    if(ch.length===0) c.innerHTML='<p style="text-align:center">خالی</p>';
-                    ch.forEach(pid=>{
-                        const last = this.st.msgs.filter(x=>(x.from===this.st.user.id&&x.to===pid)||(x.from===pid&&x.to===this.st.user.id)).pop();
-                        c.innerHTML += `<div class="card" onclick="app.chat('${pid}')"><div class="flex-bw">${this.htmlU(pid)}<small>${new Date(last.time).toLocaleTimeString('fa-IR')}</small></div><p style="margin-top:5px;color:gray;font-size:0.9rem">${last.text}</p></div>`;
-                    });
-                }
+                const c=document.getElementById('msg-bx'); c.innerHTML=''; if(this.st.guest) return c.innerHTML='<p style="text-align:center">دسترسی ندارید</p>';
+                if(m==='req') { if(this.st.user.requests.length===0) c.innerHTML='<p style="text-align:center">خالی</p>'; this.st.user.requests.forEach(rid=>{ c.innerHTML += `<div class="card flex-bw">${this.htmlU(rid)}<div><button class="btn-s btn-p" onclick="app.ans('${rid}',true)">✔</button><button class="btn-s btn-o" onclick="app.ans('${rid}',false)">✖</button></div></div>`; }); } 
+                else { const ch = [...new Set(this.st.msgs.filter(x=>x.from===this.st.user.id||x.to===this.st.user.id).map(x=>x.from===this.st.user.id?x.to:x.from))]; if(ch.length===0) c.innerHTML='<p style="text-align:center">خالی</p>'; ch.forEach(pid=>{ const last = this.st.msgs.filter(x=>(x.from===this.st.user.id&&x.to===pid)||(x.from===pid&&x.to===this.st.user.id)).pop(); c.innerHTML += `<div class="card" onclick="app.chat('${pid}')"><div class="flex-bw">${this.htmlU(pid)}<small>${new Date(last.time).toLocaleTimeString('fa-IR')}</small></div><p style="margin-top:5px;color:gray;font-size:0.9rem">${last.text}</p></div>`; }); }
             },
-            ans: function(uid, ac) {
-                const me = this.st.user; me.requests = me.requests.filter(x=>x!==uid);
-                const u = this.st.users.find(x=>x.id===uid);
-                if(ac) { me.followers.push(uid); u.following.push(me.id); }
-                this.msg('req'); this.call('updateUser', [me, u]);
-            },
-            chat: function(uid) {
-                if(this.st.guest) return this.msg('مهمان');
-                const u = this.st.users.find(x=>x.id===uid);
-                if(!u.allowMsg && !u.following.includes(this.st.user.id)) return this.msg('پیام بسته است');
-                this.st.cpid = uid;
-                document.getElementById('sc-ch').classList.remove('hide');
-                document.getElementById('ch-hd').innerText = u.name;
-                this.rnC();
-            },
-            rnC: function() {
-                const b=document.getElementById('ch-bx'); b.innerHTML='';
-                const ms = this.st.msgs.filter(x=>(x.from==this.st.user.id&&x.to==this.st.cpid)||(x.from==this.st.cpid&&x.to==this.st.user.id));
-                ms.forEach(x=>{ b.innerHTML += `<div style="padding:10px;border-radius:12px;max-width:80%;${x.from===this.st.user.id?'background:#e0f2fe;align-self:flex-end':'background:white;align-self:flex-start;border:1px solid #ddd'}">${x.text}</div>`; });
-                b.scrollTop=b.scrollHeight;
-            },
-            sndM: function() {
-                const t = document.getElementById('ch-in').value; if(!t) return;
-                const m = {from:this.st.user.id, to:this.st.cpid, text:t, time:Date.now(), read:false};
-                this.st.msgs.push(m); this.rnC(); document.getElementById('ch-in').value='';
-                this.call('createMsg', m);
-            },
-            sets: function() {
-                if(this.st.guest) return document.getElementById('s-st').innerHTML='<p class="card" style="text-align:center">مهمان</p>';
-                const u=this.st.user;
-                document.getElementById('st-nm').innerText=u.name; document.getElementById('st-id').innerText='@'+u.id;
-                document.getElementById('st-nc').innerText=u.nc; document.getElementById('st-cd').innerText=u.refCode;
-                document.getElementById('st-pc').value=u.pic||''; document.getElementById('st-nn').value=u.name;
-                document.getElementById('st-bi').value=u.bio; document.getElementById('st-ln').value=u.web||'';
-                document.getElementById('st-mn').value=u.mention||''; document.getElementById('st-pr').checked=u.isPrivate;
-                document.getElementById('st-al').checked=u.allowMsg;
-            },
-            sav: async function(btn) {
-                const u=this.st.user;
-                u.pic=document.getElementById('st-pc').value; u.name=document.getElementById('st-nn').value;
-                u.bio=document.getElementById('st-bi').value; u.web=document.getElementById('st-ln').value;
-                u.mention=document.getElementById('st-mn').value; u.isPrivate=document.getElementById('st-pr').checked;
-                u.allowMsg=document.getElementById('st-al').checked;
-                btn.classList.add('loading'); await this.call('updateUser', u); this.msg('ذخیره شد'); btn.classList.remove('loading');
-            },
-            share: (t, id) => {
-                const url = location.origin+location.pathname+(t==='prof'?'?u='+this.st.vid:'?p='+id);
-                this.st.shr={txt:'لینک:', lnk:url}; document.getElementById('m-sh').classList.remove('hide');
-            },
+            ans: function(uid, ac) { const me = this.st.user; me.requests = me.requests.filter(x=>x!==uid); const u = this.st.users.find(x=>x.id===uid); if(ac) { me.followers.push(uid); u.following.push(me.id); } this.msg('req'); this.call('updateUser', [me, u]); },
+            chat: function(uid) { if(this.st.guest) return this.msg('مهمان'); const u = this.st.users.find(x=>x.id===uid); if(!u.allowMsg && !u.following.includes(this.st.user.id)) return this.msg('پیام بسته است'); this.st.cpid = uid; document.getElementById('sc-ch').classList.remove('hide'); document.getElementById('ch-hd').innerText = u.name; this.rnC(); },
+            rnC: function() { const b=document.getElementById('ch-bx'); b.innerHTML=''; const ms = this.st.msgs.filter(x=>(x.from==this.st.user.id&&x.to==this.st.cpid)||(x.from==this.st.cpid&&x.to==this.st.user.id)); ms.forEach(x=>{ b.innerHTML += `<div style="padding:10px;border-radius:12px;max-width:80%;${x.from===this.st.user.id?'background:#e0f2fe;align-self:flex-end':'background:white;align-self:flex-start;border:1px solid #ddd'}">${x.text}</div>`; }); b.scrollTop=b.scrollHeight; },
+            sndM: function() { const t = document.getElementById('ch-in').value; if(!t) return; const m = {from:this.st.user.id, to:this.st.cpid, text:t, time:Date.now(), read:false}; this.st.msgs.push(m); this.rnC(); document.getElementById('ch-in').value=''; this.call('createMsg', m); },
+            sets: function() { if(this.st.guest) return document.getElementById('s-st').innerHTML='<p class="card" style="text-align:center">مهمان</p>'; const u=this.st.user; document.getElementById('st-nm').innerText=u.name; document.getElementById('st-id').innerText='@'+u.id; document.getElementById('st-nc').innerText=u.nc; document.getElementById('st-cd').innerText=u.refCode; document.getElementById('st-pc').value=u.pic||''; document.getElementById('st-nn').value=u.name; document.getElementById('st-bi').value=u.bio; document.getElementById('st-ln').value=u.web||''; document.getElementById('st-mn').value=u.mention||''; document.getElementById('st-pr').checked=u.isPrivate; document.getElementById('st-al').checked=u.allowMsg; },
+            sav: async function(btn) { const u=this.st.user; u.pic=document.getElementById('st-pc').value; u.name=document.getElementById('st-nn').value; u.bio=document.getElementById('st-bi').value; u.web=document.getElementById('st-ln').value; u.mention=document.getElementById('st-mn').value; u.isPrivate=document.getElementById('st-pr').checked; u.allowMsg=document.getElementById('st-al').checked; btn.classList.add('loading'); await this.call('updateUser', u); this.msg('ذخیره شد'); btn.classList.remove('loading'); },
+            share: (t, id) => { const url = location.origin+location.pathname+(t==='prof'?'?u='+this.st.vid:'?p='+id); this.st.shr={txt:'لینک:', lnk:url}; document.getElementById('m-sh').classList.remove('hide'); },
             doSh: () => { if(navigator.share) navigator.share({title:'Social', url:this.st.shr.lnk}); else prompt('Copy:', this.st.shr.lnk); },
             pkUs: () => { document.getElementById('m-sh').classList.add('hide'); document.getElementById('m-pk').classList.remove('hide'); },
-            flP: (v) => {
-                const l=document.getElementById('pk-ls'); l.innerHTML='';
-                this.st.users.filter(u=>u.id.includes(v)&&u.id!==this.st.user.id).forEach(u=>{ l.innerHTML+=`<div class="card flex-bw">${this.htmlU(u.id)} <button class="btn-s btn-p" onclick="app.snSh('${u.id}')">ارسال</button></div>`; });
-            },
-            snSh: (uid) => {
-                const m={from:this.st.user.id, to:uid, text:this.st.shr.lnk, time:Date.now(), read:false};
-                this.st.msgs.push(m); this.call('createMsg', m); document.getElementById('m-pk').classList.add('hide'); this.msg('ارسال شد');
-            },
-            srch: (v) => {
-                app.nav('sr'); const b=document.getElementById('sr-res'); b.innerHTML='';
-                app.st.users.filter(u=>u.id.includes(v)||u.name.includes(v)).forEach(u=>b.innerHTML+=`<div class="card">${app.htmlU(u.id)}</div>`);
-            },
+            flP: (v) => { const l=document.getElementById('pk-ls'); l.innerHTML=''; this.st.users.filter(u=>u.id.includes(v)&&u.id!==this.st.user.id).forEach(u=>{ l.innerHTML+=`<div class="card flex-bw">${this.htmlU(u.id)} <button class="btn-s btn-p" onclick="app.snSh('${u.id}')">ارسال</button></div>`; }); },
+            snSh: (uid) => { const m={from:this.st.user.id, to:uid, text:this.st.shr.lnk, time:Date.now(), read:false}; this.st.msgs.push(m); this.call('createMsg', m); document.getElementById('m-pk').classList.add('hide'); this.msg('ارسال شد'); },
+            srch: (v) => { app.nav('sr'); const b=document.getElementById('sr-res'); b.innerHTML=''; app.st.users.filter(u=>u.id.includes(v)||u.name.includes(v)).forEach(u=>b.innerHTML+=`<div class="card">${app.htmlU(u.id)}</div>`); },
             msg: (t) => { const b=document.getElementById('tst'); b.innerText=t; b.classList.add('show'); setTimeout(()=>b.classList.remove('show'), 3000); },
-            bdg: () => {
-                const r=this.st.user.requests.length; const u=this.st.msgs.filter(x=>x.to===this.st.user.id&&!x.read).length;
-                const b1=document.getElementById('b-nv'); const b2=document.getElementById('b-rq');
-                if(r+u>0) { b1.innerText=r+u; b1.classList.remove('hide'); } else b1.classList.add('hide');
-                if(r>0) { b2.innerText=r; b2.classList.remove('hide'); } else b2.classList.add('hide');
-            },
-            list: (t) => {
-                const u=this.st.users.find(x=>x.id===this.st.vid);
-                const l=t==='fol'?u.followers:u.following;
-                if(t==='posts') return; // Scroll handled
-                const b=document.getElementById('ls-bd'); b.innerHTML='';
-                l.forEach(id => b.innerHTML+=`<div style="margin-bottom:10px">${app.htmlU(id)}</div>`);
-                document.getElementById('ls-tt').innerText=t; document.getElementById('m-ls').classList.remove('hide');
-            }
+            bdg: () => { const r=this.st.user.requests.length; const u=this.st.msgs.filter(x=>x.to===this.st.user.id&&!x.read).length; const b1=document.getElementById('b-nv'); const b2=document.getElementById('b-rq'); if(r+u>0) { b1.innerText=r+u; b1.classList.remove('hide'); } else b1.classList.add('hide'); if(r>0) { b2.innerText=r; b2.classList.remove('hide'); } else b2.classList.add('hide'); },
+            list: (t) => { const u=this.st.users.find(x=>x.id===this.st.vid); const l=t==='fol'?u.followers:u.following; if(t==='posts') return; const b=document.getElementById('ls-bd'); b.innerHTML=''; l.forEach(id => b.innerHTML+=`<div style="margin-bottom:10px">${app.htmlU(id)}</div>`); document.getElementById('ls-tt').innerText=t; document.getElementById('m-ls').classList.remove('hide'); }
         };
         app.init();
     </script>
