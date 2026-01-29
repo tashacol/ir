@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -17,7 +17,9 @@
         .flex-bw { display:flex; justify-content:space-between; align-items:center; }
         
         /* UI */
-        .card { background:var(--s); border-radius:var(--rad); padding:15px; margin-bottom:15px; box-shadow:var(--sh); border:1px solid var(--bor); position:relative; }
+        .card { background:var(--s); border-radius:var(--rad); padding:15px; margin-bottom:15px; box-shadow:var(--sh); border:1px solid var(--bor); position:relative; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
         .inp { width:100%; padding:12px; border:2px solid var(--bor); border-radius:12px; background:var(--bg); font-size:1rem; margin-bottom:15px; transition:0.3s; }
         .inp:focus { border-color:var(--p); background:var(--s); }
         .btn { width:100%; padding:12px; border-radius:12px; font-weight:bold; font-size:1rem; display:flex; justify-content:center; gap:8px; cursor:pointer; border:none; transition:0.2s; }
@@ -61,8 +63,16 @@
 
         /* Post */
         .p-act { display:flex; gap:20px; margin-top:15px; border-top:1px solid var(--bor); padding-top:10px; color:var(--tg); }
-        .act-b { display:flex; align-items:center; gap:5px; cursor:pointer; font-size:0.9rem; }
+        .act-b { display:flex; align-items:center; gap:5px; cursor:pointer; font-size:0.9rem; transition:0.2s; }
+        .act-b:active { transform: scale(1.2); }
         .act-b.lk { color:var(--err); }
+        .act-b.lk span { animation: pop 0.3s; }
+        @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.4); } 100% { transform: scale(1); } }
+
+        /* Progress Bar */
+        .progress-bar { width: 100%; height: 4px; background: #e2e8f0; margin-top: 10px; border-radius: 2px; overflow: hidden; display: none; }
+        .progress-fill { height: 100%; background: var(--p); width: 0%; transition: width 0.2s; }
+        .uploading .progress-bar { display: block; }
 
         /* Toast */
         #tst { position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#1e293b; color:white; padding:10px 20px; border-radius:10px; z-index:2000; font-size:0.9rem; opacity:0; pointer-events:none; transition:0.3s; }
@@ -85,7 +95,6 @@
         <div id="f-log">
             <div class="card">
                 <h2 style="text-align:center; margin-bottom:20px">ورود</h2>
-                <!-- تغییر: آیدی به l-user مطابق منطق کد ساده -->
                 <input type="text" id="l-user" class="inp" placeholder="کد ملی (ستون B)" inputmode="numeric">
                 <input type="password" id="l-ps" class="inp" placeholder="رمز عبور">
                 <div style="margin-bottom:15px; font-size:0.9rem"><label><input type="checkbox" id="l-rem" checked> ذخیره ورود</label></div>
@@ -111,16 +120,20 @@
 
     <!-- APP -->
     <div id="scr-app" class="hide">
+        
         <!-- HOME -->
         <section id="s-hm" class="con">
             <div class="flex-bw" style="margin-bottom:15px"><h2>خانه</h2><button class="btn-i" onclick="app.sync(true)">🔄</button></div>
             <input type="text" class="inp" placeholder="جستجو..." onkeyup="if(event.key==='Enter') app.srch(this.value)" style="border-radius:20px">
             
             <div style="margin-bottom:20px">
-                <h4 style="margin-bottom:10px; font-size:0.85rem; color:var(--tg)">جدیدترین‌ها</h4>
+                <h4 style="margin-bottom:10px; font-size:0.85rem; color:var(--tg)">پیشنهادی برای شما</h4>
                 <div id="new-bx" style="display:flex; gap:10px; overflow-x:auto; padding-bottom:5px"></div>
             </div>
+            
+            <!-- کانتینر پست‌ها برای اسکرول -->
             <div id="feed"></div>
+            <div id="feed-loader" style="text-align:center; padding:20px; color:gray; display:none;">در حال بارگذاری...</div>
         </section>
 
         <!-- PROF -->
@@ -167,7 +180,7 @@
         <!-- ADD -->
         <section id="s-ad" class="con hide">
             <h2 style="margin-bottom:15px">پست جدید</h2>
-            <div class="card">
+            <div class="card" id="post-form-card">
                 <input type="text" id="a-ti" class="inp" placeholder="عنوان">
                 <select id="a-ct" class="inp">
                     <option value="book">کتاب</option>
@@ -175,7 +188,12 @@
                     <option value="site">سایت</option>
                 </select>
                 <textarea id="a-tx" class="inp" rows="6" placeholder="متن..."></textarea>
-                <button class="btn btn-p" onclick="app.pub(this)">ارسال</button>
+                
+                <!-- نوار پیشرفت آپلود -->
+                <div class="progress-bar" id="upl-prog"><div class="progress-fill" id="upl-fill"></div></div>
+                <div id="upl-msg" style="text-align:center; font-size:0.8rem; color:green; margin-top:5px; display:none">ارسال شد!</div>
+
+                <button class="btn btn-p" style="margin-top:10px" onclick="app.pub(this)">ارسال</button>
             </div>
         </section>
 
@@ -259,11 +277,11 @@
     </div>
 
     <script>
-        // *** لینک جدید اسکریپت را اینجا بگذار ***
+        // *** حتما لینک جدید اسکریپت را اینجا بگذارید ***
         const API = 'https://script.google.com/macros/s/AKfycbyf_X4VQfe1YC95wWXkUkFrHAHDOCTmC6qzzsNCp-O57HvGikcAPZWlPAbS_9_kWrYI/exec';
 
         const app = {
-            st: { user:null, users:[], posts:[], msgs:[], vid:null, shr:null, cpid:null, guest:false },
+            st: { user:null, users:[], posts:[], msgs:[], vid:null, shr:null, cpid:null, guest:false, page: 1 },
             
             init: async function() {
                 if(localStorage.getItem('db')) {
@@ -281,12 +299,23 @@
                 }
                 const p = new URLSearchParams(location.search);
                 if(p.get('u')) setTimeout(()=>this.nav('pr', p.get('u')), 1500);
+
+                // اضافه کردن اسکرول برای لود بیشتر
+                window.onscroll = () => {
+                    if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 100) {
+                        // منطق لود بیشتر (شبیه‌سازی) - در اینجا چون تمام دیتا لود شده فقط بروزرسانی میکنیم
+                        if(!document.getElementById('s-hm').classList.contains('hide')) {
+                             // اگر بخواهیم دیتای جدید بگیریم
+                             // this.sync(false);
+                        }
+                    }
+                };
             },
 
-            // *** تابع اتصال (کپی شده از کد ساده) ***
-            // استفاده از text/plain و redirect:follow
+            // *** تابع اتصال (کد ساده) ***
             call: async function(act, pl) {
                 try {
+                    // ارسال در پس زمینه بدون await برای توابع خاص (Optimistic)
                     const res = await fetch(API, {
                         method: 'POST',
                         redirect: "follow",
@@ -297,7 +326,7 @@
                     return json;
                 } catch(e) { 
                     console.log(e);
-                    return {status:'error', msg:'خطا در اتصال به سرور'}; 
+                    return {status:'error', msg:'خطا در اتصال'}; 
                 }
             },
 
@@ -325,16 +354,11 @@
                 this.start(); this.msg('حالت مهمان');
             },
             login: async function(btn) {
-                // نام ورودی ها را مطابق کد ساده (l-user) تغییر دادم
                 const u = document.getElementById('l-user').value;
                 const p = document.getElementById('l-ps').value;
-                
                 if(!u || !p) return this.msg('اطلاعات ناقص است');
                 btn.classList.add('loading');
-                
-                // ارسال با کلیدهای user و pass دقیقاً مثل کد ساده
                 const d = await this.call('login', { user: u, pass: p });
-                
                 if(d.status === 'success') {
                     this.st.user = d.user;
                     if(document.getElementById('l-rem').checked) localStorage.setItem('uid', d.user.id);
@@ -348,7 +372,6 @@
             reg: async function(btn) {
                 const p = {
                     id:document.getElementById('r-us').value.toLowerCase(), 
-                    // در کد ساده پارامتر user فرستاده می‌شد که میرفت در ستون B
                     user:document.getElementById('r-nc').value, 
                     pass:document.getElementById('r-ps').value, 
                     name:document.getElementById('r-nm').value,
@@ -384,7 +407,7 @@
                 else if(p==='st') { document.getElementById('s-st').classList.remove('hide'); document.getElementById('n-st').classList.add('active'); this.sets(); }
             },
 
-            // FEED
+            // FEED (با قابلیت کلیک روی پروفایل)
             feed: function() {
                 const c = document.getElementById('feed'), nb = document.getElementById('new-bx');
                 nb.innerHTML='';
@@ -399,41 +422,100 @@
                     const au = this.st.users.find(u=>u.id===p.uid); if(!au) return false;
                     return !au.isPrivate || this.st.user.following.includes(p.uid) || p.uid===this.st.user.id;
                 });
+                // نمایش پست‌ها
                 sh.sort((a,b)=>b.time-a.time).forEach(p=>c.innerHTML+=this.htmlP(p));
             },
             skel: () => `<div class="card"><div class="flex-bw"><div class="sk-av skel"></div><div style="width:75%"><div class="sk-ln skel"></div><div class="sk-ln skel" style="width:50%"></div></div></div><div class="sk-ln skel" style="height:100px;margin-top:10px"></div></div>`,
+            
+            // تابع ساخت HTML کاربر (قابل کلیک)
             htmlU: (uid) => {
                 const u = app.st.users.find(x=>x.id===uid); if(!u) return 'Deleted';
                 const i = u.pic ? `<img class="u-img" src="${u.pic}">` : `<div class="u-img" style="display:flex;align-items:center;justify-content:center">${u.name[0]}</div>`;
+                // اضافه شدن onclick برای رفتن به پروفایل
                 return `<div class="u-blk" onclick="event.stopPropagation();app.nav('pr','${u.id}')">${i}<div class="u-in"><div class="u-nm">${u.name}</div><div class="u-id">@${u.id}</div></div></div>`;
             },
             htmlP: (p) => {
                 const lk = p.likes.includes(app.st.user.id) ? 'lk' : '';
-                return `<div class="card"><div class="flex-bw">${app.htmlU(p.uid)} <span style="font-size:0.7rem;background:#e0f2fe;color:#0284c7;padding:2px 8px;border-radius:8px">${p.cat}</span></div>
+                return `<div class="card" id="post-${p.pid}"><div class="flex-bw">${app.htmlU(p.uid)} <span style="font-size:0.7rem;background:#e0f2fe;color:#0284c7;padding:2px 8px;border-radius:8px">${p.cat}</span></div>
                     <h4 style="margin-top:10px">${p.title}</h4><p style="margin-top:5px;line-height:1.6;font-size:0.95rem;white-space:pre-wrap">${p.text}</p>
-                    <div class="p-act"><div class="act-b ${lk}" onclick="app.like('${p.pid}')"><span>${lk?'❤️':'🤍'}</span> ${p.likes.length}</div>
-                    <div class="act-b" onclick="app.comm('${p.pid}')">💬 ${p.comments.length}</div>
-                    <div class="act-b" onclick="app.share('post','${p.pid}')">🔗</div></div></div>`;
+                    <div class="p-act">
+                        <div class="act-b ${lk}" id="like-btn-${p.pid}" onclick="app.like('${p.pid}')"><span>${lk?'❤️':'🤍'}</span> <span id="like-cnt-${p.pid}">${p.likes.length}</span></div>
+                        <div class="act-b" onclick="app.comm('${p.pid}')">💬 ${p.comments.length}</div>
+                        <div class="act-b" onclick="app.share('post','${p.pid}')">🔗</div>
+                    </div></div>`;
             },
 
-            // ACTS
+            // *** OPTIMISTIC UI FUNCTIONS ***
+            
+            // انتشار پست با افکت آپلود
             pub: async function(btn) {
                 if(this.st.guest) return this.msg('مهمان');
                 const p = { pid:this.st.user.id+'_'+Date.now(), uid:this.st.user.id, title:document.getElementById('a-ti').value, cat:document.getElementById('a-ct').value, text:document.getElementById('a-tx').value, time:Date.now() };
                 if(!p.title || !p.text) return this.msg('خالی');
-                btn.classList.add('loading');
-                this.st.posts.unshift({...p, likes:[], comments:[]});
-                await this.call('createPost', p);
-                btn.classList.remove('loading'); this.nav('hm');
+                
+                // UI Update - Show Progress
+                btn.style.display = 'none';
+                const card = document.getElementById('post-form-card');
+                card.classList.add('uploading');
+                const fill = document.getElementById('upl-fill');
+                
+                // شبیه سازی آپلود خطی
+                setTimeout(()=>fill.style.width='50%', 500);
+                setTimeout(()=>fill.style.width='80%', 1000);
+
+                // ارسال واقعی
+                try {
+                    await this.call('createPost', p);
+                    
+                    // اتمام آپلود
+                    fill.style.width='100%';
+                    document.getElementById('upl-msg').style.display='block';
+                    
+                    setTimeout(() => {
+                        // پاکسازی فرم
+                        document.getElementById('a-ti').value='';
+                        document.getElementById('a-tx').value='';
+                        card.classList.remove('uploading');
+                        fill.style.width='0%';
+                        document.getElementById('upl-msg').style.display='none';
+                        btn.style.display = 'block';
+                        
+                        // اضافه کردن پست به آرایه محلی و رندر مجدد (آنی)
+                        this.st.posts.unshift({...p, likes:[], comments:[]});
+                        this.nav('hm');
+                        this.msg('پست ارسال شد');
+                    }, 1000);
+                    
+                } catch(e) {
+                    btn.style.display = 'block';
+                    card.classList.remove('uploading');
+                    this.msg('خطا در ارسال');
+                }
             },
+
+            // لایک آنی
             like: function(pid) {
                 if(this.st.guest) return this.msg('مهمان');
                 const p = this.st.posts.find(x=>x.pid===pid);
                 const uid = this.st.user.id;
-                if(p.likes.includes(uid)) p.likes = p.likes.filter(x=>x!==uid); else p.likes.push(uid);
-                this.feed();
+                
+                // تغییر وضعیت در حافظه محلی
+                let isLiked = p.likes.includes(uid);
+                if(isLiked) p.likes = p.likes.filter(x=>x!==uid); else p.likes.push(uid);
+                
+                // آپدیت ظاهر بلافاصله (DOM Manipulation)
+                const btn = document.getElementById(`like-btn-${pid}`);
+                const cnt = document.getElementById(`like-cnt-${pid}`);
+                if(btn && cnt) {
+                    btn.className = `act-b ${!isLiked ? 'lk' : ''}`;
+                    btn.querySelector('span').innerText = !isLiked ? '❤️' : '🤍';
+                    cnt.innerText = p.likes.length;
+                }
+
+                // ارسال به سرور در پس زمینه (بدون await)
                 this.call('updatePost', {pid, likes:p.likes, comments:p.comments});
             },
+
             comm: function(pid) {
                 this.st.cpid = pid;
                 const p = this.st.posts.find(x=>x.pid===pid);
@@ -441,19 +523,44 @@
                 b.innerHTML = p.comments.length ? '' : '<p style="text-align:center;color:gray">خالی</p>';
                 p.comments.forEach(c => {
                     const u = this.st.users.find(x=>x.id===c.uid);
-                    b.innerHTML += `<div style="background:#f1f5f9;padding:10px;border-radius:10px;margin-top:8px"><b>${u?u.name:'?'}</b>: ${c.text}</div>`;
+                    // اینجا هم قابلیت کلیک روی کاربر اضافه شد
+                    b.innerHTML += `<div style="background:#f1f5f9;padding:10px;border-radius:10px;margin-top:8px" onclick="app.nav('pr','${c.uid}')"><b>${u?u.name:'?'}</b>: ${c.text}</div>`;
                 });
                 document.getElementById('m-cm').classList.remove('hide');
             },
+
+            // ارسال کامنت آنی
             sndC: function(btn) {
                 if(this.st.guest) return this.msg('مهمان');
                 const txt = document.getElementById('cm-in').value;
                 if(!txt) return;
+                
                 const p = this.st.posts.find(x=>x.pid===this.st.cpid);
-                p.comments.push({uid:this.st.user.id, text:txt});
-                this.comm(this.st.cpid);
+                const newCm = {uid:this.st.user.id, text:txt};
+                
+                // آپدیت حافظه محلی
+                p.comments.push(newCm);
+                
+                // آپدیت ظاهر بلافاصله (با افکت کمرنگ)
+                const b = document.getElementById('cm-bd');
+                if(b.innerHTML.includes('خالی')) b.innerHTML = '';
+                const u = this.st.user;
+                const tempId = 'temp-cm-' + Date.now();
+                b.innerHTML += `<div id="${tempId}" style="background:#f1f5f9;padding:10px;border-radius:10px;margin-top:8px;opacity:0.5;transition:0.3s"><b>${u.name}</b>: ${txt} (در حال ارسال...)</div>`;
                 document.getElementById('cm-in').value='';
-                this.call('updatePost', {pid:p.pid, likes:p.likes, comments:p.comments});
+                
+                // اسکرول به پایین
+                b.scrollTop = b.scrollHeight;
+
+                // ارسال به سرور
+                this.call('updatePost', {pid:p.pid, likes:p.likes, comments:p.comments}).then(() => {
+                    // موفقیت: تغییر استایل به حالت عادی
+                    const el = document.getElementById(tempId);
+                    if(el) {
+                        el.style.opacity = '1';
+                        el.innerHTML = `<div onclick="app.nav('pr','${u.id}')"><b>${u.name}</b>: ${txt}</div>`;
+                    }
+                });
             },
 
             // PROF
@@ -489,13 +596,28 @@
                 if(p.length===0) c.innerHTML='<p style="text-align:center;padding:20px;color:gray">خالی</p>';
                 p.sort((a,b)=>b.time-a.time).forEach(x=>c.innerHTML+=this.htmlP(x));
             },
+            
+            // فالو آنی
             fol: function() {
                 if(this.st.guest) return this.msg('مهمان');
                 const uid = this.st.vid; const me = this.st.user; const u = this.st.users.find(x=>x.id===uid);
+                
+                // تغییر وضعیت در حافظه محلی
                 let t = 'follow'; if(me.following.includes(uid)) t = 'unfollow';
                 if(t==='follow') { if(u.isPrivate) u.requests.push(me.id); else { me.following.push(uid); u.followers.push(me.id); } }
                 else { me.following = me.following.filter(x=>x!==uid); u.followers = u.followers.filter(x=>x!==me.id); }
-                this.prof(uid);
+                
+                // آپدیت UI بلافاصله
+                const b = document.getElementById('b-fl');
+                if(t==='follow') {
+                     if(u.isPrivate) { b.innerText='انتظار'; b.className='btn btn-o'; }
+                     else { b.innerText='لغو'; b.className='btn btn-o'; }
+                } else {
+                     b.innerText='دنبال'; b.className='btn btn-p';
+                }
+                document.getElementById('c-fl').innerText=u.followers.length;
+
+                // ارسال به سرور
                 this.call('updateUser', [me, u]);
             },
 
@@ -513,6 +635,7 @@
                     if(ch.length===0) c.innerHTML='<p style="text-align:center">خالی</p>';
                     ch.forEach(pid=>{
                         const last = this.st.msgs.filter(x=>(x.from===this.st.user.id&&x.to===pid)||(x.from===pid&&x.to===this.st.user.id)).pop();
+                        // اضافه شدن کلیک روی پیام برای رفتن به چت
                         c.innerHTML += `<div class="card" onclick="app.chat('${pid}')"><div class="flex-bw">${this.htmlU(pid)}<small>${new Date(last.time).toLocaleTimeString('fa-IR')}</small></div><p style="margin-top:5px;color:gray;font-size:0.9rem">${last.text}</p></div>`;
                     });
                 }
@@ -538,10 +661,16 @@
                 ms.forEach(x=>{ b.innerHTML += `<div style="padding:10px;border-radius:12px;max-width:80%;${x.from===this.st.user.id?'background:#e0f2fe;align-self:flex-end':'background:white;align-self:flex-start;border:1px solid #ddd'}">${x.text}</div>`; });
                 b.scrollTop=b.scrollHeight;
             },
+            // ارسال پیام آنی
             sndM: function() {
                 const t = document.getElementById('ch-in').value; if(!t) return;
                 const m = {from:this.st.user.id, to:this.st.cpid, text:t, time:Date.now(), read:false};
-                this.st.msgs.push(m); this.rnC(); document.getElementById('ch-in').value='';
+                this.st.msgs.push(m); 
+                
+                // آپدیت چت باکس آنی
+                this.rnC(); 
+                document.getElementById('ch-in').value='';
+                
                 this.call('createMsg', m);
             },
             sets: function() {
@@ -582,8 +711,13 @@
                 app.st.users.filter(u=>u.id.includes(v)||u.name.includes(v)).forEach(u=>b.innerHTML+=`<div class="card">${app.htmlU(u.id)}</div>`);
             },
             msg: (t) => { const b=document.getElementById('tst'); b.innerText=t; b.classList.add('show'); setTimeout(()=>b.classList.remove('show'), 3000); },
+            
+            // مدیریت نوتیفیکیشن
             bdg: () => {
-                const r=this.st.user.requests.length; const u=this.st.msgs.filter(x=>x.to===this.st.user.id&&!x.read).length;
+                const r=this.st.user.requests.length; 
+                // تعداد پیام های خوانده نشده
+                const u=this.st.msgs.filter(x=>x.to===this.st.user.id&&!x.read).length;
+                
                 const b1=document.getElementById('b-nv'); const b2=document.getElementById('b-rq');
                 if(r+u>0) { b1.innerText=r+u; b1.classList.remove('hide'); } else b1.classList.add('hide');
                 if(r>0) { b2.innerText=r; b2.classList.remove('hide'); } else b2.classList.add('hide');
