@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+   <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -35,8 +35,11 @@
         /* Skeleton Loader */
         .skel { background:linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size:200% 100%; animation:shm 1.5s infinite; border-radius:8px; }
         @keyframes shm { 0% { background-position:200% 0; } 100% { background-position:-200% 0; } }
-        .sk-av { width:45px; height:45px; border-radius:50%; }
-        .sk-ln { height:12px; margin-bottom:8px; width:100%; }
+        .sk-av { width:48px; height:48px; border-radius:50%; }
+        .sk-ln-sm { height:12px; width:40%; border-radius:6px; }
+        .sk-ln-md { height:12px; width:60%; border-radius:6px; }
+        .sk-ln-lg { height:16px; width:80%; border-radius:8px; margin-top:10px; }
+        .skel-card .flex-bw { margin-bottom: 15px; }
 
         /* User Avatar & Block */
         .u-blk { display:flex; align-items:center; gap:12px; cursor:pointer; }
@@ -159,7 +162,7 @@
             <!-- Uploading Post Container -->
             <div id="feed-up"></div> 
             
-            <!-- Real Posts -->
+            <!-- Real Posts / Skeleton Loader -->
             <div id="feed"></div>
             <div id="feed-ldr" style="text-align:center; padding:20px; display:none"><span class="loading" style="color:var(--p)!important"></span></div>
         </section>
@@ -352,6 +355,7 @@
             st: { user:null, users:[], posts:[], msgs:[], vid:null, shr:null, cpid:null, guest:false, page:1, limit:10, syncing:false, postToSend: null, pickerMode: null },
             
             init: async function() {
+                this.showInitialSkeletons();
                 if(localStorage.getItem('db')) {
                     const db = JSON.parse(localStorage.getItem('db'));
                     this.st.users=db.users||[]; this.st.posts=db.posts||[]; this.st.msgs=db.msgs||[];
@@ -474,15 +478,22 @@
                 if(p==='hm') { 
                     document.getElementById('s-hm').classList.remove('hide'); 
                     document.getElementById('n-hm').classList.add('active'); 
-                    this.feed(); 
+                    if (this.st.posts.length === 0) { document.getElementById('feed').innerHTML = this.htmlSkelPost(3); }
+                    else { this.feed(); }
                 }
                 else if(p==='pr') { 
                     document.getElementById('s-pr').classList.remove('hide'); 
                     if(!arg || (this.st.user && arg===this.st.user.id)) document.getElementById('n-pr').classList.add('active');
+                    document.getElementById('p-pts').innerHTML = this.htmlSkelPost(2);
                     this.prof(arg||this.st.user.id);
                 }
                 else if(p==='ad') { document.getElementById('s-ad').classList.remove('hide'); document.getElementById('n-ad').classList.add('active'); }
-                else if(p==='ms') { document.getElementById('s-ms').classList.remove('hide'); document.getElementById('n-ms').classList.add('active'); this.msg(); }
+                else if(p==='ms') { 
+                    document.getElementById('s-ms').classList.remove('hide'); 
+                    document.getElementById('n-ms').classList.add('active'); 
+                    document.getElementById('msg-bx').innerHTML = this.htmlSkelUser(3);
+                    this.msg(); 
+                }
                 else if(p==='st') { document.getElementById('s-st').classList.remove('hide'); document.getElementById('n-st').classList.add('active'); this.sets(); }
             },
 
@@ -558,9 +569,7 @@
                     <h4 style="margin-top:12px;font-size:1.05rem">${p.title}</h4>
                     <p style="margin-top:8px;line-height:1.7;font-size:0.95rem;white-space:pre-wrap;color:#334155">${app.lnk(p.text)}</p>
                     <div class="p-act">
-                        <div>
-                          <div class="act-b ${lk}" id="lb-${p.pid}" onclick="app.like('${p.pid}')"><span>${lk?'❤️':'🤍'}</span> <span id="ln-${p.pid}">${p.likes.length}</span></div>
-                        </div>
+                        <div class="act-b ${lk}" id="lb-${p.pid}" onclick="app.like('${p.pid}')"><span>${lk?'❤️':'🤍'}</span> <span id="ln-${p.pid}">${p.likes.length}</span></div>
                         <div class="act-b" onclick="app.comm('${p.pid}')">💬 ${p.comments.length}</div>
                         <div class="act-b" onclick="app.copyPostText('${p.pid}')" title="کپی متن پست">📋</div>
                         <div class="act-b" onclick="app.openSendPostModal('${p.pid}')" title="ارسال پست به دوستان">➤</div>
@@ -633,10 +642,9 @@
                 const b = document.getElementById('cm-bd');
                 b.innerHTML = p.comments.length ? '' : '<p style="text-align:center;color:gray;margin-top:20px">هنوز نظری ثبت نشده است</p>';
                 p.comments.forEach(c => {
-                    const u = this.st.users.find(x=>x.id===c.uid);
-                    b.innerHTML += `<div style="background:white;padding:12px;border-radius:12px;margin-bottom:8px;box-shadow:0 2px 4px rgba(0,0,0,0.05)" onclick="app.nav('pr','${c.uid}')">
-                        <div style="font-size:0.8rem;color:var(--tg);margin-bottom:4px;font-weight:bold">${u?u.name:'کاربر'}</div>
-                        <div>${app.lnk(c.text)}</div>
+                    b.innerHTML += `<div class="card" style="padding:12px; box-shadow:none; border-bottom:1px solid #eee; border-radius:0;">
+                        ${this.htmlU(c.uid)}
+                        <p style="font-size:0.9rem; margin-top:8px; padding-right:60px;">${app.lnk(c.text)}</p>
                     </div>`;
                 });
                 document.getElementById('m-cm').classList.add('show');
@@ -650,8 +658,8 @@
                 const b = document.getElementById('cm-bd');
                 if(b.innerHTML.includes('هنوز نظری')) b.innerHTML='';
                 const tempHTML = `<div style="background:white;padding:12px;border-radius:12px;margin-bottom:8px;opacity:0.6;border:1px solid var(--p)">
-                        <div style="font-size:0.8rem;color:var(--tg);margin-bottom:4px;font-weight:bold">${this.st.user.name}</div>
-                        <div>${txt} <span style="font-size:0.7rem;color:var(--p)">(در حال ارسال...)</span></div>
+                        ${this.htmlU(this.st.user.id)}
+                        <p style="font-size:0.9rem; margin-top:8px; padding-right:60px;">${txt} <span style="font-size:0.7rem;color:var(--p)">(در حال ارسال...)</span></p>
                     </div>`;
                 b.insertAdjacentHTML('beforeend', tempHTML);
                 b.scrollTop=b.scrollHeight;
@@ -723,18 +731,10 @@
                          else tick = '<span class="tik wait">🕓</span>';
                     }
 
-                    const avatar = u.pic ? `<img class="u-img" src="${u.pic}">` : `<div class="u-img" style="display:flex;align-items:center;justify-content:center;background:#cbd5e1;font-weight:bold">${u.name[0]}</div>`;
-                    
                     msgBox.innerHTML += `
                     <div class="card" onclick="app.chat('${pid}')" style="cursor:pointer; padding: 12px;" data-chat-id="${u.id}">
                         <div class="flex-bw">
-                            <div class="u-blk">
-                                ${avatar}
-                                <div>
-                                    <div class="u-nm">${u.name}</div>
-                                    <div class="u-id">@${u.id}</div>
-                                </div>
-                            </div>
+                            ${this.htmlU(u.id)}
                             <small style="font-size:0.7rem;color:var(--tg); align-self: flex-start;">${new Date(last.time).toLocaleTimeString('fa-IR', {hour:'2-digit',minute:'2-digit'})}</small>
                         </div>
                         <div class="flex-bw" style="margin-top:8px; padding-right: 60px;">
@@ -933,10 +933,23 @@
             flP: (v) => {
                 const l=document.getElementById('pk-ls'); l.innerHTML='';
                 const searchTerm = v.toLowerCase().replace('@', '');
-                this.st.users.filter(u=> u.id.toLowerCase().includes(searchTerm) && u.id!==this.st.user.id).forEach(u=>{ 
-                    const action = this.st.pickerMode === 'post' ? `app.doSendPost('${u.id}')` : `app.snSh('${u.id}')`;
-                    l.innerHTML+=`<div class="card flex-bw">${this.htmlU(u.id)} <button class="btn-s btn-p" onclick="${action}">ارسال</button></div>`;
-                });
+                
+                let usersToList = [];
+                if (searchTerm === '') { // Show recent chats if search is empty
+                    const recentChatIds = [...new Set(this.st.msgs.map(m => m.from === this.st.user.id ? m.to : m.from))];
+                    usersToList = this.st.users.filter(u => recentChatIds.includes(u.id));
+                } else { // Filter by search term
+                    usersToList = this.st.users.filter(u=> u.id.toLowerCase().includes(searchTerm) && u.id!==this.st.user.id);
+                }
+
+                if (usersToList.length === 0) {
+                    l.innerHTML = '<p style="text-align:center;color:var(--tg);padding:15px;">کاربری یافت نشد.</p>';
+                } else {
+                    usersToList.forEach(u=>{ 
+                        const action = this.st.pickerMode === 'post' ? `app.doSendPost('${u.id}')` : `app.snSh('${u.id}')`;
+                        l.innerHTML+=`<div class="card flex-bw">${this.htmlU(u.id)} <button class="btn-s btn-p" onclick="${action}">ارسال</button></div>`;
+                    });
+                }
             },
             snSh: (uid) => {
                 const m={from:this.st.user.id, to:uid, text:this.st.shr.lnk, time:Date.now(), read:false};
@@ -947,13 +960,17 @@
                 if (!v) return;
                 this.nav('sr'); 
                 const b = document.getElementById('sr-res');
-                b.innerHTML = '<div style="text-align:center; padding: 20px;"><span class="loading" style="color:var(--p)!important"></span></div>';
+                b.innerHTML = this.htmlSkelUser(2);
                 el.disabled = true;
                 const d = await this.call('searchUser', { id: v });
                 el.disabled = false;
                 b.innerHTML = '';
                 if (d.status === 'success' && d.users.length > 0) {
-                    d.users.forEach(u => b.innerHTML += `<div class="card">${this.htmlU(u.id)}</div>`);
+                    d.users.forEach(u => {
+                        // We need to merge the partial user data from search with full data if available
+                        const fullUser = this.st.users.find(usr => usr.id === u.id);
+                        if(fullUser) b.innerHTML += `<div class="card">${this.htmlU(u.id)}</div>`;
+                    });
                 } else {
                     b.innerHTML = '<p style="text-align:center; padding:20px; color:var(--tg);">کاربری با این شناسه یافت نشد.</p>';
                 }
@@ -970,7 +987,7 @@
             },
             showNotifs: function() {
                 const b = document.getElementById('nt-bd');
-                b.innerHTML = '';
+                b.innerHTML = this.htmlSkelUser(4);
                 let notifications = [];
 
                 const myPosts = this.st.posts.filter(p => p.uid === this.st.user.id);
@@ -987,7 +1004,7 @@
                     });
                 });
                 
-                this.st.user.followers.forEach(uid => {
+                (this.st.user.followers || []).forEach(uid => {
                      notifications.push({ time: Date.now(), type: 'follow', uid: uid });
                 });
                 
@@ -997,22 +1014,24 @@
 
                 notifications.sort((a, b) => b.time - a.time);
 
+                b.innerHTML = ''; // Clear skeleton
                 if (notifications.length === 0) {
                     b.innerHTML = '<p style="text-align:center;color:gray;padding:20px;">هیچ اعلان جدیدی وجود ندارد.</p>';
                 } else {
                     notifications.slice(0, 20).forEach(n => {
                         const u = this.st.users.find(usr => usr.id === n.uid);
                         if (!u) return;
-                        let html = '';
                         let text = '';
                         switch (n.type) {
-                            case 'like': text = `❤️ <b>${u.name}</b> پست شما را پسندید: <i>"${n.post.title}"</i>`; break;
-                            case 'comment': text = `💬 <b>${u.name}</b> برای پست شما نظر داد: <i>"${n.post.title}"</i>`; break;
-                            case 'follow': text = `👤 <b>${u.name}</b> شما را دنبال کرد.`; break;
-                            case 'request': text = `➕ <b>${u.name}</b> یک درخواست دنبال کردن برای شما ارسال کرد.`; break;
+                            case 'like': text = `پست شما را پسندید: <i>"${n.post.title}"</i>`; break;
+                            case 'comment': text = `برای پست شما نظر داد: <i>"${n.post.title}"</i>`; break;
+                            case 'follow': text = `شما را دنبال کرد.`; break;
+                            case 'request': text = `یک درخواست دنبال کردن ارسال کرد.`; break;
                         }
-                        html = `<div class="card" style="padding:12px; font-size:0.9rem;">${text}</div>`;
-                        b.innerHTML += html;
+                        b.innerHTML += `<div class="card" style="padding:12px; font-size:0.9rem; display:flex; flex-direction:column; gap:8px;">
+                            ${this.htmlU(u.id)}
+                            <p style="padding-right:60px;">${text}</p>
+                        </div>`;
                     });
                 }
                 document.getElementById('m-nt').classList.add('show');
@@ -1032,7 +1051,9 @@
                 this.st.pickerMode = 'post';
                 document.querySelector('#m-pk #pk-tt').innerText = 'ارسال پست به...';
                 document.getElementById('m-pk').classList.add('show');
-                document.querySelector('#m-pk .inp').value = '';
+                const searchInput = document.querySelector('#m-pk .inp');
+                searchInput.value = '';
+                // Pre-populate with recent chats
                 this.flP('');
             },
             doSendPost: function(recipientId) {
@@ -1058,6 +1079,46 @@
                         item.style.display = 'none';
                     }
                 });
+            },
+            htmlSkelPost: function(count = 1) {
+                let html = '';
+                for (let i=0; i < count; i++) {
+                    html += `<div class="card skel-card">
+                        <div class="flex-bw">
+                            <div class="u-blk">
+                                <div class="sk-av skel"></div>
+                                <div>
+                                    <div class="sk-ln-md skel"></div>
+                                    <div class="sk-ln-sm skel" style="margin-top:8px"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="sk-ln-lg skel"></div>
+                        <div class="sk-ln-md skel" style="width:100%; margin-top:12px;"></div>
+                        <div class="sk-ln-md skel" style="width:70%; margin-top:8px;"></div>
+                    </div>`;
+                }
+                return html;
+            },
+            htmlSkelUser: function(count = 1) {
+                let html = '';
+                for (let i=0; i < count; i++) {
+                    html += `<div class="card">
+                        <div class="u-blk">
+                            <div class="sk-av skel"></div>
+                            <div>
+                                <div class="sk-ln-md skel"></div>
+                                <div class="sk-ln-sm skel" style="margin-top:8px"></div>
+                            </div>
+                        </div>
+                    </div>`;
+                }
+                return html;
+            },
+            showInitialSkeletons: function() {
+                if (!document.getElementById('scr-app').classList.contains('hide')) {
+                    document.getElementById('feed').innerHTML = this.htmlSkelPost(3);
+                }
             }
         };
         app.init();
