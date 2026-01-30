@@ -125,11 +125,11 @@
         .msg-bub .msg-post-share { margin: -5px; } 
 
         /* Toast Notification */
-        #tst { position:fixed; top:20px; left:50%; transform:translateX(-50%) translateY(-100px); background:#0f172a; color:white; padding:12px 24px; border-radius:50px; z-index:2000; font-size:0.9rem; opacity:0; transition:0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); display:flex; align-items:center; gap:10px; box-shadow:0 10px 30px rgba(0,0,0,0.3); }
+        #tst { position:fixed; top:20px; left:50%; transform:translateX(-50%) translateY(-100px); background:#0f172a; color:white; padding:12px 24px; border-radius:50px; z-index:4000; font-size:0.9rem; opacity:0; transition:0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); display:flex; align-items:center; gap:10px; box-shadow:0 10px 30px rgba(0,0,0,0.3); }
         #tst.show { opacity:1; transform:translateX(-50%) translateY(0); }
 
-        /* Full Screen Modals */
-        .mod-bg { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(15,23,42,0.6); z-index:1000; display:flex; align-items:flex-end; justify-content:center; backdrop-filter:blur(4px); transition:0.3s; opacity:0; pointer-events:none; }
+        /* Full Screen Modals - Z-INDEX INCREASED */
+        .mod-bg { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(15,23,42,0.6); z-index:3000; display:flex; align-items:flex-end; justify-content:center; backdrop-filter:blur(4px); transition:0.3s; opacity:0; pointer-events:none; }
         .mod-bg.show { opacity:1; pointer-events:all; }
         .mod { background:var(--s); width:100%; max-width:550px; border-radius:30px 30px 0 0; padding:25px; max-height:85vh; overflow-y:auto; transform:translateY(100%); transition:transform 0.3s cubic-bezier(0.165, 0.84, 0.44, 1); }
         .mod-bg.show .mod { transform:translateY(0); }
@@ -482,7 +482,15 @@
                 else if (showPost) { this.showPost(showPost); }
             }, 1500);
 
-            setInterval(() => { if(!document.getElementById('scr-app').classList.contains('hide')) app.sync(false); }, 4000);
+            // بروزرسانی هوشمند: اگر در چت است سریعتر، اگر نه عادی (۳ ثانیه)
+            setInterval(() => { 
+                if(!document.getElementById('scr-app').classList.contains('hide')) {
+                    const inChat = document.getElementById('sc-ch').classList.contains('show');
+                    if (inChat || !app.st.syncing) {
+                        app.sync(false);
+                    }
+                }
+            }, 3000);
             
             window.onscroll = () => {
                 if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200) {
@@ -549,23 +557,27 @@
                     }
                 });
                 
-                // Remove posts locally that are not in the top 20 list (or older fetched ones) if deleted from server
-                // But since we have pagination, we simply trust getAll for updates.
-                // However, for delete syncing: if a post in our local 'st.limit' range is missing in server list (and we are sure it should be there), we might remove it.
-                // Simplified approach: Re-render if count changes or force update.
-                
+                // بررسی پیام‌های جدید
+                let newMsgFound = false;
                 d.msgs.forEach(nm => {
                     const exists = this.st.msgs.find(m => m.from===nm.from && m.to===nm.to && m.time===nm.time);
                     if(!exists) {
                         this.st.msgs.push(nm);
+                        newMsgFound = true;
                     } else {
-                        exists.read = nm.read;
+                        if (exists.read !== nm.read) {
+                           exists.read = nm.read;
+                           newMsgFound = true;
+                        }
                     }
                 });
-                
-                // Sync Deletions (Basic check: if msg count differs drastically or by manual refresh)
-                // For now, deletions update on refresh or next load. Real-time deletion sync requires ID tracking.
-                // Since we don't have unique Msg IDs, we rely on the user reloading or the array update.
+
+                // اگر پیامی حذف شده (در سرور نیست ولی در لوکال هست) باید پاک شود
+                // البته برای بهینگی فعلا فقط اضافه کردن را چک میکنیم، اما چون دستور "همگام سازی فوری" است
+                // بهتر است لیست پیام ها را رفرش کنیم اگر در صفحه چت هستیم
+                if(document.getElementById('sc-ch').classList.contains('show')) {
+                     this.rnC(); 
+                }
 
                 localStorage.setItem('db', JSON.stringify({users:this.st.users, posts:this.st.posts, msgs:this.st.msgs}));
                 if(this.st.user && !this.st.guest) {
@@ -578,7 +590,6 @@
                     this.updateNotifBadge();
                 }
                 if(!document.getElementById('s-hm').classList.contains('hide')) this.feed(); 
-                if(document.getElementById('sc-ch').classList.contains('show')) this.rnC(); 
                 if(!document.getElementById('s-ms').classList.contains('hide')) this.msg();
             }
         },
@@ -1064,11 +1075,13 @@
             
             document.getElementById('p-mn').classList.add('hide');
             if(uid === this.st.vid) this.prof(uid); 
+            // ارسال فوری به سرور
             this.call('updateUser', [me]);
         },
         
         unblockFromSettings: function(uid) {
             this.st.user.blocked = this.st.user.blocked.filter(id => id !== uid);
+            // ارسال فوری به سرور
             this.call('updateUser', [this.st.user]);
             this.sets(); 
             this.notif('کاربر آزاد شد', 'suc');
@@ -1170,7 +1183,13 @@
         
         rnC: function() {
             const b=document.getElementById('ch-bx'); 
-            b.innerHTML='';
+            // فقط در صورتی کل html را پاک کن که پیامی کم شده باشد یا برای بار اول است
+            // اما چون اینجا کد ساده است و برای جلوگیری از باگ اسکرول، همان روش بازنویسی را انجام می دهیم
+            // ولی با بررسی اسکرول
+            const isAtBottom = (b.scrollHeight - b.scrollTop <= b.clientHeight + 50);
+
+            // ایجاد محتوای جدید بدون درج مستقیم در DOM ابتدا
+            let newHTML = '';
             
             const ms = this.st.msgs.filter(x=>(x.from==this.st.user.id&&x.to==this.st.cpid)||(x.from==this.st.cpid&&x.to==this.st.user.id));
             ms.sort((a,b)=>a.time-b.time); 
@@ -1205,11 +1224,8 @@
                     }
                 }
                 
-                // Add event listeners for Long Press
-                // We construct the HTML string with event handlers for simplicity in this structure
                 const elId = `msg-${index}`;
-                // Using ontouchstart/end for mobile long press and oncontextmenu for desktop right click
-                b.innerHTML += `<div id="${elId}" class="msg-bub ${mine?'msg-me':'msg-ot'} ${(!mine||x.id)?'':'pending'}" 
+                newHTML += `<div id="${elId}" class="msg-bub ${mine?'msg-me':'msg-ot'} ${(!mine||x.id)?'':'pending'}" 
                     ontouchstart="app.handleTouchStart(event, ${index})" 
                     ontouchend="app.handleTouchEnd(event)" 
                     oncontextmenu="app.handleRightClick(event, ${index})">
@@ -1217,7 +1233,18 @@
                     <div class="msg-tm">${tick} ${new Date(x.time).toLocaleTimeString('fa-IR', {hour:'2-digit',minute:'2-digit'})}</div>
                 </div>`; 
             });
-            b.scrollTop=b.scrollHeight;
+
+            // فقط اگر محتوا تغییر کرده آپدیت کن تا پرش کمتر شود (ساده ترین راه مقایسه طول است)
+            if(b.innerHTML.length !== newHTML.length || ms.length === 0) {
+                b.innerHTML = newHTML;
+                if(isAtBottom || ms.some(m => m.id === 'temp')) b.scrollTop=b.scrollHeight;
+            } else if (isAtBottom) {
+                 // اگر تغییر متن تیک ها بوده
+                 if(b.innerHTML !== newHTML) {
+                     b.innerHTML = newHTML;
+                     b.scrollTop=b.scrollHeight;
+                 }
+            }
         },
         
         handleTouchStart: function(e, idx) {
@@ -1236,7 +1263,6 @@
         },
         
         showMsgOptions: function(idx) {
-            // Re-find the message object based on index in current filtered list
             const ms = this.st.msgs.filter(x=>(x.from==this.st.user.id&&x.to==this.st.cpid)||(x.from==this.st.cpid&&x.to==this.st.user.id));
             ms.sort((a,b)=>a.time-b.time);
             const msg = ms[idx];
@@ -1266,8 +1292,8 @@
                 this.rnC();
                 document.getElementById('m-mo').classList.remove('show');
                 
-                // Send to server
-                // We send enough data to identify the message row
+                // Send to server immediately
+                this.notif('در حال حذف...', 'suc');
                 await this.call('deleteMsg', {from: m.from, to: m.to, text: m.text, time: m.time});
                 this.notif('پیام حذف شد', 'suc');
             }
@@ -1835,10 +1861,17 @@
             this.st.user.customCats.push(newCat);
             input.value = '';
             this.renderCustomCats();
+            
+            // ذخیره فوری در سرور
+            this.call('updateUser', [this.st.user]);
+            this.notif('ذخیره شد', 'suc');
         },
         deleteCat: function(catToDelete) {
             this.st.user.customCats = this.st.user.customCats.filter(cat => cat !== catToDelete);
             this.renderCustomCats();
+            
+            // ذخیره فوری در سرور
+            this.call('updateUser', [this.st.user]);
         }
     };
     app.init();
