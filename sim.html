@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -68,6 +68,9 @@
         .chips { display:flex; gap:10px; overflow-x:auto; padding:5px 0 15px; scrollbar-width:none; }
         .chip { padding:8px 18px; border-radius:25px; background:var(--s); border:1px solid var(--bor); white-space:nowrap; font-size:0.85rem; transition:0.2s; cursor:pointer; color:var(--tg); font-weight:500; }
         .chip.active { background:var(--t); color:white; border-color:var(--t); transform:scale(1.05); }
+        
+        /* Fallback Profile Avatar */
+        .p-pic-fallback { width:90px; height:90px; border-radius:50%; border:4px solid white; box-shadow:0 8px 20px rgba(0,0,0,0.15); background:linear-gradient(45deg,#f09433,#bc1888); display: flex; align-items: center; justify-content: center; font-size: 2.5rem; color: white; font-weight: bold; cursor: pointer; }
 
         /* Post Styles */
         .p-act { display:flex; justify-content:space-around; align-items:center; gap:10px; margin-top:10px; border-top:1px solid var(--bor); padding-top:12px; color:var(--tg); }
@@ -244,7 +247,8 @@
         </div>
         
         <div class="p-top">
-            <img id="p-im" class="p-pic" src="" onclick="app.viewImg(this.src)" title="مشاهده تصویر">
+            <div id="p-pic-con"></div>
+            <!-- Img element injected via JS or fallback div -->
             <div class="p-sts">
                 <div onclick="app.list('posts')"><span class="st-n" id="c-pt">0</span><span class="st-l">پست</span></div>
                 <div onclick="app.list('fol')"><span class="st-n" id="c-fl">0</span><span class="st-l">دنبال‌کننده</span></div>
@@ -402,7 +406,7 @@
     <div class="mod">
         <h3>نظرات</h3>
         <div id="cm-bd" style="height:350px; overflow-y:auto; margin:15px 0; background:#f8fafc; border-radius:15px; padding:10px; border:1px solid #eee"></div>
-        <div class="flex-bw" style="gap:10px"><input type="text" id="cm-in" class="inp" placeholder="نظر شما..." style="margin:0"><button class="btn btn-p" style="width:50px" onclick="app.sndC(this)">➤</button></div>
+        <div class="flex-bw" style="gap:10px"><textarea id="cm-in" class="chat-textarea" placeholder="نظر شما (اینتر برای خط جدید)..." style="height:50px; min-height:50px;"></textarea><button class="btn btn-p" style="width:50px" onclick="app.sndC(this)">➤</button></div>
     </div>
 </div>
 
@@ -442,7 +446,7 @@
     </div>
     <div id="ch-bx" style="flex:1; overflow-y:auto; padding:15px; display:flex; flex-direction:column; gap:4px; background:var(--bg)"></div>
     <div class="chat-input-area">
-        <textarea id="ch-in" class="chat-textarea" placeholder="پیام خود را بنویسید..."></textarea>
+        <textarea id="ch-in" class="chat-textarea" placeholder="پیام خود را بنویسید... (اینتر = خط جدید)"></textarea>
         <button class="btn btn-p" style="width:50px; border-radius:50%; height:50px; flex-shrink:0;" onclick="app.sndM()">➤</button>
     </div>
 </div>
@@ -482,7 +486,6 @@
                 else if (showPost) { this.showPost(showPost); }
             }, 1500);
 
-            // بروزرسانی هوشمند: اگر در چت است سریعتر، اگر نه عادی (۳ ثانیه)
             setInterval(() => { 
                 if(!document.getElementById('scr-app').classList.contains('hide')) {
                     const inChat = document.getElementById('sc-ch').classList.contains('show');
@@ -520,7 +523,6 @@
                 if (!menu.classList.contains('hide') && !menu.contains(event.target) && event.target !== btn) {
                     menu.classList.add('hide');
                 }
-                // Close post specific menus
                 document.querySelectorAll('.p-menu').forEach(m => {
                     if(!m.contains(event.target)) m.classList.remove('show');
                 });
@@ -550,31 +552,23 @@
                 d.posts.forEach(np => {
                     const idx = this.st.posts.findIndex(p=>p.pid===np.pid);
                     if(idx !== -1) { 
-                        // Update existing post data (content might have changed via edit)
                         this.st.posts[idx] = np;
                     } else {
                         if (!this.st.posts.find(p=>p.pid===np.pid)) this.st.posts.unshift(np);
                     }
                 });
                 
-                // بررسی پیام‌های جدید
-                let newMsgFound = false;
                 d.msgs.forEach(nm => {
                     const exists = this.st.msgs.find(m => m.from===nm.from && m.to===nm.to && m.time===nm.time);
                     if(!exists) {
                         this.st.msgs.push(nm);
-                        newMsgFound = true;
                     } else {
                         if (exists.read !== nm.read) {
                            exists.read = nm.read;
-                           newMsgFound = true;
                         }
                     }
                 });
 
-                // اگر پیامی حذف شده (در سرور نیست ولی در لوکال هست) باید پاک شود
-                // البته برای بهینگی فعلا فقط اضافه کردن را چک میکنیم، اما چون دستور "همگام سازی فوری" است
-                // بهتر است لیست پیام ها را رفرش کنیم اگر در صفحه چت هستیم
                 if(document.getElementById('sc-ch').classList.contains('show')) {
                      this.rnC(); 
                 }
@@ -666,7 +660,11 @@
             if(d.status === 'success') { this.notif('ثبت نام موفقیت آمیز بود', 'suc'); this.togAuth(); }
             else { this.notif(d.msg, 'err'); btn.innerHTML='تکمیل ثبت نام'; }
         },
-        out: () => { localStorage.removeItem('uid'); location.reload(); },
+        out: () => { 
+            localStorage.clear(); 
+            this.st = { user:null, users:[], posts:[], msgs:[], vid:null, shr:null, cpid:null, guest:false, page:1, limit:20, syncing:false, postToSend: null, pickerMode: null, searchLimit: 10, tempUsers: [], isLoadingOld: false, editingPost: null, selectedMsg: null };
+            location.reload(); 
+        },
         start: function() {
             document.getElementById('scr-auth').classList.add('hide');
             document.getElementById('scr-app').classList.remove('hide');
@@ -697,7 +695,6 @@
                 document.getElementById('s-ad').classList.remove('hide'); 
                 document.getElementById('n-ad').classList.add('active'); 
                 this.populateCategories(); 
-                // Reset edit mode if coming from nav
                 this.cancelEdit(false);
             }
             else if(p==='ms') { 
@@ -737,7 +734,7 @@
             
             const renderList = visiblePosts.slice(0, this.st.limit);
             let html = '';
-            renderList.forEach(p => html += this.htmlP(p));
+            renderList.forEach(p => html += this.htmlP(p, 'feed'));
             
             if(c.innerHTML !== html) c.innerHTML = html;
             
@@ -769,7 +766,7 @@
             const postScreen = document.getElementById('sc-post');
             const postContent = document.getElementById('sc-post-content');
             
-            postContent.innerHTML = this.htmlP(post);
+            postContent.innerHTML = this.htmlP(post, 'view');
             postScreen.classList.add('show');
             
             if (pushState) {
@@ -799,7 +796,7 @@
             return `<div class="u-blk" onclick="event.stopPropagation();app.nav('pr','${u.id}')">${i}<div class="u-in"><div class="u-nm">${u.name}</div><div class="u-id">@${u.id}</div></div></div>`;
         },
         
-        htmlP: (p) => {
+        htmlP: (p, ctx) => {
             const lk = p.likes.includes(app.st.user.id) ? 'lk' : '';
             
             let contentHtml = '';
@@ -817,7 +814,9 @@
             const postDate = new Date(p.time).toLocaleDateString('fa-IR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
             let menuBtn = '';
-            if(p.uid === app.st.user.id) {
+            // Only show menu if user owns post AND we are NOT in the home feed (ctx !== 'feed')
+            // ctx can be 'feed', 'profile', 'view'
+            if(p.uid === app.st.user.id && ctx !== 'feed') {
                 menuBtn = `
                 <div class="post-opts-btn" onclick="event.stopPropagation(); document.getElementById('pm-${p.pid}').classList.toggle('show')">⋮</div>
                 <div id="pm-${p.pid}" class="p-menu">
@@ -829,7 +828,7 @@
 
             return `<div class="card" id="p-${p.pid}">
                 ${menuBtn}
-                <div class="flex-bw" style="${p.uid === app.st.user.id ? 'margin-right:25px' : ''}">
+                <div class="flex-bw" style="${p.uid === app.st.user.id && ctx !== 'feed' ? 'margin-right:25px' : ''}">
                     ${app.htmlU(p.uid)} 
                     <div style="text-align:left">
                         <span style="font-size:0.7rem;background:#e0f2fe;color:#0284c7;padding:3px 10px;border-radius:10px">${p.cat||'عمومی'}</span>
@@ -872,10 +871,14 @@
                 const p = this.st.posts.find(x => x.pid === pid);
                 p.title = title; p.cat = cat; p.text = text;
                 
+                // Immediate update in storage
+                localStorage.setItem('db', JSON.stringify({users:this.st.users, posts:this.st.posts, msgs:this.st.msgs}));
+                
+                this.notif('در حال اعمال تغییرات...', 'wait');
                 btn.innerHTML = '<span class="loading"></span>';
                 await this.call('editPostContent', { pid: pid, uid: this.st.user.id, title, cat, text });
                 
-                this.notif('پست با موفقیت ویرایش شد', 'suc');
+                this.notif('پست ویرایش شد: انجام شد', 'suc');
                 this.cancelEdit();
                 this.nav('hm');
                 this.feed();
@@ -908,16 +911,21 @@
             setTimeout(()=>fill.style.width='30%', 100);
             setTimeout(()=>fill.style.width='70%', 800);
             try {
+                this.notif('در حال ارسال...', 'wait');
                 await this.call('createPost', { ...p, likes:[], comments:[] });
                 fill.style.width='100%';
                 upBox.querySelector('.up-msg').innerText = 'پست با موفقیت ارسال شد ✓';
                 upBox.querySelector('.up-msg').style.display = 'block';
                 upBox.querySelector('.up-msg').style.color = 'green';
                 this.st.posts.unshift(p);
+                // Immediate store
+                localStorage.setItem('db', JSON.stringify({users:this.st.users, posts:this.st.posts, msgs:this.st.msgs}));
+                
                 document.getElementById('a-ti').value=''; document.getElementById('a-tx').value='';
                 setTimeout(() => {
                     upBox.innerHTML = '';
                     this.feed();
+                    this.notif('ارسال شد: انجام شد', 'suc');
                 }, 1500);
             } catch(e) {
                 upBox.innerHTML = '<div class="card" style="color:red">خطا در ارسال پست. لطفا اینترنت را بررسی کنید.</div>';
@@ -950,12 +958,17 @@
         
         doDeletePost: async function(pid) {
              if(confirm('آیا از حذف این پست اطمینان دارید؟')) {
+                 this.notif('در حال حذف پست...', 'wait');
                  // Remove locally first
                  this.st.posts = this.st.posts.filter(p => p.pid !== pid);
-                 document.getElementById('p-'+pid).remove();
-                 this.notif('پست حذف شد', 'suc');
+                 // Immediate store
+                 localStorage.setItem('db', JSON.stringify({users:this.st.users, posts:this.st.posts, msgs:this.st.msgs}));
+                 
+                 if(document.getElementById('p-'+pid)) document.getElementById('p-'+pid).remove();
+                 
                  // Send to server
                  await this.call('deletePost', {pid: pid, uid: this.st.user.id});
+                 this.notif('پست حذف شد: انجام شد', 'suc');
              }
         },
 
@@ -1005,7 +1018,7 @@
             document.getElementById('m-cm').classList.add('show');
         },
         sndC: function(btn) {
-            const txt = document.getElementById('cm-in').value;
+            const txt = document.getElementById('cm-in').value.trim();
             if(!txt) return;
             const p = this.st.posts.find(x=>x.pid===this.st.cpid);
             const newCm = {uid:this.st.user.id, text:txt, time: Date.now()};
@@ -1183,12 +1196,7 @@
         
         rnC: function() {
             const b=document.getElementById('ch-bx'); 
-            // فقط در صورتی کل html را پاک کن که پیامی کم شده باشد یا برای بار اول است
-            // اما چون اینجا کد ساده است و برای جلوگیری از باگ اسکرول، همان روش بازنویسی را انجام می دهیم
-            // ولی با بررسی اسکرول
             const isAtBottom = (b.scrollHeight - b.scrollTop <= b.clientHeight + 50);
-
-            // ایجاد محتوای جدید بدون درج مستقیم در DOM ابتدا
             let newHTML = '';
             
             const ms = this.st.msgs.filter(x=>(x.from==this.st.user.id&&x.to==this.st.cpid)||(x.from==this.st.cpid&&x.to==this.st.user.id));
@@ -1219,7 +1227,6 @@
                             <br><span class="read-more-msg" onclick="app.readMoreMsg('${index}')">خواندن کامل پیام</span>
                          </span>`;
                     } else {
-                        // Check for direct file links
                         msgContent = this.renderFile(x.text) || this.autoLinker(x.text);
                     }
                 }
@@ -1234,12 +1241,10 @@
                 </div>`; 
             });
 
-            // فقط اگر محتوا تغییر کرده آپدیت کن تا پرش کمتر شود (ساده ترین راه مقایسه طول است)
             if(b.innerHTML.length !== newHTML.length || ms.length === 0) {
                 b.innerHTML = newHTML;
                 if(isAtBottom || ms.some(m => m.id === 'temp')) b.scrollTop=b.scrollHeight;
             } else if (isAtBottom) {
-                 // اگر تغییر متن تیک ها بوده
                  if(b.innerHTML !== newHTML) {
                      b.innerHTML = newHTML;
                      b.scrollTop=b.scrollHeight;
@@ -1289,32 +1294,30 @@
                 const m = this.st.selectedMsg;
                 // Remove locally
                 this.st.msgs = this.st.msgs.filter(msg => msg !== m);
+                // Immediate store
+                localStorage.setItem('db', JSON.stringify({users:this.st.users, posts:this.st.posts, msgs:this.st.msgs}));
                 this.rnC();
                 document.getElementById('m-mo').classList.remove('show');
                 
-                // Send to server immediately
-                this.notif('در حال حذف...', 'suc');
+                this.notif('در حال حذف...', 'wait');
                 await this.call('deleteMsg', {from: m.from, to: m.to, text: m.text, time: m.time});
-                this.notif('پیام حذف شد', 'suc');
+                this.notif('پیام حذف شد: انجام شد', 'suc');
             }
         },
 
         renderFile: function(text) {
-            // Regex to check if text is purely a URL to a file
             const urlRegex = /^(https?:\/\/[^\s]+)$/i;
             if (!urlRegex.test(text)) return null;
 
             const url = text.trim();
             const ext = url.split('.').pop().toLowerCase().split('?')[0];
             
-            // Image extensions
             if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext)) {
                 return `<div class="file-img-container">
                     <img src="${url}" class="file-img" onload="this.style.background='transparent'" onclick="app.viewImg('${url}')">
                 </div>`;
             }
             
-            // Audio extensions
             if (['mp3', 'wav', 'ogg', 'm4a'].includes(ext)) {
                 return `<div class="file-prev">
                     <div class="file-icon">🎵</div>
@@ -1325,14 +1328,12 @@
                 </div>`;
             }
 
-            // Video extensions
             if (['mp4', 'webm', 'mov'].includes(ext)) {
                 return `<div class="file-prev" style="display:block">
                      <video src="${url}" controls style="width:100%; border-radius:10px; max-height:200px;"></video>
                 </div>`;
             }
 
-            // Document extensions
             const docs = {
                 'pdf': '📄', 'doc': '📝', 'docx': '📝', 'xls': '📊', 'xlsx': '📊', 'ppt': '📽️', 'pptx': '📽️', 'txt': '📃', 'zip': '📦', 'rar': '📦'
             };
@@ -1349,11 +1350,11 @@
                  </a>`;
             }
 
-            return null; // Not a recognized file, treat as normal text/link
+            return null; 
         },
 
         sndM: async function() {
-            const t = document.getElementById('ch-in').value; if(!t) return;
+            const t = document.getElementById('ch-in').value.trim(); if(!t) return;
             
             const m = {from:this.st.user.id, to:this.st.cpid, text:t, time:Date.now(), read:false, id:'temp'}; 
             this.st.msgs.push(m);
@@ -1363,11 +1364,11 @@
 
             try {
                 const payload = {...m}; delete payload.id;
-                const res = await this.call('createMsg', payload);
-                if(res.status==='success') {
-                    m.id = 'sent';
-                    this.rnC(); 
-                }
+                await this.call('createMsg', payload);
+                m.id = 'sent';
+                this.rnC(); 
+                // Immediate store
+                localStorage.setItem('db', JSON.stringify({users:this.st.users, posts:this.st.posts, msgs:this.st.msgs}));
             } catch(e) {
                 this.notif('خطا در ارسال پیام', 'err');
             }
@@ -1375,8 +1376,8 @@
 
         notif: (t, s) => { 
             const b=document.getElementById('tst'); 
-            b.innerHTML = (s==='err'?'⛔ ':'✅ ') + t; 
-            b.style.background = s==='err'?'#ef4444':'#0f172a';
+            b.innerHTML = (s==='err'?'⛔ ': s==='wait'?'⏳ ':'✅ ') + t; 
+            b.style.background = s==='err'?'#ef4444': s==='wait'?'#d97706':'#0f172a';
             b.classList.add('show'); 
             setTimeout(()=>b.classList.remove('show'), 3000); 
         },
@@ -1423,7 +1424,15 @@
             const isBlocked = me.blocked.includes(uid);
             
             document.getElementById('bp-bk').classList.toggle('hide', isMe);
-            document.getElementById('p-im').src = u.pic||''; 
+            
+            // Handle Profile Pic Fallback
+            const picCon = document.getElementById('p-pic-con');
+            if (u.pic) {
+                picCon.innerHTML = `<img id="p-im" class="p-pic" src="${u.pic}" onclick="app.viewImg(this.src)" title="مشاهده تصویر">`;
+            } else {
+                picCon.innerHTML = `<div class="p-pic-fallback">${u.name[0]}</div>`;
+            }
+
             document.getElementById('p-nm').innerText = u.name; document.getElementById('p-id').innerText = u.id;
             document.getElementById('p-bi').innerHTML = this.autoLinker(u.bio);
             
@@ -1481,7 +1490,7 @@
             p.sort((a,b)=>b.time-a.time);
             const renderList = p.slice(0, this.st.limit);
             
-            renderList.forEach(x=>c.innerHTML+=this.htmlP(x));
+            renderList.forEach(x=>c.innerHTML+=this.htmlP(x, 'profile'));
         },
         ans: function(uid, ac) {
             const me = this.st.user; me.requests = me.requests.filter(x=>x!==uid);
@@ -1863,15 +1872,16 @@
             this.renderCustomCats();
             
             // ذخیره فوری در سرور
-            this.call('updateUser', [this.st.user]);
-            this.notif('ذخیره شد', 'suc');
+            this.notif('در حال افزودن...', 'wait');
+            this.call('updateUser', [this.st.user]).then(()=>{ this.notif('دسته‌بندی افزوده شد: انجام شد', 'suc'); });
         },
         deleteCat: function(catToDelete) {
             this.st.user.customCats = this.st.user.customCats.filter(cat => cat !== catToDelete);
             this.renderCustomCats();
             
             // ذخیره فوری در سرور
-            this.call('updateUser', [this.st.user]);
+            this.notif('در حال حذف...', 'wait');
+            this.call('updateUser', [this.st.user]).then(()=>{ this.notif('دسته‌بندی حذف شد: انجام شد', 'suc'); });
         }
     };
     app.init();
