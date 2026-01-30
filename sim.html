@@ -961,19 +961,24 @@
             if(goBack) this.nav('hm');
         },
         
+        // --- اصلاح شده برای حذف ایمن پست ---
         doDeletePost: async function(pid) {
              if(confirm('آیا از حذف این پست اطمینان دارید؟')) {
                  this.notif('در حال حذف پست...', 'wait');
-                 // Remove locally first
+                 // 1. حذف از حافظه موقت کلاینت
                  this.st.posts = this.st.posts.filter(p => p.pid !== pid);
-                 // Immediate store
+                 // ذخیره فوری در حافظه داخلی
                  localStorage.setItem('db', JSON.stringify({users:this.st.users, posts:this.st.posts, msgs:this.st.msgs}));
                  
+                 // اگر در صفحه خانه هستیم حذف از لیست بصری
                  if(document.getElementById('p-'+pid)) document.getElementById('p-'+pid).remove();
                  
-                 // Send to server
-                 await this.call('deletePost', {pid: pid, uid: this.st.user.id});
-                 this.notif('پست حذف شد: انجام شد', 'suc');
+                 // اگر در صفحه نمایش تکی پست هستیم
+                 if(document.getElementById('sc-post').classList.contains('show')) this.closePostView();
+
+                 // 2. ارسال دستور حذف به سرور
+                 await this.call('deletePost', {pid: pid});
+                 this.notif('پست با موفقیت حذف شد', 'suc');
              }
         },
 
@@ -1076,15 +1081,18 @@
             blkBtn.style.color = blocked ? 'var(--suc)' : 'var(--err)';
         },
         
+        // --- اصلاح شده برای اطمینان از آپدیت کامل یوزر هنگام بلاک ---
         block: function() {
             const uid = this.st.vid;
             const me = this.st.user;
             if(!me.blocked) me.blocked = [];
             
             if(me.blocked.includes(uid)) {
+                // آنبلاک کردن
                 me.blocked = me.blocked.filter(id => id !== uid);
                 this.notif('کاربر آزاد شد', 'suc');
             } else {
+                // بلاک کردن
                 me.blocked.push(uid);
                 me.following = me.following.filter(id => id !== uid);
                 me.followers = me.followers.filter(id => id !== uid);
@@ -1093,7 +1101,7 @@
             
             document.getElementById('p-mn').classList.add('hide');
             if(uid === this.st.vid) this.prof(uid); 
-            // ارسال فوری به سرور
+            // ارسال کل آبجکت me برای اطمینان از ذخیره آرایه blocked
             this.call('updateUser', [me]);
         },
         
@@ -1293,20 +1301,22 @@
             document.getElementById('m-mo').classList.remove('show');
         },
         
+        // --- اصلاح شده برای حذف ایمن پیام ---
         doDeleteMsg: async function() {
             if(!this.st.selectedMsg) return;
             if(confirm('آیا از حذف این پیام اطمینان دارید؟')) {
                 const m = this.st.selectedMsg;
-                // Remove locally
+                // 1. حذف از حافظه محلی
                 this.st.msgs = this.st.msgs.filter(msg => msg !== m);
-                // Immediate store
+                // ذخیره فوری در حافظه
                 localStorage.setItem('db', JSON.stringify({users:this.st.users, posts:this.st.posts, msgs:this.st.msgs}));
                 this.rnC();
                 document.getElementById('m-mo').classList.remove('show');
                 
+                // 2. ارسال دستور حذف به سرور
                 this.notif('در حال حذف...', 'wait');
                 await this.call('deleteMsg', {from: m.from, to: m.to, text: m.text, time: m.time});
-                this.notif('پیام حذف شد: انجام شد', 'suc');
+                this.notif('پیام حذف شد', 'suc');
             }
         },
 
