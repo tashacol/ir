@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+<!DOCTYPE html>
 
 <html lang="fa" dir="rtl">
 <head>
@@ -386,7 +386,7 @@
     const API_URL = 'https://script.google.com/macros/s/AKfycbyf_X4VQfe1YC95wWXkUkFrHAHDOCTmC6qzzsNCp-O57HvGikcAPZWlPAbS_9_kWrYI/exec';
 
     const app = {
-        st: { user:null, users:[], posts:[], msgs:[], vid:null, shr:null, cpid:null, guest:false, page:1, limit:10, syncing:false, postToSend: null, pickerMode: null, searchLimit: 10, tempUsers: [] },
+        st: { user:null, users:[], posts:[], msgs:[], vid:null, shr:null, cpid:null, guest:false, page:1, limit:20, syncing:false, postToSend: null, pickerMode: null, searchLimit: 10, tempUsers: [] },
         
         init: async function() {
             this.showInitialSkeletons();
@@ -419,9 +419,17 @@
 
             window.onscroll = () => {
                 if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200) {
-                    if(this.st.limit < this.st.posts.length) {
-                        this.st.limit += 5;
-                        this.feed();
+                    // Logic to load more posts on scroll
+                    const isHome = !document.getElementById('s-hm').classList.contains('hide');
+                    const isProfile = !document.getElementById('s-pr').classList.contains('hide');
+                    
+                    if (isHome || isProfile) {
+                        // Increase limit by 20 (as requested)
+                        if(this.st.limit < this.st.posts.length) {
+                            this.st.limit += 20;
+                            if(isHome) this.feed();
+                            if(isProfile) this.flt(document.querySelector('.chip.active') ? document.querySelector('.chip.active').innerText.includes('همه') ? 'all' : 'other' : 'all', document.querySelector('.chip.active'));
+                        }
                     }
                 }
             };
@@ -638,8 +646,17 @@
                 contentHtml = app.autoLinker(p.text);
             }
 
+            // Post Date formatting (NEW)
+            const postDate = new Date(p.time).toLocaleDateString('fa-IR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
             return `<div class="card" id="p-${p.pid}">
-                <div class="flex-bw">${app.htmlU(p.uid)} <span style="font-size:0.7rem;background:#e0f2fe;color:#0284c7;padding:3px 10px;border-radius:10px">${p.cat||'عمومی'}</span></div>
+                <div class="flex-bw">
+                    ${app.htmlU(p.uid)} 
+                    <div style="text-align:left">
+                        <span style="font-size:0.7rem;background:#e0f2fe;color:#0284c7;padding:3px 10px;border-radius:10px">${p.cat||'عمومی'}</span>
+                        <div style="font-size:0.65rem; color:var(--tg); margin-top:4px;">${postDate}</div>
+                    </div>
+                </div>
                 <h4 style="margin-top:12px;font-size:1.05rem">${p.title}</h4>
                 <p style="margin-top:8px;line-height:1.7;font-size:0.95rem;white-space:pre-wrap;color:#334155">${contentHtml}</p>
                 <div class="p-act">
@@ -1009,7 +1026,12 @@
             let p = this.st.posts.filter(x=>x.uid===this.st.vid);
             if(cat!=='all') p = p.filter(x=>x.cat===cat);
             if(p.length===0) c.innerHTML='<p style="text-align:center;padding:20px;color:gray">هیچ پستی موجود نیست</p>';
-            p.sort((a,b)=>b.time-a.time).forEach(x=>c.innerHTML+=this.htmlP(x));
+            
+            // Apply sorting and limit
+            p.sort((a,b)=>b.time-a.time);
+            const renderList = p.slice(0, this.st.limit);
+            
+            renderList.forEach(x=>c.innerHTML+=this.htmlP(x));
         },
         ans: function(uid, ac) {
             const me = this.st.user; me.requests = me.requests.filter(x=>x!==uid);
