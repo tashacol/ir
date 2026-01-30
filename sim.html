@@ -1,5 +1,4 @@
-  <!DOCTYPE html>
-
+   <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -152,20 +151,28 @@
             <h2 style="font-size:1.8rem; color:var(--pd)">خانه</h2>
             <div style="font-size:1.5rem; cursor:pointer;" onclick="app.showNotifs()">🔔</div> 
         </div>
-        <input type="text" class="inp" placeholder="🔍 جستجوی شناسه کاربری (ID)..." onkeyup="app.srch(this)" style="border-radius:20px; border:none; box-shadow:var(--sh)">
         
-        <!-- Story/New Users -->
-        <div style="margin-bottom:25px; margin-top:15px">
-            <h4 style="margin-bottom:12px; font-size:0.85rem; color:var(--tg)">کاربران پیشنهادی</h4>
-            <div id="new-bx" style="display:flex; gap:15px; overflow-x:auto; padding:5px 5px 15px 5px; scrollbar-width:none"></div>
-        </div>
+        <!-- SEARCH BOX: ALWAYS VISIBLE HERE -->
+        <input type="text" id="hm-srch-inp" class="inp" placeholder="🔍 جستجوی شناسه کاربری (ID)..." onkeyup="app.srch(this)" style="border-radius:20px; border:none; box-shadow:var(--sh); position:sticky; top:10px; z-index:50;">
+        
+        <!-- SEARCH RESULTS CONTAINER (INITIALLY HIDDEN) -->
+        <div id="home-sr-res" class="hide" style="margin-top:20px"></div>
 
-        <!-- Uploading Post Container -->
-        <div id="feed-up"></div> 
-        
-        <!-- Real Posts / Skeleton Loader -->
-        <div id="feed"></div>
-        <div id="feed-ldr" style="text-align:center; padding:20px; display:none"><span class="loading" style="color:var(--p)!important"></span></div>
+        <!-- REGULAR CONTENT (HIDDEN WHEN SEARCHING) -->
+        <div id="home-con">
+            <!-- Story/New Users -->
+            <div style="margin-bottom:25px; margin-top:15px">
+                <h4 style="margin-bottom:12px; font-size:0.85rem; color:var(--tg)">کاربران پیشنهادی</h4>
+                <div id="new-bx" style="display:flex; gap:15px; overflow-x:auto; padding:5px 5px 15px 5px; scrollbar-width:none"></div>
+            </div>
+
+            <!-- Uploading Post Container -->
+            <div id="feed-up"></div> 
+            
+            <!-- Real Posts / Skeleton Loader -->
+            <div id="feed"></div>
+            <div id="feed-ldr" style="text-align:center; padding:20px; display:none"><span class="loading" style="color:var(--p)!important"></span></div>
+        </div>
     </section>
 
     <!-- PROFILE -->
@@ -279,13 +286,6 @@
         </div>
     </section>
 
-    <!-- SEARCH RESULTS -->
-    <section id="s-sr" class="con hide">
-        <h2>نتایج جستجو</h2>
-        <button class="btn-s btn-o" style="margin:10px 0" onclick="app.nav('hm')">بازگشت</button>
-        <div id="sr-res" style="margin-top:15px"></div>
-    </section>
-
     <!-- BOTTOM NAV -->
     <div class="nav">
         <div class="n-it active" id="n-hm" onclick="app.nav('hm')">🏠</div>
@@ -386,7 +386,7 @@
 
             window.onscroll = () => {
                 if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200) {
-                    if(this.st.limit < this.st.posts.length) {
+                    if(this.st.limit < this.st.posts.length && document.getElementById('home-con').style.display !== 'none') {
                         this.st.limit += 5;
                         this.feed();
                     }
@@ -479,6 +479,11 @@
             if(p==='hm') { 
                 document.getElementById('s-hm').classList.remove('hide'); 
                 document.getElementById('n-hm').classList.add('active'); 
+                // Reset search when nav home
+                document.getElementById('hm-srch-inp').value = '';
+                document.getElementById('home-con').classList.remove('hide');
+                document.getElementById('home-sr-res').classList.add('hide');
+
                 if (this.st.posts.length === 0) { document.getElementById('feed').innerHTML = this.htmlSkelPost(3); }
                 else { this.feed(); }
             }
@@ -496,7 +501,6 @@
                 this.msg(); 
             }
             else if(p==='st') { document.getElementById('s-st').classList.remove('hide'); document.getElementById('n-st').classList.add('active'); this.sets(); }
-             else if(p==='sr') { document.getElementById('s-sr').classList.remove('hide'); }
         },
 
         feed: function() {
@@ -550,8 +554,15 @@
             document.getElementById('s-hm').classList.remove('hide');
             document.getElementById('n-hm').classList.add('active');
 
+            // Hide normal home content, but ensure search logic is reset or specific UI is shown
+            // Since this replaces the feed, we can just overwrite the feed container TEMPORARILY
+            // But better: use the feed logic
+            document.getElementById('home-con').classList.remove('hide');
+            document.getElementById('home-sr-res').classList.add('hide');
+            
             document.getElementById('new-bx').parentElement.classList.add('hide');
-            document.querySelector('#s-hm .inp').classList.add('hide');
+            document.getElementById('hm-srch-inp').classList.add('hide'); // Hide search on single post view
+            
             document.getElementById('feed-up').innerHTML = '';
             document.getElementById('feed').innerHTML = this.htmlP(post);
             document.getElementById('feed-ldr').style.display = 'none';
@@ -930,10 +941,13 @@
             const author = this.st.users.find(u => u.id === post.uid);
             if (!post || !author) return;
             const url = location.origin + location.pathname + '?p=' + id;
-            const textToShare = `${post.title}\n\n${post.text}\n\nنویسنده: ${author.name} (@${author.id})\n\nلینک:\n${url}`;
+            
+            // FORMAT: Title -> Text -> Name -> Link
+            const textToShare = `${post.title}\n\n${post.text}\n\n${author.name} (@${author.id})\n\nلینک:\n${url}`;
+            
             if (navigator.share) {
                 navigator.share({
-                    title: `پست از ${author.name}: ${post.title}`,
+                    title: post.title,
                     text: textToShare,
                 }).catch(err => console.log('Share failed:', err));
             } else {
@@ -963,7 +977,7 @@
         },
         flP: (v) => {
             const l=document.getElementById('pk-ls');
-            const searchTerm = v.toLowerCase().replace('@', '');
+            const searchTerm = v.replace(/[@\s]/g, '').toLowerCase(); // CLEANED LOCALLY TOO
             l.innerHTML = app.htmlSkelUser(3);
             setTimeout(() => {
                 l.innerHTML='';
@@ -990,25 +1004,35 @@
             this.st.msgs.push(m); this.call('createMsg', m); document.getElementById('m-pk').classList.remove('show'); this.notif('ارسال شد', 'suc');
         },
         srch: async function(el) {
+            // LOGIC: Remove Spaces and @. Length must be >= 5
             let raw = el.value;
             const v = raw.replace(/[@\s]/g, '').toLowerCase();
+            
+            const resCon = document.getElementById('home-sr-res');
+            const homeCon = document.getElementById('home-con');
 
-            if (v.length < 5) return;
+            if (v.length < 5) {
+                // If query is short, show normal home, hide results
+                resCon.classList.add('hide');
+                homeCon.classList.remove('hide');
+                return;
+            }
 
-            this.nav('sr'); 
-            const b = document.getElementById('sr-res');
-            b.innerHTML = this.htmlSkelUser(3);
-            window.scrollTo({ top: 150, behavior: 'smooth' });
+            // Valid query: Hide home content, show results container (Input stays visible)
+            homeCon.classList.add('hide');
+            resCon.classList.remove('hide');
+            
+            resCon.innerHTML = this.htmlSkelUser(3);
             
             const d = await this.call('searchUser', { id: v });
             
-            b.innerHTML = '';
+            resCon.innerHTML = '';
             if (d.status === 'success' && d.users.length > 0) {
                 d.users.forEach(u => {
-                    b.innerHTML += `<div class="card">${this.htmlU(u.id)}</div>`;
+                    resCon.innerHTML += `<div class="card">${this.htmlU(u.id)}</div>`;
                 });
             } else {
-                b.innerHTML = '<p style="text-align:center; padding:20px; color:var(--tg);">کاربری با این شناسه یافت نشد.</p>';
+                resCon.innerHTML = '<p style="text-align:center; padding:20px; color:var(--tg);">کاربری با این شناسه یافت نشد.</p>';
             }
         },
         list: (t) => {
@@ -1077,7 +1101,8 @@
             const author = this.st.users.find(u => u.id === post.uid);
             if (!post || !author) return;
             const url = location.origin + location.pathname + '?p=' + pid;
-            const fullText = `${post.title}\n\n${post.text}\n\nنویسنده: ${author.name} (@${author.id})\n\nلینک:\n${url}`;
+            // FORMAT: Title -> Text -> Name -> Link
+            const fullText = `${post.title}\n\n${post.text}\n\n${author.name} (@${author.id})\n\nلینک:\n${url}`;
             if (navigator.clipboard) {
                 navigator.clipboard.writeText(fullText).then(() => {
                     this.notif('اطلاعات کامل پست کپی شد', 'suc');
@@ -1098,7 +1123,10 @@
             const author = this.st.users.find(u => u.id === post.uid);
             if (!post || !author) return;
             const url = location.origin + location.pathname + '?p=' + this.st.postToSend;
-            const formattedText = `[پست ارسال شده از طرف @${this.st.user.id}]\n\n${post.title}\n\n${post.text}\n\nنویسنده: ${author.name} (@${author.id})\n\nلینک:\n${url}`;
+            
+            // FORMAT FOR MSG: Title -> Text -> Name -> Link
+            const formattedText = `[پست ارسال شده]\n\n${post.title}\n\n${post.text}\n\n${author.name} (@${author.id})\n\nلینک:\n${url}`;
+            
             const m = { from: this.st.user.id, to: recipientId, text: formattedText, time: Date.now(), read: false };
             this.st.msgs.push(m);
             this.call('createMsg', m);
