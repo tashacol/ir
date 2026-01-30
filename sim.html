@@ -118,6 +118,11 @@
         /* Single Post View Screen */
         #sc-post { position:fixed; top:0; left:0; right:0; bottom:0; background:var(--bg); z-index:1900; overflow-y:auto; display:none; padding-bottom: 20px; }
         #sc-post.show { display:block; }
+        
+        /* Custom Categories UI */
+        #st-cats-list .cat-item { background: #f1f5f9; padding: 8px 12px; border-radius: 20px; margin-bottom: 8px; font-size: 0.9rem; }
+        #st-cats-list .cat-item span { cursor:pointer; opacity:0.5; transition:0.2s; }
+        #st-cats-list .cat-item span:hover { opacity:1; transform:scale(1.1); }
 
     </style>
 </head>
@@ -169,7 +174,7 @@
                 <span id="notif-badge" class="bdg hide" style="top:-5px; right:-10px;"></span>
             </div> 
         </div>
-        <input type="text" class="inp" placeholder="🔍 جستجوی شناسه کاربری (ID)..." onkeyup="app.checkSearch(this)" style="border-radius:20px; border:none; box-shadow:var(--sh)">
+        <input type="text" id="hm-sr" class="inp" placeholder="🔍 جستجوی شناسه کاربری (ID)..." onkeyup="app.checkSearch(this)" style="border-radius:20px; border:none; box-shadow:var(--sh)">
         
         <!-- Story/New Users -->
         <div style="margin-bottom:25px; margin-top:15px">
@@ -245,10 +250,7 @@
             
             <label style="font-size:0.85rem; color:var(--tg); margin-bottom:5px; display:block">دسته‌بندی</label>
             <select id="a-ct" class="inp">
-                <option value="book">📚 کتاب</option>
-                <option value="movie">🎬 فیلم</option>
-                <option value="site">🌐 سایت</option>
-                <option value="other">📝 عمومی</option>
+                <!-- Options are generated dynamically -->
             </select>
             
             <label style="font-size:0.85rem; color:var(--tg); margin-bottom:5px; display:block">متن توضیحات</label>
@@ -291,7 +293,17 @@
             <div class="flex-bw" style="margin:15px 0; padding:10px 0; border-top:1px solid #eee"><span>🔒 حساب خصوصی</span> <input type="checkbox" id="st-pr" style="transform:scale(1.3)"></div>
             <div class="flex-bw" style="margin-bottom:20px"><span>💬 دریافت پیام</span> <input type="checkbox" id="st-al" style="transform:scale(1.3)"></div>
             
-            <button class="btn btn-p" onclick="app.sav(this)">ذخیره تغییرات</button>
+            <!-- Custom Categories Management (NEW) -->
+            <div style="border-top:1px solid #eee; padding-top:15px; margin-top:20px;">
+                <h4 style="margin-bottom:15px;">مدیریت دسته‌بندی‌ها (<span id="cat-count">0</span>/20)</h4>
+                <div id="st-cats-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:15px;"></div>
+                <div class="flex-bw" style="gap:10px;">
+                    <input type="text" id="st-new-cat" class="inp" placeholder="نام دسته‌بندی جدید..." maxlength="10" style="margin:0;">
+                    <button class="btn btn-s btn-p" onclick="app.addCat()">افزودن</button>
+                </div>
+            </div>
+
+            <button class="btn btn-p" onclick="app.sav(this)" style="margin-top:20px;">ذخیره تغییرات</button>
             <button class="btn btn-o" style="margin-top:15px; color:var(--err); border-color:var(--err)" onclick="app.out()">خروج از حساب</button>
         </div>
     </section>
@@ -530,7 +542,8 @@
 
             if(p==='hm') { 
                 document.getElementById('s-hm').classList.remove('hide'); 
-                document.getElementById('n-hm').classList.add('active'); 
+                document.getElementById('n-hm').classList.add('active');
+                document.getElementById('hm-sr').value = ''; // Clear search bar on home nav
                 if (this.st.posts.length === 0) { document.getElementById('feed').innerHTML = this.htmlSkelPost(3); }
                 else { this.feed(); }
             }
@@ -540,14 +553,22 @@
                 document.getElementById('p-pts').innerHTML = this.htmlSkelPost(2);
                 this.prof(arg||this.st.user.id);
             }
-            else if(p==='ad') { document.getElementById('s-ad').classList.remove('hide'); document.getElementById('n-ad').classList.add('active'); }
+            else if(p==='ad') { 
+                document.getElementById('s-ad').classList.remove('hide'); 
+                document.getElementById('n-ad').classList.add('active'); 
+                this.populateCategories(); // Populate categories on showing the page
+            }
             else if(p==='ms') { 
                 document.getElementById('s-ms').classList.remove('hide'); 
                 document.getElementById('n-ms').classList.add('active'); 
                 document.getElementById('msg-bx').innerHTML = this.htmlSkelUser(3);
                 this.msg(); 
             }
-            else if(p==='st') { document.getElementById('s-st').classList.remove('hide'); document.getElementById('n-st').classList.add('active'); this.sets(); }
+            else if(p==='st') { 
+                document.getElementById('s-st').classList.remove('hide'); 
+                document.getElementById('n-st').classList.add('active'); 
+                this.sets(); 
+            }
              else if(p==='sr') { document.getElementById('s-sr').classList.remove('hide'); }
         },
 
@@ -622,6 +643,7 @@
             const url = new URL(window.location);
             url.searchParams.delete('p');
             window.history.pushState({}, '', url);
+            this.nav('hm');
         },
 
         htmlU: (uid) => {
@@ -633,7 +655,6 @@
         htmlP: (p) => {
             const lk = p.likes.includes(app.st.user.id) ? 'lk' : '';
             
-            // Logic for truncating long text
             let contentHtml = '';
             const maxLength = 100;
             if (p.text.length > maxLength) {
@@ -646,7 +667,6 @@
                 contentHtml = app.autoLinker(p.text);
             }
 
-            // Post Date formatting (NEW)
             const postDate = new Date(p.time).toLocaleDateString('fa-IR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
             return `<div class="card" id="p-${p.pid}">
@@ -1027,7 +1047,6 @@
             if(cat!=='all') p = p.filter(x=>x.cat===cat);
             if(p.length===0) c.innerHTML='<p style="text-align:center;padding:20px;color:gray">هیچ پستی موجود نیست</p>';
             
-            // Apply sorting and limit
             p.sort((a,b)=>b.time-a.time);
             const renderList = p.slice(0, this.st.limit);
             
@@ -1050,6 +1069,7 @@
             document.getElementById('st-bi').value=u.bio||''; document.getElementById('st-ln').value=u.web||'';
             document.getElementById('st-mn').value=u.mention||''; document.getElementById('st-pr').checked=u.isPrivate;
             document.getElementById('st-al').checked=u.allowMsg;
+            this.renderCustomCats();
         },
         sav: async function(btn) {
             const u=this.st.user;
@@ -1057,7 +1077,11 @@
             u.bio=document.getElementById('st-bi').value; u.web=document.getElementById('st-ln').value;
             u.mention=document.getElementById('st-mn').value; u.isPrivate=document.getElementById('st-pr').checked;
             u.allowMsg=document.getElementById('st-al').checked;
-            btn.innerHTML = '<span class="loading"></span>'; await this.call('updateUser', u); this.notif('تنظیمات ذخیره شد', 'suc'); btn.innerHTML='ذخیره تغییرات';
+            // customCats is already updated in st.user
+            btn.innerHTML = '<span class="loading"></span>'; 
+            await this.call('updateUser', [u]); // Send as array
+            this.notif('تنظیمات ذخیره شد', 'suc'); 
+            btn.innerHTML='ذخیره تغییرات';
         },
         share: function(t, id) {
             if (t !== 'post') {
@@ -1139,6 +1163,7 @@
             if (v.length >= 5) {
                 this.nav('sr');
                 document.getElementById('sr-inp').value = raw;
+                this.doSearch(); // Automatically search when redirected
             }
         },
         doSearch: async function() {
@@ -1204,7 +1229,6 @@
             if (notifications.length === 0) {
                 b.innerHTML = '<p style="text-align:center;color:gray;padding:20px;">هیچ اعلان جدیدی وجود ندارد.</p>';
             } else {
-                // نمایش فقط ۱۰ اعلان آخر (دستور جدید)
                 notifications.slice(0, 10).forEach(n => {
                     const u = this.st.users.find(usr => usr.id === n.uid);
                     if (!u) return;
@@ -1328,8 +1352,9 @@
 
             myPosts.forEach(p => {
                 (p.likes || []).forEach(like => {
-                    if (like.uid !== this.st.user.id) {
-                         notifications.push({ time: like.time || p.time, type: 'like', uid: like.uid || like, post: p });
+                    const likerId = typeof like === 'object' ? like.uid : like;
+                    if (likerId !== this.st.user.id) {
+                         notifications.push({ time: like.time || p.time, type: 'like', uid: likerId, post: p });
                     }
                 });
                 (p.comments || []).forEach(c => {
@@ -1363,6 +1388,59 @@
             } else {
                 badge.classList.add('hide');
             }
+        },
+        // --- NEW FUNCTIONS FOR CUSTOM CATEGORIES ---
+        populateCategories: function() {
+            const select = document.getElementById('a-ct');
+            select.innerHTML = ''; // Clear old options
+            
+            // Add default categories
+            const defaults = ['📝 عمومی', '📚 کتاب', '🎬 فیلم', '🌐 سایت', '💡 ایده'];
+            defaults.forEach(cat => {
+                const val = cat.split(' ')[1];
+                select.innerHTML += `<option value="${val}">${cat}</option>`;
+            });
+
+            // Add user's custom categories
+            if (this.st.user && this.st.user.customCats) {
+                this.st.user.customCats.forEach(cat => {
+                    select.innerHTML += `<option value="${cat}">${cat}</option>`;
+                });
+            }
+        },
+        renderCustomCats: function() {
+            const list = document.getElementById('st-cats-list');
+            const countEl = document.getElementById('cat-count');
+            const cats = this.st.user.customCats || [];
+            list.innerHTML = '';
+            countEl.innerText = cats.length;
+
+            cats.forEach(cat => {
+                list.innerHTML += `
+                    <div class="cat-item flex-bw">
+                        ${cat} <span style="margin-right:10px;" onclick="app.deleteCat('${cat}')">❌</span>
+                    </div>`;
+            });
+        },
+        addCat: function() {
+            const input = document.getElementById('st-new-cat');
+            const newCat = input.value.trim();
+            
+            if (!this.st.user.customCats) {
+                this.st.user.customCats = [];
+            }
+            
+            if (!newCat) return this.notif('نام دسته‌بندی نمی‌تواند خالی باشد.', 'err');
+            if (this.st.user.customCats.length >= 20) return this.notif('حداکثر ۲۰ دسته‌بندی مجاز است.', 'err');
+            if (this.st.user.customCats.includes(newCat)) return this.notif('این دسته‌بندی تکراری است.', 'err');
+
+            this.st.user.customCats.push(newCat);
+            input.value = '';
+            this.renderCustomCats();
+        },
+        deleteCat: function(catToDelete) {
+            this.st.user.customCats = this.st.user.customCats.filter(cat => cat !== catToDelete);
+            this.renderCustomCats();
         }
     };
     app.init();
