@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+  <!DOCTYPE html>
 
 <html lang="fa" dir="rtl">
 <head>
@@ -169,7 +169,7 @@
                 <span id="notif-badge" class="bdg hide" style="top:-5px; right:-10px;"></span>
             </div> 
         </div>
-        <input type="text" class="inp" placeholder="🔍 جستجوی شناسه کاربری (ID)..." onkeyup="app.srch(this)" style="border-radius:20px; border:none; box-shadow:var(--sh)">
+        <input type="text" class="inp" placeholder="🔍 جستجوی شناسه کاربری (ID)..." onkeyup="app.checkSearch(this)" style="border-radius:20px; border:none; box-shadow:var(--sh)">
         
         <!-- Story/New Users -->
         <div style="margin-bottom:25px; margin-top:15px">
@@ -299,8 +299,13 @@
     <!-- SEARCH RESULTS -->
     <section id="s-sr" class="con hide">
         <h2>نتایج جستجو</h2>
-        <button class="btn-s btn-o" style="margin:10px 0" onclick="app.nav('hm')">بازگشت</button>
+        <div class="flex-bw" style="gap:10px; margin: 10px 0;">
+            <input type="text" id="sr-inp" class="inp" placeholder="شناسه را وارد کنید..." style="margin:0">
+            <button class="btn btn-p" style="width:auto;" onclick="app.doSearch()">🔍</button>
+        </div>
+        <button class="btn-s btn-o" onclick="app.nav('hm')">بازگشت به خانه</button>
         <div id="sr-res" style="margin-top:15px"></div>
+        <button id="sr-more" class="btn btn-o hide" onclick="app.loadMoreSearch()">نمایش بیشتر</button>
     </section>
 
     <!-- SINGLE POST VIEW (NEW) -->
@@ -381,7 +386,7 @@
     const API_URL = 'https://script.google.com/macros/s/AKfycbyf_X4VQfe1YC95wWXkUkFrHAHDOCTmC6qzzsNCp-O57HvGikcAPZWlPAbS_9_kWrYI/exec';
 
     const app = {
-        st: { user:null, users:[], posts:[], msgs:[], vid:null, shr:null, cpid:null, guest:false, page:1, limit:10, syncing:false, postToSend: null, pickerMode: null },
+        st: { user:null, users:[], posts:[], msgs:[], vid:null, shr:null, cpid:null, guest:false, page:1, limit:10, syncing:false, postToSend: null, pickerMode: null, searchLimit: 10, tempUsers: [] },
         
         init: async function() {
             this.showInitialSkeletons();
@@ -619,10 +624,24 @@
         
         htmlP: (p) => {
             const lk = p.likes.includes(app.st.user.id) ? 'lk' : '';
+            
+            // Logic for truncating long text
+            let contentHtml = '';
+            const maxLength = 100;
+            if (p.text.length > maxLength) {
+                const shortText = p.text.substring(0, maxLength) + '... ';
+                contentHtml = `
+                    <span id="txt-s-${p.pid}">${app.autoLinker(shortText)}<b style="cursor:pointer;color:var(--p)" onclick="app.readMore('${p.pid}')">بیشتر</b></span>
+                    <span id="txt-f-${p.pid}" class="hide">${app.autoLinker(p.text)}</span>
+                `;
+            } else {
+                contentHtml = app.autoLinker(p.text);
+            }
+
             return `<div class="card" id="p-${p.pid}">
                 <div class="flex-bw">${app.htmlU(p.uid)} <span style="font-size:0.7rem;background:#e0f2fe;color:#0284c7;padding:3px 10px;border-radius:10px">${p.cat||'عمومی'}</span></div>
                 <h4 style="margin-top:12px;font-size:1.05rem">${p.title}</h4>
-                <p style="margin-top:8px;line-height:1.7;font-size:0.95rem;white-space:pre-wrap;color:#334155">${app.autoLinker(p.text)}</p>
+                <p style="margin-top:8px;line-height:1.7;font-size:0.95rem;white-space:pre-wrap;color:#334155">${contentHtml}</p>
                 <div class="p-act">
                     <div class="act-b ${lk}" id="lb-${p.pid}"><span onclick="app.like('${p.pid}')">${lk?'❤️':'🤍'}</span> <span id="ln-${p.pid}" onclick="app.showLikes('${p.pid}', event)" style="margin-right:5px;min-width:10px">${p.likes.length}</span></div>
                     <div class="act-b" onclick="app.comm('${p.pid}')">💬 ${p.comments.length}</div>
@@ -630,6 +649,11 @@
                     <div class="act-b" onclick="app.openSendPostModal('${p.pid}')" title="ارسال پست به دوستان">➤</div>
                     <div class="act-b" onclick="app.share('post','${p.pid}')" title="اشتراک‌گذاری">📤</div>
                 </div></div>`;
+        },
+
+        readMore: function(pid) {
+            document.getElementById('txt-s-' + pid).classList.add('hide');
+            document.getElementById('txt-f-' + pid).classList.remove('hide');
         },
 
         pub: async function(btn) {
@@ -1087,29 +1111,53 @@
             const m={from:this.st.user.id, to:uid, text:this.st.shr.lnk, time:Date.now(), read:false};
             this.st.msgs.push(m); this.call('createMsg', m); document.getElementById('m-pk').classList.remove('show'); this.notif('ارسال شد', 'suc');
         },
-        srch: async function(el) {
+        checkSearch: function(el) {
             let raw = el.value;
-            // حذف کاراکترهای اضافی
             const v = raw.replace(/[@\s]/g, '').toLowerCase();
-
-            // محدودیت 5 کاراکتر (طبق دستور قبلی شما)
-            if (v.length < 5) return;
-
-            this.nav('sr'); 
+            if (v.length >= 5) {
+                this.nav('sr');
+                document.getElementById('sr-inp').value = raw;
+            }
+        },
+        doSearch: async function() {
+            const el = document.getElementById('sr-inp');
+            const v = el.value.replace(/[@\s]/g, '').toLowerCase();
+            if (!v) return;
+            
             const b = document.getElementById('sr-res');
             b.innerHTML = this.htmlSkelUser(3);
-            window.scrollTo({ top: 150, behavior: 'smooth' });
+            document.getElementById('sr-more').classList.add('hide');
             
+            el.disabled = true;
             const d = await this.call('searchUser', { id: v });
+            el.disabled = false;
             
             b.innerHTML = '';
             if (d.status === 'success' && d.users.length > 0) {
-                d.users.forEach(u => {
-                    b.innerHTML += `<div class="card">${this.htmlU(u.id)}</div>`;
-                });
+                this.st.tempUsers = d.users;
+                this.st.searchLimit = 10;
+                this.renderSearch();
             } else {
                 b.innerHTML = '<p style="text-align:center; padding:20px; color:var(--tg);">کاربری با این شناسه یافت نشد.</p>';
             }
+        },
+        renderSearch: function() {
+            const b = document.getElementById('sr-res');
+            const list = this.st.tempUsers.slice(0, this.st.searchLimit);
+            b.innerHTML = '';
+            list.forEach(u => {
+                b.innerHTML += `<div class="card">${this.htmlU(u.id)}</div>`;
+            });
+            
+            if (this.st.tempUsers.length > this.st.searchLimit) {
+                document.getElementById('sr-more').classList.remove('hide');
+            } else {
+                document.getElementById('sr-more').classList.add('hide');
+            }
+        },
+        loadMoreSearch: function() {
+            this.st.searchLimit += 10;
+            this.renderSearch();
         },
         list: (t) => {
             const u=this.st.users.find(x=>x.id===this.st.vid);
