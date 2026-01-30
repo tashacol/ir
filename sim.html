@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -27,6 +27,11 @@
         .btn-s { padding:6px 14px; font-size:0.85rem; width:auto; border-radius:20px; }
         .btn-i { font-size:1.5rem; padding:5px; color:var(--t); background:transparent; border:none; cursor:pointer; }
         
+        /* Password Toggle Wrapper */
+        .pwd-wrap { position: relative; margin-bottom: 12px; }
+        .pwd-wrap .inp { margin-bottom: 0; }
+        .pwd-tog { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; color:var(--tg); z-index:5; font-size: 1.2rem; }
+
         /* Loading Spinner */
         .loading { position:relative; color:transparent !important; pointer-events:none; }
         .loading::after { content:""; position:absolute; left:50%; top:50%; width:22px; height:22px; border:3px solid #fff; border-top-color:transparent; border-radius:50%; animation:rot 0.8s linear infinite; transform:translate(-50%,-50%); }
@@ -147,7 +152,10 @@
     <div class="card">
         <h2 style="text-align:center; margin-bottom:20px; color:var(--pd)">ورود به حساب</h2>
         <input type="text" id="l-nc" class="inp" placeholder="کد ملی" inputmode="numeric">
-        <input type="password" id="l-ps" class="inp" placeholder="رمز عبور">
+        <div class="pwd-wrap">
+            <input type="password" id="l-ps" class="inp" placeholder="رمز عبور">
+            <span class="pwd-tog" onclick="app.togPwd('l-ps', this)">👁️</span>
+        </div>
         <div style="margin-bottom:20px; font-size:0.9rem; color:var(--tg)"><label style="display:flex; align-items:center; gap:8px"><input type="checkbox" id="l-rem" checked> مرا به خاطر بسپار</label></div>
         <button class="btn btn-p" onclick="app.login(this)">ورود</button>
     </div>
@@ -159,9 +167,12 @@
         <h2 style="text-align:center; margin-bottom:20px; color:var(--suc)">ثبت نام</h2>
         <input type="number" id="r-nc" class="inp" placeholder="کد ملی (۱۰ رقم)" inputmode="numeric">
         <input type="text" id="r-nm" class="inp" placeholder="نام نمایشی (فارسی)">
-        <input type="text" id="r-us" class="inp" placeholder="نام کاربری (انگلیسی، یکتا)">
+        <input type="text" id="r-us" class="inp" placeholder="نام کاربری (حداقل ۵ حرف/عدد)">
         <input type="number" id="r-rf" class="inp" placeholder="کد معرف" inputmode="numeric">
-        <input type="password" id="r-ps" class="inp" placeholder="رمز عبور">
+        <div class="pwd-wrap">
+            <input type="password" id="r-ps" class="inp" placeholder="رمز عبور (حداقل ۸ رقم)">
+            <span class="pwd-tog" onclick="app.togPwd('r-ps', this)">👁️</span>
+        </div>
         <button class="btn btn-p" style="background:linear-gradient(135deg, var(--suc), #15803d)" onclick="app.reg(this)">تکمیل ثبت نام</button>
     </div>
     <p style="text-align:center; color:var(--tg); cursor:pointer; margin-top:20px" onclick="app.togAuth()">بازگشت به ورود</p>
@@ -562,6 +573,19 @@
         },
 
         togAuth: () => { document.getElementById('f-log').classList.toggle('hide'); document.getElementById('f-reg').classList.toggle('hide'); },
+        
+        // تابع تغییر نمایش رمز عبور
+        togPwd: (id, el) => {
+            const inp = document.getElementById(id);
+            if (inp.type === 'password') {
+                inp.type = 'text';
+                el.innerText = '👁️‍🗨️';
+            } else {
+                inp.type = 'password';
+                el.innerText = '👁️';
+            }
+        },
+
         login: async function(btn) {
             const nc=document.getElementById('l-nc').value, pass=document.getElementById('l-ps').value;
             if(!nc || !pass) return this.notif('لطفا اطلاعات را کامل وارد کنید', 'err');
@@ -582,7 +606,10 @@
                 name:document.getElementById('r-nm').value,
                 refCode:document.getElementById('r-rf').value
             };
+            // اعتبارسنجی اولیه کلاینت
             if(!p.id || !p.nc || !p.pass) return this.notif('همه فیلدها الزامی است', 'err');
+            if(p.nc.length !== 10) return this.notif('کد ملی باید ۱۰ رقم باشد', 'err');
+            
             btn.innerHTML = '<span class="loading"></span>';
             const d = await this.call('register', p);
             if(d.status === 'success') { this.notif('ثبت نام موفقیت آمیز بود', 'suc'); this.togAuth(); }
