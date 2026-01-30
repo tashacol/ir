@@ -1,4 +1,5 @@
-   <!DOCTYPE html>
+<!DOCTYPE html>
+
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -149,30 +150,22 @@
     <section id="s-hm" class="con">
         <div class="flex-bw" style="margin-bottom:20px; padding:0 5px">
             <h2 style="font-size:1.8rem; color:var(--pd)">خانه</h2>
-            <div style="font-size:1.5rem; cursor:pointer;" onclick="app.showNotifs()">🔔</div> 
+            <div style="font-size:1.5rem; cursor:pointer; position:relative;" onclick="app.showNotifs()">🔔 <span id="nt-bdg" class="bdg hide" style="top:-5px; right:-5px; font-size:0.7rem; border:2px solid var(--bg)"></span></div> 
         </div>
+        <input type="text" class="inp" placeholder="🔍 جستجوی شناسه کاربری (ID)..." onkeyup="app.srch(this)" style="border-radius:20px; border:none; box-shadow:var(--sh)">
         
-        <!-- SEARCH BOX: ALWAYS VISIBLE HERE -->
-        <input type="text" id="hm-srch-inp" class="inp" placeholder="🔍 جستجوی شناسه کاربری (ID)..." onkeyup="app.srch(this)" style="border-radius:20px; border:none; box-shadow:var(--sh); position:sticky; top:10px; z-index:50;">
-        
-        <!-- SEARCH RESULTS CONTAINER (INITIALLY HIDDEN) -->
-        <div id="home-sr-res" class="hide" style="margin-top:20px"></div>
-
-        <!-- REGULAR CONTENT (HIDDEN WHEN SEARCHING) -->
-        <div id="home-con">
-            <!-- Story/New Users -->
-            <div style="margin-bottom:25px; margin-top:15px">
-                <h4 style="margin-bottom:12px; font-size:0.85rem; color:var(--tg)">کاربران پیشنهادی</h4>
-                <div id="new-bx" style="display:flex; gap:15px; overflow-x:auto; padding:5px 5px 15px 5px; scrollbar-width:none"></div>
-            </div>
-
-            <!-- Uploading Post Container -->
-            <div id="feed-up"></div> 
-            
-            <!-- Real Posts / Skeleton Loader -->
-            <div id="feed"></div>
-            <div id="feed-ldr" style="text-align:center; padding:20px; display:none"><span class="loading" style="color:var(--p)!important"></span></div>
+        <!-- Story/New Users -->
+        <div style="margin-bottom:25px; margin-top:15px">
+            <h4 style="margin-bottom:12px; font-size:0.85rem; color:var(--tg)">کاربران پیشنهادی</h4>
+            <div id="new-bx" style="display:flex; gap:15px; overflow-x:auto; padding:5px 5px 15px 5px; scrollbar-width:none"></div>
         </div>
+
+        <!-- Uploading Post Container -->
+        <div id="feed-up"></div> 
+        
+        <!-- Real Posts / Skeleton Loader -->
+        <div id="feed"></div>
+        <div id="feed-ldr" style="text-align:center; padding:20px; display:none"><span class="loading" style="color:var(--p)!important"></span></div>
     </section>
 
     <!-- PROFILE -->
@@ -286,6 +279,13 @@
         </div>
     </section>
 
+    <!-- SEARCH RESULTS -->
+    <section id="s-sr" class="con hide">
+        <h2>نتایج جستجو</h2>
+        <button class="btn-s btn-o" style="margin:10px 0" onclick="app.nav('hm')">بازگشت</button>
+        <div id="sr-res" style="margin-top:15px"></div>
+    </section>
+
     <!-- BOTTOM NAV -->
     <div class="nav">
         <div class="n-it active" id="n-hm" onclick="app.nav('hm')">🏠</div>
@@ -353,7 +353,7 @@
     const API_URL = 'https://script.google.com/macros/s/AKfycbyf_X4VQfe1YC95wWXkUkFrHAHDOCTmC6qzzsNCp-O57HvGikcAPZWlPAbS_9_kWrYI/exec';
 
     const app = {
-        st: { user:null, users:[], posts:[], msgs:[], vid:null, shr:null, cpid:null, guest:false, page:1, limit:10, syncing:false, postToSend: null, pickerMode: null },
+        st: { user:null, users:[], posts:[], msgs:[], vid:null, shr:null, cpid:null, guest:false, page:1, limit:10, syncing:false, postToSend: null, pickerMode: null, lastSeenNotif: 0 },
         
         init: async function() {
             this.showInitialSkeletons();
@@ -361,6 +361,8 @@
                 const db = JSON.parse(localStorage.getItem('db'));
                 this.st.users=db.users||[]; this.st.posts=db.posts||[]; this.st.msgs=db.msgs||[];
             }
+            this.st.lastSeenNotif = localStorage.getItem('lastSeenNotif') || 0;
+
             const uid = localStorage.getItem('uid');
             if(uid) {
                 const u = this.st.users.find(x=>x.id===uid);
@@ -386,7 +388,7 @@
 
             window.onscroll = () => {
                 if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200) {
-                    if(this.st.limit < this.st.posts.length && document.getElementById('home-con').style.display !== 'none') {
+                    if(this.st.limit < this.st.posts.length) {
                         this.st.limit += 5;
                         this.feed();
                     }
@@ -479,11 +481,6 @@
             if(p==='hm') { 
                 document.getElementById('s-hm').classList.remove('hide'); 
                 document.getElementById('n-hm').classList.add('active'); 
-                // Reset search when nav home
-                document.getElementById('hm-srch-inp').value = '';
-                document.getElementById('home-con').classList.remove('hide');
-                document.getElementById('home-sr-res').classList.add('hide');
-
                 if (this.st.posts.length === 0) { document.getElementById('feed').innerHTML = this.htmlSkelPost(3); }
                 else { this.feed(); }
             }
@@ -501,6 +498,7 @@
                 this.msg(); 
             }
             else if(p==='st') { document.getElementById('s-st').classList.remove('hide'); document.getElementById('n-st').classList.add('active'); this.sets(); }
+             else if(p==='sr') { document.getElementById('s-sr').classList.remove('hide'); }
         },
 
         feed: function() {
@@ -554,15 +552,8 @@
             document.getElementById('s-hm').classList.remove('hide');
             document.getElementById('n-hm').classList.add('active');
 
-            // Hide normal home content, but ensure search logic is reset or specific UI is shown
-            // Since this replaces the feed, we can just overwrite the feed container TEMPORARILY
-            // But better: use the feed logic
-            document.getElementById('home-con').classList.remove('hide');
-            document.getElementById('home-sr-res').classList.add('hide');
-            
             document.getElementById('new-bx').parentElement.classList.add('hide');
-            document.getElementById('hm-srch-inp').classList.add('hide'); // Hide search on single post view
-            
+            document.querySelector('#s-hm .inp').classList.add('hide');
             document.getElementById('feed-up').innerHTML = '';
             document.getElementById('feed').innerHTML = this.htmlP(post);
             document.getElementById('feed-ldr').style.display = 'none';
@@ -758,6 +749,9 @@
                      else tick = '<span class="tik wait">🕓</span>';
                 }
 
+                let previewText = last.text;
+                if(previewText.startsWith('POST::')) previewText = '[پست اشتراکی]';
+
                 msgBox.innerHTML += `
                 <div class="card" onclick="app.chat('${pid}')" style="cursor:pointer; padding: 12px;" data-chat-id="${u.id}">
                     <div class="flex-bw">
@@ -766,7 +760,7 @@
                     </div>
                     <div class="flex-bw" style="margin-top:8px; padding-right: 60px;">
                         <p style="color:${unread ? 'var(--t)' : 'var(--tg)'}; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width: 85%; font-weight:${unread ? 'bold':'normal'}">
-                            ${tick} ${last.text}
+                            ${tick} ${previewText}
                         </p>
                         ${unread > 0 ? `<span class="bdg" style="position:static;font-size:0.75rem;padding:2px 8px;border-radius:12px;">${unread}</span>` : ''}
                     </div>
@@ -808,8 +802,26 @@
                      else tick = '<span class="tik wait">🕓</span>';
                 }
                 
-                b.innerHTML += `<div class="msg-bub ${mine?'msg-me':'msg-ot'}">
-                    ${app.lnk(x.text)}
+                let content = '';
+                if(x.text.startsWith('POST::')) {
+                    const pid = x.text.split('::')[1];
+                    const p = this.st.posts.find(pst=>pst.pid===pid);
+                    if(p) {
+                        content = `<div class="card" onclick="app.showPost('${p.pid}')" style="margin:0; width:260px; pointer-events:auto; cursor:pointer; transform:scale(0.95); transform-origin: top right;">
+                            <div class="flex-bw">${app.htmlU(p.uid)}</div>
+                            <h4 style="margin-top:8px;font-size:0.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.title}</h4>
+                            <p style="margin-top:5px;font-size:0.8rem;color:var(--tg);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${p.text}</p>
+                            <div style="margin-top:8px;font-size:0.75rem;color:var(--p);font-weight:bold">مشاهده پست کامل ➤</div>
+                        </div>`;
+                    } else {
+                        content = '<div style="padding:10px;background:#eee;border-radius:10px;font-size:0.8rem">پست در دسترس نیست</div>';
+                    }
+                } else {
+                    content = app.lnk(x.text);
+                }
+
+                b.innerHTML += `<div class="msg-bub ${mine?'msg-me':'msg-ot'}" style="${x.text.startsWith('POST::')?'background:transparent;padding:0;box-shadow:none;border:none':''}">
+                    ${content}
                     <div class="msg-tm">${tick} ${new Date(x.time).toLocaleTimeString('fa-IR', {hour:'2-digit',minute:'2-digit'})}</div>
                 </div>`; 
             });
@@ -854,11 +866,61 @@
         },
         
         bdg: () => {
-            const r= (this.st.user.requests && this.st.user.requests.length) || 0;
-            const u=this.st.msgs.filter(x=>x.to===this.st.user.id && !x.read).length;
+            const r = (this.st.user.requests && this.st.user.requests.length) || 0;
+            const u = this.st.msgs.filter(x=>x.to===this.st.user.id && !x.read).length;
             
-            const b1=document.getElementById('b-nv');
+            const b1 = document.getElementById('b-nv');
             if(r+u>0) { b1.innerText=r+u; b1.classList.remove('hide'); } else b1.classList.add('hide');
+
+            // Notification Bell Badge Logic
+            let notifCount = 0;
+            const myPosts = this.st.posts.filter(p => p.uid === this.st.user.id);
+            myPosts.forEach(p => {
+                p.likes.forEach(uid => { if (uid !== this.st.user.id) notifCount++; }); // Just counting simplistic for badge
+                p.comments.forEach(c => { if (c.uid !== this.st.user.id) notifCount++; });
+            });
+            notifCount += (this.st.user.followers || []).length;
+            // Simplified: We count how many notifications have timestamp > lastSeenNotif
+            // Since we don't store timestamps for follows in simple list, we use a different approach:
+            // We reconstruct the full notification list here to check times.
+            
+            let notifications = [];
+            myPosts.forEach(p => {
+                p.likes.forEach(uid => { if (uid !== this.st.user.id) notifications.push({time: p.time}); }); // Approximate time using post time as base if precise like time not saved, but for new comments we can't tell exactly. Wait, prompt says "count new".
+                // Since data structure doesn't save *when* a like happened, we can't perfectly track "New" likes vs "Old" likes purely by time if we don't save like-time.
+                // HOWEVER, assuming the user wants to see *changes*, we can just use the total count difference or just show total unread if we could.
+                // Given the constraints and data, the best proxy for "New" is really hard without timestamps.
+                // BUT, comments have order.
+                // Let's use the method of: Total Interactions > Last Saved Total Interactions? No, local storage last checked time is better but imprecise.
+                // Let's rely on what we can: Comments have no timestamp in DB (just text/uid).
+                // I will use a simple "New items since load" or just keep logic simple: 
+                // Any notification newer than the last check. Since we lack timestamps for likes/follows, we assume they are 'current'. 
+                // To fulfill the request "badge on bell", I will count all of them and subtract what the user has "seen" (stored in local storage as a count, not time).
+                
+                // Let's try to find timestamps where possible. Posts have time. Messages have time. Likes/Follows don't.
+                // Hack: We will just show the total count of notifications that are generated in showNotifs list.
+                // If the user clicks the bell, we save the count. Any excess is "new".
+            });
+            
+            // Re-generating list to count
+            let totalN = 0;
+            myPosts.forEach(p => {
+                 totalN += p.likes.filter(uid=>uid!==this.st.user.id).length;
+                 totalN += p.comments.filter(c=>c.uid!==this.st.user.id).length;
+            });
+            totalN += (this.st.user.followers || []).length;
+            totalN += (this.st.user.requests || []).length;
+            
+            const lastN = parseInt(localStorage.getItem('lastNotifCount') || '0');
+            const newN = totalN - lastN;
+            
+            const bNt = document.getElementById('nt-bdg');
+            if (newN > 0) {
+                bNt.innerText = newN;
+                bNt.classList.remove('hide');
+            } else {
+                bNt.classList.add('hide');
+            }
         },
 
         prof: function(uid) {
@@ -941,18 +1003,15 @@
             const author = this.st.users.find(u => u.id === post.uid);
             if (!post || !author) return;
             const url = location.origin + location.pathname + '?p=' + id;
-            
-            // FORMAT: Title -> Text -> Name -> Link
-            const textToShare = `${post.title}\n\n${post.text}\n\n${author.name} (@${author.id})\n\nلینک:\n${url}`;
-            
+            const textToShare = `${post.title}\n\n${post.text}\n\nنویسنده: ${author.name} (@${author.id})\n\nلینک:\n${url}`;
             if (navigator.share) {
                 navigator.share({
-                    title: post.title,
+                    title: `پست از ${author.name}: ${post.title}`,
                     text: textToShare,
                 }).catch(err => console.log('Share failed:', err));
             } else {
                 this.copyPostText(id);
-                this.notif('مرورگر از اشتراک‌گذاری پشتیبانی نمی‌کند. محتوای پست کپی شد.', 'err');
+                this.notif('مرورگر از اشتراک‌گذاری پشتیبانی نمی‌کند. لینک پست کپی شد.', 'err');
             }
         },
         copyLink: function() {
@@ -977,7 +1036,7 @@
         },
         flP: (v) => {
             const l=document.getElementById('pk-ls');
-            const searchTerm = v.replace(/[@\s]/g, '').toLowerCase(); // CLEANED LOCALLY TOO
+            const searchTerm = v.toLowerCase().replace('@', '');
             l.innerHTML = app.htmlSkelUser(3);
             setTimeout(() => {
                 l.innerHTML='';
@@ -1004,35 +1063,25 @@
             this.st.msgs.push(m); this.call('createMsg', m); document.getElementById('m-pk').classList.remove('show'); this.notif('ارسال شد', 'suc');
         },
         srch: async function(el) {
-            // LOGIC: Remove Spaces and @. Length must be >= 5
             let raw = el.value;
             const v = raw.replace(/[@\s]/g, '').toLowerCase();
-            
-            const resCon = document.getElementById('home-sr-res');
-            const homeCon = document.getElementById('home-con');
 
-            if (v.length < 5) {
-                // If query is short, show normal home, hide results
-                resCon.classList.add('hide');
-                homeCon.classList.remove('hide');
-                return;
-            }
+            if (v.length < 5) return;
 
-            // Valid query: Hide home content, show results container (Input stays visible)
-            homeCon.classList.add('hide');
-            resCon.classList.remove('hide');
-            
-            resCon.innerHTML = this.htmlSkelUser(3);
+            this.nav('sr'); 
+            const b = document.getElementById('sr-res');
+            b.innerHTML = this.htmlSkelUser(3);
+            window.scrollTo({ top: 150, behavior: 'smooth' });
             
             const d = await this.call('searchUser', { id: v });
             
-            resCon.innerHTML = '';
+            b.innerHTML = '';
             if (d.status === 'success' && d.users.length > 0) {
                 d.users.forEach(u => {
-                    resCon.innerHTML += `<div class="card">${this.htmlU(u.id)}</div>`;
+                    b.innerHTML += `<div class="card">${this.htmlU(u.id)}</div>`;
                 });
             } else {
-                resCon.innerHTML = '<p style="text-align:center; padding:20px; color:var(--tg);">کاربری با این شناسه یافت نشد.</p>';
+                b.innerHTML = '<p style="text-align:center; padding:20px; color:var(--tg);">کاربری با این شناسه یافت نشد.</p>';
             }
         },
         list: (t) => {
@@ -1073,6 +1122,10 @@
             });
 
             notifications.sort((a, b) => b.time - a.time);
+            
+            // Save current count as seen
+            localStorage.setItem('lastNotifCount', notifications.length);
+            app.bdg(); // update badge
 
             b.innerHTML = '';
             if (notifications.length === 0) {
@@ -1084,7 +1137,7 @@
                     let text = '';
                     switch (n.type) {
                         case 'like': text = `پست شما را پسندید: <i>"${n.post.title}"</i>`; break;
-                        case 'comment': text = `نظر داد: <span style="display:block;margin-top:5px;padding:8px;background:#f1f5f9;border-radius:8px;font-size:0.85rem;border:1px solid #e2e8f0;">"${n.text}"</span><small style="opacity:0.7;display:block;margin-top:5px">در پست: ${n.post.title}</small>`; break;
+                        case 'comment': text = `نظر داد: <span style="display:block;margin-top:5px;padding:8px;background:#f1f5f9;border-radius:8px;font-size:0.85rem;border:1px solid #e2e8f0;font-style:italic">"${n.text}"</span><small style="opacity:0.7;display:block;margin-top:5px">در پست: ${n.post.title}</small>`; break;
                         case 'follow': text = `شما را دنبال کرد.`; break;
                         case 'request': text = `یک درخواست دنبال کردن ارسال کرد.`; break;
                     }
@@ -1097,16 +1150,13 @@
             document.getElementById('m-nt').classList.add('show');
         },
         copyPostText: function(pid) {
-            const post = this.st.posts.find(p => p.pid === pid);
-            const author = this.st.users.find(u => u.id === post.uid);
-            if (!post || !author) return;
             const url = location.origin + location.pathname + '?p=' + pid;
-            // FORMAT: Title -> Text -> Name -> Link
-            const fullText = `${post.title}\n\n${post.text}\n\n${author.name} (@${author.id})\n\nلینک:\n${url}`;
             if (navigator.clipboard) {
-                navigator.clipboard.writeText(fullText).then(() => {
-                    this.notif('اطلاعات کامل پست کپی شد', 'suc');
+                navigator.clipboard.writeText(url).then(() => {
+                    this.notif('لینک پست کپی شد', 'suc');
                 });
+            } else {
+                prompt('لینک:', url);
             }
         },
         openSendPostModal: function(pid) {
@@ -1119,14 +1169,7 @@
             this.flP('');
         },
         doSendPost: function(recipientId) {
-            const post = this.st.posts.find(p => p.pid === this.st.postToSend);
-            const author = this.st.users.find(u => u.id === post.uid);
-            if (!post || !author) return;
-            const url = location.origin + location.pathname + '?p=' + this.st.postToSend;
-            
-            // FORMAT FOR MSG: Title -> Text -> Name -> Link
-            const formattedText = `[پست ارسال شده]\n\n${post.title}\n\n${post.text}\n\n${author.name} (@${author.id})\n\nلینک:\n${url}`;
-            
+            const formattedText = `POST::${this.st.postToSend}`;
             const m = { from: this.st.user.id, to: recipientId, text: formattedText, time: Date.now(), read: false };
             this.st.msgs.push(m);
             this.call('createMsg', m);
