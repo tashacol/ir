@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+ <!DOCTYPE html>
 
 <html lang="fa" dir="rtl">
 <head>
@@ -72,7 +72,7 @@
         .act-b.lk span:first-child { transform:scale(1.1); }
         @keyframes pop { 50% { transform:scale(1.2); } }
         .ment { color:var(--p); font-weight:bold; cursor:pointer; text-decoration:none; background:rgba(37,99,235,0.1); padding:0 4px; border-radius:4px; }
-        .url-link { color: var(--p); text-decoration: underline; word-break: break-all; }
+        .url-link { color: var(--p); text-decoration: underline; word-break: break-all; cursor: pointer; }
 
         /* Upload Linear Progress */
         .prog-c { position:relative; height:6px; background:#e2e8f0; width:100%; margin-top:15px; border-radius:3px; overflow:hidden; display:none; }
@@ -99,7 +99,7 @@
         .msg-post-share .u-img { width: 32px; height: 32px; }
         .msg-post-share-title { font-weight: bold; margin-top: 8px; font-size: 0.9rem; color: var(--t); }
         .msg-post-share-text { font-size: 0.8rem; color: var(--tg); margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
-        .msg-bub .msg-post-share { margin: -5px; } /* Adjust padding for cards inside bubbles */
+        .msg-bub .msg-post-share { margin: -5px; } 
 
         /* Toast Notification */
         #tst { position:fixed; top:20px; left:50%; transform:translateX(-50%) translateY(-100px); background:#0f172a; color:white; padding:12px 24px; border-radius:50px; z-index:2000; font-size:0.9rem; opacity:0; transition:0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); display:flex; align-items:center; gap:10px; box-shadow:0 10px 30px rgba(0,0,0,0.3); }
@@ -114,6 +114,10 @@
         /* Chat Screen */
         #sc-ch { position:fixed; top:0; left:0; right:0; bottom:0; background:var(--bg); z-index:2000; display:flex; flex-direction:column; transform:translateX(100%); transition:transform 0.3s ease-in-out; }
         #sc-ch.show { transform:translateX(0); }
+        
+        /* Single Post View Screen */
+        #sc-post { position:fixed; top:0; left:0; right:0; bottom:0; background:var(--bg); z-index:1900; overflow-y:auto; display:none; padding-bottom: 20px; }
+        #sc-post.show { display:block; }
 
     </style>
 </head>
@@ -299,6 +303,17 @@
         <div id="sr-res" style="margin-top:15px"></div>
     </section>
 
+    <!-- SINGLE POST VIEW (NEW) -->
+    <div id="sc-post">
+        <div class="con">
+             <div class="flex-bw" style="margin-bottom:20px">
+                <button class="btn-s btn-o" onclick="app.closePostView()">⬅️ بازگشت به خانه</button>
+                <h3 style="color:var(--pd)">مشاهده پست</h3>
+            </div>
+            <div id="sc-post-content"></div>
+        </div>
+    </div>
+
     <!-- BOTTOM NAV -->
     <div class="nav">
         <div class="n-it active" id="n-hm" onclick="app.nav('hm')">🏠</div>
@@ -405,6 +420,15 @@
                     }
                 }
             };
+            
+            // Handle Browser Back Button for Single Post View
+            window.addEventListener('popstate', (event) => {
+                if (!event.state || !event.state.pid) {
+                    document.getElementById('sc-post').classList.remove('show');
+                } else if (event.state.pid) {
+                    this.showPost(event.state.pid, false);
+                }
+            });
         },
 
         call: async function(act, pl) {
@@ -488,6 +512,7 @@
             document.querySelectorAll('.n-it').forEach(i=>i.classList.remove('active'));
             
             document.getElementById('sc-ch').classList.remove('show');
+            document.getElementById('sc-post').classList.remove('show'); // Close post view on nav
             document.querySelector('#m-cm').classList.remove('show');
 
             if(p==='hm') { 
@@ -540,14 +565,13 @@
             else document.getElementById('feed-ldr').style.display='none';
         },
         
-        showPost: function(pid) {
+        showPost: function(pid, pushState = true) {
             if (this.st.posts.length === 0) {
-                setTimeout(() => this.showPost(pid), 500);
+                setTimeout(() => this.showPost(pid, pushState), 500);
                 return;
             }
             const post = this.st.posts.find(p => p.pid === pid);
             if (!post) {
-                this.nav('hm');
                 this.notif('پست مورد نظر یافت نشد', 'err');
                 return;
             }
@@ -556,23 +580,35 @@
 
             if (!canView) {
                 this.nav('pr', author.id);
-                this.notif('این پست خصوصی است و شما دسترسی ندارید', 'err');
+                this.notif('این پست خصوصی است', 'err');
                 return;
             }
 
-            document.querySelectorAll('section').forEach(s => s.classList.add('hide'));
-            document.getElementById('s-hm').classList.remove('hide');
-            document.getElementById('n-hm').classList.add('active');
-            
-            document.getElementById('sc-ch').classList.remove('show'); // Ensure chat is closed
-            document.querySelector('#m-nt').classList.remove('show'); // Ensure notifs are closed
+            // Close other modals and screens
+            document.getElementById('sc-ch').classList.remove('show');
+            document.getElementById('m-nt').classList.remove('show');
+            document.getElementById('m-ls').classList.remove('show');
+            document.getElementById('m-pk').classList.remove('show');
 
-            document.getElementById('new-bx').parentElement.classList.add('hide');
-            document.querySelector('#s-hm .inp').classList.add('hide');
-            document.getElementById('feed-up').innerHTML = '';
-            document.getElementById('feed').innerHTML = this.htmlP(post);
-            document.getElementById('feed-ldr').style.display = 'none';
-             window.scrollTo(0, 0);
+            // Show Single Post View Screen
+            const postScreen = document.getElementById('sc-post');
+            const postContent = document.getElementById('sc-post-content');
+            
+            postContent.innerHTML = this.htmlP(post);
+            postScreen.classList.add('show');
+            
+            if (pushState) {
+                const url = new URL(window.location);
+                url.searchParams.set('p', pid);
+                window.history.pushState({pid: pid}, '', url);
+            }
+        },
+
+        closePostView: function() {
+            document.getElementById('sc-post').classList.remove('show');
+            const url = new URL(window.location);
+            url.searchParams.delete('p');
+            window.history.pushState({}, '', url);
         },
 
         htmlU: (uid) => {
@@ -686,7 +722,7 @@
             const txt = document.getElementById('cm-in').value;
             if(!txt) return;
             const p = this.st.posts.find(x=>x.pid===this.st.cpid);
-            const newCm = {uid:this.st.user.id, text:txt};
+            const newCm = {uid:this.st.user.id, text:txt, time: Date.now()}; // Add time for sorting notifications
             p.comments.push(newCm);
             const b = document.getElementById('cm-bd');
             if(b.innerHTML.includes('هنوز نظری')) b.innerHTML='';
@@ -875,15 +911,23 @@
         autoLinker: function(t) {
             if(!t) return '';
             let text = t;
-            // Linkify URLs
+            // Internal Post Links (?p=...)
+            const postLinkRegex = new RegExp(location.origin + location.pathname + '\\?p=([a-zA-Z0-9_]+)', 'g');
+            text = text.replace(postLinkRegex, (match, pid) => {
+                 return `<span class="url-link" onclick="event.preventDefault(); event.stopPropagation(); app.showPost('${pid}')">مشاهده پست</span>`;
+            });
+
+            // Normal URLs
             const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])|(\bwww\.[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])|(\b[A-Z0-9.-]+\.[A-Z]{2,4}\b)/ig;
             text = text.replace(urlRegex, function(url) {
+                if(url.includes('?p=')) return url; // Skip if already processed
                 let href = url;
                 if (!href.match(/^[a-zA-Z]+:\/\//)) {
                     href = 'https://' + href;
                 }
                 return `<a href="${href}" class="url-link" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">${url}</a>`;
             });
+            
             // Linkify mentions
             const mentionRegex = /@(\w+)/g;
             text = text.replace(mentionRegex, (match, username) => {
@@ -1045,8 +1089,10 @@
         },
         srch: async function(el) {
             let raw = el.value;
+            // حذف کاراکترهای اضافی
             const v = raw.replace(/[@\s]/g, '').toLowerCase();
 
+            // محدودیت 5 کاراکتر (طبق دستور قبلی شما)
             if (v.length < 5) return;
 
             this.nav('sr'); 
@@ -1088,7 +1134,8 @@
             if (notifications.length === 0) {
                 b.innerHTML = '<p style="text-align:center;color:gray;padding:20px;">هیچ اعلان جدیدی وجود ندارد.</p>';
             } else {
-                notifications.slice(0, 20).forEach(n => {
+                // نمایش فقط ۱۰ اعلان آخر (دستور جدید)
+                notifications.slice(0, 10).forEach(n => {
                     const u = this.st.users.find(usr => usr.id === n.uid);
                     if (!u) return;
                     let text = '';
