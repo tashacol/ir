@@ -112,7 +112,7 @@
         .mod-bg.show .mod { transform:translateY(0); }
         
         /* Image Viewer Modal */
-        #m-img { align-items: center; } /* Center content specifically for image */
+        #m-img { align-items: center; } 
         #img-vw { max-width: 90%; max-height: 80vh; border-radius: 50%; border: 4px solid white; box-shadow: 0 10px 30px rgba(0,0,0,0.5); object-fit: cover; aspect-ratio: 1/1; }
 
         /* Chat Screen */
@@ -200,10 +200,12 @@
             <div class="flex-bw" style="margin-bottom:20px">
                 <button class="btn-i" id="bp-bk" onclick="app.nav('hm')">⬅️</button>
                 <h3 id="p-hd" style="font-size:1.1rem"></h3>
-                <button class="btn-i" onclick="document.getElementById('p-mn').classList.toggle('hide')">⋮</button>
-                <div id="p-mn" class="card hide" style="position:absolute; top:50px; left:20px; width:160px; z-index:10; padding:10px;">
-                    <div style="padding:10px; cursor:pointer; border-bottom:1px solid #eee" onclick="app.share('prof')">🔗 اشتراک‌گذاری</div>
-                    <div style="padding:10px; color:var(--err); cursor:pointer" onclick="app.block()">🚫 مسدود کردن</div>
+                <div style="position:relative">
+                    <button id="p-mn-btn" class="btn-i" onclick="event.stopPropagation(); document.getElementById('p-mn').classList.toggle('hide')">⋮</button>
+                    <div id="p-mn" class="card hide" style="position:absolute; top:40px; left:0; width:180px; z-index:100; padding:5px;">
+                        <div style="padding:12px; cursor:pointer; border-bottom:1px solid #eee; font-size:0.9rem" onclick="app.share('prof')">🔗 اشتراک‌گذاری</div>
+                        <div id="blk-btn" style="padding:12px; color:var(--err); cursor:pointer; font-size:0.9rem" onclick="app.block()">🚫 مسدود کردن</div>
+                    </div>
                 </div>
             </div>
             
@@ -224,7 +226,7 @@
                 
                 <div class="flex-bw" id="p-act" style="margin-top:20px; gap:12px">
                     <button id="b-fl" class="btn btn-p" onclick="app.fol()">دنبال کردن</button>
-                    <button class="btn btn-o" onclick="app.chat(app.st.vid)">پیام</button>
+                    <button id="b-msg" class="btn btn-o" onclick="app.chat(app.st.vid)">پیام</button>
                 </div>
             </div>
         </div>
@@ -297,6 +299,10 @@
             <div class="flex-bw" style="margin:15px 0; padding:10px 0; border-top:1px solid #eee"><span>🔒 حساب خصوصی</span> <input type="checkbox" id="st-pr" style="transform:scale(1.3)"></div>
             <div class="flex-bw" style="margin-bottom:20px"><span>💬 دریافت پیام</span> <input type="checkbox" id="st-al" style="transform:scale(1.3)"></div>
             
+            <div style="border-top:1px solid #eee; padding-top:15px; margin-top:20px;">
+                <button class="btn btn-o" onclick="app.listBlocked()" style="color:var(--err); border-color:var(--bor)">🚫 مدیریت کاربران مسدود شده</button>
+            </div>
+
             <!-- Custom Categories Management (NEW) -->
             <div style="border-top:1px solid #eee; padding-top:15px; margin-top:20px;">
                 <h4 style="margin-bottom:15px;">مدیریت دسته‌بندی‌ها (<span id="cat-count">0</span>/20)</h4>
@@ -361,7 +367,7 @@
 </div>
 
 <div id="m-ls" class="mod-bg" onclick="if(event.target==this) this.classList.remove('show')">
-    <div class="mod"><h3 id="ls-tt">لیست</h3><div id="ls-bd" style="margin-top:15px; max-height:400px; overflow-y:auto"></div></div>
+    <div class="mod"><h3 id="ls-tt">لیست</h3><div id="ls-bd" style="margin-top:15px; max-height:400px; overflow-y:auto"></div><button id="ls-more" class="btn btn-o hide" onclick="app.loadMoreList()">نمایش بیشتر</button></div>
 </div>
 
 <div id="m-cm" class="mod-bg" onclick="if(event.target==this) this.classList.remove('show')">
@@ -396,6 +402,7 @@
             </div>
         </div>
     </div>
+    <div style="padding:10px; text-align:center; background:var(--bg);"><button id="ch-load-more" class="btn-s btn-o hide" onclick="app.loadMoreMsgs()">پیام‌های قدیمی‌تر</button></div>
     <div id="ch-bx" style="flex:1; overflow-y:auto; padding:15px; display:flex; flex-direction:column; gap:4px; background:var(--bg)"></div>
     <div style="padding:15px; background:white; display:flex; gap:10px; border-top:1px solid var(--bor)">
         <input type="text" id="ch-in" class="inp" style="margin:0; border-radius:25px" placeholder="پیام خود را بنویسید..." onkeyup="if(event.key==='Enter') app.sndM()">
@@ -407,10 +414,19 @@
     const API_URL = 'https://script.google.com/macros/s/AKfycbyf_X4VQfe1YC95wWXkUkFrHAHDOCTmC6qzzsNCp-O57HvGikcAPZWlPAbS_9_kWrYI/exec';
 
     const app = {
-        st: { user:null, users:[], posts:[], msgs:[], vid:null, shr:null, cpid:null, guest:false, page:1, limit:20, syncing:false, postToSend: null, pickerMode: null, searchLimit: 10, tempUsers: [] },
+        st: { user:null, users:[], posts:[], msgs:[], vid:null, shr:null, cpid:null, guest:false, page:1, limit:20, listLimit:20, chatLimit:20, syncing:false, postToSend: null, pickerMode: null, searchLimit: 10, tempUsers: [], tempList: [], listType: null },
         
         init: async function() {
             this.showInitialSkeletons();
+            
+            // Global click listener to close menus
+            window.addEventListener('click', function(e) {
+                if (!e.target.matches('#p-mn-btn')) {
+                    const mn = document.getElementById('p-mn');
+                    if (mn && !mn.classList.contains('hide')) mn.classList.add('hide');
+                }
+            });
+
             if(localStorage.getItem('db')) {
                 const db = JSON.parse(localStorage.getItem('db'));
                 this.st.users=db.users||[]; this.st.posts=db.posts||[]; this.st.msgs=db.msgs||[];
@@ -440,12 +456,10 @@
 
             window.onscroll = () => {
                 if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200) {
-                    // Logic to load more posts on scroll
                     const isHome = !document.getElementById('s-hm').classList.contains('hide');
                     const isProfile = !document.getElementById('s-pr').classList.contains('hide');
                     
                     if (isHome || isProfile) {
-                        // Increase limit by 20 (as requested)
                         if(this.st.limit < this.st.posts.length) {
                             this.st.limit += 20;
                             if(isHome) this.feed();
@@ -455,7 +469,6 @@
                 }
             };
             
-            // Handle Browser Back Button for Single Post View
             window.addEventListener('popstate', (event) => {
                 if (!event.state || !event.state.pid) {
                     document.getElementById('sc-post').classList.remove('show');
@@ -500,7 +513,7 @@
                     const freshMe = this.st.users.find(u=>u.id===this.st.user.id);
                     if(freshMe) this.st.user = freshMe;
                     this.bdg();
-                    this.updateNotifBadge(); // Update notification badge on sync
+                    this.updateNotifBadge(); 
                 }
                 if(!document.getElementById('s-hm').classList.contains('hide')) this.feed(); 
                 if(document.getElementById('sc-ch').classList.contains('show')) this.rnC(); 
@@ -546,13 +559,13 @@
             document.querySelectorAll('.n-it').forEach(i=>i.classList.remove('active'));
             
             document.getElementById('sc-ch').classList.remove('show');
-            document.getElementById('sc-post').classList.remove('show'); // Close post view on nav
+            document.getElementById('sc-post').classList.remove('show');
             document.querySelector('#m-cm').classList.remove('show');
 
             if(p==='hm') { 
                 document.getElementById('s-hm').classList.remove('hide'); 
                 document.getElementById('n-hm').classList.add('active');
-                document.getElementById('hm-sr').value = ''; // Clear search bar on home nav
+                document.getElementById('hm-sr').value = '';
                 if (this.st.posts.length === 0) { document.getElementById('feed').innerHTML = this.htmlSkelPost(3); }
                 else { this.feed(); }
             }
@@ -565,7 +578,7 @@
             else if(p==='ad') { 
                 document.getElementById('s-ad').classList.remove('hide'); 
                 document.getElementById('n-ad').classList.add('active'); 
-                this.populateCategories(); // Populate categories on showing the page
+                this.populateCategories(); 
             }
             else if(p==='ms') { 
                 document.getElementById('s-ms').classList.remove('hide'); 
@@ -627,13 +640,11 @@
                 return;
             }
 
-            // Close other modals and screens
             document.getElementById('sc-ch').classList.remove('show');
             document.getElementById('m-nt').classList.remove('show');
             document.getElementById('m-ls').classList.remove('show');
             document.getElementById('m-pk').classList.remove('show');
 
-            // Show Single Post View Screen
             const postScreen = document.getElementById('sc-post');
             const postContent = document.getElementById('sc-post-content');
             
@@ -655,24 +666,27 @@
             this.nav('hm');
         },
         
-        // NEW FUNCTION: VIEW IMAGE
         viewImg: function(src) {
             if(!src || src.includes('undefined')) return;
             document.getElementById('img-vw').src = src;
             document.getElementById('m-img').classList.add('show');
         },
 
-        htmlU: (uid) => {
+        htmlU: (uid, isBlocked = false) => {
             const u = app.st.users.find(x=>x.id===uid); if(!u) return 'کاربر حذف شده';
             const i = u.pic ? `<img class="u-img" src="${u.pic}">` : `<div class="u-img" style="display:flex;align-items:center;justify-content:center;background:#cbd5e1;font-weight:bold">${u.name[0]}</div>`;
-            return `<div class="u-blk" onclick="event.stopPropagation();app.nav('pr','${u.id}')">${i}<div class="u-in"><div class="u-nm">${u.name}</div><div class="u-id">@${u.id}</div></div></div>`;
+            const action = isBlocked ? 
+                `<button class="btn-s btn-o" style="color:var(--err);border-color:var(--err)" onclick="app.unblock('${u.id}')">رفع مسدودی</button>` :
+                `<div class="u-in"><div class="u-nm">${u.name}</div><div class="u-id">@${u.id}</div></div>`;
+            
+            return `<div class="card flex-bw" onclick="app.nav('pr','${u.id}')"><div class="u-blk">${i}${action}</div></div>`;
         },
         
         htmlP: (p) => {
             const lk = p.likes.includes(app.st.user.id) ? 'lk' : '';
             
             let contentHtml = '';
-            const maxLength = 500; // CHANGED FROM 100 TO 500
+            const maxLength = 500; 
             if (p.text.length > maxLength) {
                 const shortText = p.text.substring(0, maxLength) + '... ';
                 contentHtml = `
@@ -685,10 +699,12 @@
 
             const postDate = new Date(p.time).toLocaleDateString('fa-IR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-            // CHANGED: Date moved to bottom, Text paragraph forced RTL/Block
+            const u = app.st.users.find(x=>x.id===p.uid);
+            const userHtml = u ? `<div class="u-blk" onclick="event.stopPropagation();app.nav('pr','${u.id}')">${u.pic ? `<img class="u-img" src="${u.pic}">` : `<div class="u-img" style="display:flex;align-items:center;justify-content:center;background:#cbd5e1;font-weight:bold">${u.name[0]}</div>`}<div class="u-in"><div class="u-nm">${u.name}</div><div class="u-id">@${u.id}</div></div></div>` : 'کاربر حذف شده';
+
             return `<div class="card" id="p-${p.pid}">
                 <div class="flex-bw">
-                    ${app.htmlU(p.uid)} 
+                    ${userHtml} 
                     <div style="text-align:left">
                         <span style="font-size:0.7rem;background:#e0f2fe;color:#0284c7;padding:3px 10px;border-radius:10px">${p.cat||'عمومی'}</span>
                     </div>
@@ -711,6 +727,12 @@
             document.getElementById('txt-s-' + pid).classList.add('hide');
             document.getElementById('txt-f-' + pid).classList.remove('hide');
         },
+        
+        readMoreMsg: function(el) {
+            el.previousElementSibling.classList.add('hide');
+            el.nextElementSibling.classList.remove('hide');
+            el.classList.add('hide');
+        },
 
         pub: async function(btn) {
             const p = { 
@@ -726,9 +748,13 @@
             this.nav('hm');
             window.scrollTo(0,0);
             const upBox = document.getElementById('feed-up');
+            
+            const u = this.st.user;
+            const userHtml = `<div class="u-blk">${u.pic ? `<img class="u-img" src="${u.pic}">` : `<div class="u-img" style="display:flex;align-items:center;justify-content:center;background:#cbd5e1;font-weight:bold">${u.name[0]}</div>`}<div class="u-in"><div class="u-nm">${u.name}</div><div class="u-id">@${u.id}</div></div></div>`;
+
             upBox.innerHTML = `
                 <div class="card sending" style="border:2px solid var(--p)">
-                    <div class="flex-bw">${this.htmlU(p.uid)}</div>
+                    <div class="flex-bw">${userHtml}</div>
                     <h4>${p.title}</h4>
                     <div class="prog-c" style="display:block"><div class="fill" style="width:0%"></div></div>
                     <div class="up-msg" style="color:var(--p)">در حال آپلود...</div>
@@ -776,13 +802,11 @@
             const p = this.st.posts.find(x=>x.pid===pid);
             if(!p || !p.likes.length) return this.notif('هنوز کسی این پست را لایک نکرده است', 'err');
             
-            const b = document.getElementById('ls-bd'); b.innerHTML = '';
+            this.st.tempList = p.likes;
+            this.st.listLimit = 20;
+            this.st.listType = 'likes';
+            this.renderList();
             document.getElementById('ls-tt').innerText = 'لایک‌کنندگان';
-            
-            p.likes.forEach(uid => {
-                b.innerHTML += `<div style="margin-bottom:10px">${app.htmlU(uid)}</div>`;
-            });
-            
             document.getElementById('m-ls').classList.add('show');
         },
         comm: function(pid) {
@@ -791,8 +815,11 @@
             const b = document.getElementById('cm-bd');
             b.innerHTML = p.comments.length ? '' : '<p style="text-align:center;color:gray;margin-top:20px">هنوز نظری ثبت نشده است</p>';
             p.comments.forEach(c => {
+                const u = app.st.users.find(x=>x.id===c.uid);
+                const userHtml = u ? `<div class="u-blk" onclick="event.stopPropagation();app.nav('pr','${u.id}')">${u.pic ? `<img class="u-img" src="${u.pic}">` : `<div class="u-img" style="display:flex;align-items:center;justify-content:center;background:#cbd5e1;font-weight:bold">${u.name[0]}</div>`}<div class="u-in"><div class="u-nm">${u.name}</div><div class="u-id">@${u.id}</div></div></div>` : 'کاربر حذف شده';
+                
                 b.innerHTML += `<div class="card" style="padding:12px; box-shadow:none; border-bottom:1px solid #eee; border-radius:0;">
-                    ${this.htmlU(c.uid)}
+                    ${userHtml}
                     <p style="font-size:0.9rem; margin-top:8px; padding-right:60px;">${app.autoLinker(c.text)}</p>
                 </div>`;
             });
@@ -802,12 +829,16 @@
             const txt = document.getElementById('cm-in').value;
             if(!txt) return;
             const p = this.st.posts.find(x=>x.pid===this.st.cpid);
-            const newCm = {uid:this.st.user.id, text:txt, time: Date.now()}; // Add time for sorting notifications
+            const newCm = {uid:this.st.user.id, text:txt, time: Date.now()}; 
             p.comments.push(newCm);
             const b = document.getElementById('cm-bd');
             if(b.innerHTML.includes('هنوز نظری')) b.innerHTML='';
+            
+            const u = this.st.user;
+            const userHtml = `<div class="u-blk" onclick="event.stopPropagation();app.nav('pr','${u.id}')">${u.pic ? `<img class="u-img" src="${u.pic}">` : `<div class="u-img" style="display:flex;align-items:center;justify-content:center;background:#cbd5e1;font-weight:bold">${u.name[0]}</div>`}<div class="u-in"><div class="u-nm">${u.name}</div><div class="u-id">@${u.id}</div></div></div>`;
+
             const tempHTML = `<div style="background:white;padding:12px;border-radius:12px;margin-bottom:8px;opacity:0.6;border:1px solid var(--p)">
-                    ${this.htmlU(this.st.user.id)}
+                    ${userHtml}
                     <p style="font-size:0.9rem; margin-top:8px; padding-right:60px;">${this.autoLinker(txt)} <span style="font-size:0.7rem;color:var(--p)">(در حال ارسال...)</span></p>
                 </div>`;
             b.insertAdjacentHTML('beforeend', tempHTML);
@@ -852,19 +883,25 @@
                 this.st.user.requests.forEach(rid => {
                     const u = this.st.users.find(x => x.id === rid);
                     if (u) {
-                        reqBox.innerHTML += `<div class="card flex-bw">${this.htmlU(rid)}<div><button class="btn-s btn-p" onclick="app.ans('${rid}',true)">پذیرفتن</button> <button class="btn-s btn-o" onclick="app.ans('${rid}',false)" style="margin-right:5px">رد</button></div></div>`;
+                        const userHtml = `<div class="u-blk" onclick="event.stopPropagation();app.nav('pr','${u.id}')">${u.pic ? `<img class="u-img" src="${u.pic}">` : `<div class="u-img" style="display:flex;align-items:center;justify-content:center;background:#cbd5e1;font-weight:bold">${u.name[0]}</div>`}<div class="u-in"><div class="u-nm">${u.name}</div><div class="u-id">@${u.id}</div></div></div>`;
+                        reqBox.innerHTML += `<div class="card flex-bw">${userHtml}<div><button class="btn-s btn-p" onclick="app.ans('${rid}',true)">پذیرفتن</button> <button class="btn-s btn-o" onclick="app.ans('${rid}',false)" style="margin-right:5px">رد</button></div></div>`;
                     }
                 });
             }
             
             const chats = [...new Set(this.st.msgs.filter(x => x.from === this.st.user.id || x.to === this.st.user.id).map(x => x.from === this.st.user.id ? x.to : x.from))];
-            if (chats.length === 0 && (!this.st.user.requests || this.st.user.requests.length === 0)) {
+            
+            // Limit loaded chats logic (though less critical than messages inside chat) - loading all headers for now but could limit here too.
+            // Following instruction 1: "loaded only last 20".
+            const limitedChats = chats.slice(0, 20); // Just showing last 20 active chats
+
+            if (limitedChats.length === 0 && (!this.st.user.requests || this.st.user.requests.length === 0)) {
                 msgBox.innerHTML = '<div style="text-align:center;padding:50px;color:gray"><div style="font-size:3rem">💬</div><p>هنوز پیامی ندارید</p></div>';
             } else {
                 msgBox.innerHTML += '<h4 style="margin:15px 5px 10px;color:var(--tg);font-size:0.9rem;">گفتگوها</h4>';
             }
             
-            chats.forEach(pid => {
+            limitedChats.forEach(pid => {
                 const u = this.st.users.find(x => x.id === pid);
                 if (!u) return;
 
@@ -876,7 +913,8 @@
                 let tick = '';
                 if (last.from === this.st.user.id) {
                      if(last.read) tick = '<span class="tik read">✓✓</span>';
-                     else if(last.id) tick = '<span class="tik sent">✓</span>';
+                     else if(last.id && last.id !== 'sent') tick = '<span class="tik sent">✓</span>'; // Logic correction
+                     else if(last.id === 'sent') tick = '<span class="tik sent">✓</span>';
                      else tick = '<span class="tik wait">🕓</span>';
                 }
 
@@ -892,10 +930,12 @@
                     lastMsgText = last.text;
                 }
 
+                const userHtml = `<div class="u-blk" onclick="event.stopPropagation();app.nav('pr','${u.id}')">${u.pic ? `<img class="u-img" src="${u.pic}">` : `<div class="u-img" style="display:flex;align-items:center;justify-content:center;background:#cbd5e1;font-weight:bold">${u.name[0]}</div>`}<div class="u-in"><div class="u-nm">${u.name}</div><div class="u-id">@${u.id}</div></div></div>`;
+
                 msgBox.innerHTML += `
                 <div class="card" onclick="app.chat('${pid}')" style="cursor:pointer; padding: 12px;" data-chat-id="${u.id}">
                     <div class="flex-bw">
-                        ${this.htmlU(u.id)}
+                        ${userHtml}
                         <small style="font-size:0.7rem;color:var(--tg); align-self: flex-start;">${new Date(last.time).toLocaleTimeString('fa-IR', {hour:'2-digit',minute:'2-digit'})}</small>
                     </div>
                     <div class="flex-bw" style="margin-top:8px; padding-right: 60px;">
@@ -910,9 +950,14 @@
         
         chat: function(uid) {
             const u = this.st.users.find(x=>x.id===uid);
-            if(!u.allowMsg && !u.following.includes(this.st.user.id)) return this.notif('امکان ارسال پیام به این کاربر وجود ندارد', 'err');
+            
+            // Check if chat history exists
+            const hasHistory = this.st.msgs.some(m => (m.from === this.st.user.id && m.to === uid) || (m.from === uid && m.to === this.st.user.id));
+            
+            if(!u.allowMsg && !u.following.includes(this.st.user.id) && !hasHistory) return this.notif('امکان ارسال پیام به این کاربر وجود ندارد', 'err');
             
             this.st.cpid = uid;
+            this.st.chatLimit = 20; // Reset chat limit
             document.getElementById('sc-ch').classList.add('show');
             document.getElementById('ch-hd').innerText = u.name;
             document.getElementById('ch-im').src = u.pic || '';
@@ -931,14 +976,24 @@
             const b=document.getElementById('ch-bx'); 
             b.innerHTML='';
             
-            const ms = this.st.msgs.filter(x=>(x.from==this.st.user.id&&x.to==this.st.cpid)||(x.from==this.st.cpid&&x.to==this.st.user.id));
+            let ms = this.st.msgs.filter(x=>(x.from==this.st.user.id&&x.to==this.st.cpid)||(x.from==this.st.cpid&&x.to==this.st.user.id));
+            ms.sort((a,b)=>a.time-b.time); // Sort by time ascending
+
+            // Pagination Logic
+            const totalMsgs = ms.length;
+            if (totalMsgs > this.st.chatLimit) {
+                document.getElementById('ch-load-more').classList.remove('hide');
+                ms = ms.slice(totalMsgs - this.st.chatLimit); // Take last N messages
+            } else {
+                document.getElementById('ch-load-more').classList.add('hide');
+            }
             
             ms.forEach(x=>{ 
                 const mine = x.from===this.st.user.id;
                 let tick = '';
                 if(mine) {
                      if(x.read) tick = '<span class="tik read">✓✓</span>';
-                     else if(x.id) tick = '<span class="tik sent">✓</span>';
+                     else if(x.id === 'sent') tick = '<span class="tik sent">✓</span>';
                      else tick = '<span class="tik wait">🕓</span>';
                 }
 
@@ -951,15 +1006,33 @@
                         throw new Error("Not a shared post");
                     }
                 } catch (e) {
-                    msgContent = this.autoLinker(x.text);
+                    // Logic for long text in messages
+                    const text = app.autoLinker(x.text);
+                    if (x.text.length > 500) {
+                         const shortText = app.autoLinker(x.text.substring(0, 500) + '... ');
+                         const fullText = text;
+                         msgContent = `
+                            <span>${shortText}</span>
+                            <span class="hide">${fullText}</span>
+                            <b style="cursor:pointer;color:var(--p);display:block;margin-top:5px" onclick="app.readMoreMsg(this)">بیشتر</b>
+                         `;
+                    } else {
+                        msgContent = text;
+                    }
                 }
                 
                 b.innerHTML += `<div class="msg-bub ${mine?'msg-me':'msg-ot'}">
-                    ${msgContent}
+                    <div style="text-align:right;direction:rtl;display:block;unicode-bidi:embed;">${msgContent}</div>
                     <div class="msg-tm">${tick} ${new Date(x.time).toLocaleTimeString('fa-IR', {hour:'2-digit',minute:'2-digit'})}</div>
                 </div>`; 
             });
-            b.scrollTop=b.scrollHeight;
+            // Scroll to bottom only if just opened or sent, logic implied by implementation
+            if (this.st.chatLimit === 20) b.scrollTop=b.scrollHeight;
+        },
+
+        loadMoreMsgs: function() {
+            this.st.chatLimit += 20;
+            this.rnC();
         },
         
         sndM: async function() {
@@ -969,12 +1042,17 @@
             this.st.msgs.push(m);
             
             this.rnC();
+            const b=document.getElementById('ch-bx'); b.scrollTop=b.scrollHeight;
             document.getElementById('ch-in').value='';
 
             try {
                 const res = await this.call('createMsg', m);
-                m.id = 'sent';
+                // Update specific message status
+                const sentMsg = this.st.msgs.find(x => x === m);
+                if(sentMsg) sentMsg.id = 'sent';
                 this.rnC();
+                // Ensure scroll stays if user is at bottom
+                 b.scrollTop=b.scrollHeight;
             } catch(e) {
                 this.notif('خطا در ارسال پیام', 'err');
             }
@@ -991,16 +1069,14 @@
         autoLinker: function(t) {
             if(!t) return '';
             let text = t;
-            // Internal Post Links (?p=...)
             const postLinkRegex = new RegExp(location.origin + location.pathname + '\\?p=([a-zA-Z0-9_]+)', 'g');
             text = text.replace(postLinkRegex, (match, pid) => {
                  return `<span class="url-link" onclick="event.preventDefault(); event.stopPropagation(); app.showPost('${pid}')">مشاهده پست</span>`;
             });
 
-            // Normal URLs
             const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])|(\bwww\.[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])|(\b[A-Z0-9.-]+\.[A-Z]{2,4}\b)/ig;
             text = text.replace(urlRegex, function(url) {
-                if(url.includes('?p=')) return url; // Skip if already processed
+                if(url.includes('?p=')) return url; 
                 let href = url;
                 if (!href.match(/^[a-zA-Z]+:\/\//)) {
                     href = 'https://' + href;
@@ -1008,7 +1084,6 @@
                 return `<a href="${href}" class="url-link" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">${url}</a>`;
             });
             
-            // Linkify mentions
             const mentionRegex = /@(\w+)/g;
             text = text.replace(mentionRegex, (match, username) => {
                 const u = this.st.users.find(x => x.id === username.toLowerCase());
@@ -1046,13 +1121,37 @@
             document.getElementById('c-pt').innerText=ps.length; document.getElementById('c-fl').innerText=u.followers.length; document.getElementById('c-fi').innerText=u.following.length;
             
             const acts = document.getElementById('p-act');
-            if(isMe) acts.classList.add('hide');
-            else {
+            
+            // Logic for Block Button in Menu
+            const blkBtn = document.getElementById('blk-btn');
+            if (me.blocked && me.blocked.includes(uid)) {
+                blkBtn.innerText = '✅ رفع مسدودی';
+                blkBtn.style.color = 'var(--suc)';
+            } else {
+                blkBtn.innerText = '🚫 مسدود کردن';
+                blkBtn.style.color = 'var(--err)';
+            }
+
+            if(isMe) {
+                acts.classList.add('hide');
+                document.getElementById('p-mn-btn').classList.add('hide'); // Hide menu for self
+            } else {
                 acts.classList.remove('hide');
+                document.getElementById('p-mn-btn').classList.remove('hide');
                 const b = document.getElementById('b-fl');
                 if(me.following.includes(uid)) { b.innerText='لغو دنبال کردن'; b.className='btn btn-o'; }
                 else if(u.requests && u.requests.includes(me.id)) { b.innerText='درخواست ارسال شد'; b.className='btn btn-o'; }
                 else { b.innerText='دنبال کردن'; b.className='btn btn-p'; }
+                
+                // Logic for Message Button (Command 3)
+                const msgBtn = document.getElementById('b-msg');
+                const hasHistory = this.st.msgs.some(m => (m.from === me.id && m.to === uid) || (m.from === uid && m.to === me.id));
+                
+                if (u.allowMsg || hasHistory) {
+                    msgBtn.classList.remove('hide');
+                } else {
+                    msgBtn.classList.add('hide');
+                }
             }
             const acc = isMe || !u.isPrivate || (u.isPrivate && u.followers.includes(me.id));
             document.getElementById('p-con').classList.toggle('hide', !acc);
@@ -1096,12 +1195,55 @@
             u.bio=document.getElementById('st-bi').value; u.web=document.getElementById('st-ln').value;
             u.mention=document.getElementById('st-mn').value; u.isPrivate=document.getElementById('st-pr').checked;
             u.allowMsg=document.getElementById('st-al').checked;
-            // customCats is already updated in st.user
             btn.innerHTML = '<span class="loading"></span>'; 
-            await this.call('updateUser', [u]); // Send as array
+            await this.call('updateUser', [u]); 
             this.notif('تنظیمات ذخیره شد', 'suc'); 
             btn.innerHTML='ذخیره تغییرات';
         },
+        
+        // Blocking Logic
+        block: function() {
+            const uid = this.st.vid;
+            if(!this.st.user.blocked) this.st.user.blocked = [];
+            
+            if (this.st.user.blocked.includes(uid)) {
+                this.st.user.blocked = this.st.user.blocked.filter(id => id !== uid);
+                this.notif('کاربر رفع مسدودی شد', 'suc');
+            } else {
+                this.st.user.blocked.push(uid);
+                // Unfollow if blocked
+                if(this.st.user.following.includes(uid)) {
+                    this.st.user.following = this.st.user.following.filter(id => id !== uid);
+                    const u = this.st.users.find(x => x.id === uid);
+                    if(u && u.followers.includes(this.st.user.id)) {
+                        u.followers = u.followers.filter(id => id !== this.st.user.id);
+                        this.call('updateUser', [u]);
+                    }
+                }
+                this.notif('کاربر مسدود شد', 'suc');
+            }
+            this.call('updateUser', [this.st.user]);
+            document.getElementById('p-mn').classList.add('hide');
+            this.prof(uid); // Re-render to update button text
+        },
+        
+        listBlocked: function() {
+            const l = this.st.user.blocked || [];
+            this.st.tempList = l;
+            this.st.listLimit = 20;
+            this.st.listType = 'blocked';
+            this.renderList();
+            document.getElementById('ls-tt').innerText = 'کاربران مسدود شده';
+            document.getElementById('m-ls').classList.add('show');
+        },
+        
+        unblock: function(uid) {
+            this.st.user.blocked = this.st.user.blocked.filter(id => id !== uid);
+            this.call('updateUser', [this.st.user]);
+            this.notif('کاربر رفع مسدودی شد', 'suc');
+            this.listBlocked(); // Refresh list
+        },
+
         share: function(t, id) {
             if (t !== 'post') {
                 const url = location.origin + location.pathname + '?u=' + (id || this.st.vid);
@@ -1158,7 +1300,6 @@
                 const recentChatIds = [...new Set(app.st.msgs.filter(x => x.from === app.st.user.id || x.to === app.st.user.id).map(x => x.from === app.st.user.id ? x.to : x.from))];
                 let sourceUsers = app.st.users.filter(u => recentChatIds.includes(u.id));
                 
-                // CHANGED: Added search by Name as well
                 if (searchTerm === '') {
                     usersToList = sourceUsers;
                 } else {
@@ -1170,7 +1311,8 @@
                 } else {
                     usersToList.forEach(u=>{ 
                         const action = app.st.pickerMode === 'post' ? `app.doSendPost('${u.id}')` : `app.snSh('${u.id}')`;
-                        l.innerHTML+=`<div class="card flex-bw">${app.htmlU(u.id)} <button class="btn-s btn-p" onclick="${action}">ارسال</button></div>`;
+                        const userHtml = `<div class="u-blk">${u.pic ? `<img class="u-img" src="${u.pic}">` : `<div class="u-img" style="display:flex;align-items:center;justify-content:center;background:#cbd5e1;font-weight:bold">${u.name[0]}</div>`}<div class="u-in"><div class="u-nm">${u.name}</div><div class="u-id">@${u.id}</div></div></div>`;
+                        l.innerHTML+=`<div class="card flex-bw">${userHtml} <button class="btn-s btn-p" onclick="${action}">ارسال</button></div>`;
                     });
                 }
             }, 300);
@@ -1185,7 +1327,7 @@
             if (v.length >= 5) {
                 this.nav('sr');
                 document.getElementById('sr-inp').value = raw;
-                this.doSearch(); // Automatically search when redirected
+                this.doSearch(); 
             }
         },
         doSearch: async function() {
@@ -1215,7 +1357,8 @@
             const list = this.st.tempUsers.slice(0, this.st.searchLimit);
             b.innerHTML = '';
             list.forEach(u => {
-                b.innerHTML += `<div class="card">${this.htmlU(u.id)}</div>`;
+                const userHtml = `<div class="u-blk" onclick="event.stopPropagation();app.nav('pr','${u.id}')">${u.pic ? `<img class="u-img" src="${u.pic}">` : `<div class="u-img" style="display:flex;align-items:center;justify-content:center;background:#cbd5e1;font-weight:bold">${u.name[0]}</div>`}<div class="u-in"><div class="u-nm">${u.name}</div><div class="u-id">@${u.id}</div></div></div>`;
+                b.innerHTML += `<div class="card">${userHtml}</div>`;
             });
             
             if (this.st.tempUsers.length > this.st.searchLimit) {
@@ -1231,26 +1374,42 @@
         list: (t) => {
             const u = app.st.users.find(x => x.id === app.st.vid);
             if (!u) return;
-            
             if(t==='posts') return;
             
-            // FIX: Ensure list is an array and modal handles empty state correctly
-            const l = (t === 'fol' ? u.followers : u.following) || [];
+            this.st.tempList = (t === 'fol' ? u.followers : u.following) || [];
+            this.st.listLimit = 20;
+            this.st.listType = t;
             
-            const b = document.getElementById('ls-bd'); 
-            b.innerHTML = '';
-            
-            if(l.length === 0) {
-                b.innerHTML = '<p style="text-align:center; padding:20px; color:var(--tg)">خالی</p>';
-            } else {
-                l.forEach(id => {
-                    b.innerHTML += `<div style="margin-bottom:10px">${app.htmlU(id)}</div>`;
-                });
-            }
-            
+            this.renderList();
             document.getElementById('ls-tt').innerText = t==='fol'?'دنبال‌کنندگان':'دنبال‌شوندگان';
             document.getElementById('m-ls').classList.add('show');
         },
+        renderList: function() {
+            const b = document.getElementById('ls-bd'); 
+            b.innerHTML = '';
+            
+            const listToRender = this.st.tempList.slice(0, this.st.listLimit);
+            const isBlockedList = this.st.listType === 'blocked';
+
+            if(listToRender.length === 0) {
+                b.innerHTML = '<p style="text-align:center; padding:20px; color:var(--tg)">خالی</p>';
+            } else {
+                listToRender.forEach(id => {
+                    b.innerHTML += `<div style="margin-bottom:10px">${app.htmlU(id, isBlockedList)}</div>`;
+                });
+            }
+            
+            if (this.st.tempList.length > this.st.listLimit) {
+                document.getElementById('ls-more').classList.remove('hide');
+            } else {
+                document.getElementById('ls-more').classList.add('hide');
+            }
+        },
+        loadMoreList: function() {
+            this.st.listLimit += 20;
+            this.renderList();
+        },
+        
         showNotifs: function() {
             localStorage.setItem('lastSeenNotif', Date.now());
             this.updateNotifBadge();
@@ -1261,10 +1420,14 @@
             const notifications = this.getNotifications();
 
             b.innerHTML = '';
-            if (notifications.length === 0) {
+            
+            // Limit notifications to last 20 for initial load
+            const limitedNotifs = notifications.slice(0, 20);
+
+            if (limitedNotifs.length === 0) {
                 b.innerHTML = '<p style="text-align:center;color:gray;padding:20px;">هیچ اعلان جدیدی وجود ندارد.</p>';
             } else {
-                notifications.slice(0, 10).forEach(n => {
+                limitedNotifs.forEach(n => {
                     const u = this.st.users.find(usr => usr.id === n.uid);
                     if (!u) return;
                     let text = '';
@@ -1275,8 +1438,9 @@
                         case 'follow': text = `شما را دنبال کرد.`; break;
                         case 'request': text = `یک درخواست دنبال کردن ارسال کرد.`; break;
                     }
+                    const userHtml = `<div class="u-blk">${u.pic ? `<img class="u-img" src="${u.pic}">` : `<div class="u-img" style="display:flex;align-items:center;justify-content:center;background:#cbd5e1;font-weight:bold">${u.name[0]}</div>`}<div class="u-in"><div class="u-nm">${u.name}</div><div class="u-id">@${u.id}</div></div></div>`;
                     b.innerHTML += `<div class="card" style="padding:12px; font-size:0.9rem; display:flex; flex-direction:column; gap:8px; cursor:pointer;" ${action}>
-                        ${this.htmlU(u.id)}
+                        ${userHtml}
                         <div style="padding-right:60px;">${text}</div>
                     </div>`;
                 });
@@ -1319,7 +1483,6 @@
             const chatItems = document.querySelectorAll('#msg-bx .card');
             chatItems.forEach(item => {
                 const chatId = item.dataset.chatId.toLowerCase();
-                // CHANGED: Search by Name too
                 const user = app.st.users.find(u => u.id === item.dataset.chatId);
                 const userName = user ? user.name.toLowerCase() : '';
                 
@@ -1376,9 +1539,12 @@
                 return '<div class="msg-post-share" style="opacity:0.7;">پست حذف شده است</div>';
             }
             const author = this.st.users.find(u => u.id === post.uid);
+            
+            const userHtml = `<div class="u-blk" onclick="event.stopPropagation();app.nav('pr','${author.id}')">${author.pic ? `<img class="u-img" src="${author.pic}">` : `<div class="u-img" style="display:flex;align-items:center;justify-content:center;background:#cbd5e1;font-weight:bold">${author.name[0]}</div>`}<div class="u-in"><div class="u-nm">${author.name}</div><div class="u-id">@${author.id}</div></div></div>`;
+
             return `
                 <div class="msg-post-share" onclick="app.showPost('${pid}')">
-                    ${this.htmlU(author.id)}
+                    ${userHtml}
                     <div class="msg-post-share-title">${post.title}</div>
                     <div class="msg-post-share-text">${post.text}</div>
                 </div>
@@ -1428,19 +1594,16 @@
                 badge.classList.add('hide');
             }
         },
-        // --- NEW FUNCTIONS FOR CUSTOM CATEGORIES ---
         populateCategories: function() {
             const select = document.getElementById('a-ct');
-            select.innerHTML = ''; // Clear old options
+            select.innerHTML = ''; 
             
-            // Add default categories
             const defaults = ['📝 عمومی', '📚 کتاب', '🎬 فیلم', '🌐 سایت', '💡 ایده'];
             defaults.forEach(cat => {
                 const val = cat.split(' ')[1];
                 select.innerHTML += `<option value="${val}">${cat}</option>`;
             });
 
-            // Add user's custom categories
             if (this.st.user && this.st.user.customCats) {
                 this.st.user.customCats.forEach(cat => {
                     select.innerHTML += `<option value="${cat}">${cat}</option>`;
