@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+   <!DOCTYPE html> 
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -683,6 +683,7 @@
                 status: 'آموزشی',
                 reason: '',
                 session: '',
+                remaining: '', // افزوده شده: شمارشگر مانده جلسات
                 isHoliday: false,
                 css: ''
             };
@@ -798,6 +799,18 @@
             if(wd === 5) weekIdx++;
             curr.setDate(curr.getDate() + 1);
         }
+
+        // افزوده شده: محاسبه دقیق ستون مانده (معکوس جلسات) پس از اتمام پردازش بازه
+        let maxSession = session - 1; // کل جلسات یافت شده در این بازه
+        result.forEach(r => {
+            if(r.session !== '-') {
+                // محاسبه معکوس شمارشگر با فرمول: کل جلسات - جلسه فعلی + 1
+                r.remaining = maxSession - r.session + 1;
+            } else {
+                r.remaining = '-'; // برای روزهای تعطیل و امتحانات
+            }
+        });
+
         return result;
     }
 
@@ -839,6 +852,7 @@
                         <th width="10%">وضعیت</th>
                         <th width="40%">توضیحات / مناسبت</th>
                         <th width="10%">جلسه</th>
+                        <th width="10%">مانده</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -855,6 +869,7 @@
                     <td><strong>${r.status}</strong></td>
                     <td style="text-align:right">${r.reason}</td>
                     <td><strong>${r.session}</strong></td>
+                    <td><strong>${r.remaining}</strong></td>
                 </tr>
             `;
         });
@@ -884,8 +899,8 @@
         const headerStyle = { name: 'Vazir', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
         const center = { vertical: 'middle', horizontal: 'center' };
         
-        // Header (تصحیح شد: تعداد ستون‌های پایه 6 عدد است)
-        const colCount = 6 + (showGreg ? 1 : 0) + (showLunar ? 1 : 0);
+        // Header (تصحیح شد: تعداد ستون‌های پایه با افزودن ستون مانده به 7 عدد رسید)
+        const colCount = 7 + (showGreg ? 1 : 0) + (showLunar ? 1 : 0);
         const mergeRange = `A1:${String.fromCharCode(64 + colCount)}1`;
         const subMergeRange = `A2:${String.fromCharCode(64 + colCount)}2`;
 
@@ -903,7 +918,7 @@
         const headers =['ردیف', 'روز', 'تاریخ شمسی'];
         if(showGreg) headers.push('تاریخ میلادی');
         if(showLunar) headers.push('تاریخ قمری');
-        headers.push('وضعیت', 'توضیحات', 'جلسه');
+        headers.push('وضعیت', 'توضیحات', 'جلسه', 'مانده');
         
         const rowHeader = ws.addRow(headers);
         rowHeader.eachCell(c => {
@@ -918,7 +933,7 @@
             const vals =[i+1, d.dayName, d.fullDate];
             if(showGreg) vals.push(d.gDate);
             if(showLunar) vals.push(d.lDate);
-            vals.push(d.status, d.reason, d.session);
+            vals.push(d.status, d.reason, d.session, d.remaining);
 
             const r = ws.addRow(vals);
             
@@ -937,12 +952,12 @@
             });
         });
 
-        // Widths
+        // Widths (افزودن عرض مناسب برای ستون جدید مانده)
         ws.columns =[
             { width: 6 }, { width: 12 }, { width: 15 }, 
-            ...(showGreg ?[{ width: 15 }] : []),
+            ...(showGreg ?[{ width: 15 }] :[]),
             ...(showLunar ? [{ width: 15 }] :[]),
-            { width: 15 }, { width: 50 }, { width: 8 }
+            { width: 15 }, { width: 50 }, { width: 8 }, { width: 8 }
         ];
 
         const buffer = await wb.xlsx.writeBuffer();
