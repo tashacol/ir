@@ -190,11 +190,12 @@
         text-rendering: geometricPrecision; /* برای حل مشکل نیم فاصله */
     }
 
+    /* اعمال نظم حرفه‌ای و تراز دقیق برای سربرگ */
     .letter-head { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; flex-shrink: 0; }
-    .head-col { flex: 1; display: flex; flex-direction: column; justify-content: center; }
-    .head-right { text-align: right; font-size: 11px; }
-    .head-center { text-align: center; flex: 1.5; font-weight: bold; font-size: 17px; }
-    .head-left { text-align: left; font-size: 11px; }
+    .head-col { flex: 1; display: flex; flex-direction: column; justify-content: flex-start; }
+    .head-right { align-items: flex-start; text-align: right; font-size: 11px; }
+    .head-center { align-items: center; text-align: center; flex: 1.5; font-weight: bold; font-size: 17px; }
+    .head-left { align-items: flex-end; text-align: left; font-size: 11px; }
 
     .letter-content { flex-grow: 1; display: flex; flex-direction: column; font-size: 14px; overflow: hidden; }
     
@@ -456,26 +457,32 @@
     function createEmptySheet(isPage2, pageNum) {
         const div = document.createElement('div');
         div.className = 'sheet';
-        // در پیوست، عنوان بسمه تعالی را حذف کرده ایم و به جای آن در سربرگ می‌نویسیم پیوست نامه
-        const title = isPage2 ? "" : "بسمه تعالی"; 
         
-        // در پیوست، امضا باید در همه صفحات باشد. در نامه اصلی فقط پایان متن.
-        const sigStyle = isPage2 ? 'display:block;' : 'display:none;'; 
+        // تنظیم نمایش بسمه تعالی فقط در صفحه اول نامه (درخواست 3)
+        const title = (!isPage2 && pageNum === 1) ? "بسمه تعالی" : ""; 
+        
+        // امضا را به صورت پیش‌فرض در تمام صفحات مخفی می‌کنیم تا در انتهای پردازش روی آخرین صفحه قرار گیرد (درخواست 1)
+        const sigStyle = 'display:none;'; 
 
-        // اطلاعات سمت چپ سربرگ
-        let attachHeaderInfo = "";
+        // اطلاعات سمت چپ و راست سربرگ با توجه به دستورات
+        let rightExtra = "";
+        let leftExtra = "";
+
         if (isPage2) {
             // سربرگ پیوست
-            attachHeaderInfo = `
-                <p>پیوست نامه</p>
-                <p>صفحه: ${toPersian(pageNum)}</p>
-            `;
+            // درخواست 2: متن پیوست نامه به زیر آدرس منتقل شد
+            rightExtra = `<p>پیوست نامه</p>`;
+            leftExtra = `<p>صفحه: ${toPersian(pageNum)}</p>`;
         } else {
             // سربرگ نامه اصلی
-            attachHeaderInfo = `
-                <p class="main-attach-info">پیوست: نامشخص</p>
-                ${pageNum > 1 ? `<p>صفحه: ${toPersian(pageNum)}</p>` : ''}
-            `;
+            if (pageNum === 1) {
+                // درخواست 4: زیر آدرس صفحات: فلان اضافه شد
+                rightExtra = `<p class="main-pages-info">صفحات: نامشخص</p>`;
+                leftExtra = `<p class="main-attach-info">پیوست: نامشخص</p>`;
+            } else {
+                // درخواست 5: در صفحات دیگر نامه، زیر تاریخ، صفحه: فلان جایگزین شد
+                leftExtra = `<p>صفحه: ${toPersian(pageNum)}</p>`;
+            }
         }
 
         div.innerHTML = `
@@ -483,6 +490,7 @@
                 <div class="head-col head-right">
                     <p>تلفن: ۰۹۱۳۵۰۷۶۵۸۷</p>
                     <p>آدرس: جیرفت، خ استقلال</p>
+                    ${rightExtra}
                 </div>
                 <div class="head-col head-center">
                     <p>مؤسسه تعالی اندیشه و رشد</p>
@@ -491,7 +499,7 @@
                 <div class="head-col head-left">
                     <p>شماره: ${toPersian(letterData.num || '')}</p>
                     <p>تاریخ: ${toPersian(letterData.date || '')}</p>
-                    ${attachHeaderInfo}
+                    ${leftExtra}
                 </div>
             </div>
             
@@ -540,7 +548,7 @@
                     span.textContent = token;
                     textContainer.appendChild(span);
 
-                    // بررسی سرریز شدن از ارتفاع مجاز کانتینر محتوا (اصلاح بنیادین سنجش ارتفاع)
+                    // بررسی سرریز شدن از ارتفاع مجاز کانتینر محتوا
                     if (contentBox.scrollHeight > contentBox.clientHeight) {
                         span.remove(); // حذف کلمه سرریز شده
                         sheets.push(currentSheet); // نهایی کردن صفحه فعلی
@@ -570,26 +578,6 @@
                         textContainer = currentSheet.querySelector('.text-body');
                     }
                 }
-            }
-        }
-
-        // مدیریت امضای نامه اصلی (اگر جا نشد به صفحه بعد برود)
-        if (!isAttach) {
-            let sig = currentSheet.querySelector('.signature-section');
-            sig.style.display = 'block';
-            
-            // مکثی کوتاه می‌دهیم تا مرورگر فرصت محاسبه فضای امضا را داشته باشد
-            await new Promise(r => setTimeout(r, 10));
-
-            if (contentBox.scrollHeight > contentBox.clientHeight) {
-                // اگر با باز شدن امضا سرریز شد، امضا به تنهایی به صفحه بعد میرود
-                sig.style.display = 'none';
-                sheets.push(currentSheet);
-                
-                currentSheet = createEmptySheet(false, sheets.length + 1);
-                testContainer.appendChild(currentSheet);
-                contentBox = currentSheet.querySelector('.letter-content');
-                currentSheet.querySelector('.signature-section').style.display = 'block';
             }
         }
 
@@ -651,6 +639,24 @@
                     imgContainer.appendChild(wrapper); // قرار دادن عکس در صفحه جدید
                 }
             }
+        }
+
+        // نمایش امضا در صفحه آخر (هم برای نامه اصلی و هم برای پیوست)
+        let sig = currentSheet.querySelector('.signature-section');
+        sig.style.display = 'block';
+        
+        // مکثی کوتاه می‌دهیم تا مرورگر فرصت محاسبه فضای امضا را داشته باشد
+        await new Promise(r => setTimeout(r, 10));
+
+        if (contentBox.scrollHeight > contentBox.clientHeight) {
+            // اگر با باز شدن امضا سرریز شد، امضا به تنهایی به صفحه بعد میرود
+            sig.style.display = 'none';
+            sheets.push(currentSheet);
+            
+            currentSheet = createEmptySheet(isAttach, sheets.length + 1);
+            testContainer.appendChild(currentSheet);
+            contentBox = currentSheet.querySelector('.letter-content');
+            currentSheet.querySelector('.signature-section').style.display = 'block';
         }
 
         sheets.push(currentSheet);
@@ -747,14 +753,17 @@
                     attachSheets = await renderPaginatedSheets(letterData.attach, true, activeImages);
                 }
 
-                // 3. بروزرسانی هدر نامه‌های اصلی با تعداد پیوست‌ها
+                // 3. بروزرسانی هدر نامه‌های اصلی با تعداد پیوست‌ها و صفحات
                 let attachCount = attachSheets.length;
                 let attachText = attachCount > 0 ? `${toPersian(attachCount)} صفحه` : "ندارد";
+                let mainCountText = `${toPersian(mainSheets.length)} صفحه`;
+
                 mainSheets.forEach(sheet => {
                     let attachInfoEl = sheet.querySelector('.main-attach-info');
-                    if (attachInfoEl) {
-                        attachInfoEl.textContent = `پیوست: ${attachText}`;
-                    }
+                    if (attachInfoEl) attachInfoEl.textContent = `پیوست: ${attachText}`;
+                    
+                    let pagesInfoEl = sheet.querySelector('.main-pages-info');
+                    if (pagesInfoEl) pagesInfoEl.textContent = `صفحات: ${mainCountText}`;
                 });
 
                 // اضافه کردن کل صفحات به محیط پیش‌نمایش
