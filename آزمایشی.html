@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>سامانه جامع مکاتبات</title>
 
-<!-- فونت‌ها (ویرایش شده: اضافه شدن crossorigin برای لود کامل قبل از چاپ) -->
-<link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+<!-- فونت‌ها -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;700&display=swap" rel="stylesheet" crossorigin="anonymous">
-<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
 <!-- استایل برش تصویر -->
 <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
 
@@ -173,7 +173,6 @@
     #renderCanvas { position: fixed; left: -9999px; top: 0; }
 
     /* --- استایل کاغذ A5 (استاندارد) --- */
-    /* ویرایش شده: اعمال دستورات CSS برای حفظ اتصال حروف و فونت */
     .sheet {
         width: 148mm; height: 210mm;
         background: #fff; padding: 15mm 12mm;
@@ -184,18 +183,11 @@
     }
     /* تنظیمات فونت برای جلوگیری از جدا شدن حروف */
     .sheet * { 
-        font-family: 'Vazirmatn', 'Amiri', serif; /* اضافه شدن Vazirmatn در اولویت طبق دستور */
+        font-family: 'Amiri', serif; 
         color: #000; 
         line-height: 1.8;
         font-variant-ligatures: common-ligatures;
-        text-rendering: optimizeLegibility; /* تغییر داده شد طبق دستور */
-        -webkit-font-smoothing: antialiased; /* اضافه شد طبق دستور */
-        font-feature-settings: "liga" 1, "calt" 1; /* اضافه شد طبق دستور */
-        direction: rtl; /* اضافه شد طبق دستور */
-        unicode-bidi: isolate; /* اضافه شد طبق دستور */
-        word-break: normal; /* اضافه شد طبق دستور */
-        overflow-wrap: break-word; /* اضافه شد طبق دستور */
-        white-space: pre-wrap; /* اضافه شد طبق دستور */
+        text-rendering: geometricPrecision; /* برای حل مشکل نیم فاصله */
     }
 
     .letter-head { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; flex-shrink: 0; }
@@ -502,23 +494,18 @@
         return div;
     }
 
-    // موتور هوشمند صفحه‌بندی (ویرایش شده: اضافه شدن پاک‌ساز کاراکترهای مخرب)
+    // موتور هوشمند صفحه‌بندی (جایگزین تابع استاتیک قبلی برای مدیریت طولانی شدن متن و تصاویر)
     function renderPaginatedSheets(text, isAttach, imagesArray = []) {
-        let sheets =[];
+        let sheets = [];
         let currentSheet = createEmptySheet(isAttach, 1);
         let testContainer = document.getElementById('renderCanvas');
         testContainer.appendChild(currentSheet);
         
         let textContainer = currentSheet.querySelector('.text-body');
 
-        // پردازش، پاک‌سازی و صفحه‌بندی هوشمند متن کلمه به کلمه
-        if (text && text.trim()) {
-            // اضافه شدن بخش حیاتی طبق دستور: پاکسازی U+200B اشتباه و نرمال‌سازی NFC
-            let sanitizedText = text;
-            sanitizedText = sanitizedText.replace(/\u200B/g, ''); // حذف ZWSP اشتباه
-            sanitizedText = sanitizedText.normalize('NFC');       // نرمال‌سازی یونیکد
-            
-            let paragraphs = sanitizedText.split('\n');
+        // پردازش و صفحه‌بندی هوشمند متن کلمه به کلمه (جلوگیری از شکستن نیم‌فاصله)
+        if (text.trim()) {
+            let paragraphs = text.split('\n');
             for (let p = 0; p < paragraphs.length; p++) {
                 let pText = paragraphs[p];
                 if (!pText.trim() && p !== paragraphs.length - 1) {
@@ -650,7 +637,7 @@
         
         // جمع‌آوری اطلاعات تمام تصاویر داینامیک نامحدود
         let activeImages = [];
-        let imageDescriptions =[];
+        let imageDescriptions = [];
         let indexCounter = 1;
         
         for (let key in finalImages) {
@@ -708,7 +695,7 @@
                 wrapper.innerHTML = ''; canvasArea.innerHTML = '';
 
                 // 1. تولید صفحات نامه اصلی (بدون عکس)
-                const mainSheets = renderPaginatedSheets(letterData.txt, false,[]);
+                const mainSheets = renderPaginatedSheets(letterData.txt, false, []);
                 mainSheets.forEach(s => {
                     wrapper.appendChild(s.cloneNode(true));
                     canvasArea.appendChild(s);
@@ -739,17 +726,10 @@
         }
     });
 
-    // تابع اصلی تولید PDF (ویرایش شده طبق دستورات محافظت از فونت)
+    // تابع اصلی تولید PDF
     async function downloadPDF() {
         const dBtn = document.getElementById('downloadPdfBtn');
         dBtn.disabled = true; dBtn.classList.add('loading');
-
-        // دستور مهم اضافه شده: قبل از اجرای html2canvas صبر کن فونت‌ها آماده شوند
-        await document.fonts.ready;
-        try {
-            await document.fonts.load('16px "Vazirmatn"');
-            await document.fonts.load('16px "Amiri"');
-        } catch(e) { console.log("خطا در پیش‌بارگذاری فونت:", e); }
 
         const { jsPDF } = window.jspdf;
         const sheets = document.querySelectorAll('#renderCanvas .sheet');
@@ -764,20 +744,13 @@
             await html2canvas(sheet, {
                 scale: 3, // کیفیت بالا
                 useCORS: true,
-                allowTaint: true, // اضافه شده طبق دستور
-                foreignObjectRendering: true, // اضافه شده طبق دستور
                 onclone: (doc) => {
-                    // تغییرات حیاتی هنگام کلون گرفتن برای کتابخانه html2canvas طبق دستور جدید
+                    // تغییرات حیاتی هنگام کلون گرفتن برای کتابخانه html2canvas
                     const texts = doc.querySelectorAll('.text-body, .text-body span, .sig-text, p');
                     texts.forEach(t => {
-                        t.style.letterSpacing = 'normal'; // تغییر طبق دستور 
+                        t.style.letterSpacing = '0px'; // حیاتی ترین بخش برای جلوگیری از شکستن حروف
                         t.style.fontVariantLigatures = 'common-ligatures'; 
                         t.style.textRendering = 'geometricPrecision'; 
-                        t.style.fontFeatureSettings = '"liga" 1, "calt" 1'; // اضافه شده طبق دستور
-                        t.style.webkitFontSmoothing = 'antialiased'; // اضافه شده طبق دستور
-                        // اطمینان از جهت نوشتار
-                        t.style.direction = 'rtl'; // اضافه شده طبق دستور
-                        t.style.unicodeBidi = 'isolate-override'; // اضافه شده طبق دستور
                         t.style.textAlign = 'right'; // الزامی جهت جلوگیری از کشیدگی مخرب در جاستیفای 
                     });
                 }
