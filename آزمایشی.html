@@ -456,10 +456,27 @@
     function createEmptySheet(isPage2, pageNum) {
         const div = document.createElement('div');
         div.className = 'sheet';
-        const title = isPage2 ? "پیوست نامه" : "بسمه تعالی";
+        // در پیوست، عنوان بسمه تعالی را حذف کرده ایم و به جای آن در سربرگ می‌نویسیم پیوست نامه
+        const title = isPage2 ? "" : "بسمه تعالی"; 
         
         // در پیوست، امضا باید در همه صفحات باشد. در نامه اصلی فقط پایان متن.
         const sigStyle = isPage2 ? 'display:block;' : 'display:none;'; 
+
+        // اطلاعات سمت چپ سربرگ
+        let attachHeaderInfo = "";
+        if (isPage2) {
+            // سربرگ پیوست
+            attachHeaderInfo = `
+                <p>پیوست نامه</p>
+                <p>صفحه: ${toPersian(pageNum)}</p>
+            `;
+        } else {
+            // سربرگ نامه اصلی
+            attachHeaderInfo = `
+                <p class="main-attach-info">پیوست: نامشخص</p>
+                ${pageNum > 1 ? `<p>صفحه: ${toPersian(pageNum)}</p>` : ''}
+            `;
+        }
 
         div.innerHTML = `
             <div class="letter-head">
@@ -474,14 +491,14 @@
                 <div class="head-col head-left">
                     <p>شماره: ${toPersian(letterData.num || '')}</p>
                     <p>تاریخ: ${toPersian(letterData.date || '')}</p>
-                    ${isPage2 ? `<p>صفحه: ${toPersian(pageNum)}</p>` : ''}
+                    ${attachHeaderInfo}
                 </div>
             </div>
             
             <div class="letter-content">
-                <p style="text-align:center; font-weight:bold; margin-bottom:15px;">${title}</p>
+                ${title ? `<p style="text-align:center; font-weight:bold; margin-bottom:15px;">${title}</p>` : ''}
                 ${!isPage2 && pageNum === 1 ? `<p style="font-weight:bold; margin-bottom:10px;">ریاست محترم ${letterData.dept}</p>` : ''}
-                ${pageNum === 1 ? `<p style="margin-bottom:15px;">موضوع: ${letterData.subj}</p>` : ''}
+                ${!isPage2 && pageNum === 1 ? `<p style="margin-bottom:15px;">موضوع: ${letterData.subj}</p>` : ''}
                 
                 <div class="text-body"></div>
             </div>
@@ -494,17 +511,18 @@
         return div;
     }
 
-    // موتور هوشمند صفحه‌بندی (جایگزین تابع استاتیک قبلی برای مدیریت طولانی شدن متن و تصاویر)
-    function renderPaginatedSheets(text, isAttach, imagesArray = []) {
-        let sheets = [];
+    // موتور هوشمند صفحه‌بندی اصلاح شده و ناهمگام (Async)
+    async function renderPaginatedSheets(text, isAttach, imagesArray = []) {
+        let sheets =[];
         let currentSheet = createEmptySheet(isAttach, 1);
         let testContainer = document.getElementById('renderCanvas');
         testContainer.appendChild(currentSheet);
         
+        let contentBox = currentSheet.querySelector('.letter-content');
         let textContainer = currentSheet.querySelector('.text-body');
 
         // پردازش و صفحه‌بندی هوشمند متن کلمه به کلمه (جلوگیری از شکستن نیم‌فاصله)
-        if (text.trim()) {
+        if (text && text.trim()) {
             let paragraphs = text.split('\n');
             for (let p = 0; p < paragraphs.length; p++) {
                 let pText = paragraphs[p];
@@ -522,14 +540,15 @@
                     span.textContent = token;
                     textContainer.appendChild(span);
 
-                    // بررسی سرریز شدن از ارتفاع مجاز (ارتفاع کلاینت 210mm است)
-                    if (currentSheet.scrollHeight > currentSheet.clientHeight) {
+                    // بررسی سرریز شدن از ارتفاع مجاز کانتینر محتوا (اصلاح بنیادین سنجش ارتفاع)
+                    if (contentBox.scrollHeight > contentBox.clientHeight) {
                         span.remove(); // حذف کلمه سرریز شده
                         sheets.push(currentSheet); // نهایی کردن صفحه فعلی
                         
                         // ساخت صفحه جدید
                         currentSheet = createEmptySheet(isAttach, sheets.length + 1);
                         testContainer.appendChild(currentSheet);
+                        contentBox = currentSheet.querySelector('.letter-content');
                         textContainer = currentSheet.querySelector('.text-body');
                         
                         // اضافه کردن کلمه به صفحه جدید
@@ -538,9 +557,18 @@
                         textContainer.appendChild(newSpan);
                     }
                 }
+                // اضافه کردن فاصله بین پاراگراف‌ها
                 if (p !== paragraphs.length - 1) {
                     textContainer.appendChild(document.createElement('br'));
                     textContainer.appendChild(document.createElement('br'));
+                    // بررسی سرریز پس از افزودن خط جدید
+                    if (contentBox.scrollHeight > contentBox.clientHeight) {
+                        sheets.push(currentSheet);
+                        currentSheet = createEmptySheet(isAttach, sheets.length + 1);
+                        testContainer.appendChild(currentSheet);
+                        contentBox = currentSheet.querySelector('.letter-content');
+                        textContainer = currentSheet.querySelector('.text-body');
+                    }
                 }
             }
         }
@@ -549,23 +577,28 @@
         if (!isAttach) {
             let sig = currentSheet.querySelector('.signature-section');
             sig.style.display = 'block';
-            if (currentSheet.scrollHeight > currentSheet.clientHeight) {
+            
+            // مکثی کوتاه می‌دهیم تا مرورگر فرصت محاسبه فضای امضا را داشته باشد
+            await new Promise(r => setTimeout(r, 10));
+
+            if (contentBox.scrollHeight > contentBox.clientHeight) {
                 // اگر با باز شدن امضا سرریز شد، امضا به تنهایی به صفحه بعد میرود
                 sig.style.display = 'none';
                 sheets.push(currentSheet);
                 
                 currentSheet = createEmptySheet(false, sheets.length + 1);
                 testContainer.appendChild(currentSheet);
+                contentBox = currentSheet.querySelector('.letter-content');
                 currentSheet.querySelector('.signature-section').style.display = 'block';
             }
         }
 
-        // جای‌گذاری تصاویر به عنوان پیوست با قابلیت صفحه‌بندی هوشمند
+        // جای‌گذاری تصاویر به عنوان پیوست با قابلیت صفحه‌بندی هوشمند ناهمگام (Async Loading)
         if (isAttach && imagesArray.length > 0) {
             let imgContainer = document.createElement('div');
             // تصاویر پیوست همیشه عمودی زیر هم قرار میگیرند تا روی امضا را نپوشانند
             imgContainer.className = 'images-container vertical';
-            currentSheet.querySelector('.letter-content').appendChild(imgContainer);
+            contentBox.appendChild(imgContainer);
 
             for (let i = 0; i < imagesArray.length; i++) {
                 let imgData = imagesArray[i];
@@ -577,6 +610,13 @@
                 
                 let imgEl = document.createElement('img');
                 imgEl.src = imgData.src;
+                
+                // منتظر می‌مانیم تا تصویر به طور کامل بارگیری شود تا ابعادش برای صفحه‌بندی مشخص شود
+                await new Promise((resolve) => {
+                    imgEl.onload = resolve;
+                    imgEl.onerror = resolve; // در صورت خطا نیز رد شود تا برنامه گیر نکند
+                });
+
                 imgEl.className = 'letter-img';
                 imgEl.style.width = document.getElementById('imgScale').value + '%';
                 
@@ -591,18 +631,22 @@
                 
                 imgContainer.appendChild(wrapper);
                 
+                // مکث کوتاه برای به‌روزرسانی DOM
+                await new Promise(r => setTimeout(r, 10));
+                
                 // بررسی سرریز شدن عکس و رفتن به صفحه بعد
-                if (currentSheet.scrollHeight > currentSheet.clientHeight) {
+                if (contentBox.scrollHeight > contentBox.clientHeight) {
                     wrapper.remove(); // حذف از صفحه فعلی
                     sheets.push(currentSheet); // نهایی کردن صفحه فعلی
                     
                     // ساخت صفحه جدید
                     currentSheet = createEmptySheet(isAttach, sheets.length + 1);
                     testContainer.appendChild(currentSheet);
+                    contentBox = currentSheet.querySelector('.letter-content');
                     
                     imgContainer = document.createElement('div');
                     imgContainer.className = 'images-container vertical';
-                    currentSheet.querySelector('.letter-content').appendChild(imgContainer);
+                    contentBox.appendChild(imgContainer);
                     
                     imgContainer.appendChild(wrapper); // قرار دادن عکس در صفحه جدید
                 }
@@ -637,7 +681,7 @@
         
         // جمع‌آوری اطلاعات تمام تصاویر داینامیک نامحدود
         let activeImages = [];
-        let imageDescriptions = [];
+        let imageDescriptions =[];
         let indexCounter = 1;
         
         for (let key in finalImages) {
@@ -695,20 +739,27 @@
                 wrapper.innerHTML = ''; canvasArea.innerHTML = '';
 
                 // 1. تولید صفحات نامه اصلی (بدون عکس)
-                const mainSheets = renderPaginatedSheets(letterData.txt, false, []);
-                mainSheets.forEach(s => {
-                    wrapper.appendChild(s.cloneNode(true));
-                    canvasArea.appendChild(s);
-                });
+                const mainSheets = await renderPaginatedSheets(letterData.txt, false,[]);
 
                 // 2. تولید صفحات پیوست (متن + عکس‌های نامحدود)
+                let attachSheets =[];
                 if(formData.attach.trim() || activeImages.length > 0) {
-                    const attachSheets = renderPaginatedSheets(letterData.attach, true, activeImages);
-                    attachSheets.forEach(s => {
-                        wrapper.appendChild(s.cloneNode(true));
-                        canvasArea.appendChild(s);
-                    });
+                    attachSheets = await renderPaginatedSheets(letterData.attach, true, activeImages);
                 }
+
+                // 3. بروزرسانی هدر نامه‌های اصلی با تعداد پیوست‌ها
+                let attachCount = attachSheets.length;
+                let attachText = attachCount > 0 ? `${toPersian(attachCount)} صفحه` : "ندارد";
+                mainSheets.forEach(sheet => {
+                    let attachInfoEl = sheet.querySelector('.main-attach-info');
+                    if (attachInfoEl) {
+                        attachInfoEl.textContent = `پیوست: ${attachText}`;
+                    }
+                });
+
+                // اضافه کردن کل صفحات به محیط پیش‌نمایش
+                mainSheets.forEach(s => wrapper.appendChild(s.cloneNode(true)));
+                attachSheets.forEach(s => wrapper.appendChild(s.cloneNode(true)));
 
                 document.getElementById('appForm').style.display = 'none';
                 document.getElementById('finalArea').style.display = 'block';
