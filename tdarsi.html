@@ -18,8 +18,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment-hijri/2.1.2/moment-hijri.min.js"></script>
+    
+    <!-- تغییر سرور کتابخانه‌های قمری به سرور معتبرتر و امن‌تر jsdelivr برای جلوگیری از خطای قطعی -->
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment-hijri@2.1.2/moment-hijri.min.js"></script>
 
     <style>
         :root {
@@ -528,7 +530,7 @@
         const data = calculateCalendar(true); // محاسبه بدون اعمال فواصل
         if(!data) return;
 
-        let gaps = { 1: [], 2: [], 3:[] };
+        let gaps = { 1:[], 2: [], 3:[] };
         
         // اصلاح حلقه برای جلوگیری از خطای ایندکس
         for(let i=1; i < data.length - 3; i++) {
@@ -662,7 +664,7 @@
             const wd = curr.getDay(); 
             const dateKey = `${j.jm}-${j.jd}`; // برای تطبیق با کلیدهای آبجکت
             
-            // اصلاح: استفاده از پدینگ برای فول‌دیت تا با مقدار چک‌باکس‌ها یکی شود
+            // استفاده از پدینگ برای فول‌دیت تا با مقدار چک‌باکس‌ها یکی شود
             const fullDate = `${j.jy}/${pad(j.jm)}/${pad(j.jd)}`;
             
             // Gregorian Data
@@ -685,12 +687,20 @@
                 css: ''
             };
 
-            // محاسبه تاریخ قمری بر اساس انتخاب کاربر
+            // محاسبه تاریخ قمری (ویرایش ایمن‌شده برای جلوگیری از کِرَش سیستم)
             if (showLunar) {
                 if (lunarMode === 'auto') {
-                    // کتابخانه moment-hijri وظیفه محاسبه دقیق ام‌القری را دارد
                     const mObj = moment(curr);
-                    row.lDate = mObj.iDate() + ' ' + lunarMonthsList[mObj.iMonth()];
+                    const iDStr = mObj.format('iD'); // قالب امن
+                    const iMStr = mObj.format('iM');
+                    
+                    // سیستم جایگزین: اگر کتابخانه توسط مرورگر بلاک شده باشد سیستم هنگ نمی‌کند
+                    if (iDStr === 'iD' || iMStr === 'iM' || isNaN(parseInt(iMStr, 10))) {
+                        row.lDate = 'خطا در بارگذاری تقویم';
+                    } else {
+                        const iM = parseInt(iMStr, 10) - 1;
+                        row.lDate = iDStr + ' ' + lunarMonthsList[iM];
+                    }
                 } else if (lunarMode === 'manual') {
                     // بررسی اینکه آیا امروز نقطه شروعی است که کاربر تعریف کرده؟
                     const match = manualLunarData.find(m => m.jDateStr === fullDate);
@@ -710,9 +720,17 @@
                         }
                     } else {
                         // اگر تقویم در روزهایی در حال پردازش است که قبل از اولین تاریخ دستیِ تعیین شده کاربر است
-                        // سیستم به صورت هوشمند و به عنوان بکاپ، از الگوریتم ام‌القری فقط برای آن روزها استفاده میکند تا خالی نماند
                         const mObj = moment(curr);
-                        row.lDate = mObj.iDate() + ' ' + lunarMonthsList[mObj.iMonth()] + ' (خودکار)';
+                        const iDStr = mObj.format('iD');
+                        const iMStr = mObj.format('iM');
+                        
+                        // جلوگیری از هنگ سیستم در صورت لود نشدن کتابخانه پشتیبان
+                        if (iDStr === 'iD' || iMStr === 'iM' || isNaN(parseInt(iMStr, 10))) {
+                            row.lDate = '(تنظیم نشده)';
+                        } else {
+                            const iM = parseInt(iMStr, 10) - 1;
+                            row.lDate = iDStr + ' ' + lunarMonthsList[iM] + ' (خودکار)';
+                        }
                     }
                 }
             }
@@ -730,7 +748,6 @@
             }
 
             // 2. Selected Gaps (Inter-holidays)
-            // اکنون به دلیل پدینگ دقیق، مقایسه صحیح انجام می‌شود
             if(!row.isHoliday && selectedGaps.has(fullDate)) {
                 row.isHoliday = true;
                 row.status = 'تعطیل';
@@ -799,7 +816,7 @@
         }
 
         const data = calculateCalendar();
-        if(!data) return;
+        if(!data) return; // اگر قبلاً ارور داده بود اینجا متوقف میشود
 
         const title = titleEl.value;
         const sub = subEl.value;
@@ -867,8 +884,8 @@
         const headerStyle = { name: 'Vazir', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
         const center = { vertical: 'middle', horizontal: 'center' };
         
-        // Header
-        const colCount = 5 + (showGreg ? 1 : 0) + (showLunar ? 1 : 0);
+        // Header (تصحیح شد: تعداد ستون‌های پایه 6 عدد است)
+        const colCount = 6 + (showGreg ? 1 : 0) + (showLunar ? 1 : 0);
         const mergeRange = `A1:${String.fromCharCode(64 + colCount)}1`;
         const subMergeRange = `A2:${String.fromCharCode(64 + colCount)}2`;
 
@@ -934,7 +951,7 @@
 
     function exportPDF() {
         const el = document.getElementById('pdfSource');
-        if(!el.innerHTML) renderTable(); // اصلاح: فراخوانی تابع درست
+        if(!el.innerHTML) renderTable(); // فراخوانی تابع درست
         el.style.display = 'block';
         
         html2pdf().set({
