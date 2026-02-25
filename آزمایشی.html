@@ -72,6 +72,17 @@
         pointer-events: none;
     }
 
+    /* استایل اختصاصی برای باکس توضیحات تصاویر */
+    textarea.caption-input {
+        margin-top: 10px;
+        display: none; /* بعد از برش نمایش داده می‌شود */
+        resize: none; /* جلوگیری از تغییر سایز دستی توسط کاربر */
+        overflow-y: auto; /* اسکرول در صورت نیاز */
+        min-height: 48px; /* ارتفاع پیش فرض */
+        font-family: inherit;
+        line-height: 1.6;
+    }
+
     /* پنل تصاویر و برش */
     .image-manager {
         border: 2px dashed var(--accent); border-radius: 15px;
@@ -248,20 +259,28 @@
         <label class="floating-label">متن اصلی نامه</label>
     </div>
 
-    <h3>۲. تصاویر (با قابلیت برش و تنظیم)</h3>
+    <h3>۲. متن پیوست (اختیاری)</h3>
+    <div class="form-group">
+        <textarea id="attach" class="form-input" placeholder=" "></textarea>
+        <label class="floating-label">متن پیوست (در صفحه دوم درج می‌شود)</label>
+    </div>
+
+    <h3>۳. تصاویر پیوستی</h3>
     <div class="image-manager">
         <div class="upload-grid" id="uploadGrid">
             <div class="upload-card" onclick="startCrop('img1')">
                 <span style="font-size:2rem; margin-bottom:10px;">📸</span>
                 <span>افزودن تصویر ۱</span>
                 <img id="prev_img1" class="preview-thumb">
-                <input type="text" id="cap_img1" class="form-input" placeholder="توضیحات تصویر ۱" onclick="event.stopPropagation()" style="margin-top:10px; display:none;">
+                <!-- استفاده از Textarea به جای Input با قابلیت افزایش ارتفاع خودکار تا محدوده‌ی معین -->
+                <textarea id="cap_img1" class="form-input caption-input" placeholder="توضیحات تصویر ۱" oninput="this.style.height=''; this.style.height=Math.min(this.scrollHeight, 100)+'px'" onclick="event.stopPropagation()"></textarea>
             </div>
             <div class="upload-card" onclick="startCrop('img2')">
                 <span style="font-size:2rem; margin-bottom:10px;">📸</span>
                 <span>افزودن تصویر ۲</span>
                 <img id="prev_img2" class="preview-thumb">
-                <input type="text" id="cap_img2" class="form-input" placeholder="توضیحات تصویر ۲" onclick="event.stopPropagation()" style="margin-top:10px; display:none;">
+                <!-- استفاده از Textarea به جای Input با قابلیت افزایش ارتفاع خودکار -->
+                <textarea id="cap_img2" class="form-input caption-input" placeholder="توضیحات تصویر ۲" oninput="this.style.height=''; this.style.height=Math.min(this.scrollHeight, 100)+'px'" onclick="event.stopPropagation()"></textarea>
             </div>
         </div>
         <button type="button" class="btn" onclick="addNewImageBox()" style="background:var(--accent); margin-bottom:20px; padding:12px; border-radius:8px;">➕ افزودن تصویر دیگر</button>
@@ -274,14 +293,7 @@
                 <label class="radio-label"><input type="radio" name="layout" value="vertical" checked> چیدمان عمودی (زیر هم - بزرگ)</label>
                 <label class="radio-label"><input type="radio" name="layout" value="horizontal"> چیدمان افقی (کنار هم - متوسط)</label>
             </div>
-            <!-- اسلایدر دستی حذف شد تا تصاویر به صورت استاندارد و حرفه‌ای خودکار تنظیم شوند -->
         </div>
-    </div>
-
-    <h3>۳. پیوست (اختیاری)</h3>
-    <div class="form-group">
-        <textarea id="attach" class="form-input" placeholder=" "></textarea>
-        <label class="floating-label">متن پیوست (در صفحه دوم درج می‌شود)</label>
     </div>
 
     <h3>۴. تایید و امنیت</h3>
@@ -382,7 +394,7 @@
     }
     initMath();
 
-    // اضافه کردن قابلیت تصاویر نامحدود بدون حذف کدهای قبلی
+    // اضافه کردن قابلیت تصاویر نامحدود
     function addNewImageBox() {
         extraImgCount++;
         const grid = document.getElementById('uploadGrid');
@@ -390,11 +402,12 @@
         card.className = 'upload-card';
         card.onclick = () => startCrop(`img${extraImgCount}`);
         
+        // در المان‌های جدید نیز از textarea با تنظیم سایز هوشمند استفاده شده است
         card.innerHTML = `
             <span style="font-size:2rem; margin-bottom:10px;">📸</span>
             <span>افزودن تصویر ${toPersian(extraImgCount)}</span>
             <img id="prev_img${extraImgCount}" class="preview-thumb">
-            <input type="text" id="cap_img${extraImgCount}" class="form-input" placeholder="توضیحات تصویر ${toPersian(extraImgCount)}" onclick="event.stopPropagation()" style="margin-top:10px; display:none;">
+            <textarea id="cap_img${extraImgCount}" class="form-input caption-input" placeholder="توضیحات تصویر ${toPersian(extraImgCount)}" oninput="this.style.height=''; this.style.height=Math.min(this.scrollHeight, 100)+'px'" onclick="event.stopPropagation()"></textarea>
         `;
         grid.appendChild(card);
         finalImages[`img${extraImgCount}`] = null;
@@ -435,7 +448,12 @@
         
         // نمایش فیلد توضیحات پس از تایید برش تصویر
         const cap = document.getElementById('cap_' + currentCropKey);
-        if(cap) cap.style.display = 'block';
+        if(cap) {
+            cap.style.display = 'block';
+            // تنظیم ارتفاع اولیه
+            cap.style.height = 'auto';
+            cap.style.height = Math.min(cap.scrollHeight, 100) + 'px';
+        }
 
         cancelCrop();
     }
@@ -516,7 +534,7 @@
         return div;
     }
 
-    // موتور هوشمند صفحه‌بندی اصلاح شده و ناهمگام (Async)
+    // موتور هوشمند صفحه‌بندی فوق‌پیشرفته و مدیریت ستون‌ها (Async)
     async function renderPaginatedSheets(text, isAttach, imagesArray =[]) {
         let sheets =[];
         let currentSheet = createEmptySheet(isAttach, 1);
@@ -537,12 +555,14 @@
                      continue;
                 }
                 
-                // استفاده از رگولار اکسپرشن برای جدا کردن کلمات همراه با حفظ فاصله‌ها
-                let words = pText.split(/(\s+)/);
+                // اسپلیت با رگولار اکسپرشن امن برای نادیده گرفتن فضاهای خالی اضافه
+                let words = pText.split(/\s+/);
                 for (let i = 0; i < words.length; i++) {
                     let token = words[i];
+                    if(token.trim() === '') continue; // رد کردن اسپیس خالی
+                    
                     let span = document.createElement('span');
-                    span.textContent = token;
+                    span.textContent = token + ' '; // الحاق مجدد فاصله
                     textContainer.appendChild(span);
 
                     // بررسی سرریز شدن از ارتفاع مجاز کانتینر محتوا
@@ -558,7 +578,7 @@
                         
                         // اضافه کردن کلمه به صفحه جدید
                         let newSpan = document.createElement('span');
-                        newSpan.textContent = token;
+                        newSpan.textContent = token + ' ';
                         textContainer.appendChild(newSpan);
                     }
                 }
@@ -566,7 +586,6 @@
                 if (p !== paragraphs.length - 1) {
                     textContainer.appendChild(document.createElement('br'));
                     textContainer.appendChild(document.createElement('br'));
-                    // بررسی سرریز پس از افزودن خط جدید
                     if (contentBox.scrollHeight > contentBox.clientHeight) {
                         sheets.push(currentSheet);
                         currentSheet = createEmptySheet(isAttach, sheets.length + 1);
@@ -578,86 +597,193 @@
             }
         }
 
-        // جای‌گذاری تصاویر به عنوان پیوست با قابلیت صفحه‌بندی هوشمند ناهمگام
+        // جای‌گذاری تصاویر به عنوان پیوست با الگوریتم هوشمند ستونی و پر کردن فضاهای خالی
         if (isAttach && imagesArray.length > 0) {
             
-            // تشخیص نوع چیدمان انتخاب شده توسط کاربر
             const layoutType = document.querySelector('input[name="layout"]:checked').value;
             
-            let imgContainer = document.createElement('div');
-            // اعمال کلاس بر اساس انتخاب کاربر (vertical یا horizontal)
-            imgContainer.className = `images-container ${layoutType}`;
-            contentBox.appendChild(imgContainer);
+            // وضعیت پردازش: ساخت صف جهانی و مدیریت اسلات‌های خالی
+            let processState = {
+                slots:[ { active: null }, { active: null } ], // 0: Right, 1: Left
+                queue: imagesArray.map((img, i) => ({
+                    ...img,
+                    imgIndex: i + 1,
+                    words: img.caption ? img.caption.split(/\s+/) :[],
+                    wordIndex: 0,
+                    imageRendered: false,
+                    isContinued: false
+                }))
+            };
 
-            for (let i = 0; i < imagesArray.length; i++) {
-                let imgData = imagesArray[i];
-                
-                let wrapper = document.createElement('div');
-                wrapper.style.textAlign = 'center';
-                wrapper.style.marginBottom = '25px';
-                
-                // تنظیم عرض هوشمند بر اساس نوع چیدمان
-                if (layoutType === 'horizontal') {
-                    // در حالت افقی دو عکس کنار هم جا می‌شوند
-                    wrapper.style.width = '46%'; 
-                } else {
-                    // در حالت عمودی عکس بزرگ و وسط‌چین است
-                    wrapper.style.width = '100%';
-                }
-                
-                let imgEl = document.createElement('img');
-                imgEl.src = imgData.src;
-                
-                // منتظر می‌مانیم تا تصویر به طور کامل بارگیری شود
-                await new Promise((resolve) => {
-                    imgEl.onload = resolve;
-                    imgEl.onerror = resolve; 
-                });
+            let hasMoreContent = true;
 
-                imgEl.className = 'letter-img';
-                
-                // تنظیم عرض خود تصویر درون قاب
-                if (layoutType === 'horizontal') {
-                     imgEl.style.width = '100%'; // پر کردن قاب ۴۶ درصدی
-                } else {
-                     imgEl.style.width = '80%'; // سایز استاندارد بزرگ برای عمودی
+            while (hasMoreContent) {
+                // اتمام عملیات در صورت خالی بودن صف و اسلات‌ها
+                if (processState.queue.length === 0 && !processState.slots[0].active && !processState.slots[1].active) {
+                    break;
                 }
-                
-                let caption = document.createElement('p');
-                caption.style.fontWeight = 'bold';
-                caption.style.marginTop = '10px';
-                caption.style.fontSize = '14px';
-                caption.textContent = `تصویر ${toPersian(i + 1)}: ${imgData.caption || 'بدون توضیح'}`;
-                
-                wrapper.appendChild(imgEl);
-                wrapper.appendChild(caption);
-                
-                imgContainer.appendChild(wrapper);
-                
-                // مکث کوتاه برای به‌روزرسانی DOM
-                await new Promise(r => setTimeout(r, 10));
-                
-                // بررسی سرریز شدن عکس و رفتن به صفحه بعد
-                if (contentBox.scrollHeight > contentBox.clientHeight) {
-                    wrapper.remove(); // حذف از صفحه فعلی
-                    sheets.push(currentSheet); // نهایی کردن صفحه فعلی
-                    
-                    // ساخت صفحه جدید
+
+                // ایجاد ساختار ستون بندی برای صفحه فعلی
+                let colsContainer = document.createElement('div');
+                colsContainer.className = 'images-container ' + layoutType;
+                colsContainer.style.display = 'flex';
+                colsContainer.style.gap = '20px';
+                colsContainer.style.width = '100%';
+                colsContainer.style.alignItems = 'flex-start'; // کلید اصلی برای جلوگیری از کشش و هم‌ارتفاع شدن کاذب
+
+                let colRight = document.createElement('div');
+                let colLeft = document.createElement('div');
+                colRight.style.flex = '1'; colRight.style.display = 'flex'; colRight.style.flexDirection = 'column'; colRight.style.gap = '20px';
+                colLeft.style.flex = '1'; colLeft.style.display = 'flex'; colLeft.style.flexDirection = 'column'; colLeft.style.gap = '20px';
+
+                if (layoutType === 'vertical') { colLeft.style.display = 'none'; }
+
+                colsContainer.appendChild(colRight);
+                colsContainer.appendChild(colLeft);
+                contentBox.appendChild(colsContainer);
+
+                let pageItemsAdded = 0; // برای جلوگیری از حلقه بی نهایت در تصاویر بسیار بزرگ
+
+                // تابع پر کردن ستون (Right -> 0, Left -> 1) تا حد امکان در صفحه فعلی
+                const fillCol = async (slotIndex, colNode) => {
+                    let slot = processState.slots[slotIndex];
+
+                    while (true) {
+                        // اگر اسلات فعلی خالی است، آیتم بعدی را از صف بگیر
+                        if (!slot.active) {
+                            if (processState.queue.length === 0) break; // دیگر تصویری نیست
+                            slot.active = processState.queue.shift();
+                            slot.active.isContinued = false;
+                        }
+
+                        let item = slot.active;
+                        let wrapper = document.createElement('div');
+                        wrapper.style.textAlign = 'center';
+                        wrapper.style.width = '100%';
+                        colNode.appendChild(wrapper);
+
+                        let addedToWrapper = false;
+
+                        // 1. پردازش تصویر
+                        if (!item.imageRendered) {
+                            let imgEl = document.createElement('img');
+                            imgEl.src = item.src;
+                            imgEl.className = 'letter-img';
+                            imgEl.style.width = layoutType === 'horizontal' ? '100%' : '80%';
+                            imgEl.style.marginBottom = '10px';
+
+                            await new Promise(res => { imgEl.onload = res; imgEl.onerror = res; });
+                            wrapper.appendChild(imgEl);
+                            
+                            // مکث ضروری برای بازخوانی ارتفاع DOM
+                            await new Promise(r => setTimeout(r, 10));
+
+                            // بررسی سرریز صفحه پس از درج تصویر
+                            if (contentBox.scrollHeight > contentBox.clientHeight) {
+                                if (pageItemsAdded === 0) {
+                                    // اگر اولین آیتم در صفحه خالی است و باز هم سرریز می‌کند، مجبوریم چاپش کنیم
+                                    item.imageRendered = true;
+                                    addedToWrapper = true;
+                                    pageItemsAdded++;
+                                } else {
+                                    // سرریز شد! تصویر را پاک کن و از ستون خارج شو. در صفحه بعد چاپ خواهد شد
+                                    wrapper.remove();
+                                    break;
+                                }
+                            } else {
+                                item.imageRendered = true;
+                                addedToWrapper = true;
+                                pageItemsAdded++;
+                            }
+                        }
+
+                        // 2. پردازش متن به صورت کلمه به کلمه برای مدیریت دقیق سرریز و انتقال به صفحه بعد
+                        if (item.imageRendered && item.wordIndex < item.words.length) {
+                            let pNode = document.createElement('p');
+                            pNode.style.fontWeight = 'bold';
+                            pNode.style.fontSize = '14px';
+                            pNode.style.textAlign = 'right';
+                            pNode.style.lineHeight = '1.8';
+
+                            // تزریق عنوان یا پیشوند (دستور شماره ۴)
+                            if (item.isContinued) {
+                                let contSpan = document.createElement('span');
+                                contSpan.textContent = `ادامه توضیحات تصویر ${toPersian(item.imgIndex)}: `;
+                                pNode.appendChild(contSpan);
+                            } else if (item.wordIndex === 0) {
+                                let prefSpan = document.createElement('span');
+                                prefSpan.textContent = `تصویر ${toPersian(item.imgIndex)}: `;
+                                pNode.appendChild(prefSpan);
+                            }
+
+                            wrapper.appendChild(pNode);
+
+                            let wordsAdded = 0;
+                            while (item.wordIndex < item.words.length) {
+                                let token = item.words[item.wordIndex];
+                                if(token.trim() === '') {
+                                    item.wordIndex++;
+                                    continue;
+                                }
+
+                                let wSpan = document.createElement('span');
+                                wSpan.textContent = token + ' '; // حفظ فاصله
+                                pNode.appendChild(wSpan);
+
+                                if (contentBox.scrollHeight > contentBox.clientHeight) {
+                                    wSpan.remove(); // کلمه از حد گذشت، پاکش کن
+                                    item.isContinued = true; // علامت‌گذاری برای رفتن به صفحه بعد
+                                    break; 
+                                }
+                                item.wordIndex++;
+                                wordsAdded++;
+                                addedToWrapper = true;
+                                pageItemsAdded++;
+                            }
+
+                            if (wordsAdded === 0 && pNode.childNodes.length > 0) {
+                                // اگر فقط پیشوند چاپ شد و بلافاصله سرریز کرد، کل پاراگراف را پاک کن
+                                pNode.remove();
+                            }
+
+                            if (item.wordIndex < item.words.length) {
+                                // متن کامل نشد، یعنی ستون در این صفحه پر شده است
+                                break; 
+                            }
+                        }
+
+                        // بررسی اتمام کامل عملیات تصویر و متن
+                        if (item.imageRendered && item.wordIndex >= item.words.length) {
+                            slot.active = null; // اسلات آزاد شد (ستون می‌تواند در همین صفحه عکس بعدی را بگیرد)
+                            if (!addedToWrapper) wrapper.remove();
+                        }
+                    }
+                };
+
+                // اجرای هوشمند و نوبتی پر کردن ستون‌ها روی صفحه جاری
+                await fillCol(0, colRight); // پر کردن ستون راست تا حد امکان
+                if (layoutType === 'horizontal') {
+                    await fillCol(1, colLeft); // پر کردن ستون چپ تا حد امکان (اگر خالی بماند و صفی باشد، تصویر می‌گیرد)
+                }
+
+                // پاکسازی اگر ستونی خالی ماند
+                if (colRight.innerHTML === '' && colLeft.innerHTML === '') {
+                    colsContainer.remove();
+                }
+
+                // در صورتی که هنوز تصویری در صف هست یا ستون‌ها پر نشده‌اند، صفحه جدید باز کن
+                if (processState.queue.length > 0 || processState.slots[0].active || processState.slots[1].active) {
+                    sheets.push(currentSheet);
                     currentSheet = createEmptySheet(isAttach, sheets.length + 1);
                     testContainer.appendChild(currentSheet);
                     contentBox = currentSheet.querySelector('.letter-content');
-                    
-                    // ساخت کانتینر جدید در صفحه جدید
-                    imgContainer = document.createElement('div');
-                    imgContainer.className = `images-container ${layoutType}`;
-                    contentBox.appendChild(imgContainer);
-                    
-                    imgContainer.appendChild(wrapper); // قرار دادن عکس در صفحه جدید
+                } else {
+                    hasMoreContent = false; 
                 }
             }
         }
 
-        // نمایش امضا در صفحه آخر
+        // نمایش امضا در صفحه آخر (هم برای نامه اصلی و هم برای پیوست)
         let sig = currentSheet.querySelector('.signature-section');
         sig.style.display = 'block';
         
@@ -699,7 +825,7 @@
         const jDate = now.toLocaleDateString('fa-IR');
         const lNum = `${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}4`;
         
-        // جمع‌آوری اطلاعات تصاویر
+        // جمع‌آوری اطلاعات تمام تصاویر داینامیک نامحدود
         let activeImages = [];
         let imageDescriptions =[];
         let indexCounter = 1;
@@ -753,21 +879,21 @@
                 
                 letterData = { ...formData, num: lNum, date: jDate };
                 
-                // پاکسازی کانتینر رندر
+                // پاکسازی کانتینر رندر و آماده‌سازی
                 const wrapper = document.getElementById('previewWrapper');
                 const canvasArea = document.getElementById('renderCanvas');
                 wrapper.innerHTML = ''; canvasArea.innerHTML = '';
 
-                // 1. تولید صفحات نامه اصلی
+                // 1. تولید صفحات نامه اصلی (بدون عکس)
                 const mainSheets = await renderPaginatedSheets(letterData.txt, false,[]);
 
-                // 2. تولید صفحات پیوست
+                // 2. تولید صفحات پیوست (متن + عکس‌های نامحدود با ساختار ستونی جدید)
                 let attachSheets =[];
                 if(formData.attach.trim() || activeImages.length > 0) {
                     attachSheets = await renderPaginatedSheets(letterData.attach, true, activeImages);
                 }
 
-                // 3. بروزرسانی هدرها
+                // 3. بروزرسانی هدر نامه‌های اصلی با تعداد پیوست‌ها و صفحات
                 let attachCount = attachSheets.length;
                 let attachText = attachCount > 0 ? `${toPersian(attachCount)} صفحه` : "ندارد";
                 let mainCountText = `${toPersian(mainSheets.length)} صفحه`;
@@ -780,13 +906,14 @@
                     if (pagesInfoEl) pagesInfoEl.textContent = `صفحات: ${mainCountText}`;
                 });
 
-                // اضافه کردن به پیش‌نمایش
+                // اضافه کردن کل صفحات به محیط پیش‌نمایش
                 mainSheets.forEach(s => wrapper.appendChild(s.cloneNode(true)));
                 attachSheets.forEach(s => wrapper.appendChild(s.cloneNode(true)));
 
                 document.getElementById('appForm').style.display = 'none';
                 document.getElementById('finalArea').style.display = 'block';
                 
+                // تولید خودکار
                 setTimeout(downloadPDF, 1000); 
 
             } else {
@@ -799,7 +926,7 @@
         }
     });
 
-    // تابع اصلی تولید PDF با اصلاحات قطعی نیم‌فاصله
+    // تابع اصلی تولید PDF با حفظ نیم‌فاصله‌ها
     async function downloadPDF() {
         const dBtn = document.getElementById('downloadPdfBtn');
         dBtn.disabled = true; dBtn.classList.add('loading');
@@ -813,24 +940,20 @@
             
             const sheet = sheets[i];
             
-            // رفع قطعی مشکل نیم‌فاصله با راست‌چین کردن اجباری و حذف فاصله‌های اضافی
             await html2canvas(sheet, {
-                scale: 3, 
+                scale: 3, // کیفیت بالا
                 useCORS: true,
                 onclone: (doc) => {
-                    // تمام متون حساس را انتخاب می‌کنیم
                     const texts = doc.querySelectorAll('.text-body, .text-body span, p');
                     texts.forEach(t => {
-                        // اگر متن امضا باشد وسط چین بماند
                         if (t.classList.contains('sig-text') || t.parentElement.classList.contains('signature-section')) {
                              t.style.textAlign = 'center';
                              t.style.letterSpacing = 'normal';
                         } else {
-                             // برای متن نامه و پیوست، راست‌چین اجباری اعمال می‌شود تا نیم‌فاصله نشکند
+                             // اجبار به راست‌چین جهت عدم بهم‌ریختگی نیم‌فاصله‌ها در موتور Html2Canvas
                              t.style.textAlign = 'right'; 
                              t.style.letterSpacing = '0px'; 
                         }
-                        
                         t.style.fontVariantLigatures = 'common-ligatures'; 
                         t.style.textRendering = 'geometricPrecision'; 
                     });
@@ -843,7 +966,7 @@
 
         finalPdfBlob = pdf.output('blob');
         const fName = `${letterData.subj}.pdf`;
-        pdf.save(fName); 
+        pdf.save(fName); // دانلود خودکار
         
         dBtn.disabled = false; dBtn.classList.remove('loading');
         
