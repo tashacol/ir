@@ -6,8 +6,10 @@
     <title>برنامه ریزی روزانه</title>
     <!-- فونت وزیرمتن -->
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
-    <!-- کتابخانه HTML2Canvas -->
+    <!-- کتابخانه HTML2Canvas (نسخه اصلی حفظ شده است) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- اضافه شدن کتابخانه سازنده PDF کلاینت‌ساید طبق درخواست برای جایگزینی عکس با PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
             --primary: #6366f1;       /* نیلی مدرن */
@@ -155,8 +157,8 @@
             background: white; padding: 24px; border-radius: 24px; width: 90%; max-width: 450px;
             box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); display: flex; flex-direction: column; gap: 16px;
             animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            max-height: 90vh; /* اضافه شدن برای جلوگیری از خروج مودال از صفحه */
-            overflow-y: auto; /* اسکرول برای مودال در صورت نیاز */
+            max-height: 90vh;
+            overflow-y: auto;
         }
         @keyframes pop { from {transform: scale(0.9); opacity: 0;} to {transform: scale(1); opacity: 1;} }
         
@@ -234,10 +236,6 @@
             word-spacing: normal !important;
         }
 
-        /* --- حل قطعی مشکل کیفیت در تلگرام و گالری --- 
-           دلیل: با افزایش عرض به 1400 و بزرگ کردن اساسی تمام فونت‌ها در این کلاس، 
-           زمانی که تلگرام عکس را کوچک (Compress) می‌کند، متون همچنان درشت و کاملا خوانا باقی می‌مانند. 
-           همچنین از optimizeLegibility برای رندرینگ بهتر حروف استفاده شده است. */
         .export-mode {
             background: white;
             padding: 30px;
@@ -275,7 +273,6 @@
         .print-items { list-style: none; padding: 0; margin: 0; font-size: 20px; columns: 2; gap: 20px; }
         .print-items li { margin-bottom: 10px; break-inside: avoid; display: flex; align-items: center; gap: 8px; font-weight: 500; }
 
-        /* بزرگ‌نمایی فونت‌های جدول برای مقاومت در برابر افت کیفیت عکس */
         .print-table-container table {
             border: 1px solid #cbd5e1; width: 100%; border-collapse: collapse; page-break-inside: auto;
         }
@@ -292,6 +289,8 @@
         .print-table-container td {
             border: 1px solid #e2e8f0; height: 40px; padding: 0;
         }
+        
+        /* استایل پایه برای سلول تسک‌ها */
         .print-table-container td.task-cell {
             border: 1px solid #ffffff !important; 
             color: white !important; 
@@ -310,38 +309,48 @@
         .print-note-text { font-size: 20px; white-space: pre-wrap; line-height: 1.8; color: #334155; }
 
         /* --- MEDIA PRINT (Paper) ---
-           حل مشکل صفحه‌بندی (Pagination): جلوگیری از تلاش مرورگر برای چپاندن همه چیز در یک صفحه.
-           page-break-inside: auto به سطرها اجازه می‌دهد در صورت نیاز به صفحه بعد بروند.
-           ایجاد حاشیه (margin) ایمن برای بالا و پایین. */
+           تغییرات مهندسی حیاتی اعمال شده در این بخش برای حل مشکل PDF و صفحه‌بندی 
+        */
         @media print {
-            @page { size: A4 portrait; margin: 15mm; } /* ایجاد فاصله ایمن از لبه‌های کاغذ */
+            @page { size: A4 portrait; margin: 15mm; }
             body { 
                 background: white; padding: 0; margin: 0; 
                 -webkit-print-color-adjust: exact; print-color-adjust: exact; 
-                height: auto !important; /* مهم برای جلوگیری از برش محتوا */
+                height: auto !important; 
             }
             .no-print, .toolbar, .copy-col-btn, #mainTableWrapper { display: none !important; }
-            #print-area { 
-                display: block !important; width: 100%; transform: none; 
-                overflow: visible !important; height: auto !important;
-            }
-            .export-mode { width: 100%; padding: 0; } 
             
-            /* تنظیمات دقیق شکستن صفحات */
+            /* حل مشکل کادر سفید و مخفی شدن محتوا در PDF: عرض اجباری 100% جایگزین شد */
+            #print-area { 
+                display: block !important; width: 100% !important; max-width: 100% !important; 
+                transform: none; overflow: visible !important; height: auto !important;
+            }
+            .export-mode { width: 100% !important; padding: 0; } 
+            
+            /* حل قطعی مشکل صفحه‌بندی (شکستن تسک‌های طولانی به صورت صحیح در صفحات) */
             table { min-width: auto !important; width: 100% !important; page-break-inside: auto; border-collapse: collapse; }
-            tr { page-break-inside: avoid !important; page-break-after: auto; }
-            td, th { page-break-inside: avoid !important; }
+            /* اجازه می‌دهیم سطرها شکسته شوند */
+            tr { page-break-inside: auto !important; page-break-after: auto; }
+            td, th { page-break-inside: auto !important; }
             thead { display: table-header-group; }
             tfoot { display: table-footer-group; }
             .print-box { page-break-inside: avoid; }
             
-            /* تنظیم سایز فونت‌ها متناسب با پرینتر A4 */
             .print-table-container th { font-size: 14px !important; padding: 8px !important; }
             .print-table-container tr td:first-child { font-size: 13px !important; width: 80px !important; }
             .print-table-container .task-title { font-size: 13px !important; }
             .print-table-container .task-time-range { font-size: 11px !important; border-bottom: 1px solid rgba(255,255,255,0.6) !important; }
             
-            .print-table-container td.task-cell { color: white !important; border: 1px solid #ffffff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-shadow: none; }
+            /* ترفند مهندسی برای تکرار رنگ بک‌گراند تسک در صفحه‌ی بعد در صورت شکسته شدن */
+            .print-table-container td.task-cell { 
+                color: white !important; 
+                border: 1px solid #ffffff !important; 
+                -webkit-print-color-adjust: exact !important; 
+                print-color-adjust: exact !important; 
+                box-shadow: none;
+                -webkit-box-decoration-break: clone;
+                box-decoration-break: clone;
+            }
         }
     </style>
 </head>
@@ -408,7 +417,6 @@
             پلنر هوشمند
         </div>
         <div style="display:flex; gap:10px; align-items:center;">
-            <!-- اضافه شدن دکمه پیشنهادها با حفظ تمام دکمه‌های قبلی -->
             <button class="btn" style="background: linear-gradient(135deg, #10b981, #059669); font-weight: 800;" onclick="openTemplatesModal()">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
                 برنامه‌های پیشنهادی
@@ -446,13 +454,14 @@
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
                 اشتراک‌گذاری
             </button>
-            <button class="btn btn-blue" onclick="downloadAsImage()">
+            <!-- تغییر عملکرد و نام دکمه از دانلود عکس به دانلود فایل PDF -->
+            <button class="btn btn-blue" onclick="downloadAsPDF()">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-                دانلود عکس
+                دانلود فایل (PDF)
             </button>
             <button class="btn btn-success" onclick="exportData()">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                دانلود فایل
+                دانلود فایل (JSON)
             </button>
             <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
@@ -481,7 +490,7 @@
 
 <!-- Modals -->
 
-<!-- Templates Modal (جدید: برای برنامه‌های پیشنهادی) -->
+<!-- Templates Modal -->
 <div class="modal-overlay" id="templatesModal">
     <div class="modal">
         <div class="modal-header">
@@ -523,9 +532,10 @@
         <div class="modal-header"><h3>انتخاب روش اشتراک‌گذاری</h3><button class="close-btn" onclick="closeModal('shareModal')">&times;</button></div>
         <p style="color:var(--text-muted); font-weight:500;">مایلید کدام نسخه ارسال شود؟</p>
         <div style="display:flex; flex-direction:column; gap:10px;">
-            <button class="btn btn-blue" onclick="executeShare('image')" style="justify-content:center;">
+            <!-- تغییر گزینه ارسال از تصویر به PDF -->
+            <button class="btn btn-blue" onclick="executeShare('pdf')" style="justify-content:center;">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-                ارسال تصویر (PNG)
+                ارسال فایل (PDF)
             </button>
             <button class="btn btn-success" onclick="executeShare('json')" style="justify-content:center;">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
@@ -614,7 +624,6 @@
 </div>
 
 <script>
-    // تابع تبدیل اعداد انگلیسی به اعداد فارسی
     const persianDigits =['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
     function toFaDigits(str) {
         return String(str).replace(/[0-9]/g, w => persianDigits[w]);
@@ -639,8 +648,6 @@
     let pendingCopySource = null; 
     let currentEditingTask = null;
 
-    // --- سیستم الگوهای پیشنهادی (جدید) ---
-    // تولید الگو با منطق روان‌شناختی و زمان‌بندی دقیق
     function getTemplateTasks(type) {
         const tasks =[];
         let idCounter = Date.now();
@@ -651,7 +658,6 @@
             const isWeekend = (d === 'thu' || d === 'fri');
             
             if(type === 'student') {
-                // خواب 11 شب تا 7 صبح (32 تایم 15 دقیقه‌ای)
                 addT(d, "00:00", 28, "خواب و استراحت 🌙", "#64748b"); 
                 addT(d, "23:00", 4, "آماده سازی خواب", "#64748b");
                 addT(d, "07:00", 4, "بیداری، ورزش سبک و صبحانه ☀️", "#f97316");
@@ -895,35 +901,63 @@
     async function executeShare(type) {
         closeModal('shareModal');
         if (type === 'json') shareBackupFile();
-        else if (type === 'image') shareImage();
+        else if (type === 'pdf') sharePDF(); // تغییر کلیدواژه به PDF
     }
 
-    // --- اشتراک گذاری با کیفیت بالا و مقاوم در برابر فشرده‌سازی تلگرام ---
-    async function shareImage() {
-        showLoader("در حال تولید تصویر باکیفیت...");
+    // --- تابع مهندسی‌شده جدید: ساخت فایل PDF با کیفیت و استاندارد جهت دانلود یا اشتراک‌گذاری ---
+    function generatePDF(actionType) {
+        showLoader("در حال تولید فایل PDF با کیفیت بالا...");
         const element = document.getElementById('print-area');
         preparePrintDOM();
         
+        // در زمان تولید پی دی اف، مطمئن می‌شویم کلاس اکسپورت اعمال شده اما استایل پرینت هم دیده می‌شود
         element.style.display = 'block';
-        element.style.position = 'absolute'; element.style.top = '0'; element.style.left = '-9999px';
-        
+        element.style.position = 'absolute'; 
+        element.style.top = '0'; 
+        element.style.left = '-9999px';
+        element.style.width = '1200px'; // عرض مناسب برای کلاینت‌ساید PDF
+
+        const opt = {
+            margin:       10,
+            filename:     `${appData.header || 'Plan'}.pdf`,
+            image:        { type: 'jpeg', quality: 1 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
         setTimeout(() => {
-            html2canvas(element, { scale: 3, useCORS: true, backgroundColor: '#ffffff' }).then(async canvas => {
-                canvas.toBlob(async (blob) => {
-                    const file = new File([blob], `${appData.header || 'Plan'}.png`, { type: "image/png" });
+            if (actionType === 'share') {
+                html2pdf().set(opt).from(element).outputPdf('blob').then(async (pdfBlob) => {
+                    const file = new File([pdfBlob], opt.filename, { type: "application/pdf" });
                     const text = `📅 برنامه هفتگی ${appData.userName || ''}\n📅 تاریخ: ${toFaDigits(new Date().toLocaleDateString('fa-IR'))}`;
                     
                     if (navigator.canShare && navigator.canShare({ files: [file] })) {
                         try { await navigator.share({ files:[file], title: 'برنامه هفتگی', text: text }); }
-                        catch (e) { console.log(e); }
+                        catch (e) { console.log("اشتراک لغو شد یا مشکلی پیش آمد"); }
                     } else {
-                        const link = document.createElement('a'); link.download = `${appData.header || 'Plan'}.png`;
-                        link.href = canvas.toDataURL(); link.click();
+                        // اگر مرورگر Share API را پشتیبانی نکند، آن را دانلود می‌کنیم
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(pdfBlob);
+                        link.download = opt.filename;
+                        link.click();
                     }
                     element.style.display = 'none'; hideLoader();
                 });
-            }).catch(() => { alert("خطا در تولید عکس"); element.style.display = 'none'; hideLoader(); });
+            } else if (actionType === 'download') {
+                html2pdf().set(opt).from(element).save().then(() => {
+                    element.style.display = 'none'; hideLoader();
+                });
+            }
         }, 800);
+    }
+
+    // جایگزینی توابع ارسال عکس با توابع PDF
+    function sharePDF() {
+        generatePDF('share');
+    }
+
+    function downloadAsPDF() {
+        generatePDF('download');
     }
 
     async function shareBackupFile() {
@@ -944,25 +978,6 @@
             }
             hideLoader();
         }, 500);
-    }
-
-    // --- دانلود تصویر با کیفیت بالا ---
-    function downloadAsImage() {
-        showLoader("دانلود تصویر باکیفیت...");
-        const element = document.getElementById('print-area');
-        preparePrintDOM();
-        element.style.display = 'block';
-        element.style.position = 'absolute'; element.style.top = '0'; element.style.left = '-9999px';
-        
-        setTimeout(() => {
-            html2canvas(element, { scale: 3, useCORS: true, backgroundColor: '#ffffff' }).then(canvas => {
-                const link = document.createElement('a');
-                link.download = `${appData.header || 'Plan'}.png`;
-                link.href = canvas.toDataURL('image/png');
-                link.click();
-                element.style.display = 'none'; element.style.position = 'static'; hideLoader();
-            });
-        }, 800);
     }
 
     function toggleExtraVis(type, i) {
