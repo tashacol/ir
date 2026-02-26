@@ -104,6 +104,19 @@
     }
     .form-input:focus + .floating-label { color: var(--accent); }
 
+    /* استایل‌های الگوهای متنی پیش‌فرض */
+    .templates-wrapper {
+        display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;
+    }
+    .template-btn {
+        background: #f1f3f5; color: var(--primary); border: 1px solid var(--border);
+        padding: 8px 14px; border-radius: 6px; font-size: 0.85rem; cursor: pointer;
+        transition: all 0.2s ease; font-family: 'Vazirmatn', sans-serif; font-weight: 600;
+    }
+    .template-btn:hover {
+        background: var(--accent); color: #ffffff; border-color: var(--accent); transform: translateY(-2px);
+    }
+
     textarea.caption-input {
         margin-top: 15px;
         display: none; 
@@ -270,6 +283,16 @@
             <label class="floating-label">موضوع نامه</label>
         </div>
     </div>
+    
+    <!-- باکس الگوهای آماده متنی اضافه شده طبق دستور -->
+    <div class="templates-wrapper">
+        <span class="template-btn" onclick="setTemplate('احتراماً، بدینوسیله گواهی می‌شود جناب/سرکار ... از تاریخ ... تا کنون با مؤسسه تعالی اندیشه و رشد همکاری مستمر داشته و عملکرد ایشان مورد تأیید می‌باشد.')">تاییدیه سوابق و همکاری</span>
+        <span class="template-btn" onclick="setTemplate('احتراماً، به پیوست گزارش عملکرد مؤسسه تعالی اندیشه و رشد در خصوص ... جهت استحضار و صدور دستورات مقتضی تقدیم می‌گردد.')">ارسال گزارش عملکرد</span>
+        <span class="template-btn" onclick="setTemplate('احتراماً، نظر به اهداف مشترک و رسالت مؤسسه تعالی اندیشه و رشد در راستای ...، خواهشمند است دستور فرمایید مساعدت لازم در خصوص ... مبذول گردد.')">درخواست مساعدت و همکاری</span>
+        <span class="template-btn" onclick="setTemplate('احتراماً، بدینوسیله جناب/سرکار ... به عنوان نماینده رسمی مؤسسه تعالی اندیشه و رشد جهت پیگیری امور مربوط به ... به حضور معرفی می‌گردد. خواهشمند است همکاری لازم مبذول فرمایید.')">معرفی‌نامه نماینده مؤسسه</span>
+        <span class="template-btn" onclick="setTemplate('احتراماً، بدینوسیله از حضرتعالی دعوت می‌شود تا در جلسه هم‌اندیشی مؤسسه تعالی اندیشه و رشد با موضوع ... که در تاریخ ... برگزار می‌گردد، حضور به هم رسانید.')">دعوتنامه حضور در جلسه</span>
+    </div>
+
     <div class="form-group">
         <textarea id="txt" class="form-input" required placeholder=" "></textarea>
         <label class="floating-label">متن اصلی نامه</label>
@@ -376,7 +399,7 @@
 <script>
     // **********************************************
     // آدرس اسکریپت گوگل را اینجا وارد کنید
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbywUkWbfsr2Gckg8HTiYcG58qmqBk69dbSmK0Vs7v-eZUpWNuxxEr7HxmqrGs01A9OG0w/exec";
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzrJh6FWkNjydhbSUwXgXy9Etobnbs0hTq7LRkVWj9zC-2I2uOXqPyDXn159t5vcZoWlg/exec";
     // **********************************************
 
     let finalImages = { img1: null, img2: null };
@@ -399,6 +422,13 @@
         document.getElementById('mathAns').value = '';
     }
     initMath();
+
+    // تابع جایگذاری الگوهای متنی
+    function setTemplate(text) {
+        const txtArea = document.getElementById('txt');
+        txtArea.value = text;
+        txtArea.focus();
+    }
 
     function addNewImageBox() {
         extraImgCount++;
@@ -766,14 +796,12 @@
             imageStatus: imgState
         };
 
-        // --- ارتقا اساسی: رندر پیش از ارسال به بک‌اند جهت تولید گزارش جامع ---
         const wrapper = document.getElementById('previewWrapper');
         const canvasArea = document.getElementById('renderCanvas');
         wrapper.innerHTML = ''; canvasArea.innerHTML = '';
         
         letterData = { ...formData, num: lNum, date: jDate };
         
-        // 1. تولید صفحات به صورت مخفی جهت استخراج متون دقیق
         const mainSheets = await renderPaginatedSheets(letterData.txt, false,[]);
         let attachSheets =[];
         if(formData.attach.trim() || activeImages.length > 0) {
@@ -791,7 +819,6 @@
             if (pagesInfoEl) pagesInfoEl.textContent = `صفحات: ${mainCountText}`;
         });
 
-        // 2. ساخت ساختار متنی جامع برای ذخیره دقیق در ستون K شیت
         let ultimateReportText = "=== اطلاعات جامع سیستم ===\n";
         ultimateReportText += `تعداد صفحات نامه اصلی: ${mainSheets.length}\n`;
         ultimateReportText += `تعداد صفحات پیوست: ${attachSheets.length}\n`;
@@ -819,17 +846,16 @@
             });
         }
 
-        // 3. ارسال اطلاعات به بک‌اند
         const payload = {
             department: formData.dept,
             subject: formData.subj,
-            letterText: formData.txt, // بک آپ
-            attachmentText: formData.attach, // بک آپ
+            letterText: formData.txt, 
+            attachmentText: formData.attach, 
             verificationCode: formData.verificationCode,
             issueDate: formData.issueDate,
             letterNumber: formData.letterNumber,
             imageStatus: formData.imageStatus,
-            ultimateText: ultimateReportText // متن جامع جدید برای ستون K
+            ultimateText: ultimateReportText 
         };
 
         try {
