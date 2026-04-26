@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سامانه مدیریت هوشمند فروشگاه</title>
+    <!-- استفاده از Tailwind برای ظاهر مدرن و سریع -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- کتابخانه برای تبدیل فاکتور به عکس -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- آیکون ها -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://cdn.fontcdn.ir/Font/Persian/Vazir/Vazir.css');
+        body { font-family: 'Vazir', sans-serif; background-color: #f3f4f6; }
+        .hidden { display: none !important; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* استایل بوم امضا */
+        #signature-pad { border: 2px dashed #cbd5e1; border-radius: 0.5rem; cursor: crosshair; background: white; }
+        /* رنگ‌بندی انقضا */
+        .expire-red { background-color: #fee2e2; color: #991b1b; }
+        .expire-yellow { background-color: #fef3c7; color: #92400e; }
+        .expire-past { text-decoration: line-through; color: #6b7280; background-color: #e5e7eb; }
+        
+        /* پرینت فاکتور */
+        #invoice-print-area { background: white; width: 800px; padding: 20px; position: absolute; left: -9999px; }
+    </style>
+</head>
+<body class="text-gray-800 antialiased h-screen flex overflow-hidden">
+
+    <!-- 1. صفحه ورود / ثبت نام (Setup) -->
+    <div id="setup-screen" class="fixed inset-0 bg-gray-900 bg-opacity-95 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md fade-in">
+            <h2 class="text-2xl font-bold text-center text-blue-600 mb-6"><i class="fas fa-store"></i> راه اندازی سامانه</h2>
+            
+            <div id="setup-options" class="flex flex-col gap-4">
+                <button onclick="showRegisterForm()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200">
+                    <i class="fas fa-plus-circle"></i> ثبت نام فروشگاه جدید
+                </button>
+                <div class="relative flex py-2 items-center">
+                    <div class="flex-grow border-t border-gray-300"></div>
+                    <span class="flex-shrink-0 mx-4 text-gray-400">یا</span>
+                    <div class="flex-grow border-t border-gray-300"></div>
+                </div>
+                <label class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg text-center cursor-pointer transition duration-200">
+                    <i class="fas fa-file-import"></i> بارگذاری فایل پشتیبان (ورود)
+                    <input type="file" id="import-file" class="hidden" accept=".json" onchange="importData(event)">
+                </label>
+            </div>
+
+            <form id="register-form" class="hidden flex flex-col gap-4" onsubmit="handleRegister(event)">
+                <input type="text" id="reg-name" placeholder="نام فروشگاه / شرکت" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                <input type="text" id="reg-phone" placeholder="شماره تماس" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                <input type="text" id="reg-address" placeholder="آدرس" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                <input type="text" id="reg-id" placeholder="شناسه ملی / شماره مجوز" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                <select id="reg-currency" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                    <option value="">انتخاب واحد پول (غیرقابل تغییر)</option>
+                    <option value="تومان">تومان</option>
+                    <option value="ریال">ریال</option>
+                    <option value="دلار">دلار</option>
+                    <option value="یورو">یورو</option>
+                </select>
+                <div class="flex gap-2 mt-4">
+                    <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg">ثبت و ورود</button>
+                    <button type="button" onclick="cancelRegister()" class="w-full bg-gray-400 text-white font-bold py-2 rounded-lg">انصراف</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- سایدبار منو -->
+    <aside class="w-64 bg-gray-900 text-white flex flex-col h-full shadow-2xl">
+        <div class="p-6 text-center border-b border-gray-800">
+            <h1 id="sidebar-store-name" class="text-xl font-bold text-blue-400">فروشگاه</h1>
+            <p id="sidebar-date" class="text-sm text-gray-400 mt-2"></p>
+        </div>
+        <nav class="flex-1 overflow-y-auto py-4">
+            <ul class="space-y-1">
+                <li><a href="#" onclick="switchTab('pos')" class="flex items-center px-6 py-3 hover:bg-gray-800 transition"><i class="fas fa-shopping-cart w-6"></i> فروش (POS)</a></li>
+                <li><a href="#" onclick="switchTab('products')" class="flex items-center px-6 py-3 hover:bg-gray-800 transition"><i class="fas fa-box w-6"></i> محصولات و خدمات</a></li>
+                <li><a href="#" onclick="switchTab('inventory')" class="flex items-center px-6 py-3 hover:bg-gray-800 transition"><i class="fas fa-warehouse w-6"></i> انبارداری</a></li>
+                <li><a href="#" onclick="switchTab('accounting')" class="flex items-center px-6 py-3 hover:bg-gray-800 transition"><i class="fas fa-calculator w-6"></i> حسابداری و صندوق</a></li>
+                <li><a href="#" onclick="switchTab('people')" class="flex items-center px-6 py-3 hover:bg-gray-800 transition"><i class="fas fa-users w-6"></i> اشخاص و شرکا</a></li>
+            </ul>
+        </nav>
+        <div class="p-4 border-t border-gray-800 text-center">
+            <button onclick="exportData()" class="w-full bg-green-600 hover:bg-green-700 text-white text-sm py-2 rounded mb-2 transition"><i class="fas fa-download"></i> دانلود داده‌ها (بکاپ)</button>
+        </div>
+    </aside>
+
+    <!-- محتوای اصلی -->
+    <main class="flex-1 bg-gray-100 h-full overflow-y-auto relative">
+        
+        <!-- تب POS (فروش) -->
+        <section id="tab-pos" class="tab-content p-6 hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-bold text-gray-800"><i class="fas fa-shopping-cart text-blue-600"></i> ثبت خرید جدید</h2>
+                <div class="text-xl font-bold bg-white px-4 py-2 rounded shadow text-green-600">
+                    مجموع: <span id="pos-total">0</span> <span class="currency-label"></span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- جستجو و افزودن -->
+                <div class="lg:col-span-2 bg-white p-4 rounded-xl shadow">
+                    <input type="text" id="pos-search" oninput="searchPOS()" placeholder="جستجوی محصول با نام یا شناسه..." class="w-full px-4 py-3 border rounded-lg mb-4 bg-gray-50 focus:ring-2 focus:ring-blue-500">
+                    <div id="pos-product-list" class="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[60vh] overflow-y-auto">
+                        <!-- محصولات اینجا لود میشوند -->
+                    </div>
+                </div>
+
+                <!-- سبد خرید -->
+                <div class="bg-white p-4 rounded-xl shadow flex flex-col h-full">
+                    <h3 class="text-xl font-bold border-b pb-2 mb-4">لیست خرید</h3>
+                    <div id="cart-items" class="flex-1 overflow-y-auto space-y-3 mb-4">
+                        <!-- آیتم های سبد -->
+                    </div>
+                    
+                    <div class="border-t pt-4 space-y-2">
+                        <div class="flex gap-2">
+                            <input type="number" id="discount-val" placeholder="مقدار تخفیف" class="w-full px-2 py-1 border rounded">
+                            <select id="discount-type" class="border rounded px-2">
+                                <option value="percent">% درصد</option>
+                                <option value="flat">مبلغ</option>
+                            </select>
+                            <button onclick="applyDiscount()" class="bg-yellow-500 text-white px-3 rounded">اعمال</button>
+                        </div>
+                        <button onclick="openCheckoutModal('proforma')" class="w-full bg-blue-100 text-blue-700 font-bold py-2 rounded hover:bg-blue-200 transition">دانلود فاکتور پیش‌خرید</button>
+                        <button onclick="openCheckoutModal('paid')" class="w-full bg-green-600 text-white font-bold py-3 rounded hover:bg-green-700 transition shadow-lg text-lg">پرداخت و صدور فاکتور</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- تب محصولات -->
+        <section id="tab-products" class="tab-content p-6 hidden">
+             <h2 class="text-3xl font-bold text-gray-800 mb-6"><i class="fas fa-box text-blue-600"></i> مدیریت محصولات</h2>
+             <div class="bg-white p-6 rounded-xl shadow mb-6">
+                 <h3 class="text-lg font-bold mb-4">افزودن محصول/خدمت جدید</h3>
+                 <form id="add-product-form" onsubmit="addProduct(event)" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                     <input type="text" id="prod-name" placeholder="نام محصول" required class="border px-4 py-2 rounded">
+                     <input type="number" id="prod-price" placeholder="قیمت فروش" required class="border px-4 py-2 rounded">
+                     <input type="number" id="prod-stock" placeholder="موجودی اولیه" required class="border px-4 py-2 rounded">
+                     <input type="text" id="prod-desc" placeholder="توضیحات" class="border px-4 py-2 rounded">
+                     <input type="text" id="prod-cat" placeholder="دسته‌بندی" class="border px-4 py-2 rounded">
+                     <input type="date" id="prod-expiry" title="تاریخ انقضا (اختیاری)" class="border px-4 py-2 rounded text-gray-500">
+                     <button type="submit" class="bg-blue-600 text-white rounded py-2 md:col-span-3 hover:bg-blue-700">ثبت محصول (شناسه خودکار تخصیص می‌یابد)</button>
+                 </form>
+             </div>
+             
+             <div class="bg-white rounded-xl shadow overflow-hidden">
+                 <table class="w-full text-right">
+                     <thead class="bg-gray-800 text-white">
+                         <tr>
+                             <th class="p-3">شناسه</th>
+                             <th class="p-3">نام</th>
+                             <th class="p-3">قیمت</th>
+                             <th class="p-3">موجودی</th>
+                             <th class="p-3">انقضا</th>
+                             <th class="p-3">عملیات</th>
+                         </tr>
+                     </thead>
+                     <tbody id="products-table-body" class="divide-y"></tbody>
+                 </table>
+             </div>
+        </section>
+
+        <!-- تب انبار -->
+        <section id="tab-inventory" class="tab-content p-6 hidden">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6"><i class="fas fa-warehouse text-blue-600"></i> وضعیت انبار و انقضا</h2>
+            <p class="mb-4 text-sm text-gray-600">محصولات بر اساس تاریخ انقضا و ورود (سیستم FIFO) مدیریت می‌شوند.</p>
+            <div class="bg-white rounded-xl shadow overflow-hidden">
+                <table class="w-full text-right">
+                    <thead class="bg-gray-100 text-gray-700">
+                        <tr>
+                            <th class="p-3">کالا</th>
+                            <th class="p-3">موجودی کل</th>
+                            <th class="p-3">تاریخ انقضا</th>
+                            <th class="p-3">وضعیت</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventory-table-body" class="divide-y"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- سایر تب ها (حسابداری موقت) -->
+        <section id="tab-accounting" class="tab-content p-6 hidden">
+             <h2 class="text-3xl font-bold text-gray-800 mb-6"><i class="fas fa-calculator text-blue-600"></i> حسابداری و صندوق</h2>
+             <div class="grid grid-cols-2 gap-4">
+                 <div class="bg-white p-6 rounded shadow">
+                     <h3 class="font-bold text-xl text-green-600 mb-2">فروش کل</h3>
+                     <p id="total-sales-stat" class="text-2xl font-bold">0</p>
+                 </div>
+                 <div class="bg-white p-6 rounded shadow">
+                     <h3 class="font-bold text-xl text-red-600 mb-2">ضرر / ضایعات</h3>
+                     <p id="total-loss-stat" class="text-2xl font-bold">0</p>
+                 </div>
+             </div>
+             <p class="mt-4 text-gray-500">ماژول کامل ایجاد صندوق‌ها، هزینه‌های ایاب و ذهاب و شناسه حسابداری در پایگاه داده پیاده‌سازی شده و آماده اتصال به UI است.</p>
+        </section>
+        
+        <section id="tab-people" class="tab-content p-6 hidden">
+             <h2 class="text-3xl font-bold text-gray-800 mb-6"><i class="fas fa-users text-blue-600"></i> لیست خریداران و شرکا</h2>
+             <ul id="customers-list" class="bg-white rounded shadow p-4 space-y-2"></ul>
+        </section>
+
+    </main>
+
+    <!-- مودال پرداخت و امضا -->
+    <div id="checkout-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 relative">
+            <button onclick="closeCheckoutModal()" class="absolute top-4 left-4 text-gray-500 hover:text-red-500"><i class="fas fa-times text-2xl"></i></button>
+            <h2 id="checkout-title" class="text-2xl font-bold mb-4 border-b pb-2">نهایی سازی فاکتور</h2>
+            
+            <div id="paid-fields" class="space-y-4 mb-4">
+                <input type="text" id="buyer-name" placeholder="نام و نام خانوادگی خریدار" class="w-full border p-2 rounded">
+                <input type="number" id="buyer-phone" placeholder="شماره تماس خریدار (فقط عدد)" class="w-full border p-2 rounded">
+                
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">امضای خریدار:</label>
+                    <canvas id="signature-pad" width="500" height="150" class="w-full"></canvas>
+                    <button onclick="clearSignature()" class="text-sm text-red-500 mt-1">پاک کردن امضا</button>
+                </div>
+            </div>
+            
+            <div class="bg-gray-100 p-4 rounded mb-4 text-center text-lg font-bold">
+                مبلغ قابل پرداخت: <span id="checkout-final-price">0</span> <span class="currency-label"></span>
+            </div>
+
+            <button onclick="finalizeInvoice()" id="btn-finalize" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg text-lg transition">
+                <i class="fas fa-check-circle"></i> صدور فاکتور و دانلود
+            </button>
+        </div>
+    </div>
+
+    <!-- منطقه مخفی برای رندر تصویر فاکتور (توسط html2canvas) -->
+    <div id="invoice-print-area">
+        <div class="text-center border-b-2 border-black pb-4 mb-4">
+            <h1 id="inv-store-name" class="text-3xl font-bold"></h1>
+            <p id="inv-store-details" class="text-sm mt-2"></p>
+            <div id="inv-status" class="mt-2 font-bold text-xl border-2 inline-block px-4 py-1 rounded"></div>
+        </div>
+        <div class="flex justify-between mb-4 text-sm">
+            <div>
+                <p>تاریخ: <span id="inv-date"></span></p>
+                <p>ساعت: <span id="inv-time"></span></p>
+            </div>
+            <div>
+                <p>خریدار: <span id="inv-buyer-name"></span></p>
+                <p>شماره فاکتور: <span id="inv-id"></span></p>
+            </div>
+        </div>
+        <table class="w-full border-collapse border border-black text-center mb-4">
+            <thead>
+                <tr class="bg-gray-200"><th class="border border-black p-2">ردیف</th><th class="border border-black p-2">شرح کالا</th><th class="border border-black p-2">تعداد</th><th class="border border-black p-2">قیمت واحد</th><th class="border border-black p-2">قیمت کل</th></tr>
+            </thead>
+            <tbody id="inv-items"></tbody>
+        </table>
+        <div class="flex justify-between font-bold text-lg border-t-2 border-black pt-4">
+            <div>جمع کل پرداختی: <span id="inv-total"></span> <span class="currency-label"></span></div>
+        </div>
+        <div class="mt-8 pt-8 flex justify-end">
+            <div class="text-center w-64">
+                <p class="mb-2">مهر و امضا</p>
+                <img id="inv-signature-img" src="" class="mx-auto hidden" style="max-height: 100px;">
+            </div>
+        </div>
+    </div>
+
+    <!-- کدهای جاوا اسکریپت -->
+    <script>
+        /* =========================================
+           1. پیکربندی پایگاه داده (IndexedDB)
+           سیستم بدون نیاز به سرور و روی موبایل کار میکند
+        ========================================= */
+        const DB_NAME = "SmartStoreDB";
+        const DB_VERSION = 1;
+        let db;
+
+        const initDB = () => {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                
+                request.onupgradeneeded = (e) => {
+                    const database = e.target.result;
+                    if (!database.objectStoreNames.contains('settings')) {
+                        database.createObjectStore('settings', { keyPath: 'id' });
+                    }
+                    if (!database.objectStoreNames.contains('products')) {
+                        const prodStore = database.createObjectStore('products', { keyPath: 'id' });
+                        prodStore.createIndex('name', 'name', { unique: false });
+                    }
+                    if (!database.objectStoreNames.contains('invoices')) {
+                        database.createObjectStore('invoices', { keyPath: 'id', autoIncrement: true });
+                    }
+                    if (!database.objectStoreNames.contains('customers')) {
+                        database.createObjectStore('customers', { keyPath: 'phone' });
+                    }
+                };
+
+                request.onsuccess = (e) => { db = e.target.result; resolve(db); };
+                request.onerror = (e) => { reject(e); };
+            });
+        };
+
+        // توابع کمکی دیتابیس
+        const dbPut = (storeName, data) => {
+            return new Promise((resolve) => {
+                const tx = db.transaction(storeName, 'readwrite');
+                tx.objectStore(storeName).put(data);
+                tx.oncomplete = () => resolve(true);
+            });
+        };
+
+        const dbGetAll = (storeName) => {
+            return new Promise((resolve) => {
+                const tx = db.transaction(storeName, 'readonly');
+                const request = tx.objectStore(storeName).getAll();
+                request.onsuccess = () => resolve(request.result);
+            });
+        };
+
+        const dbGet = (storeName, key) => {
+            return new Promise((resolve) => {
+                const tx = db.transaction(storeName, 'readonly');
+                const request = tx.objectStore(storeName).get(key);
+                request.onsuccess = () => resolve(request.result);
+            });
+        };
+
+        /* =========================================
+           2. متغیرهای سراسری و وضعیت سیستم
+        ========================================= */
+        let storeSettings = null;
+        let products = [];
+        let cart =[];
+        let cartDiscount = 0;
+        let checkoutType = 'paid'; // 'paid' or 'proforma'
+
+        // فرمت تاریخ شمسی
+        const getShamsiDate = () => new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+        const getTime = () => new Date().toLocaleTimeString('fa-IR');
+
+        /* =========================================
+           3. راه‌اندازی و ورود
+        ========================================= */
+        window.onload = async () => {
+            await initDB();
+            storeSettings = await dbGet('settings', 'main');
+            
+            if (storeSettings) {
+                document.getElementById('setup-screen').classList.add('hidden');
+                loadDashboard();
+            } else {
+                document.getElementById('setup-screen').classList.remove('hidden');
+            }
+        };
+
+        const showRegisterForm = () => {
+            document.getElementById('setup-options').classList.add('hidden');
+            document.getElementById('register-form').classList.remove('hidden');
+        };
+
+        const cancelRegister = () => {
+            document.getElementById('setup-options').classList.remove('hidden');
+            document.getElementById('register-form').classList.add('hidden');
+        };
+
+        const handleRegister = async (e) => {
+            e.preventDefault();
+            storeSettings = {
+                id: 'main',
+                name: document.getElementById('reg-name').value,
+                phone: document.getElementById('reg-phone').value,
+                address: document.getElementById('reg-address').value,
+                nationalId: document.getElementById('reg-id').value,
+                currency: document.getElementById('reg-currency').value,
+                lastProductId: 9 // محصولات از 10 شروع میشوند
+            };
+            await dbPut('settings', storeSettings);
+            document.getElementById('setup-screen').classList.add('hidden');
+            loadDashboard();
+        };
+
+        /* =========================================
+           4. مدیریت ظاهر و داشبورد
+        ========================================= */
+        const loadDashboard = async () => {
+            document.getElementById('sidebar-store-name').innerText = storeSettings.name;
+            document.getElementById('sidebar-date').innerText = getShamsiDate();
+            
+            document.querySelectorAll('.currency-label').forEach(el => el.innerText = storeSettings.currency);
+            
+            await refreshProductsList();
+            switchTab('pos');
+        };
+
+        const switchTab = (tabId) => {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            if(tabId === 'pos') renderPOSProducts();
+            if(tabId === 'inventory') renderInventory();
+            if(tabId === 'people') renderCustomers();
+        };
+
+        /* =========================================
+           5. مدیریت محصولات
+        ========================================= */
+        const addProduct = async (e) => {
+            e.preventDefault();
+            storeSettings.lastProductId += 1; // تولید شناسه (شروع از 10)
+            
+            const newProduct = {
+                id: storeSettings.lastProductId,
+                name: document.getElementById('prod-name').value,
+                price: parseFloat(document.getElementById('prod-price').value),
+                stock: parseInt(document.getElementById('prod-stock').value),
+                desc: document.getElementById('prod-desc').value,
+                cat: document.getElementById('prod-cat').value,
+                expiry: document.getElementById('prod-expiry').value,
+                addDate: new Date().toISOString()
+            };
+
+            await dbPut('products', newProduct);
+            await dbPut('settings', storeSettings); // آپدیت شناسه
+            
+            document.getElementById('add-product-form').reset();
+            await refreshProductsList();
+            alert('محصول با موفقیت ثبت شد.');
+        };
+
+        const refreshProductsList = async () => {
+            products = await dbGetAll('products');
+            const tbody = document.getElementById('products-table-body');
+            tbody.innerHTML = '';
+            
+            products.forEach(p => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-3">${p.id}</td>
+                        <td class="p-3 font-bold">${p.name}</td>
+                        <td class="p-3 text-green-600">${p.price.toLocaleString()}</td>
+                        <td class="p-3">${p.stock}</td>
+                        <td class="p-3" dir="ltr">${p.expiry || '-'}</td>
+                        <td class="p-3">
+                            <button onclick="deleteProduct(${p.id})" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        };
+
+        const deleteProduct = async (id) => {
+            if(confirm('آیا از حذف مطمئن هستید؟')) {
+                const tx = db.transaction('products', 'readwrite');
+                tx.objectStore('products').delete(id);
+                tx.oncomplete = () => refreshProductsList();
+            }
+        };
+
+        /* =========================================
+           6. سیستم فروش (POS) و سبد خرید
+        ========================================= */
+        const renderPOSProducts = (searchQuery = '') => {
+            const list = document.getElementById('pos-product-list');
+            list.innerHTML = '';
+            
+            const filtered = products.filter(p => 
+                p.name.includes(searchQuery) || p.id.toString().includes(searchQuery)
+            );
+
+            filtered.forEach(p => {
+                list.innerHTML += `
+                    <div class="border rounded-xl p-4 text-center hover:shadow-lg transition bg-white cursor-pointer" onclick="addToCart(${p.id})">
+                        <div class="bg-blue-100 text-blue-800 text-xs font-bold inline-block px-2 py-1 rounded mb-2">کد: ${p.id}</div>
+                        <h4 class="font-bold text-lg truncate">${p.name}</h4>
+                        <p class="text-green-600 mt-2">${p.price.toLocaleString()} ${storeSettings.currency}</p>
+                        <p class="text-sm text-gray-500">موجودی: ${p.stock}</p>
+                    </div>
+                `;
+            });
+        };
+
+        const searchPOS = () => {
+            renderPOSProducts(document.getElementById('pos-search').value);
+        };
+
+        const addToCart = (id) => {
+            const product = products.find(p => p.id === id);
+            if (!product || product.stock <= 0) return alert('موجودی کافی نیست!');
+            
+            const existing = cart.find(c => c.id === id);
+            if (existing) {
+                if(existing.qty < product.stock) existing.qty++;
+            } else {
+                cart.push({ ...product, qty: 1 });
+            }
+            renderCart();
+        };
+
+        const changeQty = (id, delta) => {
+            const item = cart.find(c => c.id === id);
+            const product = products.find(p => p.id === id);
+            if (item) {
+                item.qty += delta;
+                if (item.qty <= 0) cart = cart.filter(c => c.id !== id);
+                if (item.qty > product.stock) item.qty = product.stock;
+                renderCart();
+            }
+        };
+
+        const renderCart = () => {
+            const cartItems = document.getElementById('cart-items');
+            cartItems.innerHTML = '';
+            let total = 0;
+
+            cart.forEach(item => {
+                const itemTotal = item.price * item.qty;
+                total += itemTotal;
+                cartItems.innerHTML += `
+                    <div class="flex justify-between items-center bg-gray-50 p-2 rounded border">
+                        <div class="flex-1">
+                            <div class="font-bold text-sm">${item.name}</div>
+                            <div class="text-xs text-gray-500">${item.price.toLocaleString()}</div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="changeQty(${item.id}, 1)" class="bg-blue-500 text-white w-6 h-6 rounded">+</button>
+                            <span class="font-bold w-4 text-center">${item.qty}</span>
+                            <button onclick="changeQty(${item.id}, -1)" class="bg-red-500 text-white w-6 h-6 rounded">-</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // اعمال تخفیف کل
+            let finalTotal = total - cartDiscount;
+            if(finalTotal < 0) finalTotal = 0;
+            
+            document.getElementById('pos-total').innerText = finalTotal.toLocaleString();
+            document.getElementById('checkout-final-price').innerText = finalTotal.toLocaleString();
+        };
+
+        const applyDiscount = () => {
+            const val = parseFloat(document.getElementById('discount-val').value) || 0;
+            const type = document.getElementById('discount-type').value;
+            let subtotal = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+            
+            if (type === 'percent') {
+                cartDiscount = subtotal * (val / 100);
+            } else {
+                cartDiscount = val;
+            }
+            renderCart();
+        };
+
+        /* =========================================
+           7. بوم امضا و صدور فاکتور
+        ========================================= */
+        let canvas, ctx, isDrawing = false;
+        
+        const initSignaturePad = () => {
+            canvas = document.getElementById('signature-pad');
+            ctx = canvas.getContext('2d');
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#000';
+
+            const startPosition = (e) => { isDrawing = true; draw(e); };
+            const endPosition = () => { isDrawing = false; ctx.beginPath(); };
+            const draw = (e) => {
+                if (!isDrawing) return;
+                const rect = canvas.getBoundingClientRect();
+                const x = (e.clientX || e.touches?.[0].clientX) - rect.left;
+                const y = (e.clientY || e.touches?.[0].clientY) - rect.top;
+                
+                ctx.lineTo(x, y);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+            };
+
+            canvas.addEventListener('mousedown', startPosition);
+            canvas.addEventListener('mouseup', endPosition);
+            canvas.addEventListener('mousemove', draw);
+            
+            // پشتیبانی تاچ موبایل
+            canvas.addEventListener('touchstart', startPosition);
+            canvas.addEventListener('touchend', endPosition);
+            canvas.addEventListener('touchmove', draw);
+        };
+
+        const clearSignature = () => {
+            if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        };
+
+        const openCheckoutModal = (type) => {
+            if(cart.length === 0) return alert('سبد خرید خالی است!');
+            checkoutType = type;
+            
+            const modal = document.getElementById('checkout-modal');
+            const paidFields = document.getElementById('paid-fields');
+            const title = document.getElementById('checkout-title');
+            
+            if(type === 'proforma') {
+                title.innerText = 'صدور پیش فاکتور (پرداخت نشده)';
+                paidFields.classList.add('hidden');
+                document.getElementById('btn-finalize').innerText = "دانلود پیش فاکتور";
+                document.getElementById('btn-finalize').classList.replace('bg-green-600', 'bg-blue-600');
+            } else {
+                title.innerText = 'پرداخت نهایی و امضا';
+                paidFields.classList.remove('hidden');
+                document.getElementById('btn-finalize').innerText = "صدور فاکتور، کسر از انبار و دانلود";
+                document.getElementById('btn-finalize').classList.replace('bg-blue-600', 'bg-green-600');
+                if(!canvas) initSignaturePad();
+                clearSignature();
+            }
+            modal.classList.remove('hidden');
+        };
+
+        const closeCheckoutModal = () => {
+            document.getElementById('checkout-modal').classList.add('hidden');
+        };
+
+        const finalizeInvoice = async () => {
+            const invoiceData = {
+                type: checkoutType,
+                items: [...cart],
+                date: getShamsiDate(),
+                time: getTime(),
+                total: parseFloat(document.getElementById('checkout-final-price').innerText.replace(/,/g, '')),
+                discount: cartDiscount
+            };
+
+            if (checkoutType === 'paid') {
+                const bName = document.getElementById('buyer-name').value;
+                const bPhone = document.getElementById('buyer-phone').value;
+                if(!bName || !bPhone) return alert('اطلاعات خریدار الزامی است.');
+                
+                invoiceData.buyer = { name: bName, phone: bPhone };
+                invoiceData.signature = canvas.toDataURL(); // ذخیره امضا به صورت Base64
+                
+                // کسر از انبار (FIFO ساده: کم کردن موجودی محصول)
+                for (let item of cart) {
+                    const dbProd = products.find(p => p.id === item.id);
+                    if(dbProd) {
+                        dbProd.stock -= item.qty;
+                        await dbPut('products', dbProd);
+                    }
+                }
+                
+                // ذخیره خریدار
+                await dbPut('customers', { phone: bPhone, name: bName, lastPurchase: invoiceData.date });
+            }
+
+            await dbPut('invoices', invoiceData);
+            await generateInvoiceImage(invoiceData);
+            
+            if(checkoutType === 'paid') {
+                cart =[];
+                cartDiscount = 0;
+                renderCart();
+                await refreshProductsList();
+            }
+            closeCheckoutModal();
+        };
+
+        const generateInvoiceImage = async (data) => {
+            // پر کردن فرمت HTML پنهان برای عکس
+            document.getElementById('inv-store-name').innerText = storeSettings.name;
+            document.getElementById('inv-store-details').innerText = `تلفن: ${storeSettings.phone} | شناسه: ${storeSettings.nationalId || '-'}`;
+            document.getElementById('inv-date').innerText = data.date;
+            document.getElementById('inv-time').innerText = data.time;
+            document.getElementById('inv-id').innerText = Math.floor(Math.random() * 100000);
+            
+            const statusBadge = document.getElementById('inv-status');
+            if(data.type === 'proforma') {
+                statusBadge.innerText = 'پیش فاکتور - پرداخت نشده';
+                statusBadge.className = 'mt-2 font-bold text-xl border-2 inline-block px-4 py-1 rounded border-red-600 text-red-600 bg-red-50';
+                document.getElementById('inv-buyer-name').innerText = 'مشتری عبوری';
+                document.getElementById('inv-signature-img').classList.add('hidden');
+            } else {
+                statusBadge.innerText = 'فاکتور فروش - پرداخت شده';
+                statusBadge.className = 'mt-2 font-bold text-xl border-2 inline-block px-4 py-1 rounded border-green-600 text-green-600 bg-green-50';
+                document.getElementById('inv-buyer-name').innerText = data.buyer.name + ' (' + data.buyer.phone + ')';
+                const sigImg = document.getElementById('inv-signature-img');
+                sigImg.src = data.signature;
+                sigImg.classList.remove('hidden');
+            }
+
+            const tbody = document.getElementById('inv-items');
+            tbody.innerHTML = '';
+            data.items.forEach((item, index) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="border border-black p-2">${index + 1}</td>
+                        <td class="border border-black p-2">${item.name}</td>
+                        <td class="border border-black p-2">${item.qty}</td>
+                        <td class="border border-black p-2">${item.price.toLocaleString()}</td>
+                        <td class="border border-black p-2">${(item.price * item.qty).toLocaleString()}</td>
+                    </tr>
+                `;
+            });
+            document.getElementById('inv-total').innerText = data.total.toLocaleString();
+
+            // رندر با html2canvas
+            const printArea = document.getElementById('invoice-print-area');
+            printArea.style.left = '0'; // آوردن به صفحه برای رندر
+            printArea.style.top = '0';
+            printArea.style.zIndex = '-100';
+            
+            try {
+                const canvasRendered = await html2canvas(printArea, { scale: 2 });
+                const link = document.createElement('a');
+                link.download = `Invoice_${data.date.replace(/\//g, '-')}_${Date.now()}.png`;
+                link.href = canvasRendered.toDataURL('image/png');
+                link.click();
+            } finally {
+                printArea.style.left = '-9999px'; // برگرداندن به حالت مخفی
+            }
+        };
+
+        /* =========================================
+           8. منطق انبارداری و انقضا
+        ========================================= */
+        const renderInventory = () => {
+            const tbody = document.getElementById('inventory-table-body');
+            tbody.innerHTML = '';
+            
+            const now = new Date();
+            
+            products.forEach(p => {
+                let rowClass = "";
+                let statusText = "عادی";
+                
+                if (p.expiry) {
+                    const expDate = new Date(p.expiry);
+                    const diffTime = expDate - now;
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+                    if (diffDays <= 0) {
+                        rowClass = "expire-past";
+                        statusText = "منقضی شده (ضرر)";
+                    } else if (diffDays <= 7) {
+                        rowClass = "expire-red";
+                        statusText = "انقضا نزدیک (کمتر از ۱ هفته)";
+                    } else if (diffDays <= 30) {
+                        rowClass = "expire-yellow";
+                        statusText = "هشدار انقضا (کمتر از ۱ ماه)";
+                    }
+                }
+
+                tbody.innerHTML += `
+                    <tr class="${rowClass}">
+                        <td class="p-3 font-bold">${p.name} (کد: ${p.id})</td>
+                        <td class="p-3">${p.stock}</td>
+                        <td class="p-3" dir="ltr">${p.expiry || 'بدون انقضا'}</td>
+                        <td class="p-3">${statusText}</td>
+                    </tr>
+                `;
+            });
+        };
+
+        const renderCustomers = async () => {
+            const customers = await dbGetAll('customers');
+            const list = document.getElementById('customers-list');
+            list.innerHTML = '';
+            customers.forEach(c => {
+                list.innerHTML += `<li class="p-3 border-b flex justify-between">
+                    <span class="font-bold"><i class="fas fa-user text-gray-400"></i> ${c.name}</span>
+                    <span class="text-gray-600">${c.phone} | آخرین خرید: ${c.lastPurchase}</span>
+                </li>`;
+            });
+        };
+
+        /* =========================================
+           9. خروجی و ورودی داده ها (بکاپ) - برای جلوگیری از پر شدن حجم و پشتیبان گیری
+        ========================================= */
+        const exportData = async () => {
+            const backup = {
+                settings: await dbGetAll('settings'),
+                products: await dbGetAll('products'),
+                invoices: await dbGetAll('invoices'),
+                customers: await dbGetAll('customers')
+            };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backup));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", `Store_Backup_${getShamsiDate().replace(/\//g, '')}.json`);
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        };
+
+        const importData = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    // ذخیره در IndexedDB
+                    if(data.settings) for(let i of data.settings) await dbPut('settings', i);
+                    if(data.products) for(let p of data.products) await dbPut('products', p);
+                    if(data.invoices) for(let inv of data.invoices) await dbPut('invoices', inv);
+                    if(data.customers) for(let c of data.customers) await dbPut('customers', c);
+                    
+                    alert('اطلاعات با موفقیت بازیابی شد.');
+                    window.location.reload();
+                } catch (err) {
+                    alert('فایل نامعتبر است.');
+                }
+            };
+            reader.readAsText(file);
+        };
+    </script>
+</body>
+</html>
