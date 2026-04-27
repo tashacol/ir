@@ -3,690 +3,1653 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سامانه مدیریت هوشمند فروشگاه</title>
-    <!-- Tailwind CSS for modern & responsive UI -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Library for converting HTML to Image (for invoices) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <!-- FontAwesome Icons -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css" rel="stylesheet">
+    <title>سامانه مدیریت فروشگاه</title>
     <style>
-        @import url('https://cdn.fontcdn.ir/Font/Persian/Vazir/Vazir.css');
-        html, body { font-family: 'Vazir', sans-serif; background-color: #f1f5f9; scroll-behavior: smooth; }
-        .hidden { display: none !important; }
-        .fade-in { animation: fadeIn 0.4s ease-in-out; }
-        .toast-notification {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 12px 20px;
-            border-radius: 8px;
-            color: white;
-            z-index: 1000;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s, visibility 0.3s, transform 0.3s;
+        :root {
+            --bg: #f5f6f8;
+            --sidebar-bg: #1e293b;
+            --sidebar-text: #cbd5e1;
+            --sidebar-active: #3b82f6;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --danger: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --radius: 10px;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.12);
+            --transition: 0.2s ease;
         }
-        .toast-notification.show { opacity: 1; visibility: visible; transform: translate(-50%, -10px); }
-        .toast-notification.success { background-color: #22c55e; }
-        .toast-notification.error { background-color: #ef4444; }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        #signature-pad { border: 2px dashed #cbd5e1; border-radius: 0.5rem; cursor: crosshair; background: white; touch-action: none; }
-        /* Expiry Status Colors */
-        .expire-red { background-color: #fecaca !important; color: #b91c1c; }
-        .expire-yellow { background-color: #fef08a !important; color: #a16207; }
-        .expire-past { text-decoration: line-through; color: #4b5563; background-color: #e5e7eb !important; }
-        /* Print area for invoice generation */
-        #invoice-print-area { position: absolute; left: -9999px; width: 800px; background: white; padding: 25px; font-size: 14px; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', 'Roboto', Tahoma, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: var(--sidebar-bg);
+            color: var(--sidebar-text);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 100;
+            transition: transform var(--transition);
+            overflow-y: auto;
+            box-shadow: var(--shadow-lg);
+        }
+        .sidebar-header {
+            padding: 20px 18px;
+            border-bottom: 1px solid #334155;
+            text-align: center;
+        }
+        .sidebar-header h2 {
+            font-size: 1.3em;
+            color: #f1f5f9;
+            margin: 0;
+        }
+        .sidebar-header .store-name {
+            font-size: 0.8em;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+        .sidebar-nav {
+            flex: 1;
+            padding: 10px 0;
+            list-style: none;
+        }
+        .sidebar-nav li a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 11px 20px;
+            color: #cbd5e1;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all var(--transition);
+            border-right: 3px solid transparent;
+            font-size: 0.92em;
+        }
+        .sidebar-nav li a:hover,
+        .sidebar-nav li a.active {
+            background: #263348;
+            color: #fff;
+            border-right-color: var(--sidebar-active);
+        }
+        .sidebar-nav li a .icon {
+            font-size: 1.2em;
+            width: 24px;
+            text-align: center;
+        }
+        .sidebar-footer {
+            padding: 12px 18px;
+            border-top: 1px solid #334155;
+            font-size: 0.78em;
+            color: #64748b;
+            text-align: center;
+        }
+        /* Main */
+        .main {
+            flex: 1;
+            margin-right: 260px;
+            padding: 24px 28px;
+            max-width: calc(100vw - 260px);
+            transition: margin var(--transition);
+        }
+        .page {
+            display: none;
+        }
+        .page.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px 22px;
+            margin-bottom: 18px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+        .card h3 {
+            margin-bottom: 14px;
+            font-size: 1.1em;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .flex-row {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        input,
+        select,
+        textarea,
+        button {
+            font-family: inherit;
+            font-size: 0.9em;
+            border-radius: 7px;
+            padding: 9px 14px;
+            border: 1px solid var(--border);
+            transition: all var(--transition);
+            outline: none;
+        }
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        textarea {
+            resize: vertical;
+            min-height: 70px;
+        }
+        button {
+            cursor: pointer;
+            font-weight: 500;
+            border: none;
+            background: var(--primary);
+            color: #fff;
+            padding: 9px 18px;
+            white-space: nowrap;
+        }
+        button:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        button.danger {
+            background: var(--danger);
+        }
+        button.danger:hover {
+            background: #dc2626;
+        }
+        button.success {
+            background: var(--success);
+        }
+        button.warning {
+            background: var(--warning);
+            color: #000;
+        }
+        button.outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+        button.outline:hover {
+            background: #f8fafc;
+            transform: none;
+            box-shadow: none;
+        }
+        button.sm {
+            padding: 5px 11px;
+            font-size: 0.8em;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88em;
+        }
+        table th,
+        table td {
+            padding: 10px 12px;
+            text-align: right;
+            border-bottom: 1px solid var(--border);
+        }
+        table th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: var(--text-secondary);
+            position: sticky;
+            top: 0;
+        }
+        table tr:hover td {
+            background: #f8fafc;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75em;
+            font-weight: 500;
+        }
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .badge-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .badge-info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.2s ease;
+        }
+        .modal {
+            background: #fff;
+            border-radius: var(--radius);
+            padding: 24px;
+            width: 90%;
+            max-width: 650px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-lg);
+        }
+        .modal h3 {
+            margin-bottom: 16px;
+        }
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 24px;
+            background: #1e293b;
+            color: #fff;
+            padding: 12px 22px;
+            border-radius: 8px;
+            z-index: 300;
+            animation: slideUp 0.3s ease;
+            font-size: 0.9em;
+        }
+        @keyframes slideUp {
+            from {
+                transform: translateY(40px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        .highlight-row {
+            background: #fffbeb !important;
+        }
+        .expired-row td {
+            text-decoration: line-through;
+            color: #999;
+        }
+        .expiry-yellow {
+            color: #d97706 !important;
+            font-weight: 600;
+        }
+        .expiry-red {
+            color: #dc2626 !important;
+            font-weight: 700;
+        }
+        .search-results {
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-top: 6px;
+        }
+        .search-result-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .search-result-item:hover {
+            background: #f1f5f9;
+        }
+        canvas {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            touch-action: none;
+            background: #fff;
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(100%);
+                width: 260px;
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .main {
+                margin-right: 0;
+                max-width: 100vw;
+                padding: 14px;
+            }
+            .flex-row {
+                flex-direction: column;
+                gap: 8px;
+            }
+        }
+        .menu-toggle {
+            display: none;
+            position: fixed;
+            top: 14px;
+            right: 14px;
+            z-index: 150;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 1.2em;
+        }
+        @media (max-width: 768px) {
+            .menu-toggle {
+                display: block;
+            }
+        }
     </style>
 </head>
-<body class="text-slate-800 antialiased h-screen flex overflow-hidden">
+<body>
 
-    <!-- Toast Notification Container -->
-    <div id="toast-container" class="toast-notification"></div>
+    <button class="menu-toggle" onclick="toggleSidebar()">☰ منو</button>
 
-    <!-- 1. Setup / Loading Screen (Initial) -->
-    <div id="setup-screen" class="fixed inset-0 bg-slate-900 bg-opacity-95 flex items-center justify-center z-[200]">
-        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md fade-in text-center">
-            <h2 class="text-3xl font-bold text-center text-sky-600 mb-6 flex items-center justify-center gap-3"><i class="fas fa-store-alt"></i> سیستم مدیریت فروشگاه</h2>
-            
-            <div id="setup-options" class="flex flex-col gap-4">
-                <button onclick="showRegisterForm()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-4 rounded-lg transition-transform duration-200 hover:scale-105 shadow-lg">
-                    <i class="fas fa-plus-circle mr-2"></i> ایجاد فروشگاه جدید
-                </button>
-                <div class="relative flex py-2 items-center"><div class="flex-grow border-t border-slate-300"></div><span class="flex-shrink mx-4 text-slate-400">یا</span><div class="flex-grow border-t border-slate-300"></div></div>
-                <label class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-lg text-center cursor-pointer transition-transform duration-200 hover:scale-105 shadow-lg">
-                    <i class="fas fa-file-import mr-2"></i> بارگذاری فایل پشتیبان (ورود)
-                    <input type="file" id="import-file" class="hidden" accept=".json" onchange="importData(event)">
-                </label>
-            </div>
-
-            <form id="register-form" class="hidden flex flex-col gap-4" onsubmit="handleRegister(event)">
-                <input type="text" id="reg-name" placeholder="نام فروشگاه / شرکت" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-sky-500">
-                <input type="text" id="reg-phone" placeholder="شماره تماس" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-sky-500">
-                <input type="text" id="reg-address" placeholder="آدرس" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-sky-500">
-                <input type="text" id="reg-id" placeholder="شناسه ملی / شماره مجوز" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-sky-500">
-                <select id="reg-currency" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-sky-500 bg-slate-50">
-                    <option value="">انتخاب واحد پول (غیرقابل تغییر)</option>
-                    <option value="تومان">تومان</option>
-                    <option value="ریال">ریال</option>
-                    <option value="دلار">دلار</option>
-                    <option value="یورو">یورو</option>
-                </select>
-                <div class="flex gap-2 mt-4">
-                    <button type="submit" class="w-full bg-sky-600 text-white font-bold py-2 rounded-lg hover:bg-sky-700">ثبت و شروع</button>
-                    <button type="button" onclick="cancelRegister()" class="w-full bg-slate-400 text-white font-bold py-2 rounded-lg hover:bg-slate-500">انصراف</button>
-                </div>
-            </form>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2>🏪 ابزار فروشگاه</h2>
+            <div class="store-name" id="sidebarStoreName">خوش آمدید</div>
         </div>
-    </div>
-
-    <!-- Sidebar Menu -->
-    <aside class="w-64 bg-slate-900 text-white flex-flex-col h-full shadow-2xl transition-all duration-300 md:flex">
-        <div class="p-6 text-center border-b border-slate-800">
-            <h1 id="sidebar-store-name" class="text-xl font-bold text-sky-400">نام فروشگاه</h1>
-            <p id="sidebar-date" class="text-sm text-slate-400 mt-2"></p>
-        </div>
-        <nav class="flex-1 overflow-y-auto py-4">
-            <ul class="space-y-1">
-                <li><a href="#" onclick="switchTab('pos')" class="flex items-center px-6 py-3 hover:bg-slate-800 transition rounded-r-full"><i class="fas fa-cash-register w-6 mr-3"></i> فروش (POS)</a></li>
-                <li><a href="#" onclick="switchTab('products')" class="flex items-center px-6 py-3 hover:bg-slate-800 transition rounded-r-full"><i class="fas fa-box-open w-6 mr-3"></i> محصولات</a></li>
-                <li><a href="#" onclick="switchTab('inventory')" class="flex items-center px-6 py-3 hover:bg-slate-800 transition rounded-r-full"><i class="fas fa-warehouse w-6 mr-3"></i> انبارداری</a></li>
-                <li><a href="#" onclick="switchTab('people')" class="flex items-center px-6 py-3 hover:bg-slate-800 transition rounded-r-full"><i class="fas fa-users w-6 mr-3"></i> اشخاص</a></li>
-                <!-- More tabs can be added here -->
-            </ul>
-        </nav>
-        <div class="p-4 border-t border-slate-800 text-center">
-            <button onclick="exportData()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold py-3 rounded-lg transition duration-200"><i class="fas fa-download mr-2"></i> دانلود پشتیبان</button>
-        </div>
+        <ul class="sidebar-nav">
+            <li><a data-page="dashboard" class="active"><span class="icon">📊</span> داشبورد</a></li>
+            <li><a data-page="products"><span class="icon">📦</span> محصولات و انبار</a></li>
+            <li><a data-page="new-order"><span class="icon">🛒</span> ثبت خرید جدید</a></li>
+            <li><a data-page="orders"><span class="icon">📋</span> لیست خریدها / فاکتورها</a></li>
+            <li><a data-page="persons"><span class="icon">👥</span> اشخاص</a></li>
+            <li><a data-page="accounts"><span class="icon">🏦</span> حساب‌ها و صندوق‌ها</a></li>
+            <li><a data-page="expenses"><span class="icon">💸</span> هزینه‌های جانبی</a></li>
+            <li><a data-page="shareholders"><span class="icon">🤝</span> سهامداران و شرکا</a></li>
+            <li><a data-page="losses"><span class="icon">📉</span> ضرر و زیان</a></li>
+            <li><a data-page="settings"><span class="icon">⚙️</span> تنظیمات و خروجی</a></li>
+        </ul>
+        <div class="sidebar-footer">نسخه ۱.۰ - ذخیره‌سازی محلی</div>
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 bg-slate-100 h-full overflow-y-auto relative">
-        
-        <!-- Tab: POS (Sales) -->
-        <section id="tab-pos" class="tab-content p-4 md:p-6 hidden">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Left Column: Search & Products -->
-                <div class="lg:col-span-2 bg-white p-4 rounded-2xl shadow-lg">
-                    <h2 class="text-2xl font-bold mb-4">ثبت فروش جدید</h2>
-                    <input type="text" id="pos-search" oninput="renderPOSProducts(this.value)" placeholder="جستجوی محصول با نام یا شناسه..." class="w-full px-4 py-3 border rounded-lg mb-4 bg-slate-50 focus:ring-2 focus:ring-sky-500 shadow-inner">
-                    <div id="pos-product-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-[65vh] overflow-y-auto p-2">
-                        <!-- Products will be dynamically loaded here -->
+    <main class="main" id="mainContent">
+        <!-- Dashboard -->
+        <div class="page active" id="page-dashboard">
+            <div class="card"><h3>📊 داشبورد</h3><div class="flex-row" id="dashboardStats"><p>در حال بارگذاری...</p></div></div>
+            <div class="card"><h3>📈 فروش امروز</h3><div id="todaySales"><p>—</p></div></div>
+            <div class="card"><h3>⚠️ محصولات نزدیک به انقضا</h3><div id="nearExpiry"><p>—</p></div></div>
+        </div>
+
+        <!-- Products -->
+        <div class="page" id="page-products">
+            <div class="card"><div class="flex-between"><h3>📦 لیست محصولات</h3><button onclick="showAddProduct()">➕ افزودن محصول</button></div>
+                <input type="text" placeholder="🔍 جستجوی محصول..." oninput="renderProducts(this.value)" style="width:100%;margin:10px 0;">
+                <div style="overflow-x:auto;"><table><thead><tr><th>شناسه</th><th>تصویر</th><th>نام</th><th>دسته</th><th>قیمت</th><th>موجودی</th><th>انقضا</th><th>عملیات</th></tr></thead><tbody id="productsTable"></tbody></table></div>
+            </div>
+            <div class="card"><h3>🗂 دسته‌بندی‌ها</h3><div class="flex-row"><input type="text" id="catInput" placeholder="نام دسته جدید"><button onclick="addCategory()">افزودن</button></div>
+                <div id="categoriesList" style="margin-top:10px;"></div>
+            </div>
+        </div>
+
+        <!-- New Order -->
+        <div class="page" id="page-new-order">
+            <div class="card"><h3>🛒 ثبت خرید جدید</h3>
+                <input type="text" id="orderSearch" placeholder="🔍 جستجوی محصول با نام یا شناسه..." oninput="searchProductForOrder(this.value)" style="width:100%;">
+                <div class="search-results" id="searchResults"></div>
+                <div style="margin-top:14px;"><h4>اقلام انتخاب شده:</h4><table><thead><tr><th>محصول</th><th>قیمت واحد</th><th>تعداد</th><th>تخفیف</th><th>جمع</th><th>حذف</th></tr></thead><tbody id="orderItemsTable"></tbody></table></div>
+                <div class="flex-between" style="margin-top:10px;">
+                    <strong>مجموع: <span id="orderTotal">0</span></strong>
+                    <div class="flex-row">
+                        <select id="discountType"><option value="percent">تخفیف درصدی</option><option value="amount">تخفیف ریالی</option></select>
+                        <input type="number" id="discountValue" placeholder="مقدار تخفیف" style="width:120px;" value="0">
+                        <button onclick="applyDiscount()">اعمال تخفیف</button>
                     </div>
                 </div>
-
-                <!-- Right Column: Cart -->
-                <div class="bg-white p-4 rounded-2xl shadow-lg flex flex-col h-full">
-                    <div class="flex justify-between items-center border-b pb-3 mb-3">
-                        <h3 class="text-xl font-bold">سبد خرید</h3>
-                        <div class="text-xl font-bold bg-emerald-100 text-emerald-700 px-4 py-2 rounded-lg shadow">
-                            جمع: <span id="pos-total">۰</span> <span class="currency-label"></span>
-                        </div>
-                    </div>
-                    <div id="cart-items" class="flex-1 overflow-y-auto space-y-3 mb-4 pr-2">
-                        <!-- Cart items will be dynamically loaded here -->
-                    </div>
-                    <div class="border-t pt-4 space-y-2">
-                        <div class="flex gap-2">
-                            <input type="number" id="discount-val" placeholder="مقدار تخفیف" class="w-full px-2 py-1 border rounded focus:ring-1 focus:ring-sky-500">
-                            <select id="discount-type" class="border rounded px-2 bg-slate-50">
-                                <option value="percent">%</option>
-                                <option value="flat">مبلغ</option>
-                            </select>
-                            <button onclick="applyDiscount()" class="bg-amber-500 text-white px-3 rounded hover:bg-amber-600">اعمال</button>
-                        </div>
-                        <button onclick="openCheckoutModal('proforma')" class="w-full bg-sky-100 text-sky-700 font-bold py-2 rounded hover:bg-sky-200 transition">دانلود پیش‌فاکتور</button>
-                        <button onclick="openCheckoutModal('paid')" class="w-full bg-emerald-600 text-white font-bold py-3 rounded hover:bg-emerald-700 transition shadow-lg text-lg">پرداخت و صدور فاکتور نهایی</button>
-                    </div>
+                <div class="flex-row" style="margin-top:12px;">
+                    <button onclick="checkout('pre')" class="warning">📄 فاکتور پیش‌خرید</button>
+                    <button onclick="checkout('paid')" class="success">✅ پرداخت شده</button>
                 </div>
             </div>
-        </section>
+        </div>
 
-        <!-- Tab: Products Management -->
-        <section id="tab-products" class="tab-content p-4 md:p-6 hidden">
-             <h2 class="text-3xl font-bold text-slate-800 mb-6"><i class="fas fa-box-open text-sky-600 mr-3"></i> مدیریت محصولات و خدمات</h2>
-             <div class="bg-white p-6 rounded-2xl shadow-lg mb-6">
-                 <h3 class="text-lg font-bold mb-4">افزودن محصول/خدمت جدید</h3>
-                 <form id="add-product-form" onsubmit="addProduct(event)" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-center">
-                     <input type="text" id="prod-name" placeholder="نام محصول" required class="border px-4 py-2 rounded-lg focus:ring-2 focus:ring-sky-500">
-                     <input type="number" id="prod-price" placeholder="قیمت فروش" required class="border px-4 py-2 rounded-lg focus:ring-2 focus:ring-sky-500">
-                     <input type="number" id="prod-stock" placeholder="موجودی اولیه" required class="border px-4 py-2 rounded-lg focus:ring-2 focus:ring-sky-500">
-                     <input type="text" id="prod-cat" placeholder="دسته‌بندی (اختیاری)" class="border px-4 py-2 rounded-lg focus:ring-2 focus:ring-sky-500">
-                     <input type="text" id="prod-desc" placeholder="توضیحات (اختیاری)" class="border px-4 py-2 rounded-lg focus:ring-2 focus:ring-sky-500 md:col-span-2 lg:col-span-1">
-                     <div class="flex flex-col">
-                        <label for="prod-expiry" class="text-xs text-slate-500 mb-1">تاریخ انقضا (اختیاری)</label>
-                        <input type="date" id="prod-expiry" class="border px-4 py-2 rounded-lg text-slate-500 focus:ring-2 focus:ring-sky-500">
-                     </div>
-                     <button type="submit" class="bg-sky-600 text-white rounded-lg py-3 md:col-span-2 lg:col-span-3 hover:bg-sky-700 font-bold shadow-md">ثبت محصول</button>
-                 </form>
-             </div>
-             
-             <div class="bg-white rounded-2xl shadow-lg overflow-x-auto">
-                 <table class="w-full text-right">
-                     <thead class="bg-slate-800 text-white">
-                         <tr>
-                             <th class="p-4">شناسه</th>
-                             <th class="p-4">نام</th>
-                             <th class="p-4">قیمت</th>
-                             <th class="p-4">موجودی</th>
-                             <th class="p-4">انقضا</th>
-                             <th class="p-4">عملیات</th>
-                         </tr>
-                     </thead>
-                     <tbody id="products-table-body" class="divide-y divide-slate-200"></tbody>
-                 </table>
-             </div>
-        </section>
-
-        <!-- Tab: Inventory -->
-        <section id="tab-inventory" class="tab-content p-4 md:p-6 hidden">
-            <h2 class="text-3xl font-bold text-slate-800 mb-6"><i class="fas fa-warehouse text-sky-600 mr-3"></i> وضعیت انبار و انقضا</h2>
-            <p class="mb-4 text-sm text-slate-600">محصولات بر اساس تاریخ انقضا و ورود (سیستم FIFO) مدیریت می‌شوند.</p>
-            <div class="bg-white rounded-2xl shadow-lg overflow-x-auto">
-                <table class="w-full text-right">
-                    <thead class="bg-slate-100 text-slate-700 font-bold">
-                        <tr>
-                            <th class="p-4">کالا</th>
-                            <th class="p-4">موجودی کل</th>
-                            <th class="p-4">تاریخ انقضا</th>
-                            <th class="p-4">وضعیت</th>
-                        </tr>
-                    </thead>
-                    <tbody id="inventory-table-body" class="divide-y divide-slate-200"></tbody>
-                </table>
+        <!-- Orders -->
+        <div class="page" id="page-orders">
+            <div class="card"><h3>📋 لیست فاکتورها</h3>
+                <select id="orderFilter" onchange="renderOrders()"><option value="all">همه</option><option value="pre">پیش‌خرید</option><option value="paid">پرداخت شده</option></select>
+                <div style="overflow-x:auto;margin-top:10px;"><table><thead><tr><th>شماره</th><th>تاریخ</th><th>نوع</th><th>خریدار</th><th>مبلغ</th><th>عملیات</th></tr></thead><tbody id="ordersTable"></tbody></table></div>
             </div>
-        </section>
+        </div>
 
-        <!-- Tab: People (Customers/Partners) -->
-        <section id="tab-people" class="tab-content p-4 md:p-6 hidden">
-             <h2 class="text-3xl font-bold text-slate-800 mb-6"><i class="fas fa-users text-sky-600 mr-3"></i> لیست خریداران</h2>
-             <div id="customers-list" class="bg-white rounded-2xl shadow-lg p-4 space-y-2"></div>
-        </section>
+        <!-- Persons -->
+        <div class="page" id="page-persons">
+            <div class="card"><div class="flex-between"><h3>👥 اشخاص</h3><button onclick="showAddPerson()">➕ افزودن شخص</button></div>
+                <div style="overflow-x:auto;"><table><thead><tr><th>شناسه</th><th>نام</th><th>نوع</th><th>شماره تماس</th><th>عملیات</th></tr></thead><tbody id="personsTable"></tbody></table></div>
+            </div>
+        </div>
 
+        <!-- Accounts -->
+        <div class="page" id="page-accounts">
+            <div class="card"><div class="flex-between"><h3>🏦 حساب‌ها و صندوق‌ها</h3><button onclick="showAddAccount()">➕ افزودن</button></div>
+                <div style="overflow-x:auto;"><table><thead><tr><th>نام</th><th>نوع</th><th>موجودی</th><th>عملیات</th></tr></thead><tbody id="accountsTable"></tbody></table></div>
+            </div>
+        </div>
+
+        <!-- Expenses -->
+        <div class="page" id="page-expenses">
+            <div class="card"><div class="flex-between"><h3>💸 هزینه‌های جانبی</h3><button onclick="showAddExpense()">➕ افزودن هزینه</button></div>
+                <div style="overflow-x:auto;"><table><thead><tr><th>تاریخ</th><th>توضیح</th><th>مبلغ</th><th>از حساب</th><th>عملیات</th></tr></thead><tbody id="expensesTable"></tbody></table></div>
+            </div>
+        </div>
+
+        <!-- Shareholders -->
+        <div class="page" id="page-shareholders">
+            <div class="card"><div class="flex-between"><h3>🤝 سهامداران و شرکا</h3><button onclick="showAddShareholder()">➕ افزودن</button></div>
+                <div style="overflow-x:auto;"><table><thead><tr><th>نام</th><th>درصد سهم</th><th>سود تخمینی</th><th>عملیات</th></tr></thead><tbody id="shareholdersTable"></tbody></table></div>
+                <div id="shProfitCalc" style="margin-top:10px;color:var(--text-secondary);"></div>
+            </div>
+        </div>
+
+        <!-- Losses -->
+        <div class="page" id="page-losses">
+            <div class="card"><h3>📉 ثبت ضرر و زیان</h3>
+                <div style="overflow-x:auto;"><table><thead><tr><th>تاریخ</th><th>توضیح</th><th>مبلغ</th><th>نوع</th></tr></thead><tbody id="lossesTable"></tbody></table></div>
+                <strong>مجموع ضرر: <span id="totalLoss">0</span></strong>
+            </div>
+        </div>
+
+        <!-- Settings -->
+        <div class="page" id="page-settings">
+            <div class="card"><h3>⚙️ تنظیمات فروشگاه</h3><div id="storeInfoDisplay"></div></div>
+            <div class="card"><h3>💾 پشتیبان‌گیری و بارگذاری</h3>
+                <button onclick="exportAllData()">📥 دانلود فایل پشتیبان (JSON)</button>
+                <br><br>
+                <input type="file" id="importFile" accept=".json" onchange="importAllData(this)">
+                <button onclick="document.getElementById('importFile').click()">📤 بارگذاری فایل</button>
+            </div>
+        </div>
     </main>
 
-    <!-- Modal: Checkout and Signature -->
-    <div id="checkout-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-[150] p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 relative fade-in">
-            <button onclick="closeCheckoutModal()" class="absolute top-4 left-4 text-slate-500 hover:text-red-500 transition"><i class="fas fa-times text-2xl"></i></button>
-            <h2 id="checkout-title" class="text-2xl font-bold mb-4 border-b pb-3">نهایی سازی فاکتور</h2>
-            
-            <div id="paid-fields" class="space-y-4 mb-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <select id="existing-buyer" onchange="selectExistingBuyer(this.value)" class="w-full border p-2 rounded-lg bg-slate-50 focus:ring-2 focus:ring-sky-500">
-                        <option value="">-- انتخاب خریدار سابق --</option>
-                    </select>
-                    <input type="text" id="buyer-name" placeholder="یا نام خریدار جدید را وارد کنید" class="w-full border p-2 rounded-lg focus:ring-2 focus:ring-sky-500">
-                </div>
-                <input type="number" id="buyer-phone" placeholder="شماره تماس خریدار" class="w-full border p-2 rounded-lg focus:ring-2 focus:ring-sky-500">
-                
-                <hr/>
-                
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">تاییدیه و امضای فروشنده:</label>
-                    <input type="text" id="seller-name" placeholder="نام امضا کننده (فروشنده)" class="w-full border p-2 rounded-lg mb-2 focus:ring-2 focus:ring-sky-500">
-                    <canvas id="signature-pad" width="500" height="150" class="w-full"></canvas>
-                    <button onclick="clearSignature()" class="text-sm text-red-500 mt-1 hover:underline">پاک کردن امضا</button>
-                </div>
-            </div>
-            
-            <div class="bg-slate-100 p-4 rounded-lg mb-4 text-center text-xl font-bold">
-                مبلغ نهایی: <span id="checkout-final-price" class="text-emerald-600">۰</span> <span class="currency-label"></span>
-            </div>
+    <!-- Modals container -->
+    <div id="modalContainer"></div>
+    <div id="toastContainer"></div>
 
-            <button onclick="finalizeInvoice()" id="btn-finalize" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg text-lg transition shadow-lg">
-                <i class="fas fa-check-circle mr-2"></i> صدور فاکتور و دانلود
-            </button>
-        </div>
-    </div>
-
-    <!-- Hidden Area for Rendering Invoice Image -->
-    <div id="invoice-print-area">
-        <!-- Invoice content will be dynamically generated here before rendering -->
-    </div>
-
-    <!-- JavaScript Application Logic -->
     <script>
-        /* =========================================
-           1. DB CONFIG & HELPERS (IndexedDB)
-        ========================================= */
-        const DB_NAME = "SmartPOS_DB_v2";
-        const DB_VERSION = 1;
+        // ==================== IndexedDB Setup ====================
+        const DB_NAME = 'StoreManagementDB';
+        const DB_VERSION = 3;
         let db;
 
-        const initDB = () => {
+        function openDB() {
             return new Promise((resolve, reject) => {
-                const request = indexedDB.open(DB_NAME, DB_VERSION);
-                
-                request.onupgradeneeded = (e) => {
-                    const db = e.target.result;
-                    if (!db.objectStoreNames.contains('settings')) db.createObjectStore('settings', { keyPath: 'id' });
-                    if (!db.objectStoreNames.contains('products')) {
-                        const store = db.createObjectStore('products', { keyPath: 'id' });
-                        store.createIndex('name', 'name', { unique: false });
-                        store.createIndex('status', 'status', { unique: false });
-                    }
-                    if (!db.objectStoreNames.contains('invoices')) db.createObjectStore('invoices', { keyPath: 'id', autoIncrement: true });
-                    if (!db.objectStoreNames.contains('customers')) {
-                        const store = db.createObjectStore('customers', { keyPath: 'phone' });
-                        store.createIndex('name', 'name', { unique: false });
-                    }
+                const req = indexedDB.open(DB_NAME, DB_VERSION);
+                req.onupgradeneeded = (e) => {
+                    const d = e.target.result;
+                    if (!d.objectStoreNames.contains('storeInfo')) d.createObjectStore('storeInfo', { keyPath: 'id' });
+                    if (!d.objectStoreNames.contains('products')) d.createObjectStore('products', { keyPath: 'id' });
+                    if (!d.objectStoreNames.contains('categories')) d.createObjectStore('categories', { keyPath: 'id' });
+                    if (!d.objectStoreNames.contains('persons')) d.createObjectStore('persons', { keyPath: 'id' });
+                    if (!d.objectStoreNames.contains('accounts')) d.createObjectStore('accounts', { keyPath: 'id' });
+                    if (!d.objectStoreNames.contains('orders')) d.createObjectStore('orders', { keyPath: 'id' });
+                    if (!d.objectStoreNames.contains('orderItems')) d.createObjectStore('orderItems', { keyPath: 'id',
+                        autoIncrement: true });
+                    if (!d.objectStoreNames.contains('expenses')) d.createObjectStore('expenses', { keyPath: 'id' });
+                    if (!d.objectStoreNames.contains('shareholders')) d.createObjectStore('shareholders', { keyPath: 'id' });
+                    if (!d.objectStoreNames.contains('losses')) d.createObjectStore('losses', { keyPath: 'id' });
+                    if (!d.objectStoreNames.contains('expiryBoxes')) d.createObjectStore('expiryBoxes', { keyPath: 'id' });
+                    if (!d.objectStoreNames.contains('priceChanges')) d.createObjectStore('priceChanges', { keyPath: 'id',
+                        autoIncrement: true });
+                    if (!d.objectStoreNames.contains('productBatches')) d.createObjectStore('productBatches', { keyPath: 'id',
+                        autoIncrement: true });
                 };
-                request.onsuccess = (e) => { db = e.target.result; resolve(db); };
-                request.onerror = (e) => { console.error("DB Error:", e); reject(e); };
+                req.onsuccess = (e) => { db = e.target.result;
+                    resolve(db); };
+                req.onerror = () => reject(req.error);
             });
-        };
-        const dbAction = (storeName, mode, action, data) => {
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction(storeName, mode);
-                const store = tx.objectStore(storeName);
-                const request = store[action](data);
-                tx.oncomplete = () => resolve(request.result || true);
-                tx.onerror = (e) => reject(e.target.error);
-            });
-        };
-
-        /* =========================================
-           2. GLOBAL STATE & UTILITIES
-        ========================================= */
-        let storeSettings = null;
-        let products = [];
-        let customers = [];
-        let cart = [];
-        let cartDiscount = { type: 'percent', value: 0 };
-        let checkoutType = 'paid';
-        let canvas, ctx, isDrawing = false;
-
-        const getShamsiDate = () => new Intl.DateTimeFormat('fa-IR', { dateStyle: 'short' }).format(new Date());
-        const getTime = () => new Intl.DateTimeFormat('fa-IR', { timeStyle: 'short' }).format(new Date());
-        const formatCurrency = (num) => (num || 0).toLocaleString('fa-IR');
-        
-        const showToast = (message, type = 'success') => {
-            const container = document.getElementById('toast-container');
-            container.textContent = message;
-            container.className = `toast-notification ${type} show`;
-            setTimeout(() => { container.className = 'toast-notification'; }, 3000);
-        };
-
-        /* =========================================
-           3. APP INITIALIZATION
-        ========================================= */
-        window.onload = async () => {
-            try {
-                await initDB();
-                storeSettings = await dbAction('settings', 'readonly', 'get', 'main');
-                
-                if (storeSettings) {
-                    document.getElementById('setup-screen').classList.add('hidden');
-                    await loadDashboard();
-                } else {
-                    document.getElementById('setup-screen').classList.remove('hidden');
-                }
-            } catch (error) {
-                showToast("خطا در بارگذاری پایگاه داده!", "error");
-            }
-        };
-
-        const showRegisterForm = () => { document.getElementById('setup-options').classList.add('hidden'); document.getElementById('register-form').classList.remove('hidden'); };
-        const cancelRegister = () => { document.getElementById('setup-options').classList.remove('hidden'); document.getElementById('register-form').classList.add('hidden'); };
-
-        async function handleRegister(e) {
-            e.preventDefault();
-            storeSettings = {
-                id: 'main',
-                name: document.getElementById('reg-name').value, phone: document.getElementById('reg-phone').value,
-                address: document.getElementById('reg-address').value, nationalId: document.getElementById('reg-id').value,
-                currency: document.getElementById('reg-currency').value, lastProductId: 9
-            };
-            await dbAction('settings', 'readwrite', 'put', storeSettings);
-            document.getElementById('setup-screen').classList.add('hidden');
-            await loadDashboard();
         }
 
-        /* =========================================
-           4. DASHBOARD & UI MANAGEMENT
-        ========================================= */
-        const loadDashboard = async () => {
-            document.getElementById('sidebar-store-name').innerText = storeSettings.name;
-            document.getElementById('sidebar-date').innerText = getShamsiDate();
-            document.querySelectorAll('.currency-label').forEach(el => el.innerText = storeSettings.currency);
-            await refreshData();
-            switchTab('pos');
-        };
+        function idbPut(storeName, data) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, 'readwrite');
+                const store = tx.objectStore(storeName);
+                store.put(data);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
 
-        const refreshData = async () => {
-            products = await dbAction('customers', 'readonly', 'getAll');
-            customers = await dbAction('customers', 'readonly', 'getAll');
-            
-            // Check and update product statuses based on expiry date
-            const today = new Date().setHours(0,0,0,0);
-            const tx = db.transaction('products', 'readwrite');
-            for(const p of products) {
-                if (p.expiry) {
-                    const expiryDate = new Date(p.expiry).setHours(0,0,0,0);
-                    if (expiryDate < today && p.status !== 'expired') {
-                        p.status = 'expired';
-                        tx.objectStore('products').put(p);
+        function idbGetAll(storeName) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, 'readonly');
+                const store = tx.objectStore(storeName);
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        function idbGet(storeName, id) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, 'readonly');
+                const store = tx.objectStore(storeName);
+                const req = store.get(id);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        function idbDelete(storeName, id) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, 'readwrite');
+                const store = tx.objectStore(storeName);
+                store.delete(id);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+
+        function idbClear(storeName) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, 'readwrite');
+                const store = tx.objectStore(storeName);
+                store.clear();
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+
+        // ==================== Helpers ====================
+        function toast(msg) {
+            const c = document.getElementById('toastContainer');
+            const t = document.createElement('div');
+            t.className = 'toast';
+            t.textContent = msg;
+            c.appendChild(t);
+            setTimeout(() => t.remove(), 2800);
+        }
+
+        function generateID(prefix = '') {
+            return prefix + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substr(2, 6).toUpperCase();
+        }
+
+        function toShamsi(date) {
+            const d = date || new Date();
+            const options = { year: 'numeric', month: '2-digit', day: '2-digit', calendar: 'persian' };
+            try {
+                return new Intl.DateTimeFormat('fa-IR', options).format(d);
+            } catch (e) {
+                return d.toLocaleDateString('fa-IR');
+            }
+        }
+
+        function nowShamsi() { return toShamsi(new Date()); }
+
+        function nowShamsiDateTime() {
+            const d = new Date();
+            const date = toShamsi(d);
+            const time = d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            return date + ' - ' + time;
+        }
+
+        function formatCurrency(amount, currency = 'ریال') {
+            const num = Number(amount) || 0;
+            return num.toLocaleString('fa-IR') + ' ' + currency;
+        }
+
+        function getCurrencySymbol(cur) {
+            const map = { 'ریال': '﷼', 'تومان': 'تومان', 'دلار': '$', 'یورو': '€' };
+            return map[cur] || cur;
+        }
+
+        // ==================== Navigation ====================
+        function navigateTo(pageName) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            const page = document.getElementById('page-' + pageName);
+            if (page) page.classList.add('active');
+            document.querySelectorAll('.sidebar-nav li a').forEach(a => a.classList.remove('active'));
+            const link = document.querySelector(`[data-page="${pageName}"]`);
+            if (link) link.classList.add('active');
+            refreshPage(pageName);
+            if (window.innerWidth < 768) document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        function refreshPage(name) {
+            switch (name) {
+                case 'dashboard':
+                    loadDashboard();
+                    break;
+                case 'products':
+                    renderProducts();
+                    renderCategories();
+                    break;
+                case 'orders':
+                    renderOrders();
+                    break;
+                case 'persons':
+                    renderPersons();
+                    break;
+                case 'accounts':
+                    renderAccounts();
+                    break;
+                case 'expenses':
+                    renderExpenses();
+                    break;
+                case 'shareholders':
+                    renderShareholders();
+                    break;
+                case 'losses':
+                    renderLosses();
+                    break;
+                case 'settings':
+                    renderSettings();
+                    break;
+                case 'new-order':
+                    resetOrder();
+                    break;
+            }
+        }
+
+        // ==================== Store Info (Registration/Login) ====================
+        async function getStoreInfo() {
+            const all = await idbGetAll('storeInfo');
+            return all.length > 0 ? all[0] : null;
+        }
+
+        async function ensureStoreInfo() {
+            const info = await getStoreInfo();
+            if (!info) {
+                showRegistrationModal();
+                return null;
+            }
+            document.getElementById('sidebarStoreName').textContent = info.storeName || 'فروشگاه';
+            return info;
+        }
+
+        function showRegistrationModal() {
+            const html = `
+            <div class="modal-overlay" id="regModal">
+              <div class="modal">
+                <h3>📝 ثبت‌نام فروشگاه</h3>
+                <p style="color:#64748b;font-size:0.85em;">یا فایل پشتیبان خود را بارگذاری کنید.</p>
+                <input type="text" id="regStoreName" placeholder="نام فروشگاه *" style="width:100%;margin:6px 0;">
+                <input type="text" id="regAddress" placeholder="آدرس" style="width:100%;margin:6px 0;">
+                <input type="text" id="regPhone" placeholder="شماره تماس" style="width:100%;margin:6px 0;">
+                <select id="regCurrency" style="width:100%;margin:6px 0;">
+                  <option value="ریال">ریال</option><option value="تومان">تومان</option><option value="دلار">دلار</option><option value="یورو">یورو</option>
+                </select>
+                <input type="text" id="regNationalID" placeholder="شناسه ملی / شماره مجوز" style="width:100%;margin:6px 0;">
+                <p style="font-size:0.75em;color:#ef4444;">⚠️ واحد پول بعداً قابل تغییر نیست.</p>
+                <div class="flex-row" style="margin-top:12px;">
+                  <button onclick="registerStore()" class="success">ثبت‌نام</button>
+                  <button onclick="document.getElementById('importFile').click()" class="outline">📤 بارگذاری فایل پشتیبان</button>
+                  <input type="file" id="importFileReg" accept=".json" onchange="importAllData(this)" style="display:none;">
+                </div>
+              </div>
+            </div>`;
+            document.getElementById('modalContainer').innerHTML = html;
+            document.getElementById('importFileReg').addEventListener('change', function() { importAllData(this); });
+        }
+
+        async function registerStore() {
+            const name = document.getElementById('regStoreName').value.trim();
+            if (!name) { toast('نام فروشگاه الزامی است');
+                return; }
+            const info = {
+                id: 'store_info',
+                storeName: name,
+                address: document.getElementById('regAddress').value.trim(),
+                phone: document.getElementById('regPhone').value.trim(),
+                currency: document.getElementById('regCurrency').value,
+                nationalID: document.getElementById('regNationalID').value.trim(),
+                createdAt: nowShamsiDateTime()
+            };
+            await idbPut('storeInfo', info);
+            document.getElementById('modalContainer').innerHTML = '';
+            document.getElementById('sidebarStoreName').textContent = name;
+            toast('فروشگاه با موفقیت ثبت شد!');
+            loadDashboard();
+        }
+
+        // ==================== Dashboard ====================
+        async function loadDashboard() {
+            const info = await ensureStoreInfo();
+            if (!info) return;
+            const products = await idbGetAll('products');
+            const orders = await idbGetAll('orders');
+            const accounts = await idbGetAll('accounts');
+            const losses = await idbGetAll('losses');
+            const totalProducts = products.length;
+            const totalStock = products.reduce((s, p) => s + (p.stock || 0), 0);
+            const totalOrders = orders.length;
+            const totalRevenue = orders.filter(o => o.status === 'paid').reduce((s, o) => s + (o.finalTotal || 0), 0);
+            const totalLoss = losses.reduce((s, l) => s + (l.amount || 0), 0);
+            document.getElementById('dashboardStats').innerHTML = `
+            <div class="card" style="flex:1;text-align:center;"><strong>${totalProducts}</strong><br>محصول</div>
+            <div class="card" style="flex:1;text-align:center;"><strong>${totalStock}</strong><br>موجودی کل</div>
+            <div class="card" style="flex:1;text-align:center;"><strong>${totalOrders}</strong><br>فاکتور</div>
+            <div class="card" style="flex:1;text-align:center;"><strong>${formatCurrency(totalRevenue, info.currency)}</strong><br>درآمد کل</div>
+            <div class="card" style="flex:1;text-align:center;color:#dc2626;"><strong>${formatCurrency(totalLoss, info.currency)}</strong><br>ضرر کل</div>`;
+
+            // Today's sales
+            const today = toShamsi(new Date());
+            const todayOrders = orders.filter(o => o.status === 'paid' && o.shamsiDate === today);
+            const todayTotal = todayOrders.reduce((s, o) => s + (o.finalTotal || 0), 0);
+            document.getElementById('todaySales').innerHTML = `<strong>${todayOrders.length} فاکتور</strong> - مجموع: ${formatCurrency(todayTotal, info.currency)}`;
+
+            // Near expiry
+            const nearExpiryProducts = [];
+            const now = new Date();
+            for (const p of products) {
+                if (p.expiryDate) {
+                    const exp = new Date(p.expiryDate);
+                    const diff = Math.ceil((exp - now) / (1000 * 60 * 60 * 24));
+                    if (diff <= 30 && diff > 0) nearExpiryProducts.push({ ...p, daysLeft: diff });
+                }
+            }
+            if (nearExpiryProducts.length > 0) {
+                document.getElementById('nearExpiry').innerHTML = nearExpiryProducts.map(p =>
+                    `<span class="badge ${p.daysLeft<=7?'badge-danger':'badge-warning'}">${p.name} (${p.daysLeft} روز)</span> `
+                ).join('');
+            } else {
+                document.getElementById('nearExpiry').innerHTML = '<p>موردی یافت نشد.</p>';
+            }
+        }
+
+        // ==================== Products ====================
+        async function renderProducts(filter = '') {
+            const products = await idbGetAll('products');
+            const f = filter.toLowerCase();
+            const filtered = products.filter(p => p.name.toLowerCase().includes(f) || (p.id || '').toString()
+                .includes(f));
+            const tbody = document.getElementById('productsTable');
+            const now = new Date();
+            tbody.innerHTML = filtered.map(p => {
+                let expiryClass = '';
+                let expiryText = p.expiryDate ? toShamsi(new Date(p.expiryDate)) : '—';
+                if (p.expiryDate) {
+                    const exp = new Date(p.expiryDate);
+                    const diff = Math.ceil((exp - now) / (1000 * 60 * 60 * 24));
+                    if (diff < 0) expiryClass = 'expired-row';
+                    else if (diff <= 7) expiryText = '<span class="expiry-red">' + expiryText + '</span>';
+                    else if (diff <= 30) expiryText = '<span class="expiry-yellow">' + expiryText + '</span>';
+                }
+                return `<tr class="${expiryClass}">
+              <td>${p.id||'—'}</td>
+              <td>${p.image ? '<img src="'+p.image+'" style="width:40px;height:40px;object-fit:cover;border-radius:4px;">' : '—'}</td>
+              <td>${p.name}</td><td>${p.category||'—'}</td>
+              <td>${formatCurrency(p.price, (await getStoreInfo())?.currency||'ریال')}</td>
+              <td>${p.stock||0}</td><td>${expiryText}</td>
+              <td>
+                <button class="sm outline" onclick="editProduct('${p.id}')">✏️</button>
+                <button class="sm danger" onclick="deleteProduct('${p.id}')">🗑</button>
+                <button class="sm warning" onclick="changeProductPrice('${p.id}')">💰</button>
+              </td></tr>`;
+            }).join('');
+        }
+
+        function showAddProduct() {
+            const html = `
+            <div class="modal-overlay" id="prodModal"><div class="modal"><h3>➕ افزودن محصول</h3>
+              <input type="text" id="prodName" placeholder="نام محصول *" style="width:100%;margin:4px 0;">
+              <input type="text" id="prodID" placeholder="شناسه (پیش‌فرض خودکار)" style="width:100%;margin:4px 0;">
+              <textarea id="prodDesc" placeholder="توضیحات" style="width:100%;margin:4px 0;"></textarea>
+              <input type="number" id="prodPrice" placeholder="قیمت *" style="width:100%;margin:4px 0;">
+              <input type="number" id="prodStock" placeholder="تعداد موجودی" style="width:100%;margin:4px 0;" value="0">
+              <input type="date" id="prodExpiry" style="width:100%;margin:4px 0;">
+              <select id="prodCategory" style="width:100%;margin:4px 0;"><option value="">بدون دسته</option></select>
+              <label style="font-size:0.8em;">تصویر (آدرس یا انتخاب فایل):</label>
+              <input type="file" id="prodImageFile" accept="image/*" onchange="previewProductImage()" style="width:100%;margin:4px 0;">
+              <input type="hidden" id="prodImageData" value="">
+              <img id="prodImagePreview" style="max-width:100px;max-height:100px;display:none;border-radius:6px;">
+              <div class="flex-row" style="margin-top:10px;">
+                <button onclick="saveProduct()" class="success">ذخیره</button>
+                <button onclick="closeModal()" class="outline">انصراف</button>
+              </div></div></div>`;
+            document.getElementById('modalContainer').innerHTML = html;
+            populateCategorySelect();
+            // Auto-generate ID
+            idbGetAll('products').then(prods => {
+                const maxId = prods.reduce((m, p) => {
+                    const n = parseInt(p.id);
+                    return n > m ? n : m;
+                }, 9);
+                document.getElementById('prodID').value = maxId + 1;
+            });
+        }
+
+        async function populateCategorySelect() {
+            const cats = await idbGetAll('categories');
+            const sel = document.getElementById('prodCategory');
+            if (sel) sel.innerHTML = '<option value="">بدون دسته</option>' + cats.map(c =>
+                `<option value="${c.name}">${c.name}</option>`).join('');
+        }
+
+        function previewProductImage() {
+            const file = document.getElementById('prodImageFile').files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('prodImageData').value = e.target.result;
+                    const img = document.getElementById('prodImagePreview');
+                    img.src = e.target.result;
+                    img.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function saveProduct() {
+            const name = document.getElementById('prodName').value.trim();
+            const price = parseFloat(document.getElementById('prodPrice').value);
+            if (!name || isNaN(price)) { toast('نام و قیمت الزامی است');
+                return; }
+            const id = document.getElementById('prodID').value.trim() || generateID('PRD');
+            const product = {
+                id: id,
+                name: name,
+                description: document.getElementById('prodDesc').value.trim(),
+                price: price,
+                stock: parseInt(document.getElementById('prodStock').value) || 0,
+                expiryDate: document.getElementById('prodExpiry').value || null,
+                category: document.getElementById('prodCategory').value,
+                image: document.getElementById('prodImageData').value || '',
+                createdAt: nowShamsiDateTime(),
+                batches: []
+            };
+            // Handle batch
+            if (product.stock > 0) {
+                product.batches.push({
+                    date: nowShamsiDateTime(),
+                    quantity: product.stock,
+                    expiryDate: product.expiryDate,
+                    price: product.price
+                });
+            }
+            await idbPut('products', product);
+            closeModal();
+            renderProducts();
+            toast('محصول ذخیره شد!');
+        }
+
+        async function editProduct(id) {
+            const p = await idbGet('products', id);
+            if (!p) return;
+            const html = `
+            <div class="modal-overlay" id="prodModal"><div class="modal"><h3>✏️ ویرایش محصول</h3>
+              <input type="text" id="prodName" value="${p.name}" style="width:100%;margin:4px 0;">
+              <input type="text" id="prodID" value="${p.id}" readonly style="width:100%;margin:4px 0;background:#f1f5f9;">
+              <textarea id="prodDesc" style="width:100%;margin:4px 0;">${p.description||''}</textarea>
+              <input type="number" id="prodPrice" value="${p.price}" style="width:100%;margin:4px 0;">
+              <input type="number" id="prodStock" value="${p.stock||0}" style="width:100%;margin:4px 0;">
+              <input type="date" id="prodExpiry" value="${p.expiryDate||''}" style="width:100%;margin:4px 0;">
+              <select id="prodCategory" style="width:100%;margin:4px 0;"><option value="">بدون دسته</option></select>
+              <div class="flex-row" style="margin-top:10px;">
+                <button onclick="updateProduct('${id}')" class="success">بروزرسانی</button>
+                <button onclick="closeModal()" class="outline">انصراف</button>
+              </div></div></div>`;
+            document.getElementById('modalContainer').innerHTML = html;
+            populateCategorySelect();
+            document.getElementById('prodCategory').value = p.category || '';
+        }
+
+        async function updateProduct(id) {
+            const p = await idbGet('products', id);
+            if (!p) return;
+            p.name = document.getElementById('prodName').value.trim();
+            p.description = document.getElementById('prodDesc').value.trim();
+            p.price = parseFloat(document.getElementById('prodPrice').value);
+            const newStock = parseInt(document.getElementById('prodStock').value) || 0;
+            p.expiryDate = document.getElementById('prodExpiry').value || null;
+            p.category = document.getElementById('prodCategory').value;
+            if (newStock !== p.stock && newStock > p.stock) {
+                const added = newStock - p.stock;
+                p.batches.push({ date: nowShamsiDateTime(), quantity: added, expiryDate: p.expiryDate, price: p.price });
+            }
+            p.stock = newStock;
+            await idbPut('products', p);
+            closeModal();
+            renderProducts();
+            toast('محصول بروزرسانی شد!');
+        }
+
+        async function deleteProduct(id) {
+            if (confirm('آیا از حذف این محصول اطمینان دارید؟')) {
+                await idbDelete('products', id);
+                renderProducts();
+                toast('محصول حذف شد.');
+            }
+        }
+
+        async function changeProductPrice(id) {
+            const p = await idbGet('products', id);
+            if (!p) return;
+            const newPrice = prompt('قیمت جدید برای ' + p.name + ' (قیمت فعلی: ' + p.price + '):', p.price);
+            if (newPrice !== null && !isNaN(parseFloat(newPrice))) {
+                const oldPrice = p.price;
+                p.price = parseFloat(newPrice);
+                await idbPut('products', p);
+                // Record price change
+                const change = { productId: id, productName: p.name, oldPrice, newPrice: p.price,
+                    date: nowShamsiDateTime(), isLoss: p.price < oldPrice, lossAmount: p.price < oldPrice ? (oldPrice - p
+                        .price) * (p.stock || 1) : 0 };
+                await idbPut('priceChanges', change);
+                if (change.isLoss && change.lossAmount > 0) {
+                    await idbPut('losses', { id: generateID('LOSS'), date: nowShamsiDateTime(),
+                        description: 'کاهش قیمت محصول ' + p.name, amount: change.lossAmount, type: 'کاهش قیمت' });
+                }
+                renderProducts();
+                toast('قیمت تغییر کرد!');
+            }
+        }
+
+        async function renderCategories() {
+            const cats = await idbGetAll('categories');
+            document.getElementById('categoriesList').innerHTML = cats.map(c =>
+                `<span class="badge badge-info" style="margin:4px;cursor:pointer;" onclick="deleteCategory('${c.id}')">${c.name} ✕</span>`
+            ).join('') || '<span style="color:#999;">دسته‌ای ثبت نشده</span>';
+        }
+
+        async function addCategory() {
+            const input = document.getElementById('catInput');
+            const name = input.value.trim();
+            if (!name) return;
+            await idbPut('categories', { id: generateID('CAT'), name });
+            input.value = '';
+            renderCategories();
+            toast('دسته اضافه شد!');
+        }
+
+        async function deleteCategory(id) {
+            await idbDelete('categories', id);
+            renderCategories();
+        }
+
+        // ==================== Order System ====================
+        let currentOrderItems = [];
+        let orderDiscount = { type: 'percent', value: 0 };
+
+        function resetOrder() {
+            currentOrderItems = [];
+            orderDiscount = { type: 'percent', value: 0 };
+            document.getElementById('orderSearch').value = '';
+            document.getElementById('searchResults').innerHTML = '';
+            document.getElementById('orderItemsTable').innerHTML = '';
+            document.getElementById('orderTotal').textContent = '0';
+            document.getElementById('discountValue').value = '0';
+        }
+
+        async function searchProductForOrder(query) {
+            if (!query || query.length < 1) { document.getElementById('searchResults').innerHTML = '';
+                return; }
+            const products = await idbGetAll('products');
+            const q = query.toLowerCase();
+            const results = products.filter(p => p.name.toLowerCase().includes(q) || (p.id || '').toString().includes(
+                q));
+            document.getElementById('searchResults').innerHTML = results.map(p => `
+            <div class="search-result-item" onclick="addToOrder('${p.id}')">
+              <span>${p.name} (${p.id})</span>
+              <span>${formatCurrency(p.price, (await getStoreInfo())?.currency||'ریال')} | موجودی: ${p.stock||0}</span>
+              <button class="sm success">+ افزودن</button>
+            </div>`).join('');
+        }
+
+        async function addToOrder(productId) {
+            const p = await idbGet('products', productId);
+            if (!p) return;
+            const existing = currentOrderItems.find(i => i.productId === productId);
+            if (existing) {
+                existing.quantity++;
+            } else {
+                currentOrderItems.push({ productId, name: p.name, price: p.price, quantity: 1, discount: 0,
+                    discountType: 'amount' });
+            }
+            renderOrderItems();
+            document.getElementById('searchResults').innerHTML = '';
+            document.getElementById('orderSearch').value = '';
+        }
+
+        function renderOrderItems() {
+            const info = getStoreInfoSync();
+            const currency = info ? info.currency : 'ریال';
+            const tbody = document.getElementById('orderItemsTable');
+            let total = 0;
+            tbody.innerHTML = currentOrderItems.map((item, idx) => {
+                const itemTotal = (item.price * item.quantity) - item.discount;
+                total += itemTotal;
+                return `<tr>
+              <td>${item.name}</td><td>${formatCurrency(item.price, currency)}</td>
+              <td><button class="sm outline" onclick="changeQty(${idx},-1)">−</button> ${item.quantity} <button class="sm outline" onclick="changeQty(${idx},1)">+</button></td>
+              <td><input type="number" value="${item.discount}" onchange="setItemDiscount(${idx},this.value)" style="width:80px;"> ${currency}</td>
+              <td>${formatCurrency(itemTotal, currency)}</td>
+              <td><button class="sm danger" onclick="removeOrderItem(${idx})">✕</button></td>
+            </tr>`;
+            }).join('');
+            document.getElementById('orderTotal').textContent = formatCurrency(total, currency);
+        }
+
+        function changeQty(idx, delta) {
+            currentOrderItems[idx].quantity = Math.max(0, currentOrderItems[idx].quantity + delta);
+            if (currentOrderItems[idx].quantity === 0) currentOrderItems.splice(idx, 1);
+            renderOrderItems();
+        }
+
+        function setItemDiscount(idx, val) {
+            currentOrderItems[idx].discount = parseFloat(val) || 0;
+            renderOrderItems();
+        }
+
+        function removeOrderItem(idx) { currentOrderItems.splice(idx, 1);
+            renderOrderItems(); }
+
+        function applyDiscount() {
+            orderDiscount.type = document.getElementById('discountType').value;
+            orderDiscount.value = parseFloat(document.getElementById('discountValue').value) || 0;
+            toast('تخفیف اعمال شد!');
+        }
+
+        async function checkout(type) {
+            if (currentOrderItems.length === 0) { toast('هیچ محصولی انتخاب نشده!');
+                return; }
+            const info = await getStoreInfo();
+            if (!info) return;
+            const currency = info.currency;
+            let subtotal = currentOrderItems.reduce((s, i) => s + (i.price * i.quantity), 0);
+            let totalDiscount = 0;
+            if (orderDiscount.type === 'percent') totalDiscount = subtotal * (orderDiscount.value / 100);
+            else totalDiscount = orderDiscount.value;
+            // Also add per-item discounts
+            totalDiscount += currentOrderItems.reduce((s, i) => s + i.discount, 0);
+            const finalTotal = Math.max(0, subtotal - totalDiscount);
+            const orderId = generateID('ORD');
+            const order = {
+                id: orderId,
+                type: type,
+                status: type === 'paid' ? 'paid' : 'pre',
+                shamsiDate: toShamsi(new Date()),
+                shamsiDateTime: nowShamsiDateTime(),
+                subtotal,
+                discountType: orderDiscount.type,
+                discountValue: orderDiscount.value,
+                totalDiscount,
+                finalTotal,
+                currency,
+                customerId: null,
+                customerName: '',
+                customerPhone: '',
+                signature: null,
+                items: [...currentOrderItems]
+            };
+
+            if (type === 'paid') {
+                // Select customer
+                const customer = await showCustomerSelectionModal();
+                if (!customer) return;
+                order.customerId = customer.id;
+                order.customerName = customer.name;
+                order.customerPhone = customer.phone || '';
+                // Signature
+                const sig = await showSignatureModal();
+                if (!sig) { toast('امضا الزامی است!');
+                    return; }
+                order.signature = sig;
+                // Reduce stock (FIFO)
+                for (const item of currentOrderItems) {
+                    const prod = await idbGet('products', item.productId);
+                    if (prod) {
+                        prod.stock = Math.max(0, (prod.stock || 0) - item.quantity);
+                        // Remove from oldest batches
+                        let remaining = item.quantity;
+                        const newBatches = [];
+                        for (const batch of (prod.batches || [])) {
+                            if (remaining <= 0) { newBatches.push(batch); continue; }
+                            if (batch.quantity > remaining) {
+                                batch.quantity -= remaining;
+                                remaining = 0;
+                                newBatches.push(batch);
+                            } else {
+                                remaining -= batch.quantity;
+                            }
+                        }
+                        prod.batches = newBatches;
+                        await idbPut('products', prod);
                     }
                 }
             }
-            tx.oncomplete = async () => {
-                products = await dbAction('products', 'readonly', 'getAll');
-            };
-        };
 
-        const switchTab = (tabId) => {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-            // Refresh content on tab switch
-            if(tabId === 'pos') renderPOSProducts('');
-            if(tabId === 'products') renderProductsTable();
-            if(tabId === 'inventory') renderInventory();
-            if(tabId === 'people') renderCustomers();
-        };
+            await idbPut('orders', order);
+            // Save order items separately
+            for (const item of currentOrderItems) {
+                await idbPut('orderItems', { ...item, orderId, id: generateID('OI') });
+            }
+            // Save customer if new
+            if (type === 'paid' && order.customerId && !(await idbGet('persons', order.customerId))) {
+                await idbPut('persons', { id: order.customerId, name: order.customerName, phone: order.customerPhone,
+                    type: 'خریدار' });
+            }
 
-        /* =========================================
-           5. PRODUCT MANAGEMENT
-        ========================================= */
-        const addProduct = async (e) => {
-            e.preventDefault();
-            storeSettings.lastProductId += 1;
-            
-            const newProduct = {
-                id: storeSettings.lastProductId,
-                name: document.getElementById('prod-name').value,
-                price: parseFloat(document.getElementById('prod-price').value),
-                stock: parseInt(document.getElementById('prod-stock').value),
-                desc: document.getElementById('prod-desc').value,
-                cat: document.getElementById('prod-cat').value,
-                expiry: document.getElementById('prod-expiry').value || null,
-                addDate: new Date().toISOString(),
-                status: 'active' // Initial status
-            };
+            resetOrder();
+            toast('فاکتور با موفقیت ثبت شد!');
+            renderOrders();
+            if (type === 'paid') downloadInvoice(order);
+            else downloadPreInvoice(order);
+        }
 
-            await dbAction('products', 'readwrite', 'put', newProduct);
-            await dbAction('settings', 'readwrite', 'put', storeSettings);
-            
-            document.getElementById('add-product-form').reset();
-            await refreshData();
-            renderProductsTable();
-            showToast('محصول با موفقیت ثبت شد.');
-        };
-
-        const renderProductsTable = () => {
-            const tbody = document.getElementById('products-table-body');
-            tbody.innerHTML = '';
-            products.forEach(p => {
-                tbody.innerHTML += `
-                    <tr class="hover:bg-slate-50">
-                        <td class="p-4">${p.id}</td>
-                        <td class="p-4 font-bold">${p.name}</td>
-                        <td class="p-4 text-emerald-600">${formatCurrency(p.price)}</td>
-                        <td class="p-4">${p.stock}</td>
-                        <td class="p-4" dir="ltr">${p.expiry || 'ندارد'}</td>
-                        <td class="p-4">
-                            <button class="text-slate-500 hover:text-red-600"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>
-                `;
+        function showCustomerSelectionModal() {
+            return new Promise(async (resolve) => {
+                const persons = await idbGetAll('persons');
+                const buyers = persons.filter(p => p.type === 'خریدار' || !p.type);
+                const html = `
+                <div class="modal-overlay" id="custModal"><div class="modal"><h3>👤 انتخاب خریدار</h3>
+                  <select id="custSelect" style="width:100%;"><option value="">-- انتخاب --</option>
+                    ${buyers.map(b=>`<option value="${b.id}">${b.name} - ${b.phone||''}</option>`).join('')}
+                  </select>
+                  <p style="margin:10px 0;">یا خریدار جدید:</p>
+                  <input type="text" id="newCustName" placeholder="نام و نام خانوادگی" style="width:100%;margin:4px 0;">
+                  <input type="text" id="newCustPhone" placeholder="شماره تماس (فقط عدد)" style="width:100%;margin:4px 0;">
+                  <div class="flex-row" style="margin-top:10px;">
+                    <button onclick="resolveCustomer()" class="success">تائید</button>
+                    <button onclick="closeModal();resolve(null)" class="outline">انصراف</button>
+                  </div></div></div>`;
+                document.getElementById('modalContainer').innerHTML = html;
+                window._custResolve = resolve;
             });
-        };
+        }
 
-        /* =========================================
-           6. POS & CART LOGIC
-        ========================================= */
-        const renderPOSProducts = (searchQuery = '') => {
-            const list = document.getElementById('pos-product-list');
-            list.innerHTML = '';
-            const filtered = products.filter(p => p.name.includes(searchQuery) || p.id.toString().includes(searchQuery));
-
-            filtered.forEach(p => {
-                const isOutOfStock = p.stock <= 0;
-                const isExpired = p.status === 'expired';
-                const isDisabled = isOutOfStock || isExpired;
-                let disabledReason = '';
-                if(isOutOfStock) disabledReason = 'موجودی تمام شده';
-                if(isExpired) disabledReason = 'منقضی شده';
-
-                list.innerHTML += `
-                    <div class="border rounded-xl p-3 text-center transition ${isDisabled ? 'bg-slate-200 opacity-60 cursor-not-allowed' : 'bg-white hover:shadow-lg hover:-translate-y-1 cursor-pointer'}" 
-                         onclick="${isDisabled ? '' : `addToCart(${p.id})`}">
-                        <div class="bg-sky-100 text-sky-800 text-xs font-bold inline-block px-2 py-1 rounded-full mb-2">کد: ${p.id}</div>
-                        <h4 class="font-bold text-sm truncate">${p.name}</h4>
-                        <p class="text-emerald-600 mt-1 text-sm">${formatCurrency(p.price)}</p>
-                        ${isDisabled ? `<p class="text-xs text-red-600 font-bold mt-1">${disabledReason}</p>` : `<p class="text-xs text-slate-500">موجودی: ${p.stock}</p>`}
-                    </div>
-                `;
-            });
-        };
-
-        const addToCart = (id) => {
-            const product = products.find(p => p.id === id);
-            if (!product) return;
-            const cartItem = cart.find(item => item.id === id);
-            
-            if (cartItem) {
-                if (cartItem.qty < product.stock) {
-                    cartItem.qty++;
-                } else {
-                    showToast("بیشتر از موجودی انبار نمی‌توانید اضافه کنید.", "error");
-                }
+        function resolveCustomer() {
+            const sel = document.getElementById('custSelect');
+            const newName = document.getElementById('newCustName').value.trim();
+            const newPhone = document.getElementById('newCustPhone').value.trim();
+            if (sel.value) {
+                idbGet('persons', sel.value).then(p => {
+                    closeModal();
+                    window._custResolve(p);
+                });
+            } else if (newName) {
+                const cust = { id: generateID('PRS'), name: newName, phone: newPhone, type: 'خریدار' };
+                closeModal();
+                window._custResolve(cust);
             } else {
-                cart.push({ ...product, qty: 1 });
+                toast('لطفاً خریدار را انتخاب یا وارد کنید.');
             }
-            renderCart();
-        };
+        }
 
-        const changeQty = (id, delta) => {
-            const item = cart.find(c => c.id === id);
-            if (!item) return;
-            const product = products.find(p => p.id === id);
-            const newQty = item.qty + delta;
-            if (newQty > 0 && newQty <= product.stock) {
-                item.qty = newQty;
-            } else if (newQty <= 0) {
-                cart = cart.filter(c => c.id !== id);
-            } else {
-                showToast("موجودی کالا کافی نیست.", "error");
-            }
-            renderCart();
-        };
-
-        const renderCart = () => {
-            const cartEl = document.getElementById('cart-items');
-            cartEl.innerHTML = cart.length === 0 ? `<p class="text-slate-400 text-center mt-8">سبد خرید خالی است.</p>` : '';
-            let subtotal = 0;
-            
-            cart.forEach(item => {
-                subtotal += item.price * item.qty;
-                cartEl.innerHTML += `
-                    <div class="flex justify-between items-center bg-slate-50 p-2 rounded-lg border">
-                        <div class="flex-1">
-                            <div class="font-bold text-sm">${item.name}</div>
-                            <div class="text-xs text-slate-500">${formatCurrency(item.price)} × ${item.qty}</div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <button onclick="changeQty(${item.id}, 1)" class="bg-sky-500 text-white w-6 h-6 rounded-full">+</button>
-                            <span class="font-bold w-5 text-center">${item.qty}</span>
-                            <button onclick="changeQty(${item.id}, -1)" class="bg-red-500 text-white w-6 h-6 rounded-full">-</button>
-                        </div>
-                    </div>
-                `;
+        function showSignatureModal() {
+            return new Promise((resolve) => {
+                const html = `
+                <div class="modal-overlay" id="sigModal"><div class="modal"><h3>✍️ امضا</h3>
+                  <canvas id="sigCanvas" width="400" height="200" style="width:100%;max-width:400px;"></canvas>
+                  <div class="flex-row" style="margin-top:10px;">
+                    <button onclick="clearSignature()" class="outline">پاک کردن</button>
+                    <button onclick="saveSignature()" class="success">تائید امضا</button>
+                    <button onclick="closeModal();resolve(null)" class="danger">انصراف</button>
+                  </div></div></div>`;
+                document.getElementById('modalContainer').innerHTML = html;
+                window._sigResolve = resolve;
+                setTimeout(() => {
+                    const canvas = document.getElementById('sigCanvas');
+                    if (!canvas) return;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 2;
+                    let drawing = false;
+                    canvas.addEventListener('mousedown', e => { drawing = true;
+                        ctx.beginPath();
+                        ctx.moveTo(e.offsetX, e.offsetY); });
+                    canvas.addEventListener('mousemove', e => { if (!drawing) return;
+                        ctx.lineTo(e.offsetX, e.offsetY);
+                        ctx.stroke(); });
+                    canvas.addEventListener('mouseup', () => { drawing = false; });
+                    canvas.addEventListener('touchstart', e => { e.preventDefault();
+                        drawing = true;
+                        const t = e.touches[0];
+                        const r = canvas.getBoundingClientRect();
+                        ctx.beginPath();
+                        ctx.moveTo(t.clientX - r.left, t.clientY - r.top); });
+                    canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!drawing) return;
+                        const t = e.touches[0];
+                        const r = canvas.getBoundingClientRect();
+                        ctx.lineTo(t.clientX - r.left, t.clientY - r.top);
+                        ctx.stroke(); });
+                    canvas.addEventListener('touchend', () => { drawing = false; });
+                }, 100);
             });
+        }
 
-            let discountAmount = 0;
-            if (cartDiscount.type === 'percent') {
-                discountAmount = subtotal * (cartDiscount.value / 100);
-            } else {
-                discountAmount = cartDiscount.value;
+        function clearSignature() { const c = document.getElementById('sigCanvas'); if (c) { const ctx = c.getContext('2d');
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(0, 0, c.width, c.height); } }
+
+        function saveSignature() {
+            const c = document.getElementById('sigCanvas');
+            const data = c ? c.toDataURL() : null;
+            closeModal();
+            window._sigResolve(data);
+        }
+
+        function closeModal() { document.getElementById('modalContainer').innerHTML = ''; }
+
+        async function renderOrders() {
+            const filter = document.getElementById('orderFilter')?.value || 'all';
+            const orders = await idbGetAll('orders');
+            const info = await getStoreInfo();
+            const currency = info ? info.currency : 'ریال';
+            const filtered = filter === 'all' ? orders : orders.filter(o => o.status === filter);
+            document.getElementById('ordersTable').innerHTML = filtered.map(o => `
+            <tr>
+              <td>${o.id}</td><td>${o.shamsiDate||o.shamsiDateTime}</td>
+              <td><span class="badge ${o.status==='paid'?'badge-success':'badge-warning'}">${o.status==='paid'?'پرداخت شده':'پیش‌خرید'}</span></td>
+              <td>${o.customerName||'—'}</td>
+              <td>${formatCurrency(o.finalTotal, currency)}</td>
+              <td>
+                <button class="sm outline" onclick="viewOrderDetails('${o.id}')">👁</button>
+                <button class="sm success" onclick="downloadInvoiceById('${o.id}')">📥</button>
+                <button class="sm danger" onclick="deleteOrder('${o.id}')">🗑</button>
+              </td></tr>`).join('');
+        }
+
+        async function viewOrderDetails(id) {
+            const o = await idbGet('orders', id);
+            if (!o) return;
+            const info = await getStoreInfo();
+            const currency = info ? info.currency : 'ریال';
+            const items = o.items || [];
+            alert(`فاکتور ${o.id}\nتاریخ: ${o.shamsiDateTime}\nنوع: ${o.status==='paid'?'پرداخت شده':'پیش‌خرید'}\nخریدار: ${o.customerName||'—'}\nاقلام:\n${items.map(i=>`- ${i.name} x${i.quantity} = ${formatCurrency(i.price*i.quantity, currency)}`).join('\n')}\nمجموع: ${formatCurrency(o.finalTotal, currency)}`);
+        }
+
+        async function deleteOrder(id) {
+            if (confirm('حذف فاکتور؟')) {
+                await idbDelete('orders', id);
+                // Also delete order items
+                const items = await idbGetAll('orderItems');
+                for (const item of items.filter(i => i.orderId === id)) await idbDelete('orderItems', item.id);
+                renderOrders();
+                toast('فاکتور حذف شد.');
             }
-            const finalTotal = Math.max(0, subtotal - discountAmount);
-            
-            document.getElementById('pos-total').innerText = formatCurrency(finalTotal);
-            document.getElementById('checkout-final-price').innerText = formatCurrency(finalTotal);
-        };
+        }
 
-        const applyDiscount = () => {
-            cartDiscount.value = parseFloat(document.getElementById('discount-val').value) || 0;
-            cartDiscount.type = document.getElementById('discount-type').value;
-            renderCart();
-            showToast("تخفیف اعمال شد.");
-        };
+        async function downloadInvoiceById(id) {
+            const o = await idbGet('orders', id);
+            if (!o) return;
+            if (o.status === 'paid') downloadInvoice(o);
+            else downloadPreInvoice(o);
+        }
 
-        /* =========================================
-           7. INVOICE & CHECKOUT LOGIC
-        ========================================= */
-        const initSignaturePad = () => {
-             // Implementation remains same as before...
-        };
+        async function downloadPreInvoice(order) {
+            const info = await getStoreInfo();
+            const currency = info ? info.currency : 'ریال';
+            const items = order.items || [];
+            let html = `<html dir="rtl"><head><meta charset="UTF-8"><style>
+            body{font-family:Tahoma;padding:20px;max-width:600px;margin:auto;border:2px dashed #f59e0b;border-radius:10px;}
+            h2{text-align:center;color:#d97706;} .store-info{text-align:center;color:#666;font-size:0.9em;}
+            table{width:100%;border-collapse:collapse;margin:14px 0;} th,td{padding:8px;border-bottom:1px solid #eee;text-align:right;}
+            .total{font-size:1.2em;font-weight:bold;text-align:left;} .unpaid{text-align:center;color:#dc2626;font-size:1.5em;font-weight:bold;margin-top:20px;}
+</style></head><body>
+    <h2>🧾 فاکتور پیش خرید</h2>
+    <div class="store-info">${info?.storeName||''} | ${info?.address||''} | ${info?.phone||''}</div>
+    <p>تاریخ: ${order.shamsiDateTime}</p>
+    <table><tr><th>محصول</th><th>تعداد</th><th>قیمت واحد</th><th>جمع</th></tr>
+        ${items.map(i=>`<tr><td>${i.name}</td><td>${i.quantity}</td><td>${formatCurrency(i.price,currency)}</td><td>${formatCurrency(i.price*i.quantity,currency)}</td></tr>`).join('')}
+</table>
+<p class="total">مجموع: ${formatCurrency(order.finalTotal,currency)}</p>
+<div class="unpaid">⚠️ پرداخت نشده</div>
+</body></html>`;
+const w=window.open('','_blank','width=600,height=700');
+w.document.write(html);
+w.document.close();
+setTimeout(()=>w.print(),500);
+}
 
-        const openCheckoutModal = async (type) => {
-            if (cart.length === 0) return showToast('سبد خرید خالی است!', 'error');
-            checkoutType = type;
-            const modal = document.getElementById('checkout-modal');
-            const paidFields = document.getElementById('paid-fields');
-            const title = document.getElementById('checkout-title');
+async function downloadInvoice(order){
+const info=await getStoreInfo();
+const currency=info?info.currency:'ریال';
+const items=order.items||[];
+let sigHTML='';
+if(order.signature) sigHTML=`<div style="text-align:left;margin-top:20px;"><p>امضا:</p><img src="${order.signature}" style="max-width:200px;border:1px solid #ddd;"></div>`;
+let html=`<html dir="rtl"><head><meta charset="UTF-8"><style>
+body{font-family:Tahoma;padding:20px;max-width:600px;margin:auto;border:2px solid #10b981;border-radius:10px;}
+h2{text-align:center;color:#065f46;} .store-info{text-align:center;color:#666;font-size:0.9em;}
+table{width:100%;border-collapse:collapse;margin:14px 0;} th,td{padding:8px;border-bottom:1px solid #eee;text-align:right;}
+.total{font-size:1.2em;font-weight:bold;text-align:left;} .paid{text-align:center;color:#10b981;font-size:1.5em;font-weight:bold;margin-top:20px;}
+.customer-info{background:#f0fdf4;padding:10px;border-radius:6px;margin:10px 0;}
+</style></head><body>
+<h2>🧾 فاکتور فروش</h2>
+<div class="store-info">${info?.storeName||''} | ${info?.address||''} | ${info?.phone||''} | ${info?.nationalID||''}</div>
+<p>تاریخ: ${order.shamsiDateTime}</p>
+<div class="customer-info">خریدار: ${order.customerName||'—'} | تلفن: ${order.customerPhone||'—'}</div>
+<table><tr><th>محصول</th><th>تعداد</th><th>قیمت واحد</th><th>جمع</th></tr>
+${items.map(i=>`<tr><td>${i.name}</td><td>${i.quantity}</td><td>${formatCurrency(i.price,currency)}</td><td>${formatCurrency(i.price*i.quantity,currency)}</td></tr>`).join('')}
+</table>
+<p class="total">مجموع: ${formatCurrency(order.finalTotal,currency)}</p>
+<div class="paid">✅ پرداخت شده</div>
+${sigHTML}
+</body></html>`;
+const w=window.open('','_blank','width=600,height=700');
+w.document.write(html);
+w.document.close();
+setTimeout(()=>w.print(),500);
+}
 
-            const customerSelect = document.getElementById('existing-buyer');
-            customerSelect.innerHTML = '<option value="">-- انتخاب خریدار سابق --</option>';
-            customers.forEach(c => {
-                customerSelect.innerHTML += `<option value="${c.phone}">${c.name} - ${c.phone}</option>`;
-            });
+function getStoreInfoSync(){
+// For sync usage in render functions
+return null; // We'll use async properly
+}
 
-            if (type === 'proforma') {
-                title.innerText = 'صدور پیش فاکتور (پرداخت نشده)';
-                paidFields.classList.add('hidden');
-            } else {
-                title.innerText = 'پرداخت نهایی و امضا';
-                paidFields.classList.remove('hidden');
-                if(!canvas) initSignaturePad();
-                clearSignature();
-            }
-            modal.classList.remove('hidden');
-        };
+// ==================== Persons ====================
+async function renderPersons(){
+const persons=await idbGetAll('persons');
+document.getElementById('personsTable').innerHTML=persons.map(p=>`
+<tr><td>${p.id}</td><td>${p.name}</td><td>${p.type||'—'}</td><td>${p.phone||'—'}</td>
+<td><button class="sm danger" onclick="deletePerson('${p.id}')">🗑</button></td></tr>`).join('');
+}
+function showAddPerson(){
+const html=`
+<div class="modal-overlay"><div class="modal"><h3>➕ افزودن شخص</h3>
+<input type="text" id="personName" placeholder="نام *" style="width:100%;margin:4px 0;">
+<input type="text" id="personPhone" placeholder="شماره تماس" style="width:100%;margin:4px 0;">
+<select id="personType" style="width:100%;margin:4px 0;">
+<option value="خریدار">خریدار</option><option value="فروشنده">فروشنده</option><option value="سهامدار">سهامدار</option><option value="شریک">شریک</option><option value="سایر">سایر</option></select>
+<div class="flex-row" style="margin-top:10px;">
+<button onclick="savePerson()" class="success">ذخیره</button>
+<button onclick="closeModal()" class="outline">انصراف</button></div></div></div>`;
+document.getElementById('modalContainer').innerHTML=html;
+}
+async function savePerson(){
+const name=document.getElementById('personName').value.trim();
+if(!name){toast('نام الزامی است');return;}
+await idbPut('persons',{id:generateID('PRS'),name,phone:document.getElementById('personPhone').value.trim(),type:document.getElementById('personType').value});
+closeModal();renderPersons();toast('شخص ذخیره شد!');
+}
+async function deletePerson(id){await idbDelete('persons',id);renderPersons();}
 
-        const closeCheckoutModal = () => document.getElementById('checkout-modal').classList.add('hidden');
+// ==================== Accounts ====================
+async function renderAccounts(){
+const accounts=await idbGetAll('accounts');
+const info=await getStoreInfo();const currency=info?info.currency:'ریال';
+document.getElementById('accountsTable').innerHTML=accounts.map(a=>`
+<tr><td>${a.name}</td><td>${a.type==='bank'?'🏦 بانکی':'💰 صندوق'}</td>
+<td>${formatCurrency(a.balance||0,currency)}</td>
+<td>
+<button class="sm outline" onclick="adjustAccount('${a.id}','deposit')">➕ واریز</button>
+<button class="sm warning" onclick="adjustAccount('${a.id}','withdraw')">➖ برداشت</button>
+<button class="sm danger" onclick="deleteAccount('${a.id}')">🗑</button></td></tr>`).join('');
+}
+function showAddAccount(){
+const html=`
+<div class="modal-overlay"><div class="modal"><h3>➕ افزودن حساب/صندوق</h3>
+<input type="text" id="accName" placeholder="نام *" style="width:100%;margin:4px 0;">
+<select id="accType" style="width:100%;margin:4px 0;"><option value="bank">بانکی</option><option value="cash">صندوق دستی</option></select>
+<input type="number" id="accBalance" placeholder="موجودی اولیه" style="width:100%;margin:4px 0;" value="0">
+<div class="flex-row" style="margin-top:10px;">
+<button onclick="saveAccount()" class="success">ذخیره</button>
+<button onclick="closeModal()" class="outline">انصراف</button></div></div></div>`;
+document.getElementById('modalContainer').innerHTML=html;
+}
+async function saveAccount(){
+const name=document.getElementById('accName').value.trim();
+if(!name){toast('نام الزامی است');return;}
+await idbPut('accounts',{id:generateID('ACC'),name,type:document.getElementById('accType').value,balance:parseFloat(document.getElementById('accBalance').value)||0});
+closeModal();renderAccounts();toast('حساب ذخیره شد!');
+}
+async function adjustAccount(id,action){
+const acc=await idbGet('accounts',id);if(!acc)return;
+const amount=parseFloat(prompt('مبلغ '+(action==='deposit'?'واریز':'برداشت')+' برای '+acc.name+':','0'));
+if(!amount||amount<=0)return;
+if(action==='withdraw')acc.balance-=amount;else acc.balance+=amount;
+await idbPut('accounts',acc);renderAccounts();toast('عملیات انجام شد!');
+}
+async function deleteAccount(id){await idbDelete('accounts',id);renderAccounts();}
 
-        const selectExistingBuyer = (phone) => {
-            if (!phone) {
-                document.getElementById('buyer-name').value = '';
-                document.getElementById('buyer-phone').value = '';
-                return;
-            }
-            const customer = customers.find(c => c.phone === phone);
-            if(customer) {
-                document.getElementById('buyer-name').value = customer.name;
-                document.getElementById('buyer-phone').value = customer.phone;
-            }
-        };
+// ==================== Expenses ====================
+async function renderExpenses(){
+const expenses=await idbGetAll('expenses');
+const accounts=await idbGetAll('accounts');
+const info=await getStoreInfo();const currency=info?info.currency:'ریال';
+document.getElementById('expensesTable').innerHTML=expenses.map(e=>{
+const acc=accounts.find(a=>a.id===e.accountId);
+return `<tr><td>${e.date}</td><td>${e.description}</td><td>${formatCurrency(e.amount,currency)}</td><td>${acc?acc.name:'—'}</td>
+<td><button class="sm danger" onclick="deleteExpense('${e.id}')">🗑</button></td></tr>`;
+}).join('');
+}
+function showAddExpense(){
+idbGetAll('accounts').then(accounts=>{
+const html=`
+<div class="modal-overlay"><div class="modal"><h3>➕ افزودن هزینه</h3>
+<input type="text" id="expDesc" placeholder="توضیح *" style="width:100%;margin:4px 0;">
+<input type="number" id="expAmount" placeholder="مبلغ *" style="width:100%;margin:4px 0;">
+<select id="expAccount" style="width:100%;margin:4px 0;">
+${accounts.map(a=>`<option value="${a.id}">${a.name} (${a.balance||0})</option>`).join('')}
+</select>
+<div class="flex-row" style="margin-top:10px;">
+<button onclick="saveExpense()" class="success">ذخیره</button>
+<button onclick="closeModal()" class="outline">انصراف</button></div></div></div>`;
+document.getElementById('modalContainer').innerHTML=html;
+});
+}
+async function saveExpense(){
+const desc=document.getElementById('expDesc').value.trim();
+const amount=parseFloat(document.getElementById('expAmount').value);
+if(!desc||isNaN(amount)){toast('توضیح و مبلغ الزامی است');return;}
+const accId=document.getElementById('expAccount').value;
+const expense={id:generateID('EXP'),date:nowShamsiDateTime(),description:desc,amount,accountId:accId};
+await idbPut('expenses',expense);
+// Deduct from account
+const acc=await idbGet('accounts',accId);
+if(acc){acc.balance-=amount;await idbPut('accounts',acc);}
+closeModal();renderExpenses();renderAccounts();toast('هزینه ثبت شد!');
+}
+async function deleteExpense(id){await idbDelete('expenses',id);renderExpenses();}
 
-        const finalizeInvoice = async () => {
-            const finalTotal = parseFloat(document.getElementById('checkout-final-price').innerText.replace(/,/g, ''))
-            
-            const invoiceData = {
-                type: checkoutType, items: [...cart], date: getShamsiDate(), time: getTime(),
-                total: finalTotal, discount: cartDiscount
-            };
+// ==================== Shareholders ====================
+async function renderShareholders(){
+const sh=await idbGetAll('shareholders');
+const orders=await idbGetAll('orders');
+const info=await getStoreInfo();const currency=info?info.currency:'ریال';
+const totalRevenue=orders.filter(o=>o.status==='paid').reduce((s,o)=>s+(o.finalTotal||0),0);
+const losses=await idbGetAll('losses');
+const totalLoss=losses.reduce((s,l)=>s+(l.amount||0),0);
+const netProfit=totalRevenue-totalLoss;
+document.getElementById('shareholdersTable').innerHTML=sh.map(s=>{
+const share=netProfit*(s.percentage/100);
+return `<tr><td>${s.name}</td><td>${s.percentage}%</td><td>${formatCurrency(share,currency)}</td>
+<td><button class="sm danger" onclick="deleteShareholder('${s.id}')">🗑</button></td></tr>`;
+}).join('');
+document.getElementById('shProfitCalc').innerHTML=`<strong>درآمد کل:</strong> ${formatCurrency(totalRevenue,currency)} | <strong>ضرر کل:</strong> ${formatCurrency(totalLoss,currency)} | <strong>سود خالص:</strong> ${formatCurrency(netProfit,currency)}`;
+}
+function showAddShareholder(){
+const html=`
+<div class="modal-overlay"><div class="modal"><h3>➕ افزودن سهامدار</h3>
+<input type="text" id="shName" placeholder="نام *" style="width:100%;margin:4px 0;">
+<input type="number" id="shPercent" placeholder="درصد سهم *" style="width:100%;margin:4px 0;" min="0" max="100">
+<div class="flex-row" style="margin-top:10px;">
+<button onclick="saveShareholder()" class="success">ذخیره</button>
+<button onclick="closeModal()" class="outline">انصراف</button></div></div></div>`;
+document.getElementById('modalContainer').innerHTML=html;
+}
+async function saveShareholder(){
+const name=document.getElementById('shName').value.trim();
+const pct=parseFloat(document.getElementById('shPercent').value);
+if(!name||isNaN(pct)){toast('نام و درصد الزامی است');return;}
+await idbPut('shareholders',{id:generateID('SH'),name,percentage:pct});
+closeModal();renderShareholders();toast('سهامدار ذخیره شد!');
+}
+async function deleteShareholder(id){await idbDelete('shareholders',id);renderShareholders();}
 
-            if (checkoutType === 'paid') {
-                const bName = document.getElementById('buyer-name').value;
-                const bPhone = document.getElementById('buyer-phone').value;
-                const sName = document.getElementById('seller-name').value;
-                if(!bName || !bPhone || !sName) return showToast('اطلاعات خریدار و نام امضاکننده الزامی است.', 'error');
-                
-                invoiceData.buyer = { name: bName, phone: bPhone };
-                invoiceData.seller = { name: sName, signature: canvas.toDataURL() };
+// ==================== Losses ====================
+async function renderLosses(){
+const losses=await idbGetAll('losses');
+const info=await getStoreInfo();const currency=info?info.currency:'ریال';
+document.getElementById('lossesTable').innerHTML=losses.map(l=>`
+<tr><td>${l.date}</td><td>${l.description}</td><td>${formatCurrency(l.amount,currency)}</td><td>${l.type||'—'}</td></tr>`).join('');
+document.getElementById('totalLoss').textContent=formatCurrency(losses.reduce((s,l)=>s+(l.amount||0),0),currency);
+}
 
-                // --- INTEGRATION: Update stock and save customer ---
-                const tx = db.transaction(['products', 'customers'], 'readwrite');
-                const productsStore = tx.objectStore('products');
-                const customersStore = tx.objectStore('customers');
-                
-                for (let item of cart) {
-                    const req = productsStore.get(item.id);
-                    req.onsuccess = () => {
-                        const product = req.result;
-                        product.stock -= item.qty;
-                        productsStore.put(product);
-                    };
-                }
-                customersStore.put({ phone: bPhone, name: bName, lastPurchase: invoiceData.date });
+// ==================== Settings & Export/Import ====================
+async function renderSettings(){
+const info=await getStoreInfo();
+if(info){
+document.getElementById('storeInfoDisplay').innerHTML=`
+<p><strong>نام فروشگاه:</strong> ${info.storeName}</p>
+<p><strong>آدرس:</strong> ${info.address||'—'}</p>
+<p><strong>تلفن:</strong> ${info.phone||'—'}</p>
+<p><strong>واحد پول:</strong> ${info.currency} (غیرقابل تغییر)</p>
+<p><strong>شناسه ملی:</strong> ${info.nationalID||'—'}</p>`;
+}
+}
+async function exportAllData(){
+const data={};
+const stores=['storeInfo','products','categories','persons','accounts','orders','orderItems','expenses','shareholders','losses','expiryBoxes','priceChanges','productBatches'];
+for(const s of stores){
+data[s]=await idbGetAll(s);
+}
+const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+const url=URL.createObjectURL(blob);
+const a=document.createElement('a');
+a.href=url;a.download='store_backup_'+new Date().toISOString().slice(0,10)+'.json';
+a.click();URL.revokeObjectURL(url);
+toast('فایل پشتیبان دانلود شد!');
+}
+async function importAllData(input){
+try{
+const file=input.files[0];
+if(!file)return;
+const text=await file.text();
+const data=JSON.parse(text);
+for(const [storeName,items] of Object.entries(data)){
+if(Array.isArray(items)){
+for(const item of items){
+await idbPut(storeName,item);
+}
+}
+}
+document.getElementById('modalContainer').innerHTML='';
+toast('داده‌ها با موفقیت بارگذاری شدند!');
+await ensureStoreInfo();
+loadDashboard();
+navigateTo('dashboard');
+}catch(e){
+toast('خطا در بارگذاری فایل: '+e.message);
+}
+input.value='';
+}
 
-                tx.oncomplete = async () => {
-                    await dbAction('invoices', 'readwrite', 'put', invoiceData);
-                    await generateInvoiceImage(invoiceData);
-                    showToast("فاکتور با موفقیت صادر و انبار بروزرسانی شد.");
-                    cart =[]; cartDiscount = { type: 'percent', value: 0 };
-                    renderCart();
-                    await refreshData();
-                    renderPOSProducts('');
-                    closeCheckoutModal();
-                };
-                tx.onerror = () => showToast("خطا در بروزرسانی انبار!", "error");
-            } else {
-                 await dbAction('invoices', 'readwrite', 'put', invoiceData);
-                 await generateInvoiceImage(invoiceData);
-                 showToast("پیش‌فاکتور با موفقیت ایجاد شد.");
-                 closeCheckoutModal();
-            }
-        };
+// ==================== Init ====================
+async function init(){
+await openDB();
+const info=await getStoreInfo();
+if(!info){
+showRegistrationModal();
+}else{
+document.getElementById('sidebarStoreName').textContent=info.storeName||'فروشگاه';
+loadDashboard();
+}
+// Nav click handlers
+document.querySelectorAll('.sidebar-nav li a').forEach(a=>{
+a.addEventListener('click',function(e){
+e.preventDefault();
+const page=this.getAttribute('data-page');
+if(page)navigateTo(page);
+});
+});
+// Also wire up import button in registration modal context
+document.addEventListener('click',function(e){
+if(e.target.id==='importFileReg'){
+document.getElementById('importFileReg').click();
+}
+});
+}
 
-        const generateInvoiceImage = async (data) => {
-             // This function's logic is mostly visual and remains the same as before
-             // The only change is to use seller signature and name
-        };
+init().catch(e=>console.error('Init error:',e));
 
-        /* =========================================
-           8. OTHER TABS (Inventory, People)
-        ========================================= */
-        const renderInventory = () => {
-            const tbody = document.getElementById('inventory-table-body');
-            tbody.innerHTML = '';
-            const now = new Date();
-            products.forEach(p => {
-                let rowClass = ""; let statusText = "عادی";
-                if (p.status === 'expired') {
-                    rowClass = "expire-past"; statusText = "منقضی شده";
-                } else if (p.expiry) {
-                    const expDate = new Date(p.expiry);
-                    const diffDays = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24));
-                    if (diffDays <= 7) { rowClass = "expire-red"; statusText = "انقضا نزدیک (۱ هفته)"; }
-                    else if (diffDays <= 30) { rowClass = "expire-yellow"; statusText = "هشدار انقضا (۱ ماه)"; }
-                }
-                tbody.innerHTML += `
-                    <tr class="${rowClass}">
-                        <td class="p-4 font-bold">${p.name} (کد: ${p.id})</td>
-                        <td class="p-4">${p.stock}</td>
-                        <td class="p-4" dir="ltr">${p.expiry || 'ندارد'}</td>
-                        <td class="p-4 font-bold">${statusText}</td>
-                    </tr>
-                `;
-            });
-        };
-
-        const renderCustomers = () => {
-            const list = document.getElementById('customers-list');
-            list.innerHTML = customers.length === 0 ? '<p class="text-slate-500 text-center p-4">هنوز خریداری ثبت نشده است.</p>' : '';
-            customers.forEach(c => {
-                list.innerHTML += `<li class="p-4 border-b flex justify-between items-center hover:bg-slate-50">
-                    <span class="font-bold"><i class="fas fa-user text-slate-400 mr-3"></i> ${c.name}</span>
-                    <span class="text-slate-600">${c.phone} | آخرین خرید: ${c.lastPurchase}</span>
-                </li>`;
-            });
-        };
-
-        /* =========================================
-           9. DATA IMPORT/EXPORT
-        ========================================= */
-        const exportData = async () => { /* Logic remains the same */ };
-        const importData = (event) => { /* Logic remains the same */ };
-
-        // Re-initialize signature pad and other utilities that were omitted for brevity
-        // but are present in the full code.
-        initSignaturePad(); 
-
-    </script>
+// ==================== Global functions for HTML onclick ====================
+window.showAddProduct=showAddProduct;
+window.editProduct=editProduct;
+window.deleteProduct=deleteProduct;
+window.changeProductPrice=changeProductPrice;
+window.addCategory=addCategory;
+window.deleteCategory=deleteCategory;
+window.showAddPerson=showAddPerson;
+window.deletePerson=deletePerson;
+window.showAddAccount=showAddAccount;
+window.deleteAccount=deleteAccount;
+window.adjustAccount=adjustAccount;
+window.showAddExpense=showAddExpense;
+window.deleteExpense=deleteExpense;
+window.showAddShareholder=showAddShareholder;
+window.deleteShareholder=deleteShareholder;
+window.closeModal=closeModal;
+window.saveProduct=saveProduct;
+window.updateProduct=updateProduct;
+window.savePerson=savePerson;
+window.saveAccount=saveAccount;
+window.saveExpense=saveExpense;
+window.saveShareholder=saveShareholder;
+window.applyDiscount=applyDiscount;
+window.checkout=checkout;
+window.changeQty=changeQty;
+window.setItemDiscount=setItemDiscount;
+window.removeOrderItem=removeOrderItem;
+window.viewOrderDetails=viewOrderDetails;
+window.downloadInvoiceById=downloadInvoiceById;
+window.deleteOrder=deleteOrder;
+window.resolveCustomer=resolveCustomer;
+window.clearSignature=clearSignature;
+window.saveSignature=saveSignature;
+window.previewProductImage=previewProductImage;
+window.exportAllData=exportAllData;
+window.importAllData=importAllData;
+window.registerStore=registerStore;
+window.toggleSidebar=toggleSidebar;
+window.searchProductForOrder=searchProductForOrder;
+window.addToOrder=addToOrder;
+</script>
 </body>
 </html>
