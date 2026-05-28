@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>نقطه بازی | مسابقه چند مرحله‌ای</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: linear-gradient(145deg, #1e2b3a 0%, #0f1722 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Segoe UI', 'Vazirmatn', Tahoma, sans-serif;
+      padding: 15px;
+      margin: 0;
+    }
+    .game-container {
+      background: rgba(255, 255, 255, 0.07);
+      backdrop-filter: blur(25px);
+      border-radius: 48px;
+      padding: 25px 20px;
+      box-shadow: 0 35px 60px rgba(0, 0, 0, 0.7), inset 0 0 25px rgba(255, 255, 255, 0.08);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      max-width: 100%;
+    }
+    h1 {
+      color: #f5e6d3;
+      margin-bottom: 5px;
+      font-size: 2rem;
+      text-shadow: 0 5px 15px rgba(0,0,0,0.5);
+      letter-spacing: 2px;
+    }
+    .round-info {
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(12px);
+      border-radius: 40px;
+      padding: 6px 25px;
+      margin: 8px 0 15px;
+      color: #ffd966;
+      font-weight: bold;
+      font-size: 0.9rem;
+      border: 1px solid rgba(255, 217, 102, 0.3);
+    }
+    .match-score {
+      display: flex;
+      justify-content: center;
+      gap: 35px;
+      margin-bottom: 15px;
+      font-size: 1.1rem;
+      background: rgba(0,0,0,0.35);
+      backdrop-filter: blur(10px);
+      border-radius: 35px;
+      padding: 8px 30px;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+    .turn-indicator {
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(12px);
+      border-radius: 60px;
+      padding: 10px 30px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .player1-color { color: #f7c35c; text-shadow: 0 0 12px #f7c35c; }
+    .player2-color { color: #e94560; text-shadow: 0 0 12px #e94560; }
+    canvas {
+      display: block;
+      margin: 0 auto;
+      border-radius: 30px;
+      background: #faf4e8;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.15), 0 20px 35px rgba(0,0,0,0.6);
+      cursor: pointer;
+      touch-action: none;
+    }
+    .current-round-score {
+      margin-top: 20px;
+      display: flex;
+      gap: 25px;
+      background: rgba(0,0,0,0.45);
+      backdrop-filter: blur(15px);
+      border-radius: 50px;
+      padding: 8px 30px;
+      color: white;
+      font-weight: bold;
+      font-size: 1.1rem;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .buttons {
+      display: flex;
+      gap: 15px;
+      margin-top: 15px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .btn {
+      background: #f7c35c;
+      border: none;
+      color: #1e272e;
+      font-weight: bold;
+      font-size: 1rem;
+      padding: 10px 28px;
+      border-radius: 40px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      letter-spacing: 0.5px;
+      box-shadow: 0 8px 18px rgba(247, 195, 92, 0.3);
+      border: 1px solid rgba(255,255,255,0.25);
+      font-family: inherit;
+    }
+    .btn:hover { background: #f5b042; transform: translateY(-2px); }
+    .btn.secondary {
+      background: rgba(255,255,255,0.1);
+      color: #ddd;
+      box-shadow: 0 8px 18px rgba(0,0,0,0.2);
+      border-color: rgba(255,255,255,0.2);
+    }
+    .btn.secondary:hover { background: rgba(255,255,255,0.2); }
+    .hidden { display: none !important; }
+    @media (max-width: 500px) {
+      .game-container { padding: 15px 10px; }
+      h1 { font-size: 1.6rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <h1>⚡ نقطه بازی ⚡</h1>
+    <div class="round-info" id="roundDisplay">مرحله ۱ از ۳ (صفحه ۵×۵)</div>
+    <div class="match-score">
+      <span>بردها: 🟡 <span id="matchWins1">0</span> | 🔴 <span id="matchWins2">0</span></span>
+    </div>
+    
+    <div class="turn-indicator" id="turnIndicator">
+      <span>نوبت</span>
+      <span id="currentPlayerDisplay" class="player1-color">🟡 زرد</span>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="current-round-score">
+      <span>این دور: 🟡 <span id="roundScore1">0</span></span>
+      <span>🔴 <span id="roundScore2">0</span></span>
+    </div>
+
+    <div class="buttons">
+      <button class="btn" id="nextRoundButton">مرحله بعد ▶</button>
+      <button class="btn secondary" id="restartMatchButton">🔄 شروع دوباره مسابقه</button>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      // ---------- تنظیمات مسابقه ----------
+      const TOTAL_ROUNDS = 3; // تعداد کل مرحله‌ها (Best of 3)
+      const BASE_GRID_SIZE = 5; // اندازه شروع (5 نقطه = 4x4 مربع)
+      // اندازه‌های مراحل: مرحله 1: 5, مرحله 2: 6, مرحله 3: 7
+      
+      let matchState = {
+        roundNumber: 1,           // مرحله فعلی (1 تا TOTAL_ROUNDS)
+        matchWins: { 1: 0, 2: 0 }, // تعداد برد هر بازیکن در کل مسابقه
+        matchOver: false,
+        currentGame: null,        // state بازی جاری
+      };
+
+      // ثابت‌های canvas (به صورت پویا تنظیم می‌شوند)
+      let DOT_SPACING = 70;
+      let PADDING = 50;
+      let canvasWidth, canvasHeight;
+      let currentGridSize;
+
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+
+      // ---------- مدل داده بازی جاری ----------
+      function createGameState(gridSize) {
+        return {
+          gridSize: gridSize,
+          horizontalLines: Array(gridSize).fill().map(() => Array(gridSize - 1).fill(false)),
+          verticalLines: Array(gridSize - 1).fill().map(() => Array(gridSize).fill(false)),
+          boxes: Array(gridSize - 1).fill().map(() => Array(gridSize - 1).fill(null)),
+          currentPlayer: 1,
+          roundScores: { 1: 0, 2: 0 },
+          gameOver: false,
+        };
+      }
+
+      function getDotPosition(row, col, gridSize) {
+        return {
+          x: PADDING + col * DOT_SPACING,
+          y: PADDING + row * DOT_SPACING
+        };
+      }
+
+      function resizeCanvas(gridSize) {
+        // محاسبه ابعاد بر اساس gridSize
+        DOT_SPACING = Math.min(70, Math.floor((window.innerWidth - 80) / (gridSize - 1)));
+        PADDING = DOT_SPACING * 0.7;
+        canvasWidth = (gridSize - 1) * DOT_SPACING + PADDING * 2;
+        canvasHeight = (gridSize - 1) * DOT_SPACING + PADDING * 2;
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        if (window.innerWidth < 500) {
+          canvas.style.width = '95%';
+          canvas.style.height = 'auto';
+        } else {
+          canvas.style.width = canvasWidth + 'px';
+          canvas.style.height = canvasHeight + 'px';
+        }
+      }
+
+      // ---------- منطق مربع‌ها ----------
+      function checkAndCompleteBoxes(state, row, col, isHorizontal) {
+        let boxesCompleted = [];
+        const gs = state.gridSize;
+        if (isHorizontal) {
+          if (row > 0) {
+            const boxRow = row - 1, boxCol = col;
+            if (state.boxes[boxRow][boxCol] === null) {
+              if (state.verticalLines[boxRow][boxCol] &&
+                  state.verticalLines[boxRow][boxCol + 1] &&
+                  state.horizontalLines[boxRow][boxCol] &&
+                  state.horizontalLines[boxRow + 1][boxCol]) {
+                boxesCompleted.push({ row: boxRow, col: boxCol });
+              }
+            }
+          }
+          if (row < gs - 1) {
+            const boxRow = row, boxCol = col;
+            if (state.boxes[boxRow][boxCol] === null) {
+              if (state.verticalLines[boxRow][boxCol] &&
+                  state.verticalLines[boxRow][boxCol + 1] &&
+                  state.horizontalLines[boxRow][boxCol] &&
+                  state.horizontalLines[boxRow + 1][boxCol]) {
+                boxesCompleted.push({ row: boxRow, col: boxCol });
+              }
+            }
+          }
+        } else {
+          if (col > 0) {
+            const boxRow = row, boxCol = col - 1;
+            if (state.boxes[boxRow][boxCol] === null) {
+              if (state.horizontalLines[boxRow][boxCol] &&
+                  state.horizontalLines[boxRow + 1][boxCol] &&
+                  state.verticalLines[boxRow][boxCol] &&
+                  state.verticalLines[boxRow][boxCol + 1]) {
+                boxesCompleted.push({ row: boxRow, col: boxCol });
+              }
+            }
+          }
+          if (col < gs - 1) {
+            const boxRow = row, boxCol = col;
+            if (state.boxes[boxRow][boxCol] === null) {
+              if (state.horizontalLines[boxRow][boxCol] &&
+                  state.horizontalLines[boxRow + 1][boxCol] &&
+                  state.verticalLines[boxRow][boxCol] &&
+                  state.verticalLines[boxRow][boxCol + 1]) {
+                boxesCompleted.push({ row: boxRow, col: boxCol });
+              }
+            }
+          }
+        }
+        return boxesCompleted;
+      }
+
+      function isGameOver(state) {
+        return state.boxes.every(row => row.every(box => box !== null));
+      }
+
+      // ---------- رسم ----------
+      function drawBoard(state) {
+        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+        const gs = state.gridSize;
+        
+        // نقطه‌ها
+        for (let r = 0; r < gs; r++) {
+          for (let c = 0; c < gs; c++) {
+            const { x, y } = getDotPosition(r, c, gs);
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, Math.PI * 2);
+            ctx.fillStyle = '#2c3e50';
+            ctx.fill();
+            ctx.shadowColor = 'rgba(0,0,0,0.15)';
+            ctx.shadowBlur = 4;
+            ctx.fill();
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+          }
+        }
+        
+        // خطوط افقی
+        ctx.strokeStyle = '#2d3e50';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        for (let r = 0; r < gs; r++) {
+          for (let c = 0; c < gs - 1; c++) {
+            if (state.horizontalLines[r][c]) {
+              const start = getDotPosition(r, c, gs);
+              const end = getDotPosition(r, c + 1, gs);
+              ctx.beginPath();
+              ctx.moveTo(start.x, start.y);
+              ctx.lineTo(end.x, end.y);
+              ctx.stroke();
+            }
+          }
+        }
+        
+        // خطوط عمودی
+        for (let r = 0; r < gs - 1; r++) {
+          for (let c = 0; c < gs; c++) {
+            if (state.verticalLines[r][c]) {
+              const start = getDotPosition(r, c, gs);
+              const end = getDotPosition(r + 1, c, gs);
+              ctx.beginPath();
+              ctx.moveTo(start.x, start.y);
+              ctx.lineTo(end.x, end.y);
+              ctx.stroke();
+            }
+          }
+        }
+        
+        // مربع‌های تصاحب شده
+        for (let r = 0; r < gs - 1; r++) {
+          for (let c = 0; c < gs - 1; c++) {
+            if (state.boxes[r][c] !== null) {
+              const dot = getDotPosition(r, c, gs);
+              const x = dot.x, y = dot.y;
+              const size = DOT_SPACING;
+              ctx.fillStyle = state.boxes[r][c] === 1 ? 'rgba(247, 195, 92, 0.45)' : 'rgba(233, 68, 96, 0.45)';
+              ctx.fillRect(x, y, size, size);
+              ctx.font = 'bold 20px "Vazirmatn", "Segoe UI"';
+              ctx.fillStyle = '#1a1a1a';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(state.boxes[r][c] === 1 ? 'ز' : 'ق', x + size/2, y + size/2);
+            }
+          }
+        }
+      }
+
+      // ---------- مدیریت کلیک ----------
+      function handleCanvasClick(e) {
+        if (matchState.matchOver || !matchState.currentGame) return;
+        const state = matchState.currentGame;
+        if (state.gameOver) return;
+        
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const mouseX = (e.clientX - rect.left) * scaleX;
+        const mouseY = (e.clientY - rect.top) * scaleY;
+        
+        const gs = state.gridSize;
+        const threshold = DOT_SPACING * 0.45;
+        let selectedLine = null;
+        let minDist = Infinity;
+        
+        // خطوط افقی
+        for (let r = 0; r < gs; r++) {
+          for (let c = 0; c < gs - 1; c++) {
+            if (state.horizontalLines[r][c]) continue;
+            const start = getDotPosition(r, c, gs);
+            const end = getDotPosition(r, c + 1, gs);
+            const midY = start.y;
+            const midX = (start.x + end.x) / 2;
+            const dist = Math.abs(mouseY - midY);
+            if (dist < threshold && mouseX > start.x - 10 && mouseX < end.x + 10) {
+              const actualDist = Math.hypot(mouseX - midX, mouseY - midY);
+              if (actualDist < minDist) {
+                minDist = actualDist;
+                selectedLine = { type: 'horizontal', row: r, col: c };
+              }
+            }
+          }
+        }
+        
+        // خطوط عمودی
+        for (let r = 0; r < gs - 1; r++) {
+          for (let c = 0; c < gs; c++) {
+            if (state.verticalLines[r][c]) continue;
+            const start = getDotPosition(r, c, gs);
+            const end = getDotPosition(r + 1, c, gs);
+            const midX = start.x;
+            const midY = (start.y + end.y) / 2;
+            const dist = Math.abs(mouseX - midX);
+            if (dist < threshold && mouseY > start.y - 10 && mouseY < end.y + 10) {
+              const actualDist = Math.hypot(mouseX - midX, mouseY - midY);
+              if (actualDist < minDist) {
+                minDist = actualDist;
+                selectedLine = { type: 'vertical', row: r, col: c };
+              }
+            }
+          }
+        }
+        
+        if (!selectedLine) return;
+        
+        const { type, row, col } = selectedLine;
+        if (type === 'horizontal') {
+          state.horizontalLines[row][col] = true;
+        } else {
+          state.verticalLines[row][col] = true;
+        }
+        
+        const boxesCompleted = checkAndCompleteBoxes(state, row, col, type === 'horizontal');
+        
+        if (boxesCompleted.length > 0) {
+          boxesCompleted.forEach(box => {
+            state.boxes[box.row][box.col] = state.currentPlayer;
+            state.roundScores[state.currentPlayer]++;
+          });
+          updateRoundScoreDisplay(state);
+          
+          if (isGameOver(state)) {
+            state.gameOver = true;
+            finishCurrentRound();
+            return;
+          }
+          // نوبت جایزه
+          drawBoard(state);
+          updateTurnDisplay(state);
+        } else {
+          state.currentPlayer = state.currentPlayer === 1 ? 2 : 1;
+          drawBoard(state);
+          updateTurnDisplay(state);
+        }
+      }
+
+      function finishCurrentRound() {
+        const state = matchState.currentGame;
+        if (!state) return;
+        drawBoard(state);
+        
+        let roundWinner = null;
+        if (state.roundScores[1] > state.roundScores[2]) roundWinner = 1;
+        else if (state.roundScores[2] > state.roundScores[1]) roundWinner = 2;
+        // تساوی در یک دور نادر است، اما ممکن است (اگر امتیاز مساوی باشد، کسی برنده نمی‌شود)
+        
+        if (roundWinner) {
+          matchState.matchWins[roundWinner]++;
+        }
+        
+        updateMatchDisplay();
+        
+        // بررسی پایان مسابقه
+        const winsNeeded = Math.ceil(TOTAL_ROUNDS / 2);
+        if (matchState.matchWins[1] >= winsNeeded || matchState.matchWins[2] >= winsNeeded) {
+          matchState.matchOver = true;
+          const champion = matchState.matchWins[1] >= winsNeeded ? '🟡 زرد' : '🔴 قرمز';
+          setTimeout(() => {
+            alert(`🏆 مسابقه تمام شد! \nقهرمان: ${champion}\nبردها: ${matchState.matchWins[1]} - ${matchState.matchWins[2]}`);
+            document.getElementById('nextRoundButton').classList.add('hidden');
+          }, 80);
+        } else {
+          document.getElementById('nextRoundButton').classList.remove('hidden');
+        }
+        
+        updateTurnDisplay(state); // نشان دادن پایان
+        document.getElementById('nextRoundButton').disabled = false;
+      }
+
+      function nextRound() {
+        if (matchState.matchOver) return;
+        matchState.roundNumber++;
+        if (matchState.roundNumber > TOTAL_ROUNDS) {
+          matchState.matchOver = true;
+          return;
+        }
+        startNewRound();
+      }
+
+      function startNewRound() {
+        // تعیین اندازه شبکه این مرحله: BASE_GRID_SIZE + (roundNumber - 1)
+        const gridSize = BASE_GRID_SIZE + (matchState.roundNumber - 1);
+        currentGridSize = gridSize;
+        resizeCanvas(gridSize);
+        matchState.currentGame = createGameState(gridSize);
+        updateRoundDisplay();
+        updateRoundScoreDisplay(matchState.currentGame);
+        updateTurnDisplay(matchState.currentGame);
+        updateMatchDisplay();
+        document.getElementById('nextRoundButton').classList.add('hidden');
+        drawBoard(matchState.currentGame);
+      }
+
+      function restartMatch() {
+        matchState = {
+          roundNumber: 1,
+          matchWins: { 1: 0, 2: 0 },
+          matchOver: false,
+          currentGame: null,
+        };
+        document.getElementById('nextRoundButton').classList.add('hidden');
+        startNewRound();
+      }
+
+      // ---------- به‌روزرسانی رابط کاربری ----------
+      function updateRoundDisplay() {
+        const gridSize = matchState.currentGame ? matchState.currentGame.gridSize : BASE_GRID_SIZE;
+        document.getElementById('roundDisplay').textContent = 
+          `مرحله ${matchState.roundNumber} از ${TOTAL_ROUNDS} (صفحه ${gridSize}×${gridSize})`;
+      }
+
+      function updateRoundScoreDisplay(state) {
+        document.getElementById('roundScore1').textContent = state.roundScores[1];
+        document.getElementById('roundScore2').textContent = state.roundScores[2];
+      }
+
+      function updateMatchDisplay() {
+        document.getElementById('matchWins1').textContent = matchState.matchWins[1];
+        document.getElementById('matchWins2').textContent = matchState.matchWins[2];
+      }
+
+      function updateTurnDisplay(state) {
+        const displayEl = document.getElementById('currentPlayerDisplay');
+        if (!state || state.gameOver || matchState.matchOver) {
+          displayEl.textContent = 'پایان';
+          displayEl.className = '';
+          return;
+        }
+        if (state.currentPlayer === 1) {
+          displayEl.textContent = '🟡 زرد';
+          displayEl.className = 'player1-color';
+        } else {
+          displayEl.textContent = '🔴 قرمز';
+          displayEl.className = 'player2-color';
+        }
+      }
+
+      // ---------- رویدادها ----------
+      canvas.addEventListener('click', handleCanvasClick);
+      canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        handleCanvasClick({ clientX: touch.clientX, clientY: touch.clientY });
+      }, { passive: false });
+
+      document.getElementById('nextRoundButton').addEventListener('click', nextRound);
+      document.getElementById('restartMatchButton').addEventListener('click', restartMatch);
+
+      window.addEventListener('resize', () => {
+        if (matchState.currentGame) {
+          resizeCanvas(matchState.currentGame.gridSize);
+          drawBoard(matchState.currentGame);
+        }
+      });
+
+      // شروع اولیه
+      restartMatch();
+    })();
+  </script>
+</body>
+</html>

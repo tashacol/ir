@@ -1,0 +1,1780 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>نبرد کوهستان</title>
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --board-bg: #16213e;
+            --gold: #f5c542;
+            --gold-dark: #b8941f;
+            --player1: #f5c542;
+            --player1-dark: #b8941f;
+            --player2: #e94560;
+            --player2-dark: #b31232;
+            --rock: #7f8c8d;
+            --cell: #0f3460;
+            --cell-light: #1a4b8c;
+            --text: #eee;
+            --shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+            --radius: 16px;
+            --font: 'Segoe UI', 'Vazirmatn', Tahoma, sans-serif;
+            --panel-height: 70px;
+            --pull-tab-width: 28px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: var(--font);
+            background: linear-gradient(135deg, #0f0c29, #1a1a2e 60%, #0f0c29);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: manipulation;
+            position: relative;
+        }
+
+        .game-wrapper {
+            width: 100%;
+            max-width: 100%;
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        /* پنل‌های بازیکن */
+        .player-panel {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 12px;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(8px);
+            flex-shrink: 0;
+            height: var(--panel-height);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            position: relative;
+            z-index: 5;
+        }
+
+        .top-panel {
+            border-bottom: 2px solid rgba(245, 197, 66, 0.4);
+        }
+
+        .bottom-panel {
+            border-top: 2px solid rgba(233, 68, 96, 0.4);
+            transform: rotate(180deg);
+            /* برای خوانایی بازیکن پایین */
+            direction: ltr;
+        }
+
+        .bottom-panel * {
+            direction: rtl;
+            /* بازگردانی جهت متن */
+        }
+
+        .panel-section {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+        }
+
+        .player-name {
+            font-weight: bold;
+            color: #fff;
+            font-size: 0.9rem;
+            max-width: 80px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .player-score {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .top-panel .player-score {
+            color: var(--player1);
+            border: 1px solid var(--player1-dark);
+        }
+
+        .bottom-panel .player-score {
+            color: var(--player2);
+            border: 1px solid var(--player2-dark);
+        }
+
+        .turn-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: transparent;
+            transition: 0.3s;
+        }
+
+        .turn-dot.active {
+            box-shadow: 0 0 12px;
+        }
+
+        .top-panel .turn-dot.active {
+            background: var(--player1);
+            box-shadow: 0 0 12px var(--player1);
+        }
+
+        .bottom-panel .turn-dot.active {
+            background: var(--player2);
+            box-shadow: 0 0 12px var(--player2);
+        }
+
+        .panel-log {
+            flex: 2;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            padding: 4px 12px;
+            height: 32px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            font-size: 0.7rem;
+            color: #ccc;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            position: relative;
+        }
+
+        .bottom-panel .panel-log {
+            transform: rotate(180deg);
+            /* خنثی‌سازی چرخش */
+        }
+
+        .panel-skip {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            color: #fff;
+            cursor: pointer;
+            transition: 0.2s;
+            white-space: nowrap;
+            background: rgba(245, 197, 66, 0.15);
+            border-color: var(--gold-dark);
+            color: var(--gold);
+            display: none;
+            /* مخفی در حالت عادی */
+        }
+
+        .panel-skip.visible {
+            display: block;
+        }
+
+        .panel-skip:active {
+            transform: scale(0.93);
+            background: rgba(245, 197, 66, 0.3);
+        }
+
+        /* تایمر */
+        .timer-container {
+            text-align: center;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #fff;
+            flex-shrink: 0;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            letter-spacing: 2px;
+        }
+
+        .timer-warning {
+            color: #ff4d4d;
+            animation: pulse-warning 0.5s infinite alternate;
+        }
+
+        @keyframes pulse-warning {
+            from {
+                opacity: 1;
+            }
+            to {
+                opacity: 0.4;
+            }
+        }
+
+        /* دکمه‌های شناور حذف شدند – به منو منتقل شدند */
+
+        /* زبانه کشویی منو (Pull Tab) */
+        .pull-tab {
+            position: fixed;
+            top: 50%;
+            right: 0;
+            width: var(--pull-tab-width);
+            height: 80px;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-right: none;
+            border-radius: 16px 0 0 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 220;
+            transition: 0.2s;
+            box-shadow: -4px 0 15px rgba(0, 0, 0, 0.6);
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            font-size: 0.9rem;
+            color: #fff;
+            letter-spacing: 2px;
+            transform: translateY(-50%);
+        }
+
+        .pull-tab:active {
+            background: rgba(255, 255, 255, 0.2);
+            width: 32px;
+        }
+
+        .menu-dropdown {
+            position: fixed;
+            top: 50%;
+            right: -250px;
+            /* مخفی در خارج از صفحه */
+            background: #1e2a4a;
+            border-radius: 16px 0 0 16px;
+            padding: 8px 0;
+            min-width: 200px;
+            box-shadow: -8px 0 25px rgba(0, 0, 0, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            z-index: 219;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(10px);
+            transition: right 0.3s cubic-bezier(0.25, 0.8, 0.25, 1.2);
+            transform: translateY(-50%);
+        }
+
+        .menu-dropdown.open {
+            right: 30px;
+            /* باز شدن از کنار زبانه */
+        }
+
+        .menu-item {
+            padding: 12px 20px;
+            font-size: 0.85rem;
+            color: #ddd;
+            cursor: pointer;
+            transition: 0.2s;
+            border: none;
+            background: none;
+            text-align: right;
+            width: 100%;
+            font-family: var(--font);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .menu-item:hover,
+        .menu-item:active {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        /* تخته بازی */
+        .board-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 0;
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
+        }
+
+        .board {
+            display: grid;
+            gap: 4px;
+            aspect-ratio: 1 / 1;
+            width: auto;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            background: var(--board-bg);
+            border-radius: var(--radius);
+            padding: 6px;
+            box-shadow: var(--shadow), inset 0 0 20px rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .cell {
+            background: var(--cell);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            transition: all 0.25s ease;
+            position: relative;
+            cursor: pointer;
+            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
+            border: 2px solid transparent;
+            aspect-ratio: 1 / 1;
+            min-width: 0;
+            min-height: 0;
+        }
+
+        .cell.touchable {
+            background: var(--cell-light);
+            box-shadow: 0 0 14px rgba(79, 209, 197, 0.5);
+            border-color: #4fd1c5;
+            animation: glow-pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes glow-pulse {
+            0%,
+            100% {
+                box-shadow: 0 0 10px rgba(79, 209, 197, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 22px rgba(79, 209, 197, 0.8);
+            }
+        }
+
+        .cell.rock {
+            background: #2d2d2d;
+            font-size: 1.6rem;
+            cursor: not-allowed;
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
+            border-color: #555;
+        }
+
+        .cell.base-player1 {
+            background: rgba(245, 197, 66, 0.2);
+            border: 2px dashed var(--player1);
+            box-shadow: 0 0 12px rgba(245, 197, 66, 0.3);
+        }
+
+        .cell.base-player2 {
+            background: rgba(233, 68, 96, 0.2);
+            border: 2px dashed var(--player2);
+            box-shadow: 0 0 12px rgba(233, 68, 96, 0.3);
+        }
+
+        .piece {
+            width: 75%;
+            height: 75%;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            transition: transform 0.2s ease;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            background: radial-gradient(circle at 30% 30%, #fff3, #0003);
+        }
+
+        .piece.player1-piece {
+            background: radial-gradient(circle at 30% 30%, #ffe08a, #c7910b);
+            border: 2px solid #f5d742;
+        }
+
+        .piece.player2-piece {
+            background: radial-gradient(circle at 30% 30%, #ff7b8b, #b31232);
+            border: 2px solid #ffb3c1;
+        }
+
+        .piece.selected {
+            transform: scale(1.15);
+            box-shadow: 0 0 20px rgba(245, 197, 66, 0.8);
+            border-color: var(--gold);
+            animation: selected-pop 0.6s ease infinite alternate;
+        }
+
+        @keyframes selected-pop {
+            from {
+                transform: scale(1.1);
+            }
+            to {
+                transform: scale(1.25);
+            }
+        }
+
+        /* مودال‌ها */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 300;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .modal-box {
+            background: #1e2a4a;
+            border-radius: 24px;
+            padding: 24px 20px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        @keyframes popIn {
+            from {
+                transform: scale(0.7);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .modal-box h3 {
+            color: var(--gold);
+            font-size: 1.4rem;
+            margin-bottom: 10px;
+        }
+
+        .modal-icon {
+            font-size: 3rem;
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .modal-box p {
+            color: #ccc;
+            font-size: 0.8rem;
+            margin: 6px 0;
+            line-height: 1.5;
+        }
+
+        .score-highlight {
+            font-size: 1.6rem;
+            font-weight: bold;
+            color: var(--gold);
+            margin: 10px 0;
+        }
+
+        .score-details {
+            display: flex;
+            justify-content: space-around;
+            gap: 10px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+
+        .score-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 8px 12px;
+            flex: 1;
+            min-width: 100px;
+        }
+
+        .score-item .label {
+            font-size: 0.7rem;
+            color: #aaa;
+            margin-bottom: 4px;
+        }
+
+        .score-item .value {
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        .score-item.player1-score .value {
+            color: var(--player1);
+        }
+
+        .score-item.player2-score .value {
+            color: var(--player2);
+        }
+
+        .modal-btn {
+            display: inline-block;
+            padding: 10px 24px;
+            border-radius: 25px;
+            border: none;
+            font-family: var(--font);
+            font-weight: bold;
+            font-size: 0.85rem;
+            cursor: pointer;
+            margin: 6px;
+            transition: all 0.2s ease;
+            -webkit-tap-highlight-color: transparent;
+            color: #fff;
+            background: linear-gradient(135deg, #4fd1c5, #2b8c7c);
+            box-shadow: 0 4px 15px rgba(79, 209, 197, 0.3);
+        }
+
+        .modal-btn:active {
+            transform: scale(0.94);
+        }
+
+        .modal-btn.secondary {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: none;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .form-group {
+            margin: 12px 0;
+            text-align: right;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 4px;
+            color: #ccc;
+            font-size: 0.8rem;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(0, 0, 0, 0.4);
+            color: #fff;
+            font-family: var(--font);
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .form-group.checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: flex-start;
+        }
+
+        .form-group.checkbox-group input {
+            width: auto;
+            margin: 0;
+        }
+
+        .turn-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2rem;
+            animation: floatUp 1.5s ease-out forwards;
+            pointer-events: none;
+            z-index: 50;
+            text-shadow: 0 0 20px rgba(245, 197, 66, 0.9);
+            opacity: 0;
+        }
+
+        @keyframes floatUp {
+            0% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -150%) scale(1.8);
+            }
+        }
+
+        /* رسپانسیو */
+        @media (max-width: 480px) {
+            :root {
+                --panel-height: 56px;
+                --pull-tab-width: 24px;
+            }
+            .player-name {
+                font-size: 0.75rem;
+                max-width: 60px;
+            }
+            .player-score {
+                font-size: 0.75rem;
+                padding: 3px 8px;
+            }
+            .panel-log {
+                font-size: 0.6rem;
+                height: 26px;
+            }
+            .panel-skip {
+                padding: 4px 10px;
+                font-size: 0.65rem;
+            }
+            .board {
+                padding: 4px;
+                gap: 3px;
+            }
+            .cell {
+                font-size: 1rem;
+            }
+            .piece {
+                font-size: 0.9rem;
+            }
+            .pull-tab {
+                height: 60px;
+                font-size: 0.7rem;
+            }
+            .timer-container {
+                font-size: 1rem;
+                padding: 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- دکمه‌های شناور به منو منتقل شدند و این بخش حذف گردید -->
+
+    <!-- زبانه کشویی منو (Pull Tab) -->
+    <div class="pull-tab" id="pullTab">☰ منو</div>
+    <div class="menu-dropdown" id="menuDropdown">
+        <button class="menu-item" id="menuNewGame">🔄 بازی جدید</button>
+        <button class="menu-item" id="menuRestartLevel">🔁 شروع دوباره همین مرحله</button>
+        <button class="menu-item" id="menuResetScores">🗑️ پاک کردن امتیازات</button>
+        <button class="menu-item" id="menuScores">🏠 مشاهده امتیازات</button>
+        <button class="menu-item" id="menuSoundToggle">🔊 صدا</button>
+    </div>
+
+    <div class="game-wrapper" id="gameWrapper">
+        <!-- پنل بازیکن زرد (بالا) -->
+        <div class="player-panel top-panel" id="topPanel">
+            <div class="panel-section">
+                <span class="turn-dot" id="topTurnDot"></span>
+                <span class="player-name" id="topPlayerName">زرد</span>
+                <span class="player-score" id="topPlayerScore">۰</span>
+            </div>
+            <div class="panel-log" id="topPanelLog">⚔️ نبرد کوهستان</div>
+            <button class="panel-skip visible" id="topSkipBtn">⏭️ رد نوبت</button>
+        </div>
+
+        <!-- نمایش تایمر -->
+        <div class="timer-container" id="timerContainer">
+            ⏳ <span id="timerDisplay">--:--</span>
+        </div>
+
+        <!-- تخته بازی -->
+        <div class="board-container">
+            <div class="board" id="gameBoard"></div>
+        </div>
+
+        <!-- پنل بازیکن قرمز (پایین - چرخیده) -->
+        <div class="player-panel bottom-panel" id="bottomPanel">
+            <div class="panel-section">
+                <span class="turn-dot" id="bottomTurnDot"></span>
+                <span class="player-name" id="bottomPlayerName">قرمز</span>
+                <span class="player-score" id="bottomPlayerScore">۰</span>
+            </div>
+            <div class="panel-log" id="bottomPanelLog">⚔️ نبرد کوهستان</div>
+            <button class="panel-skip visible" id="bottomSkipBtn">⏭️ رد نوبت</button>
+        </div>
+    </div>
+
+    <!-- مودال تنظیمات اولیه -->
+    <div class="modal-overlay hidden" id="modalSetup">
+        <div class="modal-box">
+            <span class="modal-icon">🏔️</span>
+            <h3>نبرد کوهستان</h3>
+            <p>تنظیمات بازی جدید</p>
+            <div class="form-group">
+                <label>🟡 نام بازیکن زرد (بالا)</label>
+                <input type="text" id="inputPlayer1Name" value="زرد" maxlength="12">
+            </div>
+            <div class="form-group">
+                <label>🔴 نام بازیکن قرمز (پایین)</label>
+                <input type="text" id="inputPlayer2Name" value="قرمز" maxlength="12">
+            </div>
+            <div class="form-group">
+                <label>🎮 حالت بازی</label>
+                <select id="selectGameMode">
+                    <option value="progressive">مرحله‌ای (صعود به قله)</option>
+                    <option value="random">تصادفی</option>
+                </select>
+            </div>
+            <div class="form-group hidden" id="difficultyGroup">
+                <label>⚡ درجه سختی</label>
+                <select id="selectDifficulty">
+                    <option value="easy">آسان</option>
+                    <option value="medium">متوسط</option>
+                    <option value="hard">سخت</option>
+                    <option value="veryHard">خیلی سخت</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>⏱️ زمان بازی (دقیقه)</label>
+                <select id="selectTimeLimit">
+                    <option value="3">۳ دقیقه</option>
+                    <option value="5" selected>۵ دقیقه</option>
+                    <option value="10">۱۰ دقیقه</option>
+                    <option value="15">۱۵ دقیقه</option>
+                    <option value="20">۲۰ دقیقه</option>
+                </select>
+            </div>
+            <div class="form-group checkbox-group">
+                <label>🔊 صدای بازی</label>
+                <input type="checkbox" id="checkboxSound" checked>
+            </div>
+            <button class="modal-btn" id="btnStartGame">شروع نبرد ⚔️</button>
+        </div>
+    </div>
+
+    <!-- مودال امتیازات (Home) -->
+    <div class="modal-overlay hidden" id="modalScores">
+        <div class="modal-box">
+            <span class="modal-icon">📊</span>
+            <h3>امتیازات</h3>
+            <div class="score-details">
+                <div class="score-item player1-score">
+                    <div class="label" id="homeP1Label">🟡 زرد</div>
+                    <div class="value" id="homeScorePlayer1">۰</div>
+                </div>
+                <div class="score-item player2-score">
+                    <div class="label" id="homeP2Label">🔴 قرمز</div>
+                    <div class="value" id="homeScorePlayer2">۰</div>
+                </div>
+            </div>
+            <p id="homeTimerInfo"></p>
+            <button class="modal-btn" id="btnCloseScores">بستن</button>
+        </div>
+    </div>
+
+    <!-- مودال‌های پایان بازی -->
+    <div class="modal-overlay hidden" id="modalWin">
+        <div class="modal-box">
+            <span class="modal-icon">🏆</span>
+            <h3 id="modalWinTitle">پیروزی!</h3>
+            <p id="modalWinText"></p>
+            <div class="score-details">
+                <div class="score-item player1-score">
+                    <div class="label" id="modalWinP1Label">🟡 زرد</div>
+                    <div class="value" id="modalScorePlayer1">۰</div>
+                </div>
+                <div class="score-item player2-score">
+                    <div class="label" id="modalWinP2Label">🔴 قرمز</div>
+                    <div class="value" id="modalScorePlayer2">۰</div>
+                </div>
+            </div>
+            <button class="modal-btn" id="btnNextLevel">مرحله بعد ⚔️</button>
+            <button class="modal-btn secondary" id="btnWinRestart">شروع دوباره</button>
+        </div>
+    </div>
+    <div class="modal-overlay hidden" id="modalLose">
+        <div class="modal-box">
+            <span class="modal-icon">💔</span>
+            <h3 id="modalLoseTitle">پایان بازی</h3>
+            <p id="modalLoseText"></p>
+            <div class="score-details">
+                <div class="score-item player1-score">
+                    <div class="label" id="modalLoseP1Label">🟡 زرد</div>
+                    <div class="value" id="modalLoseScorePlayer1">۰</div>
+                </div>
+                <div class="score-item player2-score">
+                    <div class="label" id="modalLoseP2Label">🔴 قرمز</div>
+                    <div class="value" id="modalLoseScorePlayer2">۰</div>
+                </div>
+            </div>
+            <button class="modal-btn" id="btnRetry">تلاش دوباره 🔄</button>
+            <button class="modal-btn secondary" id="btnLoseRestart">از اول</button>
+        </div>
+    </div>
+    <div class="modal-overlay hidden" id="modalGameOver">
+        <div class="modal-box">
+            <span class="modal-icon">👑</span>
+            <h3>فاتح کوهستان!</h3>
+            <p>همه مراحل به پایان رسید!</p>
+            <div class="score-details">
+                <div class="score-item player1-score">
+                    <div class="label" id="modalFinalP1Label">🟡 زرد</div>
+                    <div class="value" id="modalFinalScorePlayer1">۰</div>
+                </div>
+                <div class="score-item player2-score">
+                    <div class="label" id="modalFinalP2Label">🔴 قرمز</div>
+                    <div class="value" id="modalFinalScorePlayer2">۰</div>
+                </div>
+            </div>
+            <button class="modal-btn" id="btnFullRestart">بازی دوباره 🎮</button>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            const $ = (id) => document.getElementById(id);
+            const gameBoard = $('gameBoard');
+            const topPanelLog = $('topPanelLog');
+            const bottomPanelLog = $('bottomPanelLog');
+            const topPlayerName = $('topPlayerName');
+            const bottomPlayerName = $('bottomPlayerName');
+            const topPlayerScore = $('topPlayerScore');
+            const bottomPlayerScore = $('bottomPlayerScore');
+            const topTurnDot = $('topTurnDot');
+            const bottomTurnDot = $('bottomTurnDot');
+            const topSkipBtn = $('topSkipBtn');
+            const bottomSkipBtn = $('bottomSkipBtn');
+            const pullTab = $('pullTab');
+            const menuDropdown = $('menuDropdown');
+            const modalSetup = $('modalSetup');
+            const inputPlayer1Name = $('inputPlayer1Name');
+            const inputPlayer2Name = $('inputPlayer2Name');
+            const selectGameMode = $('selectGameMode');
+            const selectDifficulty = $('selectDifficulty');
+            const difficultyGroup = $('difficultyGroup');
+            const btnStartGame = $('btnStartGame');
+            // دکمه‌های خانه و صدا از حالت شناور خارج و به منو منتقل شدند
+            const timerDisplay = $('timerDisplay');
+            const timerContainer = $('timerContainer');
+            const modalScores = $('modalScores');
+            const selectTimeLimit = $('selectTimeLimit');
+            const checkboxSound = $('checkboxSound');
+
+            // گزینه‌های منو
+            const menuScores = $('menuScores');
+            const menuSoundToggle = $('menuSoundToggle');
+
+            const STORAGE_KEY_STATE = 'mountainBattleGameState_v4';
+            const STORAGE_KEY_META = 'mountainBattleMeta_v4';
+
+            // ---------- Audio System ----------
+            let audioCtx = null;
+            let soundEnabled = true;
+
+            function initAudio() {
+                if (!audioCtx) {
+                    try {
+                        audioCtx = new(window.AudioContext || window.webkitAudioContext)();
+                    } catch (e) {
+                        soundEnabled = false;
+                    }
+                }
+                if (audioCtx && audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            }
+
+            function playTone(freq, duration, type = 'square', volume = 0.15) {
+                if (!soundEnabled || !audioCtx) return;
+                try {
+                    const now = audioCtx.currentTime;
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, now);
+                    gain.gain.setValueAtTime(volume, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + duration);
+                } catch (e) { /* silent */ }
+            }
+
+            function playMoveSound() { playTone(440, 0.12, 'sine', 0.1);
+                playTone(660, 0.08, 'sine', 0.07, audioCtx?.currentTime + 0.05); }
+
+            function playCaptureSound() { playTone(220, 0.3, 'triangle', 0.2);
+                playTone(330, 0.2, 'triangle', 0.15, audioCtx?.currentTime + 0.1); }
+
+            function playWinSound() {
+                playTone(523, 0.2, 'sine', 0.2);
+                playTone(659, 0.2, 'sine', 0.2, audioCtx?.currentTime + 0.15);
+                playTone(784, 0.4, 'sine', 0.25, audioCtx?.currentTime + 0.3);
+            }
+
+            function playLoseSound() { playTone(200, 0.5, 'sawtooth', 0.15);
+                playTone(150, 0.6, 'sawtooth', 0.12, audioCtx?.currentTime + 0.2); }
+
+            function playTickSound() { playTone(1000, 0.05, 'square', 0.08); }
+
+            function playWarningSound() { playTone(800, 0.1, 'square', 0.2); }
+
+            function toggleSound() {
+                soundEnabled = !soundEnabled;
+                menuSoundToggle.innerHTML = soundEnabled ? '🔊 صدا' : '🔇 صدا';
+                if (soundEnabled) initAudio();
+            }
+
+            // ---------- Timer ----------
+            let timerInterval = null;
+            let timeRemaining = 0;
+            let timeLimitSeconds = 300; // default 5 min
+
+            function stopTimer() {
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
+            }
+
+            function startTimer() {
+                stopTimer();
+                timeRemaining = timeLimitSeconds;
+                updateTimerDisplay();
+                timerContainer.classList.remove('timer-warning');
+                timerInterval = setInterval(() => {
+                    timeRemaining--;
+                    updateTimerDisplay();
+                    if (timeRemaining <= 10 && timeRemaining > 0) {
+                        timerContainer.classList.add('timer-warning');
+                        playWarningSound();
+                    }
+                    if (timeRemaining <= 0) {
+                        stopTimer();
+                        timerContainer.classList.remove('timer-warning');
+                        handleTimeUp();
+                    }
+                }, 1000);
+            }
+
+            function updateTimerDisplay() {
+                const mins = Math.floor(Math.max(0, timeRemaining) / 60);
+                const secs = Math.max(0, timeRemaining) % 60;
+                timerDisplay.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            }
+
+            function handleTimeUp() {
+                if (!state.gameActive) return;
+                state.gameActive = false;
+                stopTimer();
+                playLoseSound();
+                let winner = '';
+                if (state.player1Score > state.player2Score) {
+                    winner = state.player1Name;
+                    state.winnerName = winner;
+                    updatePanelLogs(`⏰ زمان تمام شد! ${winner} با امتیاز بیشتر برنده شد.`, 'system');
+                    setTimeout(() => showTimeUpWinModal(winner), 500);
+                } else if (state.player2Score > state.player1Score) {
+                    winner = state.player2Name;
+                    state.winnerName = winner;
+                    updatePanelLogs(`⏰ زمان تمام شد! ${winner} با امتیاز بیشتر برنده شد.`, 'system');
+                    setTimeout(() => showTimeUpWinModal(winner), 500);
+                } else {
+                    state.winnerName = '';
+                    updatePanelLogs('⏰ زمان تمام شد! تساوی در امتیازات.', 'system');
+                    setTimeout(() => showDrawModal(), 500);
+                }
+                renderBoard();
+                updateUI();
+                saveGameState();
+            }
+
+            function showTimeUpWinModal(winner) {
+                $('modalWinTitle').textContent = `⏰ زمان تمام شد! ${winner} برنده است`;
+                $('modalWinText').textContent = `${winner} با امتیاز بیشتر در وقت اضافه پیروز شد.`;
+                $('modalWinP1Label').textContent = `🟡 ${state.player1Name}`;
+                $('modalWinP2Label').textContent = `🔴 ${state.player2Name}`;
+                $('modalScorePlayer1').textContent = state.player1Score.toLocaleString('fa-IR');
+                $('modalScorePlayer2').textContent = state.player2Score.toLocaleString('fa-IR');
+                $('modalWin').classList.remove('hidden');
+                if (state.gameMode === 'random') $('btnNextLevel').classList.add('hidden');
+                else $('btnNextLevel').classList.remove('hidden');
+            }
+
+            // ---------- State ----------
+            let state = {
+                level: 1,
+                board: [],
+                boardSize: 5,
+                player1Pieces: [],
+                player2Pieces: [],
+                selectedPiece: null,
+                currentPlayer: 1,
+                gameActive: false,
+                processing: false,
+                player1BaseRow: 0,
+                player2BaseRow: 4,
+                player1BaseCols: [1, 3],
+                player2BaseCols: [1, 3],
+                movesWithoutCapture: 0,
+                winnerName: '',
+                player1Score: 0,
+                player2Score: 0,
+                player1Name: 'زرد',
+                player2Name: 'قرمز',
+                gameMode: 'progressive', // 'progressive' | 'random'
+                difficulty: 'easy', // for random mode
+            };
+
+            function getLevelTitle(level) {
+                const titles = [
+                    'تپه‌های آغازین', 'گردنه خطرناک', 'قله افسانه‌ای', 'دره مه‌آلود',
+                    'صخره‌های مرگ', 'قله برفی', 'آتشفشان خاموش', 'دژ کوهستان', 'عمیق‌ترین پرتگاه'
+                ];
+                const baseTitle = titles[(level - 1) % titles.length];
+                const cycleIndex = Math.floor((level - 1) / titles.length);
+                if (cycleIndex > 0) return baseTitle + ' ' + (cycleIndex + 1);
+                return baseTitle;
+            }
+
+            function getLevelConfig(level) {
+                const boardSize = Math.min(5 + Math.floor((level - 1) / 2), 9);
+                return {
+                    name: `مرحله ${level}: ${getLevelTitle(level)}`,
+                    boardSize,
+                    desc: `تخته ${boardSize}x${boardSize}`
+                };
+            }
+
+            function shuffleArray(arr) {
+                for (let i = arr.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [arr[i], arr[j]] = [arr[j], arr[i]];
+                }
+            }
+
+            function pathExists(board, boardSize) {
+                let visited = Array(boardSize).fill().map(() => Array(boardSize).fill(false));
+                let queue = [];
+                for (let c = 0; c < boardSize; c++) {
+                    if (board[0][c] !== 'rock') {
+                        queue.push({ r: 0, c });
+                        visited[0][c] = true;
+                    }
+                }
+                const dirs = [
+                    [-1, 0],
+                    [1, 0],
+                    [0, -1],
+                    [0, 1]
+                ];
+                while (queue.length) {
+                    const { r, c } = queue.shift();
+                    if (r === boardSize - 1) return true;
+                    for (let [dr, dc] of dirs) {
+                        const nr = r + dr,
+                            nc = c + dc;
+                        if (nr >= 0 && nr < boardSize && nc >= 0 && nc < boardSize && !visited[nr][nc] && board[nr][
+                                nc
+                            ] !== 'rock') {
+                            visited[nr][nc] = true;
+                            queue.push({ r: nr, c: nc });
+                        }
+                    }
+                }
+                return false;
+            }
+
+            function generateRocks(levelOrRockCount, boardSize, board, baseCols) {
+                const rockCount = typeof levelOrRockCount === 'number' ? levelOrRockCount :
+                    Math.max(0, Math.floor((levelOrRockCount - 1) / 2) + Math.floor((boardSize - 5) * 1.5));
+                let rocks = [];
+                let tempBoard = board.map(row => [...row]);
+                const emptyCells = [];
+                for (let r = 0; r < boardSize; r++) {
+                    for (let c = 0; c < boardSize; c++) {
+                        const isBase = (r === 0 || r === boardSize - 1) && baseCols.includes(c);
+                        if (tempBoard[r][c] === 'empty' && !isBase) emptyCells.push({ r, c });
+                    }
+                }
+                shuffleArray(emptyCells);
+                for (let cell of emptyCells) {
+                    if (rocks.length >= rockCount) break;
+                    tempBoard[cell.r][cell.c] = 'rock';
+                    if (pathExists(tempBoard, boardSize)) rocks.push(cell);
+                    else tempBoard[cell.r][cell.c] = 'empty';
+                }
+                return rocks;
+            }
+
+            function getRandomConfigByDifficulty(difficulty) {
+                switch (difficulty) {
+                    case 'easy':
+                        return { boardSize: 5, rockCount: 2, pieces: 3 };
+                    case 'medium':
+                        return { boardSize: 7, rockCount: 4, pieces: 4 };
+                    case 'hard':
+                        return { boardSize: 9, rockCount: 7, pieces: 5 };
+                    case 'veryHard':
+                        return { boardSize: 9, rockCount: 10, pieces: 4 };
+                    default:
+                        return { boardSize: 5, rockCount: 2, pieces: 3 };
+                }
+            }
+
+            function initBoard() {
+                let boardSize, levelName, rocksCount;
+                if (state.gameMode === 'progressive') {
+                    const cfg = getLevelConfig(state.level);
+                    boardSize = cfg.boardSize;
+                    levelName = cfg.name;
+                    rocksCount = state.level; // will be used in generateRocks
+                } else {
+                    const randCfg = getRandomConfigByDifficulty(state.difficulty);
+                    boardSize = randCfg.boardSize;
+                    rocksCount = randCfg.rockCount;
+                    levelName = `نبرد تصادفی (${state.difficulty === 'easy' ? 'آسان' : state.difficulty === 'medium' ? 'متوسط' : state.difficulty === 'hard' ? 'سخت' : 'خیلی سخت'})`;
+                }
+
+                state.boardSize = boardSize;
+                state.board = Array(boardSize).fill().map(() => Array(boardSize).fill('empty'));
+                state.player1Pieces = [];
+                state.player2Pieces = [];
+                state.selectedPiece = null;
+                state.currentPlayer = 1;
+                state.gameActive = true;
+                state.processing = false;
+                state.movesWithoutCapture = 0;
+                state.winnerName = '';
+
+                state.player1BaseRow = 0;
+                state.player2BaseRow = boardSize - 1;
+                state.player1BaseCols = [1, boardSize - 2];
+                state.player2BaseCols = [1, boardSize - 2];
+
+                const availableCols = [];
+                for (let c = 0; c < boardSize; c++) {
+                    if (!state.player1BaseCols.includes(c)) availableCols.push(c);
+                }
+                const piecesCount = state.gameMode === 'random' ?
+                    getRandomConfigByDifficulty(state.difficulty).pieces :
+                    Math.max(3, Math.floor(boardSize / 2) + 1);
+                const startIndex = Math.floor((availableCols.length - piecesCount) / 2);
+                const chosenCols = availableCols.slice(startIndex, startIndex + piecesCount);
+
+                chosenCols.forEach(c => {
+                    state.board[state.player1BaseRow][c] = 'player1';
+                    state.player1Pieces.push({ r: state.player1BaseRow, c });
+                    state.board[state.player2BaseRow][c] = 'player2';
+                    state.player2Pieces.push({ r: state.player2BaseRow, c });
+                });
+
+                const rocks = generateRocks(rocksCount, boardSize, state.board, state.player1BaseCols);
+                rocks.forEach(({ r, c }) => { state.board[r][c] = 'rock'; });
+
+                renderBoard();
+                updateUI();
+                updatePanelLogs(`🏔️ ${levelName} | نوبت ${state.player1Name}`, 'system');
+                startTimer();
+                saveGameState();
+            }
+
+            function getPlayerPieceType() {
+                return state.currentPlayer === 1 ? 'player1' : 'player2';
+            }
+
+            function getOpponentPieceType() {
+                return state.currentPlayer === 1 ? 'player2' : 'player1';
+            }
+
+            function getCurrentPlayerPieces() {
+                return state.currentPlayer === 1 ? state.player1Pieces : state.player2Pieces;
+            }
+
+            function setCurrentPlayerPieces(pieces) {
+                if (state.currentPlayer === 1) state.player1Pieces = pieces;
+                else state.player2Pieces = pieces;
+            }
+
+            function getOpponentPieces() {
+                return state.currentPlayer === 1 ? state.player2Pieces : state.player1Pieces;
+            }
+
+            function setOpponentPieces(pieces) {
+                if (state.currentPlayer === 1) state.player2Pieces = pieces;
+                else state.player1Pieces = pieces;
+            }
+
+            function getCurrentPlayerBaseRow() {
+                return state.currentPlayer === 1 ? state.player1BaseRow : state.player2BaseRow;
+            }
+
+            function getOpponentBaseRow() {
+                return state.currentPlayer === 1 ? state.player2BaseRow : state.player1BaseRow;
+            }
+
+            function getCurrentPlayerBaseCols() {
+                return state.currentPlayer === 1 ? state.player1BaseCols : state.player2BaseCols;
+            }
+
+            function getOpponentBaseCols() {
+                return state.currentPlayer === 1 ? state.player2BaseCols : state.player1BaseCols;
+            }
+
+            function getCurrentPlayerColorName() {
+                return state.currentPlayer === 1 ? state.player1Name : state.player2Name;
+            }
+
+            function getOpponentColorName() {
+                return state.currentPlayer === 1 ? state.player2Name : state.player1Name;
+            }
+
+            function getCurrentPlayerEmoji() {
+                return state.currentPlayer === 1 ? '🟡' : '🔴';
+            }
+
+            function renderBoard() {
+                gameBoard.innerHTML = '';
+                gameBoard.style.gridTemplateColumns = `repeat(${state.boardSize}, 1fr)`;
+                const containerHeight = gameBoard.parentElement.clientHeight;
+                const containerWidth = gameBoard.parentElement.clientWidth;
+                const maxSize = Math.min(containerHeight, containerWidth) * 0.92;
+                gameBoard.style.width = maxSize + 'px';
+                gameBoard.style.height = maxSize + 'px';
+
+                for (let r = 0; r < state.boardSize; r++) {
+                    for (let c = 0; c < state.boardSize; c++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.dataset.r = r;
+                        cell.dataset.c = c;
+                        if (r === state.player1BaseRow && state.player1BaseCols.includes(c)) cell.classList.add(
+                            'base-player1');
+                        if (r === state.player2BaseRow && state.player2BaseCols.includes(c)) cell.classList.add(
+                            'base-player2');
+                        if (state.board[r][c] === 'rock') {
+                            cell.classList.add('rock');
+                            cell.textContent = '🪨';
+                        } else if (state.board[r][c] === 'player1') {
+                            const piece = document.createElement('div');
+                            piece.className = 'piece player1-piece';
+                            piece.textContent = '🟡';
+                            if (state.selectedPiece && state.selectedPiece.r === r && state.selectedPiece.c === c &&
+                                state.currentPlayer === 1) piece.classList.add('selected');
+                            cell.appendChild(piece);
+                        } else if (state.board[r][c] === 'player2') {
+                            const piece = document.createElement('div');
+                            piece.className = 'piece player2-piece';
+                            piece.textContent = '🔴';
+                            if (state.selectedPiece && state.selectedPiece.r === r && state.selectedPiece.c === c &&
+                                state.currentPlayer === 2) piece.classList.add('selected');
+                            cell.appendChild(piece);
+                        }
+                        cell.addEventListener('click', () => onCellClick(r, c));
+                        gameBoard.appendChild(cell);
+                    }
+                }
+
+                if (state.selectedPiece && state.gameActive && !state.processing) {
+                    const moves = getValidMoves(state.selectedPiece.r, state.selectedPiece.c, getPlayerPieceType());
+                    document.querySelectorAll('.cell').forEach(cell => {
+                        const cr = parseInt(cell.dataset.r),
+                            cc = parseInt(cell.dataset.c);
+                        if (moves.some(m => m.r === cr && m.c === cc)) cell.classList.add('touchable');
+                    });
+                }
+            }
+
+            function getValidMoves(r, c, pieceType) {
+                const moves = [];
+                const directions = [
+                    [-1, 0],
+                    [1, 0],
+                    [0, -1],
+                    [0, 1]
+                ];
+                for (let [dr, dc] of directions) {
+                    const nr = r + dr,
+                        nc = c + dc;
+                    if (nr < 0 || nr >= state.boardSize || nc < 0 || nc >= state.boardSize) continue;
+                    if (state.board[nr][nc] === 'rock') continue;
+                    if (state.board[nr][nc] === pieceType) continue;
+                    moves.push({ r: nr, c: nc });
+                }
+                return moves;
+            }
+
+            function onCellClick(r, c) {
+                if (!state.gameActive || state.processing) return;
+                const clickedCell = state.board[r][c];
+                const currentPieceType = getPlayerPieceType();
+                if (clickedCell === currentPieceType) {
+                    if (state.selectedPiece && state.selectedPiece.r === r && state.selectedPiece.c === c)
+                        state.selectedPiece = null;
+                    else state.selectedPiece = { r, c };
+                    renderBoard();
+                    return;
+                }
+                if (state.selectedPiece) {
+                    const moves = getValidMoves(state.selectedPiece.r, state.selectedPiece.c, currentPieceType);
+                    if (moves.some(m => m.r === r && m.c === c)) {
+                        executeMove(state.selectedPiece, { r, c }, currentPieceType);
+                        state.selectedPiece = null;
+                        renderBoard();
+                        updateUI();
+                        if (checkWinCondition()) return;
+                        switchTurn();
+                    }
+                }
+            }
+
+            function executeMove(from, to, pieceType) {
+                const opponentType = pieceType === 'player1' ? 'player2' : 'player1';
+                const currentColor = pieceType === 'player1' ? state.player1Name : state.player2Name;
+                const opponentColor = pieceType === 'player1' ? state.player2Name : state.player1Name;
+                const targetContent = state.board[to.r][to.c];
+
+                if (targetContent === opponentType) {
+                    if (opponentType === 'player2')
+                        state.player2Pieces = state.player2Pieces.filter(p => !(p.r === to.r && p.c === to.c));
+                    else state.player1Pieces = state.player1Pieces.filter(p => !(p.r === to.r && p.c === to.c));
+                    if (state.currentPlayer === 1) state.player1Score += 5;
+                    else state.player2Score += 5;
+                    updatePanelLogs(`⚔️ ${currentColor} مهره ${opponentColor} رو گرفت! +۵ امتیاز`, pieceType === 'player1' ?
+                        'player1' : 'player2');
+                    state.movesWithoutCapture = 0;
+                    playCaptureSound();
+                } else {
+                    state.movesWithoutCapture++;
+                    playMoveSound();
+                }
+
+                state.board[from.r][from.c] = 'empty';
+                state.board[to.r][to.c] = pieceType;
+
+                const pieces = pieceType === 'player1' ? state.player1Pieces : state.player2Pieces;
+                const idx = pieces.findIndex(p => p.r === from.r && p.c === from.c);
+                if (idx !== -1) pieces[idx] = { r: to.r, c: to.c };
+                if (pieceType === 'player1') state.player1Pieces = pieces;
+                else state.player2Pieces = pieces;
+
+                updateScoreDisplay();
+                state.selectedPiece = null;
+                saveGameState();
+            }
+
+            function switchTurn() {
+                state.currentPlayer = state.currentPlayer === 1 ? 2 : 1;
+                state.selectedPiece = null;
+                renderBoard();
+                updateUI();
+                updatePanelLogs(`⚡ نوبت ${getCurrentPlayerEmoji()} ${getCurrentPlayerColorName()} است.`, 'system');
+                saveGameState();
+            }
+
+            function checkWinCondition() {
+                if (!state.gameActive) return true;
+                const currentColor = getCurrentPlayerColorName();
+                const opponentColor = getOpponentColorName();
+                const opponentBaseRow = getOpponentBaseRow();
+                const opponentBaseCols = getOpponentBaseCols();
+                const currentPieces = getCurrentPlayerPieces();
+                const opponentPieces = getOpponentPieces();
+
+                for (let piece of currentPieces) {
+                    if (piece.r === opponentBaseRow && opponentBaseCols.includes(piece.c)) {
+                        state.gameActive = false;
+                        state.winnerName = currentColor;
+                        const bonus = state.gameMode === 'progressive' ? state.level * 20 + 10 : 20;
+                        if (state.currentPlayer === 1) state.player1Score += bonus;
+                        else state.player2Score += bonus;
+                        updateScoreDisplay();
+                        updatePanelLogs(`🏆 ${currentColor} به پایگاه ${opponentColor} رسید! +${bonus} امتیاز`, 'system');
+                        stopTimer();
+                        playWinSound();
+                        renderBoard();
+                        updateUI();
+                        saveGameState();
+                        setTimeout(() => showWinModal(currentColor, bonus), 800);
+                        return true;
+                    }
+                }
+                if (opponentPieces.length === 0) {
+                    state.gameActive = false;
+                    state.winnerName = currentColor;
+                    const bonus = state.gameMode === 'progressive' ? state.level * 15 + 20 : 25;
+                    if (state.currentPlayer === 1) state.player1Score += bonus;
+                    else state.player2Score += bonus;
+                    updateScoreDisplay();
+                    updatePanelLogs(`🏆 همه مهره‌های ${opponentColor} نابود شدن! ${currentColor} برنده شد! +${bonus} امتیاز`,
+                        'system');
+                    stopTimer();
+                    playWinSound();
+                    renderBoard();
+                    updateUI();
+                    saveGameState();
+                    setTimeout(() => showWinModal(currentColor, bonus), 800);
+                    return true;
+                }
+                if (currentPieces.length === 0) {
+                    state.gameActive = false;
+                    state.winnerName = opponentColor;
+                    const penalty = state.gameMode === 'progressive' ? state.level * 10 + 15 : 15;
+                    if (state.currentPlayer === 1) state.player2Score += penalty;
+                    else state.player1Score += penalty;
+                    updateScoreDisplay();
+                    updatePanelLogs(`💔 همه مهره‌های ${currentColor} نابود شدن! ${opponentColor} برنده شد!`, 'system');
+                    stopTimer();
+                    playLoseSound();
+                    renderBoard();
+                    updateUI();
+                    saveGameState();
+                    setTimeout(() => showLoseModal(opponentColor, penalty), 800);
+                    return true;
+                }
+                if (state.movesWithoutCapture > state.boardSize * 6) {
+                    state.gameActive = false;
+                    state.winnerName = '';
+                    updatePanelLogs('🤝 بازی طولانی شد، تساوی!', 'system');
+                    stopTimer();
+                    playLoseSound();
+                    renderBoard();
+                    updateUI();
+                    saveGameState();
+                    setTimeout(() => showDrawModal(), 800);
+                    return true;
+                }
+                return false;
+            }
+
+            function showWinModal(winner, bonus) {
+                $('modalWinTitle').textContent = `${winner} برنده شد! 🏆`;
+                $('modalWinText').textContent =
+                    `${winner} موفق شد با ${bonus} امتیاز اضافه پیروز شود.`;
+                $('modalWinP1Label').textContent = `🟡 ${state.player1Name}`;
+                $('modalWinP2Label').textContent = `🔴 ${state.player2Name}`;
+                $('modalScorePlayer1').textContent = state.player1Score.toLocaleString('fa-IR');
+                $('modalScorePlayer2').textContent = state.player2Score.toLocaleString('fa-IR');
+                $('modalWin').classList.remove('hidden');
+                if (state.gameMode === 'random') $('btnNextLevel').classList.add('hidden');
+                else $('btnNextLevel').classList.remove('hidden');
+            }
+
+            function showLoseModal(winner, penalty) {
+                $('modalLoseTitle').textContent = `${winner} برنده شد!`;
+                $('modalLoseText').textContent = `این دور با پیروزی ${winner} به پایان رسید.`;
+                $('modalLoseP1Label').textContent = `🟡 ${state.player1Name}`;
+                $('modalLoseP2Label').textContent = `🔴 ${state.player2Name}`;
+                $('modalLoseScorePlayer1').textContent = state.player1Score.toLocaleString('fa-IR');
+                $('modalLoseScorePlayer2').textContent = state.player2Score.toLocaleString('fa-IR');
+                $('modalLose').classList.remove('hidden');
+            }
+
+            function showDrawModal() {
+                $('modalLoseTitle').textContent = 'تساوی! 🤝';
+                $('modalLoseText').textContent = 'بازی بدون برنده به پایان رسید.';
+                $('modalLoseP1Label').textContent = `🟡 ${state.player1Name}`;
+                $('modalLoseP2Label').textContent = `🔴 ${state.player2Name}`;
+                $('modalLoseScorePlayer1').textContent = state.player1Score.toLocaleString('fa-IR');
+                $('modalLoseScorePlayer2').textContent = state.player2Score.toLocaleString('fa-IR');
+                $('modalLose').classList.remove('hidden');
+            }
+
+            function updateUI() {
+                updateScoreDisplay();
+                updateTurnIndicator();
+                const isCurrentPlayer1 = state.currentPlayer === 1;
+                topSkipBtn.style.display = (state.gameActive && !state.processing && isCurrentPlayer1) ? 'block' : 'none';
+                bottomSkipBtn.style.display = (state.gameActive && !state.processing && !isCurrentPlayer1) ? 'block' :
+                    'none';
+            }
+
+            function updateScoreDisplay() {
+                topPlayerScore.textContent = state.player1Score.toLocaleString('fa-IR');
+                bottomPlayerScore.textContent = state.player2Score.toLocaleString('fa-IR');
+            }
+
+            function updateTurnIndicator() {
+                topTurnDot.classList.toggle('active', state.currentPlayer === 1);
+                bottomTurnDot.classList.toggle('active', state.currentPlayer === 2);
+                topPlayerName.textContent = state.player1Name;
+                bottomPlayerName.textContent = state.player2Name;
+            }
+
+            function updatePanelLogs(message, type) {
+                const formatted = message.length > 40 ? message.substring(0, 38) + '…' : message;
+                topPanelLog.textContent = formatted;
+                bottomPanelLog.textContent = formatted;
+            }
+
+            function saveGameState() {
+                try {
+                    const data = {
+                        level: state.level,
+                        player1Score: state.player1Score,
+                        player2Score: state.player2Score,
+                        board: state.board,
+                        boardSize: state.boardSize,
+                        player1Pieces: state.player1Pieces,
+                        player2Pieces: state.player2Pieces,
+                        currentPlayer: state.currentPlayer,
+                        gameActive: state.gameActive,
+                        movesWithoutCapture: state.movesWithoutCapture,
+                        player1BaseRow: state.player1BaseRow,
+                        player2BaseRow: state.player2BaseRow,
+                        player1BaseCols: state.player1BaseCols,
+                        player2BaseCols: state.player2BaseCols,
+                        winnerName: state.winnerName,
+                        gameMode: state.gameMode,
+                        difficulty: state.difficulty,
+                        timeRemaining: timeRemaining,
+                        timeLimitSeconds: timeLimitSeconds,
+                    };
+                    localStorage.setItem(STORAGE_KEY_STATE, JSON.stringify(data));
+                    const meta = {
+                        player1Name: state.player1Name,
+                        player2Name: state.player2Name,
+                        soundEnabled: soundEnabled,
+                    };
+                    localStorage.setItem(STORAGE_KEY_META, JSON.stringify(meta));
+                } catch (e) {}
+            }
+
+            function loadGameState() {
+                try {
+                    const saved = localStorage.getItem(STORAGE_KEY_STATE);
+                    const metaSaved = localStorage.getItem(STORAGE_KEY_META);
+                    if (saved) {
+                        const data = JSON.parse(saved);
+                        state.level = data.level || 1;
+                        state.player1Score = data.player1Score || 0;
+                        state.player2Score = data.player2Score || 0;
+                        state.board = data.board || [];
+                        state.boardSize = data.boardSize || 5;
+                        state.player1Pieces = data.player1Pieces || [];
+                        state.player2Pieces = data.player2Pieces || [];
+                        state.currentPlayer = data.currentPlayer || 1;
+                        state.gameActive = data.gameActive !== undefined ? data.gameActive : true;
+                        state.movesWithoutCapture = data.movesWithoutCapture || 0;
+                        state.player1BaseRow = data.player1BaseRow || 0;
+                        state.player2BaseRow = data.player2BaseRow || (state.boardSize - 1);
+                        state.player1BaseCols = data.player1BaseCols || [1, state.boardSize - 2];
+                        state.player2BaseCols = data.player2BaseCols || [1, state.boardSize - 2];
+                        state.winnerName = data.winnerName || '';
+                        state.gameMode = data.gameMode || 'progressive';
+                        state.difficulty = data.difficulty || 'easy';
+                        state.selectedPiece = null;
+                        state.processing = false;
+                        timeRemaining = data.timeRemaining || 0;
+                        timeLimitSeconds = data.timeLimitSeconds || 300;
+                    }
+                    if (metaSaved) {
+                        const meta = JSON.parse(metaSaved);
+                        state.player1Name = meta.player1Name || 'زرد';
+                        state.player2Name = meta.player2Name || 'قرمز';
+                        soundEnabled = meta.soundEnabled !== undefined ? meta.soundEnabled : true;
+                        menuSoundToggle.innerHTML = soundEnabled ? '🔊 صدا' : '🔇 صدا';
+                    }
+                    return !!saved;
+                } catch (e) { return false; }
+            }
+
+            function resetAllScores() {
+                state.player1Score = 0;
+                state.player2Score = 0;
+                updateScoreDisplay();
+                updatePanelLogs('🗑️ تمام امتیازات پاک شدند.', 'system');
+                saveGameState();
+            }
+
+            function startNewGame() {
+                if (state.gameMode === 'progressive') state.level = 1;
+                initBoard();
+                hideModals();
+                updatePanelLogs('🔄 بازی جدید شروع شد.', 'system');
+                saveGameState();
+            }
+
+            function retryLevel() {
+                initBoard();
+                hideModals();
+                updatePanelLogs('🔁 مرحله دوباره شروع شد.', 'system');
+            }
+
+            function hideModals() {
+                ['modalWin', 'modalLose', 'modalGameOver', 'modalSetup', 'modalScores'].forEach(id => $(id).classList
+                    .add('hidden'));
+            }
+
+            function showSetupModal() {
+                inputPlayer1Name.value = state.player1Name;
+                inputPlayer2Name.value = state.player2Name;
+                selectGameMode.value = state.gameMode;
+                selectDifficulty.value = state.difficulty;
+                difficultyGroup.classList.toggle('hidden', state.gameMode !== 'random');
+                selectTimeLimit.value = Math.floor(timeLimitSeconds / 60);
+                checkboxSound.checked = soundEnabled;
+                modalSetup.classList.remove('hidden');
+            }
+
+            // ---------- Event Listeners ----------
+            pullTab.addEventListener('click', () => {
+                initAudio();
+                menuDropdown.classList.toggle('open');
+            });
+            document.addEventListener('click', (e) => {
+                if (!menuDropdown.contains(e.target) && e.target !== pullTab) {
+                    menuDropdown.classList.remove('open');
+                }
+            });
+
+            $('menuNewGame').addEventListener('click', () => {
+                menuDropdown.classList.remove('open');
+                showSetupModal();
+            });
+            $('menuRestartLevel').addEventListener('click', () => {
+                menuDropdown.classList.remove('open');
+                retryLevel();
+            });
+            $('menuResetScores').addEventListener('click', () => {
+                menuDropdown.classList.remove('open');
+                if (confirm('آیا مطمئن هستید که می‌خواهید تمام امتیازات را پاک کنید؟')) resetAllScores();
+            });
+
+            // رویدادهای جدید برای گزینه‌های منتقل‌شده
+            menuScores.addEventListener('click', () => {
+                menuDropdown.classList.remove('open');
+                initAudio();
+                $('homeP1Label').textContent = `🟡 ${state.player1Name}`;
+                $('homeP2Label').textContent = `🔴 ${state.player2Name}`;
+                $('homeScorePlayer1').textContent = state.player1Score.toLocaleString('fa-IR');
+                $('homeScorePlayer2').textContent = state.player2Score.toLocaleString('fa-IR');
+                const mins = Math.floor(Math.max(0, timeRemaining) / 60);
+                const secs = Math.max(0, timeRemaining) % 60;
+                $('homeTimerInfo').textContent = state.gameActive ?
+                    `⏳ زمان باقی‌مانده: ${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}` :
+                    'بازی فعال نیست';
+                modalScores.classList.remove('hidden');
+            });
+
+            menuSoundToggle.addEventListener('click', () => {
+                menuDropdown.classList.remove('open');
+                initAudio();
+                toggleSound();
+            });
+
+            btnStartGame.addEventListener('click', () => {
+                initAudio();
+                state.player1Name = inputPlayer1Name.value.trim() || 'زرد';
+                state.player2Name = inputPlayer2Name.value.trim() || 'قرمز';
+                state.gameMode = selectGameMode.value;
+                state.difficulty = selectDifficulty.value;
+                state.level = 1;
+                timeLimitSeconds = parseInt(selectTimeLimit.value) * 60;
+                soundEnabled = checkboxSound.checked;
+                menuSoundToggle.innerHTML = soundEnabled ? '🔊 صدا' : '🔇 صدا';
+                hideModals();
+                startNewGame();
+            });
+
+            selectGameMode.addEventListener('change', () => {
+                difficultyGroup.classList.toggle('hidden', selectGameMode.value !== 'random');
+            });
+
+            topSkipBtn.addEventListener('click', () => {
+                if (state.currentPlayer === 1 && state.gameActive && !state.processing) {
+                    updatePanelLogs(`⏭️ ${state.player1Name} نوبت رو رد کرد.`, 'system');
+                    state.selectedPiece = null;
+                    state.movesWithoutCapture++;
+                    playTickSound();
+                    switchTurn();
+                }
+            });
+            bottomSkipBtn.addEventListener('click', () => {
+                if (state.currentPlayer === 2 && state.gameActive && !state.processing) {
+                    updatePanelLogs(`⏭️ ${state.player2Name} نوبت رو رد کرد.`, 'system');
+                    state.selectedPiece = null;
+                    state.movesWithoutCapture++;
+                    playTickSound();
+                    switchTurn();
+                }
+            });
+
+            $('btnNextLevel').addEventListener('click', () => {
+                state.level++;
+                initBoard();
+                hideModals();
+                updatePanelLogs(`🏔️ رفتیم به ${getLevelConfig(state.level).name}`, 'system');
+                saveGameState();
+            });
+            $('btnWinRestart').addEventListener('click', () => { hideModals();
+                startNewGame(); });
+            $('btnRetry').addEventListener('click', () => { hideModals();
+                retryLevel(); });
+            $('btnLoseRestart').addEventListener('click', () => { hideModals();
+                startNewGame(); });
+            $('btnFullRestart').addEventListener('click', () => { hideModals();
+                startNewGame(); });
+
+            // دکمه‌های شناور قبلی حذف شدند و عملکردشان به منو منتقل شد
+
+            window.addEventListener('resize', () => { if (state.gameActive) renderBoard(); });
+
+            // راه‌اندازی اولیه
+            function initialize() {
+                const hasState = loadGameState();
+                if (hasState && state.board.length > 0 && state.gameActive) {
+                    renderBoard();
+                    updateUI();
+                    updatePanelLogs('📂 بازی قبلی بازیابی شد.', 'system');
+                    updateTimerDisplay();
+                    if (timeRemaining > 0) {
+                        timerInterval = setInterval(() => {
+                            timeRemaining--;
+                            updateTimerDisplay();
+                            if (timeRemaining <= 10 && timeRemaining > 0) {
+                                timerContainer.classList.add('timer-warning');
+                                playWarningSound();
+                            }
+                            if (timeRemaining <= 0) {
+                                stopTimer();
+                                timerContainer.classList.remove('timer-warning');
+                                handleTimeUp();
+                            }
+                        }, 1000);
+                    }
+                } else {
+                    state.player1Name = 'زرد';
+                    state.player2Name = 'قرمز';
+                    state.gameMode = 'progressive';
+                    state.difficulty = 'easy';
+                    timeLimitSeconds = 300;
+                    soundEnabled = true;
+                    menuSoundToggle.innerHTML = '🔊 صدا';
+                    showSetupModal();
+                }
+            }
+            initialize();
+        })();
+    </script>
+</body>
+</html>
