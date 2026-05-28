@@ -1,0 +1,983 @@
+<!DOCTYPE html> 
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <!-- دستور اول: اجبار به حالت دسکتاپ (عرض ثابت) -->
+    <meta name="viewport" content="width=1280">
+    <!-- عنوان از آموزشی به جامع تغییر یافت -->
+    <title>سامانه جامع تقویم ساز | تعالی اندیشه و رشد</title>
+    
+    <!-- استایل‌ها -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
+    
+    <!-- کتابخانه‌های هسته و افزوده شده برای تقویم قمری و مودال‌ها -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jalaali-js/dist/jalaali.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <!-- تغییر سرور کتابخانه‌های قمری به سرور معتبرتر و امن‌تر jsdelivr برای جلوگیری از خطای قطعی -->
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment-hijri@2.1.2/moment-hijri.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --bg-app: #f1f5f9;
+            --surface: #ffffff;
+            --text-main: #1f2937;
+            --radius: 8px;
+        }
+
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+            background-color: var(--bg-app);
+            color: var(--text-main);
+            min-width: 1280px; /* اجبار به عرض دسکتاپ */
+            overflow-x: auto;
+            padding-bottom: 100px;
+        }
+
+        .app-header {
+            background: #fff;
+            padding: 15px 30px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 30px;
+            padding: 0 30px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* پنل تنظیمات */
+        .settings-panel {
+            background: var(--surface);
+            padding: 25px;
+            border-radius: var(--radius);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+            height: fit-content;
+        }
+
+        .section-box {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            background: #f8fafc;
+        }
+
+        .section-title {
+            font-weight: 800; color: var(--primary-dark);
+            font-size: 1rem; margin-bottom: 15px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        /* فرم‌ها */
+        .form-label { font-size: 0.85rem; font-weight: 700; color: #4b5563; margin-bottom: 5px; }
+        .form-control, .form-select {
+            font-size: 0.9rem; padding: 8px 12px; border-radius: 6px;
+        }
+        .form-check-label { font-size: 0.9rem; cursor: pointer; }
+
+        /* پنل پیش‌نمایش */
+        .preview-panel {
+            background: var(--surface);
+            padding: 25px;
+            border-radius: var(--radius);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            min-height: 800px;
+        }
+
+        /* جدول */
+        .calendar-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .calendar-table th { background-color: var(--primary); color: white; padding: 10px; text-align: center; border: 1px solid #1e40af; }
+        .calendar-table td { border: 1px solid #d1d5db; padding: 6px 10px; vertical-align: middle; text-align: center; }
+        
+        .row-holiday { background-color: #fee2e2; color: #991b1b; font-weight: bold; }
+        .row-friday { background-color: #fce7f3; color: #831843; }
+        .row-inter { background-color: #ffedd5; color: #9a3412; }
+        .row-exam { background-color: #eff6ff; color: #1e40af; }
+        .row-event { background-color: #ecfccb; color: #365314; }
+
+        /* دکمه‌ها */
+        .btn-action { width: 100%; padding: 10px; font-weight: 700; margin-bottom: 10px; border-radius: 8px; }
+        
+        /* لیست‌ها */
+        .scrollable-list { max-height: 200px; overflow-y: auto; background: white; border: 1px solid #ddd; padding: 10px; border-radius: 6px; }
+        .list-group-item { font-size: 0.85rem; padding: 5px 0; border-bottom: 1px solid #eee; }
+        
+        /* گروه بین التعطیلین */
+        .gap-group { margin-bottom: 15px; border: 1px solid #cbd5e1; padding: 10px; border-radius: 6px; background: white; }
+        .gap-header { font-weight: bold; color: var(--primary); margin-bottom: 5px; display: flex; justify-content: space-between; }
+
+    </style>
+</head>
+<body>
+
+<header class="app-header">
+    <div style="display:flex; align-items:center; gap:15px;">
+        <i class="fas fa-calendar-check fa-2x text-primary"></i>
+        <div>
+            <!-- عنوان از آموزشی به جامع تغییر یافت -->
+            <h4 style="margin:0; font-weight:900;">تقویم‌ساز جامع پیشرفته</h4>
+            <span style="font-size:0.8rem; color:#666;">نسخه سازمانی | دسکتاپ</span>
+        </div>
+    </div>
+    <div>
+        <button class="btn btn-outline-primary btn-sm" onclick="window.print()"><i class="fas fa-print"></i> چاپ صفحه</button>
+    </div>
+</header>
+
+<div class="main-layout">
+    
+    <!-- ستون تنظیمات -->
+    <aside>
+        <div class="settings-panel">
+            
+            <!-- 1. بازه و مشخصات -->
+            <div class="section-box">
+                <div class="section-title"><i class="fas fa-info-circle"></i> ۱. مشخصات تقویم</div>
+                <div class="mb-2">
+                    <label class="form-label">عنوان اصلی</label>
+                    <!-- عنوان پیش‌فرض به جامع تغییر یافت -->
+                    <input type="text" id="calTitle" class="form-control" value="تقویم جامع سالیانه">
+                </div>
+                <!-- فیلد عنوان فرعی که باعث خطا شده بود اضافه شد -->
+                <div class="mb-2">
+                    <label class="form-label">عنوان فرعی (زیرنویس)</label>
+                    <input type="text" id="calSub" class="form-control" value="سال تحصیلی ۱۴۰۳-۱۴۰۴">
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-6"><label class="form-label">شروع</label><input type="text" id="startDate" class="form-control text-center"></div>
+                    <div class="col-6"><label class="form-label">پایان</label><input type="text" id="endDate" class="form-control text-center"></div>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="showGregorian">
+                    <label class="form-check-label" for="showGregorian">نمایش ستون تاریخ میلادی</label>
+                </div>
+            </div>
+
+            <!-- 2. قوانین تعطیلات -->
+            <div class="section-box">
+                <div class="section-title"><i class="fas fa-ban"></i> ۲. قوانین تعطیلات</div>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="chkFriday" checked>
+                            <label class="form-check-label" for="chkFriday">جمعه‌ها تعطیل</label>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="chkOfficial" checked>
+                            <label class="form-check-label" for="chkOfficial">تعطیلات رسمی</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <label class="form-label">وضعیت پنج‌شنبه‌ها:</label>
+                    <select id="thursdayMode" class="form-select form-select-sm">
+                        <option value="work">روز کاری (آموزشی)</option>
+                        <option value="off">کاملاً تعطیل</option>
+                        <option value="odd_off">هفته‌های فرد تعطیل</option>
+                        <option value="even_off">هفته‌های زوج تعطیل</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 3. مناسبت‌های ملی و مذهبی -->
+            <div class="section-box">
+                <div class="section-title"><i class="fas fa-flag"></i> ۳. مناسبت‌های تقویم (غیر تعطیل)</div>
+                <p style="font-size:0.75rem; color:#666;">مناسبت‌هایی که می‌خواهید در ستون توضیحات درج شوند انتخاب کنید:</p>
+                <div class="scrollable-list" id="occasionsList">
+                    <!-- پر می‌شود توسط JS -->
+                </div>
+            </div>
+
+            <!-- 4. بین‌التعطیلین هوشمند -->
+            <div class="section-box">
+                <div class="section-title"><i class="fas fa-random"></i> ۴. مدیریت بین‌التعطیلین</div>
+                <button class="btn btn-warning w-100 btn-sm mb-2" onclick="analyzeGaps()">
+                    <i class="fas fa-search"></i> جستجوی هوشمند فواصل
+                </button>
+                <div id="gapsContainer" style="display:none;">
+                    <!-- لیست فواصل اینجا می‌آید -->
+                </div>
+            </div>
+
+            <!-- 5. رویداد دستی -->
+            <div class="section-box">
+                <div class="section-title"><i class="fas fa-plus-circle"></i> ۵. رویداد دستی</div>
+                <div class="input-group input-group-sm mb-2">
+                    <input type="text" id="evtStart" class="form-control" placeholder="1403/08/10">
+                    <input type="text" id="evtEnd" class="form-control" placeholder="تا (اختیاری)">
+                </div>
+                <input type="text" id="evtDesc" class="form-control form-control-sm mb-2" placeholder="عنوان رویداد">
+                <div class="d-flex gap-2">
+                    <select id="evtType" class="form-select form-select-sm">
+                        <option value="holiday">تعطیل اضطراری</option>
+                        <option value="exam">امتحان</option>
+                        <option value="event">مراسم/اردو</option>
+                    </select>
+                    <button class="btn btn-success btn-sm" onclick="addEvent()">افزودن</button>
+                </div>
+                <div id="customEventList" class="mt-2 text-muted" style="font-size:0.8rem;"></div>
+            </div>
+
+            <!-- 6. افزوده شده: تنظیمات تقویم قمری -->
+            <div class="section-box">
+                <div class="section-title"><i class="fas fa-moon"></i> ۶. تنظیمات تقویم قمری</div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="showLunar">
+                    <label class="form-check-label fw-bold text-primary" for="showLunar">نمایش ستون تاریخ قمری</label>
+                </div>
+                <div id="lunarSettingsDiv" style="display:none; padding-top:10px; border-top:1px dashed #ccc;">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="lunarMode" id="lunarAuto" value="auto" checked>
+                        <label class="form-check-label" for="lunarAuto">خودکار (تقویم ام‌القری - عربستان)</label>
+                    </div>
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="radio" name="lunarMode" id="lunarManual" value="manual">
+                        <label class="form-check-label" for="lunarManual">تعیین دستی (دقیق - ویژه ایران)</label>
+                    </div>
+                    <button id="btnManualLunar" class="btn btn-outline-primary btn-sm w-100 mt-2" style="display:none;" onclick="openLunarModal()">
+                        <i class="fas fa-list-ol"></i> تنظیم روز اول ماه‌های قمری
+                    </button>
+                </div>
+            </div>
+
+            <!-- دکمه‌های خروجی -->
+            <button class="btn btn-primary btn-action" onclick="renderTable()">
+                <i class="fas fa-sync"></i> به‌روزرسانی جدول
+            </button>
+            <div class="d-flex gap-2">
+                <button class="btn btn-success btn-action" onclick="exportExcel()">
+                    <i class="fas fa-file-excel"></i> اکسل
+                </button>
+                <button class="btn btn-danger btn-action" onclick="exportPDF()">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </button>
+            </div>
+
+        </div>
+    </aside>
+
+    <!-- ستون پیش‌نمایش -->
+    <main>
+        <div class="preview-panel">
+            <div id="previewArea">
+                <div class="text-center text-muted" style="padding-top: 200px;">
+                    <i class="fas fa-table fa-4x mb-3"></i>
+                    <h4>برای تولید تقویم، تنظیمات را انجام داده و دکمه به‌روزرسانی را بزنید.</h4>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- افزوده شده: مودال تعیین دستی تقویم قمری -->
+<div class="modal fade" id="lunarModal" tabindex="-1" aria-labelledby="lunarModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="lunarModalLabel">تعیین دستی ماه‌های قمری</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info py-2" style="font-size:0.85rem;">
+                    <strong>راهنما:</strong> لطفاً تاریخ شروع (روز اول) ماه‌های قمری که در بازه تقویم شما قرار دارند را به شمسی وارد کنید.
+                    نیازی نیست تمام ماه‌ها پر شوند؛ سیستم بقیه روزها را خودکار تا ۲۹ یا ۳۰ روزه بودن محاسبه می‌کند.
+                </div>
+                <table class="table table-bordered table-sm text-center">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ماه قمری</th>
+                            <th>سال قمری (مثال: 1446)</th>
+                            <th>تاریخ شروع شمسی (مثال: 1403/04/17)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lunarManualTableBody">
+                        <!-- پر می‌شود توسط JS -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
+                <button type="button" class="btn btn-primary" onclick="saveManualLunar()">ذخیره و بررسی صحت</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- کانتینر مخفی PDF -->
+<div id="pdfSource" style="display:none; padding:20px; background:white;"></div>
+
+<script>
+    // ===========================================
+    // 1. DATABASE & CONFIG
+    // ===========================================
+    
+    // تعطیلات رسمی (ثابت شمسی)
+    const officialHolidays = {
+        "1-1": "عید نوروز", "1-2": "عید نوروز", "1-3": "عید نوروز", "1-4": "عید نوروز",
+        "1-12": "روز جمهوری اسلامی", "1-13": "روز طبیعت",
+        "3-14": "رحلت امام خمینی", "3-15": "قیام ۱۵ خرداد",
+        "11-22": "پیروزی انقلاب اسلامی", "12-29": "ملی شدن صنعت نفت"
+    };
+
+    // مناسبت‌های ملی (غیر تعطیل) - دستور چهارم
+    const nationalOccasions =[
+        { d: "1-25", t: "روز بزرگداشت عطار" },
+        { d: "2-1", t: "روز بزرگداشت سعدی" },
+        { d: "2-10", t: "روز ملی خلیج فارس" },
+        { d: "2-12", t: "روز معلم" },
+        { d: "2-25", t: "روز بزرگداشت فردوسی" },
+        { d: "3-1", t: "روز بزرگداشت ملاصدرا" },
+        { d: "5-17", t: "روز خبرنگار" },
+        { d: "6-1", t: "روز پزشک (بزرگداشت بوعلی سینا)" },
+        { d: "6-5", t: "روز داروسازی (بزرگداشت زکریای رازی)" },
+        { d: "7-8", t: "روز بزرگداشت مولوی" },
+        { d: "7-20", t: "روز بزرگداشت حافظ" },
+        { d: "8-13", t: "روز دانش‌آموز" },
+        { d: "9-16", t: "روز دانشجو" },
+        { d: "9-27", t: "شهادت دکتر مفتح (وحدت حوزه و دانشگاه)" },
+        { d: "10-5", t: "روز ایمنی در برابر زلزله" },
+        { d: "11-12", t: "آغاز دهه فجر" },
+        { d: "12-5", t: "روز بزرگداشت خواجه نصیر (روز مهندس)" }
+    ];
+
+    // مناسبت‌های میلادی (دستور سوم)
+    const gregorianEvents = {
+        "1-1": "New Year's Day",
+        "2-14": "Valentine's Day",
+        "3-8": "Women's Day",
+        "12-25": "Christmas"
+    };
+
+    let userEvents =[];
+    let gapSelection = new Set(); // ذخیره انتخاب‌های بین‌التعطیلین
+
+    // متغیرهای افزوده شده تقویم قمری
+    const lunarMonthsList =['محرم', 'صفر', 'ربیع‌الاول', 'ربیع‌الثانی', 'جمادی‌الاول', 'جمادی‌الثانی', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذی‌القعده', 'ذی‌الحجه'];
+    let manualLunarData =[]; // ذخیره داده‌های اعتبارسنجی شده کاربر
+
+    // ===========================================
+    // 2. HELPER FUNCTIONS
+    // ===========================================
+
+    // تابع کمکی برای دو رقمی کردن اعداد (Padding)
+    function pad(num) {
+        return num.toString().padStart(2, '0');
+    }
+
+    // بارگذاری اولیه
+    window.onload = function() {
+        const now = new Date();
+        const j = jalaali.toJalaali(now);
+        // اصلاح فرمت تاریخ برای جلوگیری از مشکل عدم تطابق رشته‌ها
+        document.getElementById('startDate').value = `${j.jy}/${pad(j.jm)}/${pad(j.jd)}`;
+        
+        let em = j.jm + 4; let ey = j.jy; if(em>12){em-=12; ey++;}
+        document.getElementById('endDate').value = `${ey}/${pad(em)}/${pad(j.jd)}`;
+
+        // پر کردن لیست مناسبت‌ها
+        const occList = document.getElementById('occasionsList');
+        nationalOccasions.forEach((occ, idx) => {
+            occList.innerHTML += `
+                <div class="list-group-item">
+                    <input class="form-check-input occ-check" type="checkbox" value="${idx}" id="occ_${idx}">
+                    <label class="form-check-label" for="occ_${idx}">${occ.t} (${occ.d})</label>
+                </div>
+            `;
+        });
+
+        // رخدادهای افزوده شده برای مدیریت نمایش تقویم قمری
+        initLunarModal();
+        document.getElementById('showLunar').addEventListener('change', function() {
+            document.getElementById('lunarSettingsDiv').style.display = this.checked ? 'block' : 'none';
+        });
+        document.querySelectorAll('input[name="lunarMode"]').forEach(r => {
+            r.addEventListener('change', function() {
+                document.getElementById('btnManualLunar').style.display = (this.value === 'manual') ? 'block' : 'none';
+            });
+        });
+    };
+
+    function parseDate(str) {
+        if(!str) return null;
+        const p = str.split('/').map(Number);
+        if(p.length!==3 || isNaN(p[0])) return null;
+        return { y: p[0], m: p[1], d: p[2] };
+    }
+
+    function jToDate(y, m, d) {
+        const g = jalaali.toGregorian(y, m, d);
+        return new Date(g.gy, g.gm - 1, g.gd);
+    }
+
+    // ===========================================
+    // افزونه: منطق و رابط کاربری تقویم قمری
+    // ===========================================
+
+    function initLunarModal() {
+        const tbody = document.getElementById('lunarManualTableBody');
+        tbody.innerHTML = '';
+        lunarMonthsList.forEach((m, i) => {
+            tbody.innerHTML += `
+                <tr>
+                    <td class="align-middle fw-bold text-primary">${m}</td>
+                    <td><input type="number" class="form-control form-control-sm text-center mx-auto" style="width:100px;" id="lYear_${i}" placeholder="1446"></td>
+                    <td><input type="text" class="form-control form-control-sm text-center mx-auto" style="width:150px;" id="lDate_${i}" placeholder="مثال: 1403/04/17"></td>
+                </tr>
+            `;
+        });
+    }
+
+    function openLunarModal() {
+        const modal = new bootstrap.Modal(document.getElementById('lunarModal'));
+        modal.show();
+    }
+
+    function saveManualLunar() {
+        let tempDates =[];
+        for(let i=0; i<12; i++) {
+            const yStr = document.getElementById(`lYear_${i}`).value;
+            const dStr = document.getElementById(`lDate_${i}`).value;
+            if(yStr && dStr) {
+                const parsed = parseDate(dStr);
+                if(!parsed) {
+                    alert(`فرمت تاریخ شمسی در ماه ${lunarMonthsList[i]} نامعتبر است. مثال صحیح: 1403/04/17`);
+                    return;
+                }
+                const gDate = jToDate(parsed.y, parsed.m, parsed.d);
+                const fullFormattedStr = `${parsed.y}/${pad(parsed.m)}/${pad(parsed.d)}`;
+                tempDates.push({
+                    monthIdx: i,
+                    monthName: lunarMonthsList[i],
+                    year: parseInt(yStr),
+                    jDateStr: fullFormattedStr,
+                    gDate: gDate
+                });
+            }
+        }
+
+        // مرتب‌سازی بر اساس تاریخ تا فاصله ماه‌ها اعتبارسنجی شود
+        tempDates.sort((a, b) => a.gDate - b.gDate);
+
+        // اعتبارسنجی فاصله ماه‌ها (باید دقیقاً 29 یا 30 روز باشد)
+        for(let i=0; i<tempDates.length-1; i++) {
+            const diff = Math.round((tempDates[i+1].gDate - tempDates[i].gDate) / (1000 * 60 * 60 * 24));
+            if(diff !== 29 && diff !== 30) {
+                alert(`خطا: فاصله بین شروع ماه "${tempDates[i].monthName}" و "${tempDates[i+1].monthName}" برابر ${diff} روز است!\nماه قمری از نظر نجومی و فقهی فقط می‌تواند ۲۹ یا ۳۰ روز باشد. لطفاً تاریخ را اصلاح کنید.`);
+                return;
+            }
+        }
+
+        manualLunarData = tempDates;
+        alert('اطلاعات با موفقیت تایید و ذخیره شد. اکنون میتوانید جدول را به‌روزرسانی کنید.');
+        bootstrap.Modal.getInstance(document.getElementById('lunarModal')).hide();
+    }
+
+    // ===========================================
+    // 3. LOGIC MODULES
+    // ===========================================
+
+    function addEvent() {
+        const sVal = document.getElementById('evtStart').value;
+        const eVal = document.getElementById('evtEnd').value;
+        const desc = document.getElementById('evtDesc').value;
+        const type = document.getElementById('evtType').value;
+
+        if(!sVal || !desc) return alert("تاریخ و عنوان الزامی است");
+        const s = parseDate(sVal);
+        const e = eVal ? parseDate(eVal) : s;
+        if(!s || !e) return alert("فرمت تاریخ اشتباه است");
+
+        userEvents.push({ id: Date.now(), start: s, end: e, title: desc, type });
+        renderUserEvents();
+        document.getElementById('evtDesc').value = '';
+    }
+
+    function removeEvent(id) {
+        userEvents = userEvents.filter(x => x.id !== id);
+        renderUserEvents();
+    }
+
+    function renderUserEvents() {
+        const div = document.getElementById('customEventList');
+        div.innerHTML = '';
+        userEvents.forEach(ev => {
+            div.innerHTML += `<div><span style="color:red; cursor:pointer;" onclick="removeEvent(${ev.id})">×</span> ${ev.title} (${ev.start.y}/${ev.start.m}/${ev.start.d})</div>`;
+        });
+    }
+
+    // --- GAP ANALYZER (دستور دوم) ---
+    function analyzeGaps() {
+        const data = calculateCalendar(true); // محاسبه بدون اعمال فواصل
+        if(!data) return;
+
+        let gaps = { 1:[], 2: [], 3:[] };
+        
+        // اصلاح حلقه برای جلوگیری از خطای ایندکس
+        for(let i=1; i < data.length - 3; i++) {
+            const curr = data[i];
+            const prev = data[i-1];
+            
+            // اگر امروز تعطیل نیست اما دیروز تعطیل بود
+            if(!curr.isHoliday && prev.isHoliday) {
+                // بررسی فاصله 1 روزه
+                if (data[i+1].isHoliday) {
+                    gaps[1].push(curr.fullDate);
+                }
+                // بررسی فاصله 2 روزه
+                else if (!data[i+1].isHoliday && data[i+2].isHoliday) {
+                    gaps[2].push(curr.fullDate); // روز اول فاصله
+                    gaps[2].push(data[i+1].fullDate); // روز دوم
+                    i++; // پرش برای جلوگیری از تکرار
+                }
+                // بررسی فاصله 3 روزه
+                else if (!data[i+1].isHoliday && !data[i+2].isHoliday && data[i+3].isHoliday) {
+                    gaps[3].push(curr.fullDate);
+                    gaps[3].push(data[i+1].fullDate);
+                    gaps[3].push(data[i+2].fullDate);
+                    i+=2; // پرش
+                }
+            }
+        }
+
+        const container = document.getElementById('gapsContainer');
+        container.innerHTML = '';
+        container.style.display = 'block';
+
+        renderGapGroup(container, 1, "یک روزه", gaps[1]);
+        renderGapGroup(container, 2, "دو روزه", gaps[2]);
+        renderGapGroup(container, 3, "سه روزه", gaps[3]);
+        
+        if(gaps[1].length === 0 && gaps[2].length === 0 && gaps[3].length === 0) {
+            container.innerHTML = '<div class="alert alert-info">هیچ فاصله بین‌التعطیلینی یافت نشد.</div>';
+        }
+    }
+
+    function renderGapGroup(container, days, label, dates) {
+        if(dates.length === 0) return;
+        
+        // حذف تکراری‌ها و مرتب‌سازی
+        const uniqueDates =[...new Set(dates)].sort();
+
+        let html = `
+            <div class="gap-group">
+                <div class="gap-header">
+                    <span>فاصله ${label}</span>
+                    <label style="font-size:0.8rem"><input type="checkbox" onchange="toggleGapGroup(this, 'gap-${days}')"> انتخاب همه</label>
+                </div>
+        `;
+        
+        uniqueDates.forEach(d => {
+            html += `
+                <div class="form-check">
+                    <input class="form-check-input gap-check gap-${days}" type="checkbox" value="${d}">
+                    <label class="form-check-label">${d}</label>
+                </div>
+            `;
+        });
+        html += `</div>`;
+        container.innerHTML += html;
+    }
+
+    function toggleGapGroup(source, className) {
+        document.querySelectorAll('.' + className).forEach(ch => ch.checked = source.checked);
+    }
+
+    // ===========================================
+    // 4. MAIN ENGINE
+    // ===========================================
+
+    function calculateCalendar(ignoreGaps = false) {
+        const sStr = document.getElementById('startDate').value;
+        const eStr = document.getElementById('endDate').value;
+        const s = parseDate(sStr);
+        const e = parseDate(eStr);
+        if(!s || !e) { alert("بازه تاریخ نامعتبر"); return null; }
+
+        const startG = jToDate(s.y, s.m, s.d);
+        const endG = jToDate(e.y, e.m, e.d);
+        
+        if(endG < startG) { alert("پایان قبل از شروع است"); return null; }
+
+        // Settings
+        const thMode = document.getElementById('thursdayMode').value;
+        const friOff = document.getElementById('chkFriday').checked;
+        const offOff = document.getElementById('chkOfficial').checked;
+        const showGreg = document.getElementById('showGregorian').checked;
+        
+        // Lunar Settings Added
+        const showLunar = document.getElementById('showLunar').checked;
+        const lunarMode = document.querySelector('input[name="lunarMode"]:checked')?.value || 'auto';
+
+        // Occasions
+        const selectedOccasions =[];
+        document.querySelectorAll('.occ-check:checked').forEach(ch => {
+            selectedOccasions.push(nationalOccasions[ch.value]);
+        });
+
+        // Gaps
+        const selectedGaps = new Set();
+        if(!ignoreGaps) {
+            document.querySelectorAll('.gap-check:checked').forEach(ch => selectedGaps.add(ch.value));
+        }
+
+        let result =[];
+        let curr = new Date(startG);
+        let session = 1;
+        let weekIdx = 1;
+        let currentManualLunar = null; // متغیر نگه‌دارنده شمارشگر ماه دستی
+
+        const weekNames =['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه', 'شنبه'];
+        const monthNames =['', 'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
+
+        // برای جلوگیری از حلقه بی‌نهایت احتمالی
+        let safetyCounter = 0; 
+        const MAX_DAYS = 400; 
+
+        while(curr <= endG) {
+            safetyCounter++;
+            if(safetyCounter > MAX_DAYS) {
+                alert("بازه انتخابی بسیار طولانی است (بیش از 400 روز). عملیات متوقف شد.");
+                return null;
+            }
+
+            const j = jalaali.toJalaali(curr);
+            const wd = curr.getDay(); 
+            const dateKey = `${j.jm}-${j.jd}`; // برای تطبیق با کلیدهای آبجکت
+            
+            // استفاده از پدینگ برای فول‌دیت تا با مقدار چک‌باکس‌ها یکی شود
+            const fullDate = `${j.jy}/${pad(j.jm)}/${pad(j.jd)}`;
+            
+            // Gregorian Data
+            const gM = curr.getMonth() + 1;
+            const gD = curr.getDate();
+            const gKey = `${gM}-${gD}`;
+            const gDateStr = `${curr.getFullYear()}/${pad(gM)}/${pad(gD)}`;
+
+            let row = {
+                idx: 0,
+                dayName: weekNames[wd],
+                fullDate: fullDate,
+                gDate: gDateStr,
+                lDate: '', // افزوده شده: تاریخ قمری
+                monthName: monthNames[j.jm],
+                status: 'آموزشی',
+                reason: '',
+                session: '',
+                remaining: '', // افزوده شده: شمارشگر مانده جلسات
+                isHoliday: false,
+                css: ''
+            };
+
+            // محاسبه تاریخ قمری (ویرایش ایمن‌شده برای جلوگیری از کِرَش سیستم)
+            if (showLunar) {
+                if (lunarMode === 'auto') {
+                    const mObj = moment(curr);
+                    const iDStr = mObj.format('iD'); // قالب امن
+                    const iMStr = mObj.format('iM');
+                    
+                    // سیستم جایگزین: اگر کتابخانه توسط مرورگر بلاک شده باشد سیستم هنگ نمی‌کند
+                    if (iDStr === 'iD' || iMStr === 'iM' || isNaN(parseInt(iMStr, 10))) {
+                        row.lDate = 'خطا در بارگذاری تقویم';
+                    } else {
+                        const iM = parseInt(iMStr, 10) - 1;
+                        row.lDate = iDStr + ' ' + lunarMonthsList[iM];
+                    }
+                } else if (lunarMode === 'manual') {
+                    // بررسی اینکه آیا امروز نقطه شروعی است که کاربر تعریف کرده؟
+                    const match = manualLunarData.find(m => m.jDateStr === fullDate);
+                    if (match) {
+                        currentManualLunar = { monthIdx: match.monthIdx, year: match.year, dayCounter: 1 };
+                    }
+
+                    if (currentManualLunar) {
+                        row.lDate = currentManualLunar.dayCounter + ' ' + lunarMonthsList[currentManualLunar.monthIdx];
+                        currentManualLunar.dayCounter++;
+                        
+                        // حلقه جبرانی و امنیتی: اگر کاربر ماه بعدی را مشخص نکرده بود، ماه قمری حداکثر 30 روزه است و ریست میشود
+                        if (currentManualLunar.dayCounter > 30) {
+                             currentManualLunar.dayCounter = 1;
+                             currentManualLunar.monthIdx = (currentManualLunar.monthIdx + 1) % 12;
+                             if(currentManualLunar.monthIdx === 0) currentManualLunar.year++;
+                        }
+                    } else {
+                        // اگر تقویم در روزهایی در حال پردازش است که قبل از اولین تاریخ دستیِ تعیین شده کاربر است
+                        const mObj = moment(curr);
+                        const iDStr = mObj.format('iD');
+                        const iMStr = mObj.format('iM');
+                        
+                        // جلوگیری از هنگ سیستم در صورت لود نشدن کتابخانه پشتیبان
+                        if (iDStr === 'iD' || iMStr === 'iM' || isNaN(parseInt(iMStr, 10))) {
+                            row.lDate = '(تنظیم نشده)';
+                        } else {
+                            const iM = parseInt(iMStr, 10) - 1;
+                            row.lDate = iDStr + ' ' + lunarMonthsList[iM] + ' (خودکار)';
+                        }
+                    }
+                }
+            }
+
+            // 1. Custom Events
+            for(let ev of userEvents) {
+                const es = jToDate(ev.start.y, ev.start.m, ev.start.d);
+                const ee = jToDate(ev.end.y, ev.end.m, ev.end.d);
+                if(curr >= es && curr <= ee) {
+                    row.reason = ev.title;
+                    if(ev.type === 'holiday') { row.isHoliday = true; row.status = 'تعطیل'; row.css = 'row-holiday'; }
+                    else if(ev.type === 'exam') { row.status = 'امتحان'; row.css = 'row-exam'; }
+                    else { row.status = 'رویداد'; row.css = 'row-event'; }
+                }
+            }
+
+            // 2. Selected Gaps (Inter-holidays)
+            if(!row.isHoliday && selectedGaps.has(fullDate)) {
+                row.isHoliday = true;
+                row.status = 'تعطیل';
+                row.reason = 'بین‌التعطیلین';
+                row.css = 'row-inter';
+            }
+
+            // 3. Weekends
+            if(!row.isHoliday && wd === 5 && friOff) {
+                row.isHoliday = true; row.status = 'تعطیل'; row.reason = 'جمعه'; row.css = 'row-friday';
+            }
+            if(!row.isHoliday && wd === 4) {
+                if(thMode === 'off') { row.isHoliday = true; row.reason = 'تعطیل پنج‌شنبه'; row.css = 'row-holiday'; }
+                else if(thMode === 'odd_off' && weekIdx % 2 !== 0) { row.isHoliday = true; row.reason = 'تعطیل هفته فرد'; row.css = 'row-holiday'; }
+                else if(thMode === 'even_off' && weekIdx % 2 === 0) { row.isHoliday = true; row.reason = 'تعطیل هفته زوج'; row.css = 'row-holiday'; }
+            }
+
+            // 4. Official Holidays
+            if(officialHolidays[dateKey]) {
+                const hName = officialHolidays[dateKey];
+                row.reason = row.reason ? row.reason + " - " + hName : hName;
+                if(offOff && !row.isHoliday) {
+                    row.isHoliday = true; row.status = 'تعطیل'; row.css = 'row-holiday';
+                }
+            }
+
+            // 5. Selected Occasions
+            const occ = selectedOccasions.find(o => o.d === dateKey);
+            if(occ) {
+                row.reason = row.reason ? row.reason + " - " + occ.t : occ.t;
+                if(!row.isHoliday && !row.css) row.css = 'row-event';
+            }
+
+            // 6. Gregorian Events
+            if(showGreg && gregorianEvents[gKey]) {
+                row.reason = row.reason ? row.reason + ` (${gregorianEvents[gKey]})` : gregorianEvents[gKey];
+            }
+
+            // Session Logic
+            if(!row.isHoliday && row.status !== 'امتحان') {
+                row.session = session++;
+            } else {
+                row.session = '-';
+            }
+            if(row.isHoliday) row.status = 'تعطیل';
+
+            result.push(row);
+            if(wd === 5) weekIdx++;
+            curr.setDate(curr.getDate() + 1);
+        }
+
+        // افزوده شده: محاسبه دقیق ستون مانده (معکوس جلسات) پس از اتمام پردازش بازه
+        let maxSession = session - 1; // کل جلسات یافت شده در این بازه
+        result.forEach(r => {
+            if(r.session !== '-') {
+                // محاسبه معکوس شمارشگر با فرمول: کل جلسات - جلسه فعلی + 1
+                r.remaining = maxSession - r.session + 1;
+            } else {
+                r.remaining = '-'; // برای روزهای تعطیل و امتحانات
+            }
+        });
+
+        return result;
+    }
+
+    // ===========================================
+    // 5. RENDER & EXPORT
+    // ===========================================
+
+    function renderTable() {
+        // جلوگیری از خطا در صورت خالی بودن مقادیر
+        const titleEl = document.getElementById('calTitle');
+        const subEl = document.getElementById('calSub');
+        
+        if (!titleEl || !subEl) {
+            alert("خطای سیستم: فیلدهای عنوان یافت نشد.");
+            return;
+        }
+
+        const data = calculateCalendar();
+        if(!data) return; // اگر قبلاً ارور داده بود اینجا متوقف میشود
+
+        const title = titleEl.value;
+        const sub = subEl.value;
+        const showGreg = document.getElementById('showGregorian').checked;
+        const showLunar = document.getElementById('showLunar').checked;
+
+        let html = `
+            <div style="text-align:center; margin-bottom:20px;">
+                <h2 style="color:#1e40af; margin:0;">${title}</h2>
+                <h4 style="color:#64748b; margin:5px 0;">${sub}</h4>
+            </div>
+            <table class="calendar-table">
+                <thead>
+                    <tr>
+                        <th width="5%">#</th>
+                        <th width="10%">روز</th>
+                        <th width="12%">تاریخ شمسی</th>
+                        ${showGreg ? '<th width="12%">تاریخ میلادی</th>' : ''}
+                        ${showLunar ? '<th width="12%">تاریخ قمری</th>' : ''}
+                        <th width="10%">وضعیت</th>
+                        <th width="40%">توضیحات / مناسبت</th>
+                        <th width="10%">جلسه</th>
+                        <th width="10%">مانده</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        data.forEach((r, i) => {
+            html += `
+                <tr class="${r.css}">
+                    <td>${i+1}</td>
+                    <td>${r.dayName}</td>
+                    <td dir="ltr">${r.fullDate}</td>
+                    ${showGreg ? `<td dir="ltr">${r.gDate}</td>` : ''}
+                    ${showLunar ? `<td dir="rtl">${r.lDate}</td>` : ''}
+                    <td><strong>${r.status}</strong></td>
+                    <td style="text-align:right">${r.reason}</td>
+                    <td><strong>${r.session}</strong></td>
+                    <td><strong>${r.remaining}</strong></td>
+                </tr>
+            `;
+        });
+        html += `</tbody></table>`;
+        
+        document.getElementById('previewArea').innerHTML = html;
+        document.getElementById('pdfSource').innerHTML = html;
+    }
+
+    async function exportExcel() {
+        const data = calculateCalendar();
+        if(!data) return;
+
+        // دریافت امن مقادیر برای جلوگیری از کرش
+        const titleEl = document.getElementById('calTitle');
+        const subEl = document.getElementById('calSub');
+        
+        const titleVal = titleEl ? titleEl.value : "تقویم آموزشی";
+        const subVal = subEl ? subEl.value : "";
+
+        const wb = new ExcelJS.Workbook();
+        const ws = wb.addWorksheet('تقویم', {views:[{rightToLeft: true}]});
+        const showGreg = document.getElementById('showGregorian').checked;
+        const showLunar = document.getElementById('showLunar').checked;
+
+        // Styles
+        const headerStyle = { name: 'Vazir', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
+        const center = { vertical: 'middle', horizontal: 'center' };
+        
+        // Header (تصحیح شد: تعداد ستون‌های پایه با افزودن ستون مانده به 7 عدد رسید)
+        const colCount = 7 + (showGreg ? 1 : 0) + (showLunar ? 1 : 0);
+        const mergeRange = `A1:${String.fromCharCode(64 + colCount)}1`;
+        const subMergeRange = `A2:${String.fromCharCode(64 + colCount)}2`;
+
+        ws.mergeCells(mergeRange);
+        ws.getCell('A1').value = titleVal;
+        ws.getCell('A1').font = { name: 'Tahoma', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+        ws.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E40AF' } };
+        ws.getCell('A1').alignment = center;
+
+        ws.mergeCells(subMergeRange);
+        ws.getCell('A2').value = subVal;
+        ws.getCell('A2').alignment = center;
+
+        // Columns
+        const headers =['ردیف', 'روز', 'تاریخ شمسی'];
+        if(showGreg) headers.push('تاریخ میلادی');
+        if(showLunar) headers.push('تاریخ قمری');
+        headers.push('وضعیت', 'توضیحات', 'جلسه', 'مانده');
+        
+        const rowHeader = ws.addRow(headers);
+        rowHeader.eachCell(c => {
+            c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } };
+            c.font = headerStyle;
+            c.alignment = center;
+            c.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+        });
+
+        // Rows
+        data.forEach((d, i) => {
+            const vals =[i+1, d.dayName, d.fullDate];
+            if(showGreg) vals.push(d.gDate);
+            if(showLunar) vals.push(d.lDate);
+            vals.push(d.status, d.reason, d.session, d.remaining);
+
+            const r = ws.addRow(vals);
+            
+            let bg = 'FFFFFFFF';
+            if(d.css === 'row-holiday') bg = 'FFFEE2E2';
+            if(d.css === 'row-friday') bg = 'FFFCE7F3';
+            if(d.css === 'row-inter') bg = 'FFFFEDD5';
+            if(d.css === 'row-exam') bg = 'FFEFF6FF';
+            if(d.css === 'row-event') bg = 'FFECFCCB';
+
+            r.eachCell(c => {
+                c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+                c.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+                c.alignment = center;
+                c.font = { name: 'Tahoma' };
+            });
+        });
+
+        // Widths (افزودن عرض مناسب برای ستون جدید مانده)
+        ws.columns =[
+            { width: 6 }, { width: 12 }, { width: 15 }, 
+            ...(showGreg ?[{ width: 15 }] :[]),
+            ...(showLunar ? [{ width: 15 }] :[]),
+            { width: 15 }, { width: 50 }, { width: 8 }, { width: 8 }
+        ];
+
+        const buffer = await wb.xlsx.writeBuffer();
+        saveAs(new Blob([buffer]), 'Calendar.xlsx');
+    }
+
+    function exportPDF() {
+        const el = document.getElementById('pdfSource');
+        if(!el.innerHTML) renderTable(); // فراخوانی تابع درست
+        el.style.display = 'block';
+        
+        html2pdf().set({
+            margin:[0.5, 0.5],
+            filename: 'Calendar.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+        }).from(el).save().then(() => el.style.display = 'none');
+    }
+
+</script>
+</body>
+</html>
