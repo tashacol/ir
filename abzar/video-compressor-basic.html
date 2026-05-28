@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>فشرده‌سازی ویدئو حرفه‌ای – خروجی MP4</title>
+    <style>
+        :root {
+            --bg: #0b0c10;
+            --card: #15161f;
+            --card2: #1a1b28;
+            --border: #272835;
+            --text: #e0e0e0;
+            --text2: #a0a0b8;
+            --accent: #5b6af0;
+            --accent2: #7c4dff;
+            --accent-glow: rgba(91, 106, 240, 0.25);
+            --success: #2ecc71;
+            --warning: #f0a040;
+            --danger: #e74c3c;
+            --radius: 16px;
+            --radius-sm: 10px;
+            --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', 'Roboto', 'Tahoma', sans-serif;
+            background: var(--bg);
+            background-image: radial-gradient(ellipse at 50% 0%, rgba(91, 106, 240, 0.08) 0%, transparent 60%),
+            radial-gradient(ellipse at 80% 20%, rgba(124, 77, 255, 0.05) 0%, transparent 50%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: var(--text);
+            direction: rtl;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        .container {
+            width: 100%;
+            max-width: 620px;
+            background: var(--card);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            padding: 32px 28px 28px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent), var(--accent2), var(--accent));
+            opacity: 0.7;
+            border-radius: 3px 3px 0 0;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        .header .icon-wrap {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 56px;
+            height: 56px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            margin-bottom: 16px;
+            box-shadow: 0 12px 30px var(--accent-glow);
+        }
+        .header .icon-wrap svg {
+            width: 26px;
+            height: 26px;
+            fill: #fff;
+        }
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+        .header .subtitle {
+            font-size: 0.88rem;
+            color: var(--text2);
+        }
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 36px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            background: var(--card2);
+            position: relative;
+        }
+        .upload-zone:hover {
+            border-color: var(--accent);
+            background: rgba(91, 106, 240, 0.04);
+        }
+        .upload-zone.drag-over {
+            border-color: var(--accent2);
+            background: rgba(124, 77, 255, 0.08);
+            transform: scale(1.01);
+        }
+        .upload-zone.has-file {
+            border-color: var(--success);
+            border-style: solid;
+            background: rgba(46, 204, 113, 0.04);
+        }
+        .upload-zone .upload-icon {
+            display: block;
+            margin: 0 auto 14px;
+            width: 48px;
+            height: 48px;
+            opacity: 0.6;
+        }
+        .upload-zone:hover .upload-icon,
+        .upload-zone.drag-over .upload-icon {
+            opacity: 1;
+        }
+        .upload-zone .upload-icon svg {
+            width: 100%;
+            height: 100%;
+            stroke: var(--text2);
+            fill: none;
+            stroke-width: 1.5;
+        }
+        .upload-zone .upload-text {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #ccc;
+            margin-bottom: 6px;
+        }
+        .upload-zone .upload-hint {
+            font-size: 0.8rem;
+            color: var(--text2);
+        }
+        .upload-zone input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+        .file-info,
+        .quality-selector,
+        .warning-box {
+            display: none;
+            margin-top: 16px;
+            padding: 16px 18px;
+            background: var(--card2);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            animation: fadeIn 0.35s ease;
+        }
+        .file-info.show,
+        .quality-selector.show,
+        .warning-box.show {
+            display: block;
+        }
+        .file-info .fi-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 0.9rem;
+        }
+        .fi-label {
+            color: var(--text2);
+        }
+        .fi-value {
+            color: #fff;
+            font-weight: 600;
+        }
+        .estimate-row {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border);
+            color: var(--warning);
+            font-weight: 500;
+        }
+        .quality-options {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .quality-option {
+            flex: 1;
+            min-width: 80px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 0.82rem;
+            font-weight: 600;
+            border: 2px solid var(--border);
+            background: transparent;
+            color: var(--text2);
+            transition: var(--transition);
+        }
+        .quality-option:hover {
+            border-color: var(--accent);
+            color: #fff;
+            background: rgba(91, 106, 240, 0.06);
+        }
+        .quality-option.selected {
+            border-color: var(--accent);
+            background: rgba(91, 106, 240, 0.15);
+            color: #fff;
+        }
+        .warning-box {
+            background: rgba(240, 160, 64, 0.08);
+            border-color: rgba(240, 160, 64, 0.3);
+            color: var(--warning);
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: var(--transition);
+            font-family: inherit;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: #fff;
+            width: 100%;
+            padding: 14px 24px;
+        }
+        .btn-primary:disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--border);
+            color: #ccc;
+            width: 100%;
+        }
+        .btn-success {
+            background: var(--success);
+            color: #000;
+            font-weight: 700;
+            width: 100%;
+        }
+        .progress-section {
+            display: none;
+            margin-top: 20px;
+        }
+        .progress-section.show {
+            display: block;
+        }
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .progress-bar-wrap {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 20px;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 20px;
+            width: 0%;
+        }
+        .output-section {
+            display: none;
+            margin-top: 20px;
+            text-align: center;
+        }
+        .output-section.show {
+            display: block;
+        }
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-120px);
+            background: var(--danger);
+            color: #fff;
+            padding: 12px 22px;
+            border-radius: 10px;
+            font-weight: 600;
+            z-index: 9999;
+            transition: transform 0.4s ease;
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="icon-wrap"><svg viewBox="0 0 24 24"><path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-7 14l-5-5 1.4-1.4 3.6 3.6 3.6-3.6L17 12l-5 5z" fill="white"/></svg></div>
+            <h1>فشرده‌سازی ویدئو</h1>
+            <p class="subtitle">خروجی MP4 · حفظ اندازه و نسبت تصویر اصلی</p>
+        </div>
+
+        <div class="upload-zone" id="uploadZone">
+            <span class="upload-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="8 12 12 8 16 12"/><line x1="12" y1="8" x2="12" y2="17"/></svg></span>
+            <p class="upload-text">ویدئوی خود را اینجا بکشید یا کلیک کنید</p>
+            <p class="upload-hint">حداکثر ۱ گیگابایت | حداکثر ۲۰ دقیقه</p>
+            <p class="upload-hint" style="font-size:0.72rem;">پردازش زنده به‌اندازهٔ کل زمان ویدئو طول می‌کشد</p>
+            <input type="file" id="fileInput" accept="video/*">
+        </div>
+
+        <div class="file-info" id="fileInfo">
+            <div class="fi-row"><span class="fi-label">نام فایل:</span><span class="fi-value" id="fiName">—</span></div>
+            <div class="fi-row"><span class="fi-label">حجم:</span><span class="fi-value" id="fiSize">—</span></div>
+            <div class="fi-row"><span class="fi-label">مدت:</span><span class="fi-value" id="fiDuration">—</span></div>
+            <div class="fi-row"><span class="fi-label">رزولوشن:</span><span class="fi-value" id="fiResolution">—</span></div>
+            <div class="estimate-row" id="estimateText">حجم تخمینی خروجی: در حال محاسبه...</div>
+        </div>
+
+        <div class="quality-selector" id="qualitySelector">
+            <p style="font-weight:600; color:#ccc;">سطح فشرده‌سازی:</p>
+            <div class="quality-options">
+                <button class="quality-option" data-quality="high">کیفیت بالا</button>
+                <button class="quality-option selected" data-quality="medium">متوازن (پیشنهادی)</button>
+                <button class="quality-option" data-quality="low">حداکثر فشرده‌سازی</button>
+            </div>
+        </div>
+
+        <div class="warning-box" id="warningBox">
+            ⚡ این ابزار کاملاً در مرورگر اجرا می‌شود. باید <strong>به‌اندازهٔ مدت ویدئو</strong> منتظر بمانید. خروجی با پسوند <strong>.mp4</strong> ذخیره می‌شود (در صورت عدم پشتیبانی کدک MP4 در مرورگر، محتوا WebM خواهد بود اما با نام mp4 قابل پخش است).
+        </div>
+
+        <button class="btn btn-primary" id="compressBtn" disabled style="margin-top:18px;display:none;">▶ شروع فشرده‌سازی</button>
+
+        <div class="progress-section" id="progressSection">
+            <div class="progress-header"><span>در حال پردازش...</span><span id="progressPercent">۰٪</span></div>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBar"></div></div>
+            <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.78rem;color:var(--text2);">
+                <span id="progressTime">۰۰:۰۰ / ۰۰:۰۰</span><span id="progressRemaining">زمان باقی‌مانده: —</span>
+            </div>
+        </div>
+
+        <button class="btn btn-outline" id="cancelBtn" style="display:none;margin-top:12px;">لغو</button>
+
+        <div class="output-section" id="outputSection">
+            <div style="font-size:2rem;margin-bottom:10px;">✅</div>
+            <p style="font-weight:700;color:#fff;">فشرده‌سازی موفق</p>
+            <div style="margin:12px 0;color:var(--text2);" id="outputStats"></div>
+            <button class="btn btn-success" id="downloadBtn">⬇ دانلود ویدئوی فشرده (MP4)</button>
+            <button class="btn btn-outline" id="resetBtn" style="margin-top:10px;">بارگذاری ویدئوی جدید</button>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+    <!-- ویدئوی مخفی برای پردازش؛ ابعاد آن دقیقاً برابر با ویدئوی اصلی تنظیم می‌شود -->
+    <video id="processingVideo" muted playsinline style="position:fixed;top:0;left:0;opacity:0;pointer-events:none;z-index:-1;"></video>
+
+    <script>
+        (function() {
+            // DOM Elements
+            const uploadZone = document.getElementById('uploadZone');
+            const fileInput = document.getElementById('fileInput');
+            const fileInfo = document.getElementById('fileInfo');
+            const qualitySelector = document.getElementById('qualitySelector');
+            const warningBox = document.getElementById('warningBox');
+            const compressBtn = document.getElementById('compressBtn');
+            const progressSection = document.getElementById('progressSection');
+            const progressBar = document.getElementById('progressBar');
+            const progressPercent = document.getElementById('progressPercent');
+            const progressTime = document.getElementById('progressTime');
+            const progressRemaining = document.getElementById('progressRemaining');
+            const cancelBtn = document.getElementById('cancelBtn');
+            const outputSection = document.getElementById('outputSection');
+            const outputStats = document.getElementById('outputStats');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const processingVideo = document.getElementById('processingVideo');
+            const toast = document.getElementById('toast');
+            const estimateText = document.getElementById('estimateText');
+
+            // State
+            let selectedFile = null;
+            let videoDuration = 0;
+            let videoWidth = 0;
+            let videoHeight = 0;
+            let originalSizeBytes = 0;
+            let selectedQuality = 'medium';
+            let mediaRecorder = null;
+            let recordedChunks = [];
+            let streamForRecording = null;
+            let processingActive = false;
+            let progressInterval = null;
+            let outputBlob = null;
+            let outputBlobUrl = null;
+
+            // Quality presets (bitrate settings)
+            const qualityPresets = {
+                high: { multiplier: 0.7, minBitrate: 2500000 },
+                medium: { multiplier: 0.5, minBitrate: 1800000 },
+                low: { multiplier: 0.3, minBitrate: 900000 }
+            };
+
+            // Utility functions
+            function formatBytes(b) {
+                if (!b) return '۰ بایت';
+                const u = ['بایت', 'کیلوبایت', 'مگابایت', 'گیگابایت'];
+                const i = Math.floor(Math.log(b) / Math.log(1024));
+                return (b / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1) + ' ' + u[i];
+            }
+
+            function formatTime(s) {
+                const m = Math.floor(s / 60),
+                    sec = Math.floor(s % 60);
+                return String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+            }
+
+            function formatTimeLong(s) {
+                const m = Math.floor(s / 60),
+                    sec = Math.floor(s % 60);
+                return (m > 0 ? m + ' دقیقه ' : '') + sec + ' ثانیه';
+            }
+
+            function showToast(msg, isWarning = false) {
+                toast.textContent = msg;
+                toast.className = 'toast' + (isWarning ? ' warning-toast' : '');
+                requestAnimationFrame(() => toast.classList.add('show'));
+                clearTimeout(toast._timeout);
+                toast._timeout = setTimeout(() => toast.classList.remove('show'), 3500);
+            }
+
+            function updateEstimate() {
+                if (!selectedFile || !videoDuration) return;
+                const preset = qualityPresets[selectedQuality];
+                const origBitrate = (originalSizeBytes * 8) / videoDuration;
+                let targetBitrate = origBitrate * preset.multiplier;
+                const minB = preset.minBitrate;
+                if (targetBitrate < minB) targetBitrate = minB;
+                const estBytes = (targetBitrate * videoDuration) / 8;
+                const reduction = originalSizeBytes > 0 ? Math.round((1 - estBytes / originalSizeBytes) * 100) : 0;
+                estimateText.textContent =
+                    `حجم تخمینی: ${formatBytes(estBytes)} (≈${reduction}٪ کاهش) | نرخ بیت: ${Math.round(targetBitrate/1000)}kbps`;
+            }
+
+            function resetAll() {
+                if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+                if (streamForRecording) { streamForRecording.getTracks().forEach(t => t.stop());
+                    streamForRecording = null; }
+                if (outputBlobUrl) { URL.revokeObjectURL(outputBlobUrl);
+                    outputBlobUrl = null; }
+                recordedChunks = [];
+                processingActive = false;
+                mediaRecorder = null;
+                outputBlob = null;
+                if (progressInterval) clearInterval(progressInterval);
+                progressInterval = null;
+                processingVideo.pause();
+                processingVideo.removeAttribute('src');
+                processingVideo.load();
+                processingVideo.style.width = '';
+                processingVideo.style.height = '';
+                progressBar.style.width = '0%';
+                progressPercent.textContent = '۰٪';
+                progressTime.textContent = '۰۰:۰۰ / ۰۰:۰۰';
+                progressRemaining.textContent = 'زمان باقی‌مانده: —';
+                progressSection.classList.remove('show');
+                outputSection.classList.remove('show');
+                cancelBtn.style.display = 'none';
+                compressBtn.style.display = 'none';
+                compressBtn.disabled = true;
+                fileInfo.classList.remove('show');
+                qualitySelector.classList.remove('show');
+                warningBox.classList.remove('show');
+                uploadZone.classList.remove('has-file');
+                selectedFile = null;
+                videoDuration = 0;
+                videoWidth = 0;
+                videoHeight = 0;
+                originalSizeBytes = 0;
+                fileInput.value = '';
+            }
+
+            function handleFile(file) {
+                resetAll();
+                if (!file) return;
+                if (!file.type.startsWith('video/')) {
+                    showToast('فقط فایل ویدئویی مجاز است.');
+                    return;
+                }
+                if (file.size > 1 * 1024 * 1024 * 1024) {
+                    showToast('حجم فایل بیش از ۱ گیگابایت است.');
+                    return;
+                }
+                selectedFile = file;
+                originalSizeBytes = file.size;
+                const url = URL.createObjectURL(file);
+                processingVideo.src = url;
+                processingVideo.preload = 'auto';
+                processingVideo.onloadedmetadata = () => {
+                    videoDuration = processingVideo.duration;
+                    videoWidth = processingVideo.videoWidth;
+                    videoHeight = processingVideo.videoHeight;
+                    if (videoDuration > 20 * 60) {
+                        showToast('مدت ویدئو بیش از ۲۰ دقیقه است.');
+                        URL.revokeObjectURL(url);
+                        resetAll();
+                        return;
+                    }
+                    // تنظیم ابعاد دقیق ویدئوی مخفی برای حفظ نسبت تصویر
+                    processingVideo.style.width = videoWidth + 'px';
+                    processingVideo.style.height = videoHeight + 'px';
+
+                    document.getElementById('fiName').textContent = file.name;
+                    document.getElementById('fiSize').textContent = formatBytes(file.size);
+                    document.getElementById('fiDuration').textContent = formatTimeLong(videoDuration);
+                    document.getElementById('fiResolution').textContent = `${videoWidth}×${videoHeight}`;
+                    fileInfo.classList.add('show');
+                    qualitySelector.classList.add('show');
+                    warningBox.classList.add('show');
+                    uploadZone.classList.add('has-file');
+                    compressBtn.style.display = 'flex';
+                    compressBtn.disabled = false;
+                    updateEstimate();
+                    URL.revokeObjectURL(url);
+                };
+            }
+
+            // Event listeners
+            fileInput.addEventListener('change', e => {
+                if (e.target.files[0]) handleFile(e.target.files[0]);
+            });
+            uploadZone.addEventListener('dragover', e => {
+                e.preventDefault();
+                uploadZone.classList.add('drag-over');
+            });
+            uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+            uploadZone.addEventListener('drop', e => {
+                e.preventDefault();
+                uploadZone.classList.remove('drag-over');
+                if (processingActive) return showToast('پردازش در حال انجام است.', true);
+                if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+            });
+            qualitySelector.addEventListener('click', e => {
+                const opt = e.target.closest('.quality-option');
+                if (!opt || processingActive) return;
+                document.querySelectorAll('.quality-option').forEach(o => o.classList.remove(
+                'selected'));
+                opt.classList.add('selected');
+                selectedQuality = opt.dataset.quality;
+                updateEstimate();
+            });
+
+            compressBtn.addEventListener('click', () => {
+                if (!selectedFile || processingActive) return;
+
+                // تلاش برای استفاده از کدک MP4 (در صورت پشتیبانی مرورگر)
+                let mimeType = '';
+                if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1.42E01E,mp4a.40.2')) {
+                    mimeType = 'video/mp4;codecs=avc1.42E01E,mp4a.40.2';
+                } else if (MediaRecorder.isTypeSupported('video/mp4')) {
+                    mimeType = 'video/mp4';
+                } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) {
+                    mimeType = 'video/webm;codecs=vp9,opus';
+                } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) {
+                    mimeType = 'video/webm;codecs=vp8,opus';
+                } else if (MediaRecorder.isTypeSupported('video/webm')) {
+                    mimeType = 'video/webm';
+                } else {
+                    showToast('مرورگر شما از ضبط ویدئو پشتیبانی نمی‌کند.');
+                    return;
+                }
+
+                const preset = qualityPresets[selectedQuality];
+                const origBitrate = (originalSizeBytes * 8) / videoDuration;
+                let targetBitrate = Math.max(origBitrate * preset.multiplier, preset.minBitrate);
+
+                const fileUrl = URL.createObjectURL(selectedFile);
+                processingVideo.src = fileUrl;
+                processingVideo.preload = 'auto';
+                processingVideo.muted = true;
+                processingVideo.currentTime = 0;
+
+                processingVideo.oncanplaythrough = () => {
+                    processingVideo.oncanplaythrough = null;
+                    streamForRecording = processingVideo.captureStream();
+                    const videoTrack = streamForRecording.getVideoTracks()[0];
+                    if (!videoTrack) {
+                        URL.revokeObjectURL(fileUrl);
+                        showToast('رد ویدئویی یافت نشد.');
+                        return;
+                    }
+
+                    mediaRecorder = new MediaRecorder(streamForRecording, {
+                        mimeType: mimeType,
+                        videoBitsPerSecond: Math.round(targetBitrate)
+                    });
+
+                    recordedChunks = [];
+                    mediaRecorder.ondataavailable = e => {
+                        if (e.data.size > 0) recordedChunks.push(e.data);
+                    };
+                    mediaRecorder.onstop = () => {
+                        outputBlob = new Blob(recordedChunks, { type: mimeType.split(';')[0] });
+                        if (streamForRecording) { streamForRecording.getTracks().forEach(t => t.stop());
+                            streamForRecording = null; }
+                        URL.revokeObjectURL(fileUrl);
+                        processingVideo.pause();
+                        processingVideo.removeAttribute('src');
+                        processingVideo.load();
+                        clearInterval(progressInterval);
+                        progressInterval = null;
+                        processingActive = false;
+                        cancelBtn.style.display = 'none';
+                        compressBtn.style.display = 'none';
+
+                        const reduction = originalSizeBytes > 0 ? Math.round((1 - outputBlob.size / originalSizeBytes) *
+                            100) : 0;
+                        outputStats.innerHTML =
+                            `حجم اصلی: <strong>${formatBytes(originalSizeBytes)}</strong><br>حجم خروجی: <strong>${formatBytes(outputBlob.size)}</strong><br><span style="color:var(--success);font-weight:700;">کاهش ${reduction}٪</span>`;
+                        outputSection.classList.add('show');
+                        progressSection.classList.remove('show');
+
+                        if (outputBlobUrl) URL.revokeObjectURL(outputBlobUrl);
+                        outputBlobUrl = URL.createObjectURL(outputBlob);
+                    };
+
+                    mediaRecorder.start(1000);
+                    processingActive = true;
+                    progressSection.classList.add('show');
+                    compressBtn.style.display = 'none';
+                    cancelBtn.style.display = 'flex';
+                    progressBar.style.width = '0%';
+                    progressPercent.textContent = '۰٪';
+                    progressTime.textContent = `۰۰:۰۰ / ${formatTime(videoDuration)}`;
+                    progressRemaining.textContent = 'زمان باقی‌مانده: ' + formatTimeLong(videoDuration);
+                    processingVideo.play();
+
+                    progressInterval = setInterval(() => {
+                        if (!processingActive) {
+                            clearInterval(progressInterval);
+                            progressInterval = null;
+                            return;
+                        }
+                        const cur = processingVideo.currentTime;
+                        const dur = videoDuration;
+                        const pct = Math.min(Math.round((cur / dur) * 100), 100);
+                        progressBar.style.width = pct + '%';
+                        progressPercent.textContent = pct + '٪';
+                        progressTime.textContent = `${formatTime(cur)} / ${formatTime(dur)}`;
+                        progressRemaining.textContent = 'زمان باقی‌مانده: ' + formatTimeLong(Math.max(dur - cur,
+                            0));
+                        if (pct >= 99 && mediaRecorder.state === 'recording') {
+                            clearInterval(progressInterval);
+                            progressInterval = null;
+                        }
+                    }, 300);
+
+                    processingVideo.onended = () => {
+                        if (mediaRecorder.state === 'recording') mediaRecorder.stop();
+                    };
+                };
+            });
+
+            cancelBtn.addEventListener('click', () => {
+                if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+                processingActive = false;
+                clearInterval(progressInterval);
+                if (streamForRecording) { streamForRecording.getTracks().forEach(t => t.stop());
+                    streamForRecording = null; }
+                processingVideo.pause();
+                processingVideo.removeAttribute('src');
+                progressSection.classList.remove('show');
+                cancelBtn.style.display = 'none';
+                compressBtn.style.display = 'flex';
+                compressBtn.disabled = false;
+            });
+
+            downloadBtn.addEventListener('click', () => {
+                if (!outputBlob || !outputBlobUrl) return;
+                const a = document.createElement('a');
+                a.href = outputBlobUrl;
+                // همیشه پسوند mp4 برای دانلود
+                const originalName = selectedFile ? selectedFile.name.replace(/\.[^.]+$/, '') : 'video';
+                a.download = originalName + '_compressed.mp4';
+                a.click();
+            });
+
+            resetBtn.addEventListener('click', resetAll);
+
+            window.addEventListener('beforeunload', e => {
+                if (processingActive) e.returnValue = 'پردازش هنوز تمام نشده است.';
+            });
+
+        })();
+    </script>
+</body>
+</html>

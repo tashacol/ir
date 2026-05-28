@@ -1,0 +1,1925 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>فشرده‌سازی هوشمند تصویر</title>
+    <style>
+        :root {
+            --bg: #f0f2f5;
+            --surface: #ffffff;
+            --surface-alt: #f8fafc;
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --primary-light: #eff6ff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --border: #e2e8f0;
+            --border-light: #f1f5f9;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --danger-light: #fef2f2;
+            --success: #10b981;
+            --success-light: #ecfdf5;
+            --warning: #f59e0b;
+            --warning-light: #fffbeb;
+            --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.03);
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.04);
+            --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.07), 0 4px 10px rgba(0, 0, 0, 0.04);
+            --shadow-xl: 0 20px 50px rgba(0, 0, 0, 0.1), 0 8px 20px rgba(0, 0, 0, 0.05);
+            --radius-sm: 8px;
+            --radius: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-slow: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Inter', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(160deg, #f8fafc 0%, #eef2ff 25%, #f0f4ff 50%, #f8fafc 75%, #f1f5f9 100%);
+            background-attachment: fixed;
+            color: var(--text);
+            padding: 1rem;
+            max-width: 960px;
+            margin: auto;
+            min-height: 100vh;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ── Global Loader ── */
+        .global-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .global-loader .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+            margin-bottom: 1rem;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .global-loader .loader-text {
+            font-weight: 600;
+            color: var(--text);
+            font-size: 0.95rem;
+            background: var(--surface);
+            padding: 0.5rem 1.2rem;
+            border-radius: 25px;
+            box-shadow: var(--shadow-md);
+        }
+
+        /* ── Header / Branding ── */
+        .app-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding: 1.25rem 0 0.5rem;
+        }
+        .app-header .logo-icon {
+            display: inline-block;
+            font-size: 3rem;
+            margin-bottom: 0.3rem;
+            animation: float 3s ease-in-out infinite;
+            filter: drop-shadow(0 6px 12px rgba(37, 99, 235, 0.18));
+        }
+        @keyframes float {
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-8px);
+            }
+        }
+        .app-header h1 {
+            color: var(--text);
+            font-size: 1.9rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin: 0;
+            background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 60%, #3b82f6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .app-header .subtitle {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 0.15rem;
+            font-weight: 400;
+        }
+
+        /* ── Settings Panel ── */
+        .settings-panel {
+            background: var(--surface);
+            border-radius: var(--radius-lg);
+            padding: 1rem 1.25rem;
+            margin-bottom: 1rem;
+            box-shadow: var(--shadow-md);
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.75rem 1.5rem;
+            border: 1px solid var(--border);
+            transition: var(--transition);
+        }
+        .settings-panel:hover {
+            box-shadow: var(--shadow-lg);
+        }
+        .settings-panel .setting-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+        }
+        .settings-panel label {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        .settings-panel input[type="range"] {
+            width: 100px;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+        .settings-panel input[type="number"] {
+            width: 70px;
+            padding: 0.4rem 0.5rem;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 0.85rem;
+            text-align: center;
+            font-weight: 600;
+            color: var(--text);
+            background: var(--surface-alt);
+            transition: var(--transition);
+            font-family: inherit;
+        }
+        .settings-panel input[type="number"]:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+            background: #fff;
+        }
+        .settings-panel .kb-display {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 0.9rem;
+            min-width: 55px;
+            text-align: center;
+        }
+        .settings-panel .setting-hint {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+        .settings-badge {
+            display: inline-block;
+            background: var(--primary-light);
+            color: var(--primary);
+            padding: 0.3rem 0.7rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        /* ── Toolbar ── */
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.55rem;
+            justify-content: center;
+            margin: 0.75rem 0 1rem;
+        }
+
+        /* ── Buttons ── */
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.1rem;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: var(--transition);
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            letter-spacing: -0.01em;
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            font-family: inherit;
+        }
+        .btn::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.12);
+            opacity: 0;
+            transition: var(--transition);
+            border-radius: 25px;
+        }
+        .btn:hover {
+            background: var(--primary-hover);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
+        }
+        .btn:hover::after {
+            opacity: 1;
+        }
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: var(--shadow-sm);
+        }
+        .btn:disabled {
+            opacity: 0.45;
+            pointer-events: none;
+            filter: grayscale(30%);
+        }
+        .btn-danger {
+            background: var(--danger);
+        }
+        .btn-danger:hover {
+            background: var(--danger-hover);
+        }
+        .btn-outline {
+            background: var(--surface);
+            color: var(--primary);
+            border: 2px solid var(--primary);
+            box-shadow: none;
+        }
+        .btn-outline:hover {
+            background: var(--primary-light);
+            box-shadow: var(--shadow-sm);
+        }
+        .btn-outline::after {
+            display: none;
+        }
+        .btn-success {
+            background: var(--success);
+        }
+        .btn-success:hover {
+            background: #059669;
+        }
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+            box-shadow: none;
+            border: 1px solid transparent;
+        }
+        .btn-ghost:hover {
+            background: var(--surface);
+            border-color: var(--border);
+            box-shadow: var(--shadow-xs);
+            color: var(--text);
+        }
+        .btn-ghost::after {
+            display: none;
+        }
+        .btn-icon {
+            width: 38px;
+            height: 38px;
+            padding: 0;
+            border-radius: 50%;
+            justify-content: center;
+            font-size: 1.1rem;
+        }
+
+        /* ── File inputs (hidden) ── */
+        input[type="file"] {
+            display: none;
+        }
+
+        /* ── Progress ── */
+        .progress-wrapper {
+            margin: 0.3rem 0 0.8rem;
+        }
+        .progress {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 20px;
+            overflow: hidden;
+            display: none;
+        }
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #2563eb, #3b82f6, #60a5fa);
+            border-radius: 20px;
+            transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 10px rgba(37, 99, 235, 0.35);
+        }
+        .progress-label {
+            text-align: center;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            margin-top: 0.3rem;
+            display: none;
+            font-weight: 500;
+        }
+
+        /* ── Preview Container ── */
+        .preview-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.7rem;
+            justify-content: center;
+            margin: 0.75rem 0;
+            min-height: 60px;
+            background: var(--surface);
+            border-radius: var(--radius-lg);
+            padding: 1rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border);
+            transition: var(--transition);
+        }
+        .preview-container:empty::after {
+            content: '📷 هنوز تصویری انتخاب نشده است';
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            align-self: center;
+            padding: 0.5rem;
+        }
+        .preview-item {
+            width: 78px;
+            height: 78px;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            position: relative;
+            border: 2px solid var(--border);
+            transition: var(--transition);
+            cursor: default;
+            box-shadow: var(--shadow-xs);
+            flex-shrink: 0;
+        }
+        .preview-item:hover {
+            border-color: var(--primary);
+            transform: scale(1.04);
+            box-shadow: var(--shadow-md);
+        }
+        .preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .remove-preview {
+            position: absolute;
+            top: 3px;
+            right: 3px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            font-size: 11px;
+            line-height: 20px;
+            text-align: center;
+            padding: 0;
+            transition: var(--transition);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .preview-item:hover .remove-preview {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .remove-preview:hover {
+            background: var(--danger);
+            transform: scale(1.1);
+        }
+
+        /* ── Gallery ── */
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.9rem;
+        }
+        @media (min-width: 600px) {
+            .gallery {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        @media (min-width: 900px) {
+            .gallery {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+        .gallery-item {
+            background: var(--surface);
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+            transition: var(--transition-slow);
+            cursor: pointer;
+            aspect-ratio: 1 / 1;
+            position: relative;
+            border: 1px solid var(--border-light);
+        }
+        .gallery-item:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-xl);
+            border-color: var(--primary);
+        }
+        .gallery-item:active {
+            transform: scale(0.97);
+        }
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: var(--transition-slow);
+        }
+        .gallery-item:hover img {
+            transform: scale(1.04);
+        }
+        .gallery-item .item-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.55));
+            color: #fff;
+            padding: 0.5rem 0.6rem;
+            font-size: 0.7rem;
+            font-weight: 500;
+            opacity: 0;
+            transition: var(--transition);
+            pointer-events: none;
+            text-align: center;
+        }
+        .gallery-item:hover .item-overlay {
+            opacity: 1;
+        }
+
+        /* ── Pagination ── */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 0.4rem;
+            margin: 1.5rem 0;
+            flex-wrap: wrap;
+        }
+        .page-btn {
+            background: var(--surface);
+            border: 2px solid var(--border);
+            padding: 0.45rem 0.8rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.82rem;
+            transition: var(--transition);
+            color: var(--text-secondary);
+            min-width: 38px;
+            text-align: center;
+            font-family: inherit;
+        }
+        .page-btn:hover {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        .page-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* ── Modal ── */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.92);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            flex-direction: column;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            animation: fadeIn 0.2s ease;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        .modal img {
+            max-width: 92vw;
+            max-height: 82vh;
+            object-fit: contain;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-xl);
+            animation: zoomIn 0.25s ease;
+        }
+        @keyframes zoomIn {
+            from {
+                transform: scale(0.92);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        .modal .close {
+            color: white;
+            font-size: 2.2rem;
+            position: absolute;
+            top: 18px;
+            right: 28px;
+            cursor: pointer;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            transition: var(--transition);
+            line-height: 1;
+            z-index: 10;
+            font-weight: 300;
+        }
+        .modal .close:hover {
+            background: rgba(255, 255, 255, 0.22);
+            transform: scale(1.08);
+        }
+        .modal .nav-hint {
+            position: absolute;
+            bottom: 24px;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.8rem;
+            pointer-events: none;
+            text-align: center;
+            letter-spacing: 0.02em;
+        }
+
+        /* ── دانلود در مودال (طراحی جدید) ── */
+        .modal .download-btn {
+            position: absolute;
+            top: 18px;
+            right: 84px;
+            color: white;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border: none;
+            border-radius: 25px;
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            z-index: 10;
+            transition: var(--transition);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .modal .download-btn:hover {
+            background: rgba(255, 255, 255, 0.35);
+            transform: scale(1.05);
+        }
+        .modal .download-btn svg {
+            width: 1.2em;
+            height: 1.2em;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* ── Stats bar ── */
+        .stats-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            justify-content: center;
+            align-items: center;
+            margin: 0.5rem 0 0.75rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        .stats-bar .stat-pill {
+            background: var(--surface);
+            padding: 0.35rem 0.75rem;
+            border-radius: 20px;
+            box-shadow: var(--shadow-xs);
+            border: 1px solid var(--border-light);
+            white-space: nowrap;
+        }
+        .stats-bar .stat-pill strong {
+            color: var(--primary);
+        }
+
+        /* ── Toast / notification ── */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #1e293b;
+            color: #fff;
+            padding: 0.7rem 1.4rem;
+            border-radius: 25px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            box-shadow: var(--shadow-xl);
+            z-index: 2000;
+            transition: var(--transition-slow);
+            pointer-events: none;
+            opacity: 0;
+            white-space: nowrap;
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        .toast.success {
+            background: #065f46;
+        }
+        .toast.error {
+            background: #991b1b;
+        }
+
+        /* ── Empty state ── */
+        .empty-state {
+            text-align: center;
+            padding: 2.5rem 1rem;
+            color: var(--text-muted);
+        }
+        .empty-state .empty-icon {
+            font-size: 3.5rem;
+            display: block;
+            margin-bottom: 0.5rem;
+            opacity: 0.6;
+        }
+        .empty-state p {
+            font-size: 0.9rem;
+            margin: 0;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 480px) {
+            .app-header h1 {
+                font-size: 1.4rem;
+            }
+            .toolbar {
+                gap: 0.35rem;
+            }
+            .btn {
+                padding: 0.5rem 0.8rem;
+                font-size: 0.78rem;
+            }
+            .settings-panel {
+                gap: 0.5rem;
+                padding: 0.75rem 1rem;
+            }
+            .settings-panel input[type="range"] {
+                width: 70px;
+            }
+            .settings-panel input[type="number"] {
+                width: 55px;
+            }
+            .gallery {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.55rem;
+            }
+            .preview-item {
+                width: 60px;
+                height: 60px;
+            }
+            .modal .download-btn {
+                top: 12px;
+                right: 72px;
+                padding: 0.4rem 0.8rem;
+                font-size: 0.8rem;
+            }
+            .modal .close {
+                top: 12px;
+                right: 20px;
+                width: 38px;
+                height: 38px;
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js">
+    </script>
+</head>
+<body>
+
+    <!-- ═══════════ Global Loader ═══════════ -->
+    <div class="global-loader" id="globalLoader" style="display:none;">
+        <div class="spinner"></div>
+        <div class="loader-text" id="loaderText">لطفاً منتظر بمانید...</div>
+    </div>
+
+    <!-- ═══════════ Header ═══════════ -->
+    <div class="app-header">
+        <span class="logo-icon">🧠</span>
+        <h1>فشرده‌سازی هوشمند تصویر</h1>
+        <p class="subtitle">کاهش حجم تصاویر — بازسازی هوشمند</p>
+    </div>
+
+    <!-- ═══════════ Settings Panel ═══════════ -->
+    <div class="settings-panel" id="settingsPanel">
+        <span class="settings-badge">⚙️ تنظیمات فشرده‌سازی</span>
+        <div class="setting-group">
+            <label for="targetKB">حداکثر حجم (KB):</label>
+            <input type="range" id="targetKBRange" min="80" max="800" value="380" step="10">
+            <input type="number" id="targetKBNumber" min="80" max="800" value="380" step="10">
+            <span class="kb-display" id="kbDisplay">۳۸۰ KB</span>
+        </div>
+        <span class="setting-hint">💡 مقدار کمتر = حجم کمتر / مقدار بیشتر = کیفیت بالاتر</span>
+    </div>
+
+    <!-- ═══════════ Toolbar ═══════════ -->
+    <div class="toolbar">
+        <button class="btn" id="addImagesBtn">📁 افزودن تصاویر</button>
+        <input type="file" id="fileInput" accept="image/*" multiple>
+        <button class="btn btn-outline" id="convertBtn" disabled>🔄 کاهش حجم و ذخیره</button>
+        <button class="btn btn-success" id="downloadBtn" disabled>⬇️ دانلود فایل CSV</button>
+        <button class="btn" id="downloadAllBtn" disabled>📦 دانلود همه عکس‌ها (ZIP)</button>
+        <button class="btn btn-outline" id="exportGalleryBtn" disabled>📄 خروجی گالری HTML</button>
+        <button class="btn btn-outline" id="loadBtn">📥 بارگذاری فایل CSV</button>
+        <input type="file" id="csvInput" accept=".csv,text/csv,application/csv,text/plain">
+        <button class="btn btn-danger" id="clearAllBtn">🗑️ حذف همه</button>
+    </div>
+
+    <!-- ═══════════ Preview ═══════════ -->
+    <div class="preview-container" id="previewContainer"></div>
+
+    <!-- ═══════════ Progress ═══════════ -->
+    <div class="progress-wrapper">
+        <div class="progress" id="progress"><div class="progress-bar" id="progressBar"></div></div>
+        <div class="progress-label" id="progressLabel"></div>
+    </div>
+
+    <!-- ═══════════ Stats ═══════════ -->
+    <div class="stats-bar" id="statsBar">
+        <span class="stat-pill">📸 تصاویر ذخیره‌شده: <strong id="statCount">۰</strong></span>
+    </div>
+
+    <!-- ═══════════ Gallery ═══════════ -->
+    <div class="gallery" id="gallery"></div>
+    <div class="empty-state" id="emptyState">
+        <span class="empty-icon">🖼️</span>
+        <p>هنوز هیچ تصویری پردازش نشده است.<br>تصاویر خود را انتخاب کنید و روی «کاهش حجم و ذخیره» کلیک کنید.</p>
+    </div>
+
+    <!-- ═══════════ Pagination ═══════════ -->
+    <div class="pagination" id="pagination"></div>
+
+    <!-- ═══════════ Modal ═══════════ -->
+    <div class="modal" id="modal">
+        <span class="close" id="modalClose">&times;</span>
+        <button class="download-btn" id="modalDownloadBtn" title="دانلود تصویر">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>دانلود</span>
+        </button>
+        <img id="modalImg" src="" alt="تصویر فشرده">
+        <div class="nav-hint">← اسکرول کنید و جابجا شوید →</div>
+    </div>
+
+    <!-- ═══════════ Toast ═══════════ -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        (function() {
+            // ═══════════════════════════════════════════
+            // ذخیره‌سازی در حافظه (بدون IndexedDB)
+            // ═══════════════════════════════════════════
+            let storedImages = [];
+
+            // ═══════════════════════════════════════════
+            // تنظیمات فشرده‌سازی (پیش‌فرض: ۳۸۰ کیلوبایت)
+            // ═══════════════════════════════════════════
+            let targetMaxKB = 380;
+
+            // ═══════════════════════════════════════════
+            // ابزارهای لودینگ
+            // ═══════════════════════════════════════════
+            const globalLoader = document.getElementById('globalLoader');
+            const loaderText = document.getElementById('loaderText');
+
+            function showLoader(text = 'لطفاً منتظر بمانید...') {
+                loaderText.textContent = text;
+                globalLoader.style.display = 'flex';
+            }
+
+            function hideLoader() {
+                globalLoader.style.display = 'none';
+            }
+
+            // ═══════════════════════════════════════════
+            // ابزارهای Toast
+            // ═══════════════════════════════════════════
+            let toastTimer = null;
+
+            function showToast(message, type = '') {
+                const toast = document.getElementById('toast');
+                if (toastTimer) clearTimeout(toastTimer);
+                toast.textContent = message;
+                toast.className = 'toast ' + type + ' show';
+                toastTimer = setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 2200);
+            }
+
+            // ═══════════════════════════════════════════
+            // ابزارهای کمکی تصویر
+            // ═══════════════════════════════════════════
+            function loadImageFromFile(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const img = new Image();
+                        img.onload = () => resolve(img);
+                        img.onerror = reject;
+                        img.src = reader.result;
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            function canvasToBlob(canvas, type, quality) {
+                return new Promise(resolve => canvas.toBlob(resolve, type, quality));
+            }
+
+            function blobToBase64(blob) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+            }
+
+            function loadImageFromBase64(base64) {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.onload = () => resolve(img);
+                    img.onerror = reject;
+                    img.src = base64;
+                });
+            }
+
+            // ═══════════════════════════════════════════
+            // تولید thumbnail (عرض ۲۰۰px)
+            // ═══════════════════════════════════════════
+            async function generateThumbnail(img) {
+                const thumbWidth = 200;
+                const scale = thumbWidth / img.naturalWidth;
+                const thumbHeight = Math.round(img.naturalHeight * scale);
+                const canvas = document.createElement('canvas');
+                canvas.width = thumbWidth;
+                canvas.height = thumbHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, thumbWidth, thumbHeight);
+                const blob = await canvasToBlob(canvas, 'image/jpeg', 0.6);
+                return await blobToBase64(blob);
+            }
+
+            // ═══════════════════════════════════════════
+            // فشرده‌سازی پایه
+            // ═══════════════════════════════════════════
+            async function compressBaseImage(img, maxKB) {
+                const origW = img.naturalWidth;
+                const origH = img.naturalHeight;
+                const maxBytes = maxKB * 1024;
+                const MIN_DIM = 1200;
+                const MAX_DIM = 1600;
+
+                let w = origW;
+                let h = origH;
+
+                if (Math.max(origW, origH) > MAX_DIM) {
+                    const scale = MAX_DIM / Math.max(origW, origH);
+                    w = Math.round(origW * scale);
+                    h = Math.round(origH * scale);
+                }
+
+                let canvas = document.createElement('canvas');
+                let ctx = canvas.getContext('2d');
+                canvas.width = w;
+                canvas.height = h;
+                ctx.drawImage(img, 0, 0, w, h);
+
+                let quality = 0.65;
+                let blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+
+                while (blob.size > maxBytes && quality > 0.3) {
+                    quality -= 0.02;
+                    blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+                }
+
+                let resizeAttempts = 0;
+                while (blob.size > maxBytes && (w > MIN_DIM || h > MIN_DIM) && resizeAttempts < 6) {
+                    const newW = Math.max(MIN_DIM, Math.round(w * 0.9));
+                    const newH = Math.round(h * (newW / w));
+                    w = newW;
+                    h = newH;
+                    canvas = document.createElement('canvas');
+                    ctx = canvas.getContext('2d');
+                    canvas.width = w;
+                    canvas.height = h;
+                    ctx.drawImage(img, 0, 0, w, h);
+                    blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+                    resizeAttempts++;
+                }
+
+                if (blob.size > maxBytes && quality > 0.25) {
+                    quality = 0.25;
+                    blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+                }
+
+                if (blob.size > maxBytes) {
+                    quality = 0.2;
+                    blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+                }
+
+                const base64 = await blobToBase64(blob);
+                return { base64, width: w, height: h, origW, origH };
+            }
+
+            async function compressCanvasToTarget(canvas, maxKB) {
+                const maxBytes = maxKB * 1024;
+                let quality = 0.8;
+                let blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+
+                while (blob.size > maxBytes && quality > 0.2) {
+                    quality -= 0.05;
+                    blob = await canvasToBlob(canvas, 'image/jpeg', Math.max(0.1, quality));
+                }
+
+                let w = canvas.width;
+                let h = canvas.height;
+                let tempCanvas = canvas;
+                while (blob.size > maxBytes && (w > 400 || h > 400)) {
+                    const newW = Math.max(400, Math.round(w * 0.9));
+                    const newH = Math.round(h * (newW / w));
+                    const resizedCanvas = document.createElement('canvas');
+                    resizedCanvas.width = newW;
+                    resizedCanvas.height = newH;
+                    const rctx = resizedCanvas.getContext('2d');
+                    rctx.drawImage(tempCanvas, 0, 0, newW, newH);
+                    tempCanvas = resizedCanvas;
+                    w = newW;
+                    h = newH;
+                    blob = await canvasToBlob(tempCanvas, 'image/jpeg', quality);
+                }
+
+                return await blobToBase64(blob);
+            }
+
+            async function extractEdgeMap(img, origW, origH) {
+                const MAX_EDGE_DIM = 600;
+                const scale = Math.min(1, MAX_EDGE_DIM / Math.max(origW, origH));
+                const w = Math.round(origW * scale);
+                const h = Math.round(origH * scale);
+
+                const smallCanvas = document.createElement('canvas');
+                smallCanvas.width = w;
+                smallCanvas.height = h;
+                const sctx = smallCanvas.getContext('2d');
+                sctx.drawImage(img, 0, 0, w, h);
+                const imageData = sctx.getImageData(0, 0, w, h);
+
+                const gray = new Uint8Array(w * h);
+                for (let i = 0; i < imageData.data.length; i += 4) {
+                    gray[i >> 2] = imageData.data[i] * 0.299 + imageData.data[i + 1] * 0.587 + imageData.data[i + 2] *
+                        0.114;
+                }
+
+                const edge = new Uint8Array(w * h);
+                const sobelX = [
+                    [-1, 0, 1],
+                    [-2, 0, 2],
+                    [-1, 0, 1]
+                ];
+                const sobelY = [
+                    [-1, -2, -1],
+                    [0, 0, 0],
+                    [1, 2, 1]
+                ];
+                const threshold = 60;
+
+                for (let y = 1; y < h - 1; y++) {
+                    for (let x = 1; x < w - 1; x++) {
+                        let gx = 0,
+                            gy = 0;
+                        for (let ky = -1; ky <= 1; ky++) {
+                            for (let kx = -1; kx <= 1; kx++) {
+                                const idx = (y + ky) * w + (x + kx);
+                                const val = gray[idx];
+                                gx += val * sobelX[ky + 1][kx + 1];
+                                gy += val * sobelY[ky + 1][kx + 1];
+                            }
+                        }
+                        const mag = Math.sqrt(gx * gx + gy * gy);
+                        edge[y * w + x] = mag > threshold ? 255 : 0;
+                    }
+                }
+
+                const edgeCanvas = document.createElement('canvas');
+                edgeCanvas.width = w;
+                edgeCanvas.height = h;
+                const ectx = edgeCanvas.getContext('2d');
+                const edgeImgData = ectx.createImageData(w, h);
+                for (let i = 0; i < edge.length; i++) {
+                    const val = edge[i];
+                    const idx = i * 4;
+                    edgeImgData.data[idx] = val;
+                    edgeImgData.data[idx + 1] = val;
+                    edgeImgData.data[idx + 2] = val;
+                    edgeImgData.data[idx + 3] = 255;
+                }
+                ectx.putImageData(edgeImgData, 0, 0);
+
+                const blob = await canvasToBlob(edgeCanvas, 'image/png');
+                const edgeBase64 = await blobToBase64(blob);
+                return { edgeBase64, edgeW: w, edgeH: h, scale };
+            }
+
+            function extractColorGrid(img, origW, origH) {
+                const gridW = 80,
+                    gridH = 60;
+                const canvas = document.createElement('canvas');
+                canvas.width = gridW;
+                canvas.height = gridH;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, gridW, gridH);
+                const imgData = ctx.getImageData(0, 0, gridW, gridH);
+                const colors = [];
+                for (let i = 0; i < imgData.data.length; i += 4) {
+                    colors.push([imgData.data[i], imgData.data[i + 1], imgData.data[i + 2]]);
+                }
+                return JSON.stringify(colors);
+            }
+
+            async function processImageFile(file, maxKB) {
+                const img = await loadImageFromFile(file);
+                const origW = img.naturalWidth,
+                    origH = img.naturalHeight;
+
+                const thumb = await generateThumbnail(img);
+                const baseData = await compressBaseImage(img, maxKB);
+                const base = baseData.base64;
+                const width = baseData.width;
+                const height = baseData.height;
+
+                const edgeData = await extractEdgeMap(img, origW, origH);
+                const edge = edgeData.edgeBase64;
+                const colorGrid = extractColorGrid(img, origW, origH);
+
+                const MAX_TOTAL_CHARS = Math.max(maxKB * 1024, 250 * 1024);
+                let totalChars = base.length + edge.length + colorGrid.length;
+                if (totalChars > MAX_TOTAL_CHARS) {
+                    if (colorGrid) {
+                        totalChars -= colorGrid.length;
+                        if (totalChars > MAX_TOTAL_CHARS) {
+                            totalChars -= edge.length;
+                            return {
+                                thumb,
+                                base,
+                                edge: '',
+                                colorGrid: '',
+                                width,
+                                height,
+                                origW,
+                                origH,
+                                edgeScale: 0,
+                                originalName: file.name
+                            };
+                        }
+                        return {
+                            thumb,
+                            base,
+                            edge,
+                            colorGrid: '',
+                            width,
+                            height,
+                            origW,
+                            origH,
+                            edgeScale: edgeData.scale,
+                            originalName: file.name
+                        };
+                    }
+                    if (edge) {
+                        return {
+                            thumb,
+                            base,
+                            edge: '',
+                            colorGrid: '',
+                            width,
+                            height,
+                            origW,
+                            origH,
+                            edgeScale: 0,
+                            originalName: file.name
+                        };
+                    }
+                }
+
+                return {
+                    thumb,
+                    base,
+                    edge,
+                    colorGrid,
+                    width,
+                    height,
+                    origW,
+                    origH,
+                    edgeScale: edge ? edgeData.scale : 0,
+                    originalName: file.name
+                };
+            }
+
+            async function reconstructImage(record, maxKB = null) {
+                const { base, edge, colorGrid, width, height, origW, origH, edgeScale } = record;
+                const outWidth = origW || width;
+                const outHeight = origH || height;
+
+                const canvas = document.createElement('canvas');
+                canvas.width = outWidth;
+                canvas.height = outHeight;
+                const ctx = canvas.getContext('2d');
+
+                const baseImg = await loadImageFromBase64(base);
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(baseImg, 0, 0, outWidth, outHeight);
+
+                if (edge && edgeScale) {
+                    try {
+                        const edgeImg = await loadImageFromBase64(edge);
+                        const eCanvas = document.createElement('canvas');
+                        eCanvas.width = outWidth;
+                        eCanvas.height = outHeight;
+                        const ectx = eCanvas.getContext('2d');
+                        ectx.drawImage(edgeImg, 0, 0, outWidth, outHeight);
+                        const edgeData = ectx.getImageData(0, 0, outWidth, outHeight);
+
+                        const imgData = ctx.getImageData(0, 0, outWidth, outHeight);
+                        const outData = ctx.createImageData(outWidth, outHeight);
+
+                        for (let y = 1; y < outHeight - 1; y++) {
+                            for (let x = 1; x < outWidth - 1; x++) {
+                                const idx = (y * outWidth + x) * 4;
+                                const isEdge = edgeData.data[idx] > 128;
+                                if (!isEdge) {
+                                    outData.data[idx] = imgData.data[idx];
+                                    outData.data[idx + 1] = imgData.data[idx + 1];
+                                    outData.data[idx + 2] = imgData.data[idx + 2];
+                                } else {
+                                    const get = (dx, dy, ch) => imgData.data[((y + dy) * outWidth + (x + dx)) * 4 + ch];
+                                    const r = imgData.data[idx];
+                                    const g = imgData.data[idx + 1];
+                                    const b = imgData.data[idx + 2];
+                                    const lapR = 4 * r - get(0, -1, 0) - get(0, 1, 0) - get(-1, 0, 0) - get(1, 0, 0);
+                                    const lapG = 4 * g - get(0, -1, 1) - get(0, 1, 1) - get(-1, 0, 1) - get(1, 0, 1);
+                                    const lapB = 4 * b - get(0, -1, 2) - get(0, 1, 2) - get(-1, 0, 2) - get(1, 0, 2);
+                                    const amt = 0.1;
+                                    outData.data[idx] = Math.min(255, Math.max(0, r + lapR * amt));
+                                    outData.data[idx + 1] = Math.min(255, Math.max(0, g + lapG * amt));
+                                    outData.data[idx + 2] = Math.min(255, Math.max(0, b + lapB * amt));
+                                }
+                                outData.data[idx + 3] = 255;
+                            }
+                        }
+                        ctx.putImageData(outData, 0, 0);
+                    } catch (e) {}
+                }
+
+                if (maxKB !== null) {
+                    return await compressCanvasToTarget(canvas, maxKB);
+                } else {
+                    return canvas.toDataURL('image/jpeg', 0.92);
+                }
+            }
+
+            function escapeCSV(field) {
+                if (typeof field === 'string') {
+                    if (field.includes(',') || field.includes('"') || field.includes('\n')) {
+                        return '"' + field.replace(/"/g, '""') + '"';
+                    }
+                }
+                return String(field);
+            }
+
+            // ═══════════════════════════════════════════
+            // ابزار یکتا‌سازی نام فایل
+            // ═══════════════════════════════════════════
+            function getUniqueFilename(originalName) {
+                const now = Date.now();
+                const lastDot = originalName.lastIndexOf('.');
+                if (lastDot === -1) {
+                    return originalName + '_' + now;
+                }
+                const namePart = originalName.substring(0, lastDot);
+                const extPart = originalName.substring(lastDot);
+                return namePart + '_' + now + extPart;
+            }
+
+            // ═══════════════════════════════════════════
+            // توابع ذخیره‌سازی (پل ارتباطی با اندروید)
+            // ═══════════════════════════════════════════
+            function isAndroid() {
+                return typeof Android !== 'undefined' && Android.requestSaveFile;
+            }
+
+            // تبدیل رشته به Base64 با استفاده از Blob (روش پایدار برای رشته‌های بلند)
+            function stringToBase64(str) {
+                return new Promise((resolve, reject) => {
+                    try {
+                        const blob = new Blob([str], { type: 'text/plain;charset=UTF-8' });
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                            const base64 = reader.result.split(',')[1];
+                            resolve(base64);
+                        };
+                        reader.onerror = reject;
+                        reader.readAsDataURL(blob);
+                    } catch (e) {
+                        reject(e);
+                    }
+                });
+            }
+
+            // ذخیره مستقیم یک رشته (مثلاً CSV)
+            async function saveFileToDevice(content, fileName, mimeType = 'text/plain') {
+                const uniqueName = getUniqueFilename(fileName);
+                if (isAndroid()) {
+                    try {
+                        const base64 = await stringToBase64(content);
+                        Android.requestSaveFile(base64, uniqueName);
+                        showToast('📁 در حال ذخیره... پوشه مقصد را انتخاب کنید.', 'success');
+                    } catch (e) {
+                        showToast('❌ خطا در آماده‌سازی فایل.', 'error');
+                    }
+                } else {
+                    const blob = new Blob([content], { type: mimeType });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = uniqueName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }
+            }
+
+            // ذخیره Data URL (برای عکس‌ها و فایل‌های باینری)
+            function saveDataUrl(dataUrl, fileName) {
+                const uniqueName = getUniqueFilename(fileName);
+                if (isAndroid()) {
+                    const base64 = dataUrl.split(',')[1];
+                    Android.requestSaveFile(base64, uniqueName);
+                    showToast('📁 در حال ذخیره... پوشه مقصد را انتخاب کنید.', 'success');
+                } else {
+                    const link = document.createElement('a');
+                    link.href = dataUrl;
+                    link.download = uniqueName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            }
+
+            async function downloadCSV() {
+                if (storedImages.length === 0) {
+                    showToast('هیچ تصویری ذخیره نشده است.', 'error');
+                    return;
+                }
+
+                let filename = prompt('نام فایل CSV را وارد کنید (پسوند csv اضافه می‌شود):', 'compressed_images');
+                if (!filename) return;
+                if (!filename.toLowerCase().endsWith('.csv')) {
+                    filename += '.csv';
+                }
+
+                showLoader('در حال آماده‌سازی فایل CSV...');
+                try {
+                    const headers = ['BaseImage', 'EdgeMap', 'ColorGrid', 'Width', 'Height', 'Thumbnail'];
+                    let csvContent = '\uFEFF' + headers.map(escapeCSV).join(',') + '\n';
+
+                    storedImages.forEach(item => {
+                        const row = [
+                            item.base || '',
+                            item.edge || '',
+                            item.colorGrid || '',
+                            item.width,
+                            item.height,
+                            item.thumb || item.base || ''
+                        ];
+                        csvContent += row.map(escapeCSV).join(',') + '\n';
+                    });
+
+                    await saveFileToDevice(csvContent, filename, 'text/csv;charset=utf-8;');
+                    showToast('✅ فایل CSV با موفقیت ذخیره شد.', 'success');
+                } catch (err) {
+                    showToast('خطا در ساخت CSV: ' + err.message, 'error');
+                } finally {
+                    hideLoader();
+                }
+            }
+
+            function parseCSVLine(line) {
+                const result = [];
+                let current = '';
+                let inQuotes = false;
+                for (let i = 0; i < line.length; i++) {
+                    const ch = line[i];
+                    if (inQuotes) {
+                        if (ch === '"') {
+                            if (i + 1 < line.length && line[i + 1] === '"') {
+                                current += '"';
+                                i++;
+                            } else {
+                                inQuotes = false;
+                            }
+                        } else {
+                            current += ch;
+                        }
+                    } else {
+                        if (ch === '"') {
+                            inQuotes = true;
+                        } else if (ch === ',') {
+                            result.push(current);
+                            current = '';
+                        } else {
+                            current += ch;
+                        }
+                    }
+                }
+                result.push(current);
+                return result;
+            }
+
+            async function importCSV(file) {
+                if (!file.name.toLowerCase().endsWith('.csv')) {
+                    showToast('لطفاً فقط فایل با پسوند csv انتخاب کنید.', 'error');
+                    return;
+                }
+
+                showLoader('در حال بارگذاری فایل CSV...');
+                try {
+                    const text = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = reject;
+                        reader.readAsText(file, 'UTF-8');
+                    });
+
+                    const content = text.replace(/^\uFEFF/, '');
+                    const lines = content.split(/\r?\n/).filter(line => line.trim() !== '');
+                    if (lines.length < 2) {
+                        showToast('فایل معتبر نیست. حداقل یک ردیف داده نیاز است.', 'error');
+                        hideLoader();
+                        return;
+                    }
+
+                    const header = parseCSVLine(lines[0]);
+                    if (header.length !== 6) {
+                        showToast('ساختار فایل باید ۶ ستون داشته باشد.', 'error');
+                        hideLoader();
+                        return;
+                    }
+
+                    let successCount = 0;
+                    for (let i = 1; i < lines.length; i++) {
+                        try {
+                            const row = parseCSVLine(lines[i]);
+                            if (row.length !== 6) continue;
+                            const [base, edge, colorGrid, widthStr, heightStr, thumb] = row;
+                            if (!base) continue;
+
+                            const width = parseInt(widthStr) || 800;
+                            const height = parseInt(heightStr) || 600;
+                            const thumbData = thumb && thumb.length > 100 ? thumb : base;
+
+                            storedImages.push({
+                                base,
+                                edge: edge || '',
+                                colorGrid: colorGrid || '',
+                                width,
+                                height,
+                                thumb: thumbData,
+                                origW: width,
+                                origH: height,
+                                edgeScale: edge ? 0.5 : 0,
+                                originalName: 'imported_' + (storedImages.length + 1) + '.jpg'
+                            });
+                            successCount++;
+                        } catch (rowErr) {}
+                    }
+
+                    if (successCount === 0) {
+                        showToast('هیچ تصویری از فایل بارگذاری نشد. لطفاً ساختار فایل را بررسی کنید.', 'error');
+                    } else {
+                        showToast(`✅ ${successCount} تصویر با موفقیت بارگذاری شد.`, 'success');
+                    }
+                } catch (err) {
+                    showToast('خطا در خواندن فایل CSV: ' + err.message, 'error');
+                } finally {
+                    hideLoader();
+                    await refreshGallery();
+                }
+            }
+
+            let pendingFiles = [];
+            let currentPage = 1;
+            let currentModalIndex = -1;
+            const ITEMS_PER_PAGE = 20;
+
+            function updateStats() {
+                document.getElementById('statCount').textContent = storedImages.length;
+            }
+
+            function updateEmptyState() {
+                const emptyState = document.getElementById('emptyState');
+                const gallery = document.getElementById('gallery');
+                const pagination = document.getElementById('pagination');
+                if (storedImages.length === 0) {
+                    emptyState.style.display = 'block';
+                    gallery.style.display = 'none';
+                    pagination.style.display = 'none';
+                } else {
+                    emptyState.style.display = 'none';
+                    gallery.style.display = 'grid';
+                    pagination.style.display = 'flex';
+                }
+            }
+
+            function renderPreviews() {
+                const container = document.getElementById('previewContainer');
+                container.innerHTML = '';
+                if (pendingFiles.length === 0) {
+                    document.getElementById('convertBtn').disabled = true;
+                    return;
+                }
+                pendingFiles.forEach((file, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'preview-item';
+                    const img = document.createElement('img');
+                    img.src = URL.createObjectURL(file);
+                    const rmBtn = document.createElement('button');
+                    rmBtn.className = 'remove-preview';
+                    rmBtn.innerHTML = '&times;';
+                    rmBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        pendingFiles.splice(index, 1);
+                        renderPreviews();
+                    });
+                    div.appendChild(img);
+                    div.appendChild(rmBtn);
+                    container.appendChild(div);
+                });
+                document.getElementById('convertBtn').disabled = false;
+            }
+
+            async function refreshGallery() {
+                const displayOrder = [...storedImages].reverse();
+                document.getElementById('downloadBtn').disabled = (storedImages.length === 0);
+                document.getElementById('downloadAllBtn').disabled = (storedImages.length === 0);
+                document.getElementById('exportGalleryBtn').disabled = (storedImages.length === 0);
+                updateStats();
+                updateEmptyState();
+                if (currentPage > Math.ceil(displayOrder.length / ITEMS_PER_PAGE)) {
+                    currentPage = Math.max(1, Math.ceil(displayOrder.length / ITEMS_PER_PAGE));
+                }
+                renderGallery(displayOrder);
+            }
+
+            function renderGallery(displayOrder) {
+                const gallery = document.getElementById('gallery');
+                gallery.innerHTML = '';
+                if (!displayOrder) {
+                    displayOrder = [...storedImages].reverse();
+                }
+                const start = (currentPage - 1) * ITEMS_PER_PAGE;
+                const pageItems = displayOrder.slice(start, start + ITEMS_PER_PAGE);
+                pageItems.forEach((item, idxInPage) => {
+                    const originalIndex = storedImages.length - 1 - (start + idxInPage);
+                    const div = document.createElement('div');
+                    div.className = 'gallery-item';
+                    const imgEl = document.createElement('img');
+                    imgEl.src = item.thumb || item.base;
+                    imgEl.alt = 'تصویر';
+                    imgEl.loading = 'lazy';
+                    const overlay = document.createElement('div');
+                    overlay.className = 'item-overlay';
+                    overlay.textContent = '🔍 کلیک برای مشاهده';
+                    div.appendChild(imgEl);
+                    div.appendChild(overlay);
+                    div.addEventListener('click', () => {
+                        showReconstructedByIndex(originalIndex);
+                    });
+                    gallery.appendChild(div);
+                });
+                renderPagination(displayOrder);
+                updateEmptyState();
+            }
+
+            function renderPagination(displayOrder) {
+                const pag = document.getElementById('pagination');
+                pag.innerHTML = '';
+                if (!displayOrder) {
+                    displayOrder = [...storedImages].reverse();
+                }
+                const totalPages = Math.ceil(displayOrder.length / ITEMS_PER_PAGE) || 1;
+                for (let i = 1; i <= totalPages; i++) {
+                    const btn = document.createElement('button');
+                    btn.className = 'page-btn' + (i === currentPage ? ' active' : '');
+                    btn.textContent = i;
+                    btn.addEventListener('click', () => {
+                        currentPage = i;
+                        renderGallery(displayOrder);
+                        window.scrollTo({ top: document.getElementById('gallery').offsetTop - 80, behavior: 'smooth' });
+                    });
+                    pag.appendChild(btn);
+                }
+            }
+
+            async function showReconstructedByIndex(idx) {
+                currentModalIndex = idx;
+                const item = storedImages[idx];
+                // مستقیماً base را نمایش بده، بازسازی نکن (برای سرعت)
+                document.getElementById('modalImg').src = item.base;
+                document.getElementById('modal').style.display = 'flex';
+                const navHint = document.querySelector('#modal .nav-hint');
+                if (navHint) navHint.style.display = storedImages.length > 1 ? 'block' : 'none';
+            }
+
+            async function showReconstructed(item, idx = null) {
+                // این تابع دیگر برای نمایش استفاده نمی‌شود اما نگه داشته شده است
+                if (idx !== null && idx !== undefined) {
+                    currentModalIndex = idx;
+                }
+                const modal = document.getElementById('modal');
+                const modalImg = document.getElementById('modalImg');
+                modal.style.display = 'flex';
+                modalImg.src = item.base;  // مستقیماً base
+                const navHint = modal.querySelector('.nav-hint');
+                if (navHint) navHint.style.display = storedImages.length > 1 ? 'block' : 'none';
+            }
+
+            function downloadCurrentModalImage() {
+                if (currentModalIndex < 0 || currentModalIndex >= storedImages.length) {
+                    showToast('تصویری برای دانلود وجود ندارد.', 'error');
+                    return;
+                }
+                const item = storedImages[currentModalIndex];
+                const originalName = item.originalName || 'image.jpg';
+                const baseName = originalName.replace(/\.[^.]+$/, '');
+                const fileName = baseName + '_compressed.jpg';
+                saveDataUrl(item.base, fileName);
+            }
+
+            function generateGalleryHTML() {
+                const imageDataUrls = storedImages.map(item => item.base || item.thumb || '');
+                const validImages = imageDataUrls.filter(src => src && src.length > 100);
+                if (validImages.length === 0) {
+                    showToast('هیچ تصویری برای خروجی گالری وجود ندارد.', 'error');
+                    return '';
+                }
+                const imagesArrayJson = JSON.stringify(validImages);
+                return `<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>گالری تصاویر</title>
+    <style>
+        :root { --bg: #0f172a; --surface: #1e293b; --surface-hover: #334155; --text: #f1f5f9; --text-secondary: #94a3b8; --accent: #38bdf8; --accent-light: #7dd3fc; --danger: #f87171; --radius: 12px; --radius-lg: 20px; --shadow: 0 4px 15px rgba(0,0,0,0.3); --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', 'Inter', Tahoma, sans-serif; background: var(--bg); color: var(--text); padding: 2rem 1rem; min-height: 100vh; }
+        .gallery-header { text-align: center; margin-bottom: 2.5rem; }
+        .gallery-header h1 { font-size: 2.5rem; font-weight: 700; background: linear-gradient(135deg, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 0.5rem; }
+        .gallery-header p { color: var(--text-secondary); font-size: 1rem; }
+        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.2rem; max-width: 1200px; margin: 0 auto; padding: 0.5rem; }
+        .gallery-item { border-radius: var(--radius); overflow: hidden; cursor: pointer; position: relative; aspect-ratio: 3 / 4; background: var(--surface); box-shadow: var(--shadow); transition: transform var(--transition), box-shadow var(--transition); border: 1px solid rgba(255,255,255,0.05); }
+        .gallery-item:hover { transform: translateY(-6px) scale(1.02); box-shadow: 0 12px 30px rgba(56, 189, 248, 0.15); border-color: var(--accent); }
+        .gallery-item img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform var(--transition); }
+        .gallery-item:hover img { transform: scale(1.06); }
+        .gallery-item .overlay { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.7)); color: #fff; padding: 0.8rem; font-size: 0.8rem; opacity: 0; transition: opacity var(--transition); pointer-events: none; }
+        .gallery-item:hover .overlay { opacity: 1; }
+        .lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.96); z-index: 999; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(10px); }
+        .lightbox img { max-width: 90vw; max-height: 85vh; object-fit: contain; border-radius: var(--radius-lg); box-shadow: 0 0 40px rgba(0,0,0,0.5); transition: transform 0.3s ease; }
+        .lightbox .close { position: absolute; top: 20px; right: 30px; font-size: 2.5rem; color: #fff; cursor: pointer; z-index: 1000; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: rgba(255,255,255,0.1); transition: background var(--transition); }
+        .lightbox .close:hover { background: rgba(255,255,255,0.25); }
+        .lightbox .nav { position: absolute; top: 50%; transform: translateY(-50%); font-size: 3rem; color: rgba(255,255,255,0.8); cursor: pointer; user-select: none; padding: 0.5rem; transition: color var(--transition); }
+        .lightbox .nav:hover { color: #fff; }
+        .lightbox .prev { left: 20px; }
+        .lightbox .next { right: 20px; }
+        @media (max-width: 600px) { .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.8rem; } .gallery-header h1 { font-size: 1.8rem; } .lightbox .nav { font-size: 2rem; padding: 0.3rem; } }
+    </style>
+</head>
+<body>
+    <div class="gallery-header">
+        <h1>🖼️ گالری تصاویر</h1>
+        <p>${validImages.length} تصویر — برای بزرگنمایی کلیک کنید</p>
+    </div>
+    <div class="gallery-grid" id="galleryGrid"></div>
+    <div class="lightbox" id="lightbox">
+        <span class="close" id="lightboxClose">&times;</span>
+        <span class="nav prev" id="lightboxPrev">&#10094;</span>
+        <span class="nav next" id="lightboxNext">&#10095;</span>
+        <img id="lightboxImg" src="" alt="تصویر بزرگ">
+    </div>
+    <script>
+        (function() {
+            const images = ${imagesArrayJson};
+            if (!images.length) { document.getElementById('galleryGrid').innerHTML = '<p style="text-align:center;color:#94a3b8;padding:2rem;">تصویری برای نمایش وجود ندارد.</p>'; return; }
+            const grid = document.getElementById('galleryGrid');
+            images.forEach((src, index) => {
+                const item = document.createElement('div');
+                item.className = 'gallery-item';
+                const img = document.createElement('img');
+                img.src = src;
+                img.alt = 'تصویر ' + (index + 1);
+                img.loading = 'lazy';
+                const overlay = document.createElement('div');
+                overlay.className = 'overlay';
+                overlay.textContent = '🔍 کلیک برای بزرگنمایی';
+                item.appendChild(img);
+                item.appendChild(overlay);
+                item.addEventListener('click', () => openLightbox(index));
+                grid.appendChild(item);
+            });
+            let currentIndex = 0;
+            const lightbox = document.getElementById('lightbox');
+            const lightboxImg = document.getElementById('lightboxImg');
+            const closeBtn = document.getElementById('lightboxClose');
+            const prevBtn = document.getElementById('lightboxPrev');
+            const nextBtn = document.getElementById('lightboxNext');
+            function openLightbox(index) { currentIndex = index; lightboxImg.src = images[currentIndex]; lightbox.style.display = 'flex'; }
+            function closeLightbox() { lightbox.style.display = 'none'; }
+            function showPrev() { currentIndex = (currentIndex - 1 + images.length) % images.length; lightboxImg.src = images[currentIndex]; }
+            function showNext() { currentIndex = (currentIndex + 1) % images.length; lightboxImg.src = images[currentIndex]; }
+            closeBtn.addEventListener('click', closeLightbox);
+            prevBtn.addEventListener('click', (e) => { e.stopPropagation(); showPrev(); });
+            nextBtn.addEventListener('click', (e) => { e.stopPropagation(); showNext(); });
+            lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
+            document.addEventListener('keydown', (e) => { if (lightbox.style.display !== 'flex') return; if (e.key === 'ArrowLeft') { e.preventDefault(); showPrev(); } else if (e.key === 'ArrowRight') { e.preventDefault(); showNext(); } else if (e.key === 'Escape') closeLightbox(); });
+            lightbox.addEventListener('wheel', (e) => { if (lightbox.style.display !== 'flex') return; e.preventDefault(); if (e.deltaY > 0 || e.deltaX > 0) showNext(); else showPrev(); }, { passive: false });
+        })();
+    <` + `/script>
+</body>
+</html>`;
+            }
+
+            async function downloadGalleryHTML() {
+                if (storedImages.length === 0) {
+                    showToast('هیچ تصویری ذخیره نشده است.', 'error');
+                    return;
+                }
+                showLoader('در حال ساخت فایل گالری...');
+                try {
+                    const htmlContent = generateGalleryHTML();
+                    if (!htmlContent) { hideLoader(); return; }
+                    await saveFileToDevice(htmlContent, 'gallery.html', 'text/html;charset=utf-8;');
+                    showToast('📄 فایل گالری HTML ذخیره شد.', 'success');
+                } catch (err) {
+                    showToast('خطا در ساخت گالری: ' + err.message, 'error');
+                } finally { hideLoader(); }
+            }
+
+            // ════════════════════════
+            // کلیدهای تنظیمات
+            const targetKBRange = document.getElementById('targetKBRange');
+            const targetKBNumber = document.getElementById('targetKBNumber');
+            const kbDisplay = document.getElementById('kbDisplay');
+
+            function updateKBSettings(value) {
+                const numValue = parseInt(value);
+                if (isNaN(numValue)) return;
+                targetKBRange.value = numValue;
+                targetMaxKB = numValue;
+                kbDisplay.textContent = numValue.toLocaleString('fa-IR') + ' KB';
+                if (document.activeElement !== targetKBNumber) {
+                    targetKBNumber.value = numValue;
+                }
+            }
+            targetKBRange.addEventListener('input', () => updateKBSettings(targetKBRange.value));
+            targetKBNumber.addEventListener('focus', function() { this.select(); });
+            targetKBNumber.addEventListener('input', function() {
+                let val = parseInt(this.value);
+                if (isNaN(val)) return;
+                if (val < 80) val = 80;
+                if (val > 800) val = 800;
+                updateKBSettings(val);
+            });
+            targetKBNumber.addEventListener('change', function() {
+                let val = parseInt(this.value);
+                if (isNaN(val)) { this.value = targetMaxKB; return; }
+                if (val < 80) val = 80;
+                if (val > 800) val = 800;
+                updateKBSettings(val);
+                this.value = val;
+            });
+
+            // مودال
+            document.getElementById('modalClose').addEventListener('click', () => {
+                document.getElementById('modal').style.display = 'none';
+                currentModalIndex = -1;
+            });
+            document.getElementById('modal').addEventListener('click', (e) => {
+                if (e.target === document.getElementById('modal')) {
+                    document.getElementById('modal').style.display = 'none';
+                    currentModalIndex = -1;
+                }
+            });
+            document.getElementById('modal').addEventListener('wheel', (e) => {
+                if (document.getElementById('modal').style.display !== 'flex') return;
+                e.preventDefault();
+                if (storedImages.length === 0) return;
+                if (e.deltaY > 0 || e.deltaX > 0) currentModalIndex = (currentModalIndex + 1) % storedImages.length;
+                else currentModalIndex = (currentModalIndex - 1 + storedImages.length) % storedImages.length;
+                showReconstructedByIndex(currentModalIndex);
+            });
+
+            let touchStartX = 0, touchStartY = 0, touchEndX = 0, touchEndY = 0;
+            document.getElementById('modal').addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+                touchStartY = e.changedTouches[0].screenY;
+            }, { passive: true });
+            document.getElementById('modal').addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                touchEndY = e.changedTouches[0].screenY;
+                handleSwipe();
+            }, { passive: true });
+            function handleSwipe() {
+                if (document.getElementById('modal').style.display !== 'flex') return;
+                if (storedImages.length < 2) return;
+                const diffX = touchEndX - touchStartX;
+                const diffY = touchEndY - touchStartY;
+                if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+                    if (diffX < 0) currentModalIndex = (currentModalIndex + 1) % storedImages.length;
+                    else currentModalIndex = (currentModalIndex - 1 + storedImages.length) % storedImages.length;
+                    showReconstructedByIndex(currentModalIndex);
+                }
+            }
+            document.addEventListener('keydown', (e) => {
+                if (document.getElementById('modal').style.display !== 'flex') return;
+                if (e.key === 'ArrowRight') { e.preventDefault(); currentModalIndex = (currentModalIndex + 1) % storedImages.length; showReconstructedByIndex(currentModalIndex); }
+                else if (e.key === 'ArrowLeft') { e.preventDefault(); currentModalIndex = (currentModalIndex - 1 + storedImages.length) % storedImages.length; showReconstructedByIndex(currentModalIndex); }
+                else if (e.key === 'Escape') { document.getElementById('modal').style.display = 'none'; currentModalIndex = -1; }
+            });
+
+            document.getElementById('modalDownloadBtn').addEventListener('click', downloadCurrentModalImage);
+
+            // افزودن تصاویر
+            document.getElementById('addImagesBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+            document.getElementById('fileInput').addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    pendingFiles = [...pendingFiles, ...Array.from(e.target.files)];
+                    renderPreviews();
+                    e.target.value = '';
+                }
+            });
+
+            // کاهش حجم و ذخیره
+            document.getElementById('convertBtn').addEventListener('click', async () => {
+                if (pendingFiles.length === 0) return;
+                const progress = document.getElementById('progress');
+                const bar = document.getElementById('progressBar');
+                const progressLabel = document.getElementById('progressLabel');
+                progress.style.display = 'block';
+                progressLabel.style.display = 'block';
+                bar.style.width = '0%';
+                const total = pendingFiles.length;
+                showLoader('در حال پردازش تصاویر...');
+                for (let i = 0; i < total; i++) {
+                    try {
+                        const record = await processImageFile(pendingFiles[i], targetMaxKB);
+                        storedImages.push(record);
+                    } catch (err) { showToast(`⚠️ خطا: ${pendingFiles[i].name}`, 'error'); }
+                    bar.style.width = ((i + 1) / total * 100) + '%';
+                }
+                progress.style.display = 'none';
+                progressLabel.style.display = 'none';
+                hideLoader();
+                pendingFiles = [];
+                renderPreviews();
+                await refreshGallery();
+            });
+
+            document.getElementById('downloadBtn').addEventListener('click', downloadCSV);
+            document.getElementById('loadBtn').addEventListener('click', () => { document.getElementById('csvInput').value = ''; document.getElementById('csvInput').click(); });
+            document.getElementById('csvInput').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                e.target.value = '';
+                showLoader('در حال پردازش فایل CSV...');
+                importCSV(file).finally(hideLoader);
+            });
+
+            document.getElementById('clearAllBtn').addEventListener('click', () => {
+                if (storedImages.length === 0) return showToast('تصویری وجود ندارد.', '');
+                if (confirm('تمام تصاویر حذف شوند؟')) {
+                    storedImages = [];
+                    currentPage = 1;
+                    currentModalIndex = -1;
+                    renderGallery();
+                    updateStats();
+                    updateEmptyState();
+                }
+            });
+
+            document.getElementById('downloadAllBtn').addEventListener('click', async () => {
+                if (storedImages.length === 0) return showToast('تصویری وجود ندارد.', 'error');
+                showLoader('در حال ساخت فایل ZIP...');
+                try {
+                    const zip = new JSZip();
+                    for (let i = 0; i < storedImages.length; i++) {
+                        const item = storedImages[i];
+                        // مستقیماً base را به ZIP اضافه کن، نه بازسازی
+                        const baseDataUrl = item.base;
+                        const resp = await fetch(baseDataUrl);
+                        const blob = await resp.blob();
+                        const originalName = item.originalName || `image_${i+1}.jpg`;
+                        const baseName = originalName.replace(/\.[^.]+$/, '');
+                        zip.file(baseName + '_compressed.jpg', blob);
+                    }
+                    const zipBlob = await zip.generateAsync({ type: 'blob' });
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const dataUrl = reader.result;
+                        saveDataUrl(dataUrl, 'compressed_images.zip');
+                    };
+                    reader.readAsDataURL(zipBlob);
+                } catch (err) { showToast('خطا در ساخت ZIP', 'error'); }
+                finally { hideLoader(); }
+            });
+
+            document.getElementById('exportGalleryBtn').addEventListener('click', downloadGalleryHTML);
+
+            // راه‌اندازی اولیه
+            updateKBSettings(targetMaxKB);
+            updateStats();
+            updateEmptyState();
+            renderPreviews();
+            renderGallery();
+            renderPagination();
+            document.getElementById('downloadBtn').disabled = true;
+            document.getElementById('downloadAllBtn').disabled = true;
+            document.getElementById('exportGalleryBtn').disabled = true;
+            window.addEventListener('error', () => hideLoader());
+        })();
+    </script>
+</body>
+</html>

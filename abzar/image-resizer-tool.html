@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ابزار تغییر اندازه تصویر با واحدهای مختلف</title>
+    <style>
+        body {
+            font-family: Tahoma, sans-serif;
+            background: #f4f6f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+        }
+        h2 {
+            margin-top: 0;
+            color: #2c3e50;
+            text-align: center;
+        }
+        .file-area {
+            border: 2px dashed #b0bec5;
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.3s;
+            background: #fafafa;
+            margin-bottom: 20px;
+        }
+        .file-area:hover {
+            border-color: #3498db;
+            background: #eef6fd;
+        }
+        .file-area input {
+            display: none;
+        }
+        .preview-img {
+            max-width: 100%;
+            max-height: 200px;
+            margin-top: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        .row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .row label {
+            min-width: 60px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .unit-select, .dpi-input, .size-input {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: 0.2s;
+        }
+        .unit-select:focus, .dpi-input:focus, .size-input:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52,152,219,0.2);
+        }
+        .lock-btn {
+            background: none;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 8px 12px;
+            background: white;
+            transition: 0.2s;
+        }
+        .lock-btn.locked {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+        .download-btn {
+            width: 100%;
+            padding: 14px;
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-top: 15px;
+        }
+        .download-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .download-btn:hover:not(:disabled) {
+            background: #219a52;
+        }
+        .note {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-top: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>تغییر اندازه تصویر</h2>
+
+    <div class="file-area" id="fileArea">
+        <span id="fileLabel">کلیک کنید یا تصویر را اینجا بکشید</span>
+        <input type="file" id="imageInput" accept="image/*">
+        <img id="preview" class="preview-img" alt="پیش‌نمایش">
+    </div>
+
+    <div class="row">
+        <label>DPI:</label>
+        <input type="number" id="dpi" class="dpi-input" value="300" min="1" step="1" style="width:80px;">
+        <span class="note">(برای تبدیل میلی‌متر، سانتی‌متر و متر)</span>
+    </div>
+
+    <div class="row">
+        <label>واحد:</label>
+        <select id="unitSelect" class="unit-select">
+            <option value="px">پیکسل (px)</option>
+            <option value="mm">میلی‌متر (mm)</option>
+            <option value="cm">سانتی‌متر (cm)</option>
+            <option value="m">متر (m)</option>
+        </select>
+        <button id="lockRatioBtn" class="lock-btn locked" title="قفل نسبت ابعاد">🔒</button>
+    </div>
+
+    <div class="row">
+        <label>عرض:</label>
+        <input type="number" id="widthInput" class="size-input" value="1920" step="any" style="flex:1;">
+    </div>
+    <div class="row">
+        <label>ارتفاع:</label>
+        <input type="number" id="heightInput" class="size-input" value="1080" step="any" style="flex:1;">
+    </div>
+
+    <button id="downloadBtn" class="download-btn" disabled>دانلود تصویر با کیفیت اصلی</button>
+    <div class="note">تغییر اندازه باعث نمونه‌برداری مجدد می‌شود؛ برای کاهش افت کیفیت، خروجی PNG یا JPEG با کیفیت ۱۰۰٪ تولید می‌شود.</div>
+</div>
+
+<script>
+    (function() {
+        const imageInput = document.getElementById('imageInput');
+        const fileArea = document.getElementById('fileArea');
+        const fileLabel = document.getElementById('fileLabel');
+        const preview = document.getElementById('preview');
+        const unitSelect = document.getElementById('unitSelect');
+        const dpiInput = document.getElementById('dpi');
+        const widthInput = document.getElementById('widthInput');
+        const heightInput = document.getElementById('heightInput');
+        const lockRatioBtn = document.getElementById('lockRatioBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        let originalImage = null;
+        let originalWidth = 0, originalHeight = 0;
+        let aspectRatio = 1;
+        let ratioLocked = true;
+        let currentPixels = { width: 1920, height: 1080 };
+
+        // --- Utility: convert physical value to pixels based on DPI ---
+        function toPixels(value, unit, dpi) {
+            const dpiNum = parseFloat(dpi) || 300;
+            // 1 inch = 25.4 mm, 2.54 cm, 0.0254 m
+            switch (unit) {
+                case 'px': return value;
+                case 'mm': return (value / 25.4) * dpiNum;
+                case 'cm': return (value / 2.54) * dpiNum;
+                case 'm': return (value / 0.0254) * dpiNum;
+                default: return value;
+            }
+        }
+
+        function fromPixels(pixels, unit, dpi) {
+            const dpiNum = parseFloat(dpi) || 300;
+            if (dpiNum === 0) return pixels;
+            switch (unit) {
+                case 'px': return pixels;
+                case 'mm': return (pixels / dpiNum) * 25.4;
+                case 'cm': return (pixels / dpiNum) * 2.54;
+                case 'm': return (pixels / dpiNum) * 0.0254;
+                default: return pixels;
+            }
+        }
+
+        // Update input fields based on current pixel dimensions and selected unit/DPI
+        function updateInputsFromPixels() {
+            const unit = unitSelect.value;
+            const dpi = parseFloat(dpiInput.value) || 300;
+            widthInput.value = parseFloat(fromPixels(currentPixels.width, unit, dpi).toFixed(4));
+            heightInput.value = parseFloat(fromPixels(currentPixels.height, unit, dpi).toFixed(4));
+        }
+
+        // Read current inputs, convert to pixels, store in currentPixels
+        function readInputsToPixels() {
+            const unit = unitSelect.value;
+            const dpi = parseFloat(dpiInput.value) || 300;
+            const w = parseFloat(widthInput.value);
+            const h = parseFloat(heightInput.value);
+            if (isNaN(w) || isNaN(h) || w <= 0 || h <= 0) {
+                return false;
+            }
+            currentPixels.width = Math.round(toPixels(w, unit, dpi));
+            currentPixels.height = Math.round(toPixels(h, unit, dpi));
+            if (currentPixels.width < 1) currentPixels.width = 1;
+            if (currentPixels.height < 1) currentPixels.height = 1;
+            return true;
+        }
+
+        // Sync the other dimension when locked and one changes
+        function syncDimension(changed) {
+            if (!ratioLocked || !originalImage) return;
+            const unit = unitSelect.value;
+            const dpi = parseFloat(dpiInput.value) || 300;
+            if (changed === 'width') {
+                const wVal = parseFloat(widthInput.value);
+                if (!isNaN(wVal) && wVal > 0) {
+                    const wPx = toPixels(wVal, unit, dpi);
+                    const hPx = wPx / aspectRatio;
+                    heightInput.value = parseFloat(fromPixels(hPx, unit, dpi).toFixed(4));
+                }
+            } else if (changed === 'height') {
+                const hVal = parseFloat(heightInput.value);
+                if (!isNaN(hVal) && hVal > 0) {
+                    const hPx = toPixels(hVal, unit, dpi);
+                    const wPx = hPx * aspectRatio;
+                    widthInput.value = parseFloat(fromPixels(wPx, unit, dpi).toFixed(4));
+                }
+            }
+            // After sync, update currentPixels
+            readInputsToPixels();
+        }
+
+        // Load image and extract original dimensions
+        function loadImage(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    originalImage = img;
+                    originalWidth = img.width;
+                    originalHeight = img.height;
+                    aspectRatio = originalWidth / originalHeight;
+                    currentPixels.width = originalWidth;
+                    currentPixels.height = originalHeight;
+                    updateInputsFromPixels();
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    fileLabel.textContent = file.name;
+                    downloadBtn.disabled = false;
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Event Listeners
+        fileArea.addEventListener('click', () => imageInput.click());
+        imageInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                loadImage(e.target.files[0]);
+            }
+        });
+
+        // Drag & drop
+        fileArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileArea.style.borderColor = '#3498db';
+        });
+        fileArea.addEventListener('dragleave', () => {
+            fileArea.style.borderColor = '#b0bec5';
+        });
+        fileArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileArea.style.borderColor = '#b0bec5';
+            if (e.dataTransfer.files.length > 0) {
+                loadImage(e.dataTransfer.files[0]);
+                imageInput.files = e.dataTransfer.files; // sync
+            }
+        });
+
+        // Unit / DPI change => recalc display
+        function onUnitOrDpiChange() {
+            if (!originalImage) return;
+            readInputsToPixels(); // read current physical values, convert to pixels (just store)
+            // Now recalc inputs display based on new unit/DPI and currentPixels
+            updateInputsFromPixels();
+        }
+        unitSelect.addEventListener('change', onUnitOrDpiChange);
+        dpiInput.addEventListener('input', onUnitOrDpiChange);
+
+        // Width / Height manual input
+        widthInput.addEventListener('input', function() {
+            if (!originalImage) return;
+            if (ratioLocked) {
+                syncDimension('width');
+            } else {
+                readInputsToPixels();
+            }
+        });
+        heightInput.addEventListener('input', function() {
+            if (!originalImage) return;
+            if (ratioLocked) {
+                syncDimension('height');
+            } else {
+                readInputsToPixels();
+            }
+        });
+
+        // Lock ratio button
+        lockRatioBtn.addEventListener('click', function() {
+            ratioLocked = !ratioLocked;
+            if (ratioLocked) {
+                lockRatioBtn.classList.add('locked');
+                lockRatioBtn.textContent = '🔒';
+                // If we have an image, adjust height to match current width's ratio
+                if (originalImage) {
+                    readInputsToPixels();
+                    const newHeight = currentPixels.width / aspectRatio;
+                    currentPixels.height = Math.round(newHeight);
+                    updateInputsFromPixels();
+                }
+            } else {
+                lockRatioBtn.classList.remove('locked');
+                lockRatioBtn.textContent = '🔓';
+            }
+        });
+
+        // Download
+        downloadBtn.addEventListener('click', function() {
+            if (!originalImage) return;
+            // Ensure currentPixels is up to date
+            readInputsToPixels();
+            const targetW = currentPixels.width;
+            const targetH = currentPixels.height;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = targetW;
+            canvas.height = targetH;
+            const ctx = canvas.getContext('2d');
+            // Use high-quality image smoothing
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(originalImage, 0, 0, targetW, targetH);
+
+            // Try to keep original format: if original is JPEG/PNG, use that; else PNG
+            const originalType = originalImage.src.startsWith('data:image/jpeg') ? 'image/jpeg' : 'image/png';
+            const quality = 1.0; // maximum quality
+
+            canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const extension = originalType === 'image/jpeg' ? 'jpg' : 'png';
+                a.download = `resized.${extension}`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, originalType, quality);
+        });
+
+        // Initialize with some default pixel values (no image yet)
+        // No image loaded, disable download
+        downloadBtn.disabled = true;
+    })();
+</script>
+</body>
+</html>

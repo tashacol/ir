@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سامانه محافظت از اطلاعات طبقه‌بندی‌شده</title>
+    <!-- افزودن کتابخانه JSZip برای قابلیت دانلود ZIP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        :root {
+            --bg: #f4f6f9;
+            --surface: #ffffff;
+            --border: #dadce0;
+            --primary: #1a73e8;
+            --primary-hover: #1557b0;
+            --danger: #d93025;
+            --success: #188038;
+            --text: #202124;
+            --text-light: #5f6368;
+            --radius: 16px;
+            --radius-sm: 10px;
+            --shadow: 0 4px 16px rgba(0,0,0,0.06);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg); color: var(--text);
+            min-height: 100vh; padding: 1.5rem; direction: rtl;
+            line-height: 1.6; display: flex; justify-content: center;
+            position: relative;
+        }
+        .app { max-width: 880px; width: 100%; }
+        .header {
+            text-align: center; margin-bottom: 2rem;
+            padding: 2rem 1.5rem; background: linear-gradient(135deg, #0d47a1, #4a148c);
+            border-radius: var(--radius); color: white;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 1.8rem; margin-bottom: 1.5rem;
+            box-shadow: var(--shadow);
+        }
+        .card h2 { font-size: 1.2rem; margin-bottom: 1rem; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 0.6rem; display: flex; align-items: center; gap: 0.4rem; }
+
+        .btn {
+            background: var(--primary); color: #fff; border: none;
+            padding: 0.7rem 1.6rem; border-radius: 28px; font-weight: 600;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem;
+            font-size: 0.95rem; font-family: inherit;
+            box-shadow: 0 2px 8px rgba(26,115,232,0.2); transition: background 0.2s;
+            white-space: nowrap; justify-content: center;
+        }
+        .btn:hover { background: var(--primary-hover); }
+        .btn-outline { background: #fff; border: 2px solid var(--primary); color: var(--primary); box-shadow: none; }
+        .btn-outline:hover { background: rgba(26,115,232,0.05); }
+        .btn:disabled { opacity: 0.5; pointer-events: none; }
+        .btn-large { font-size: 1.1rem; padding: 0.9rem 2rem; width: 100%; }
+
+        .file-upload-area {
+            border: 2px dashed var(--border); border-radius: var(--radius);
+            padding: 2rem; text-align: center; cursor: pointer;
+            background: #fafbfc; transition: 0.2s;
+        }
+        .file-upload-area:hover { border-color: var(--primary); background: #f0f6ff; }
+        .file-info {
+            display: flex; align-items: center; gap: 1rem; margin: 1rem 0;
+            padding: 0.8rem 1rem; background: #f1f3f4; border-radius: var(--radius-sm);
+            flex-wrap: wrap;
+        }
+
+        .password-strength { height: 6px; background: #e0e0e0; border-radius: 3px; margin-top: 0.3rem; }
+        .password-strength-bar { height: 100%; border-radius: 3px; transition: width 0.3s; }
+
+        .status-box {
+            background: #f1f3f4; border-radius: var(--radius-sm);
+            padding: 0.8rem 1rem; margin: 1rem 0; font-weight: 500;
+        }
+        .status-box.success { background: #e6f4ea; color: var(--success); }
+        .status-box.error { background: #fce8e6; color: var(--danger); }
+        .status-box.warning { background: #fef7e0; color: #b06000; }
+
+        .preview-container {
+            margin-top: 1rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+            overflow: hidden; background: #f8f9fa; padding: 0.5rem;
+        }
+        .preview-container img, .preview-container video, .preview-container audio {
+            width: 100%; max-height: 450px; object-fit: contain; display: block;
+        }
+        .preview-container iframe { width: 100%; height: 550px; border: none; border-radius: 6px; }
+        .preview-text {
+            width: 100%; min-height: 180px; background: #fff; border: 1px solid var(--border);
+            border-radius: 6px; padding: 0.8rem; font-family: monospace; resize: vertical;
+        }
+
+        .input-row {
+            display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;
+        }
+        .input-row input, .input-row select {
+            padding: 0.65rem 0.8rem; border: 1px solid var(--border);
+            border-radius: 8px; font-family: inherit; font-size: 0.9rem;
+            background: #fff; color: var(--text);
+        }
+        .input-row input[type="text"], .input-row input[type="password"] { flex: 1; min-width: 180px; }
+
+        .self-destruct-section {
+            margin-top: 1.5rem;
+        }
+        .self-destruct-section > label {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            user-select: none;
+        }
+        .self-destruct-section > label input[type="checkbox"] {
+            width: 1.3rem;
+            height: 1.3rem;
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
+        .self-destruct-settings {
+            margin-top: 0.8rem;
+            padding: 1.2rem;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+        .self-destruct-settings label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+        .self-destruct-settings input[type="radio"] {
+            accent-color: var(--primary);
+            width: 1.1rem;
+            height: 1.1rem;
+        }
+        .self-destruct-settings .settings-group {
+            margin-top: 0.5rem;
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .self-destruct-settings input[type="date"],
+        .self-destruct-settings input[type="time"],
+        .self-destruct-settings input[type="number"] {
+            padding: 0.6rem 0.8rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            background: #fff;
+            color: var(--text);
+        }
+        .self-destruct-settings input[type="number"] {
+            width: 85px;
+        }
+        .self-destruct-settings select {
+            padding: 0.6rem 0.8rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            background: #fff;
+            color: var(--text);
+            cursor: pointer;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            direction: rtl;
+        }
+        .modal-box {
+            background: #1e1e2f;
+            color: #f0f0f0;
+            border: 2px solid #b71c1c;
+            border-radius: 16px;
+            padding: 2.5rem;
+            max-width: 600px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(255,0,0,0.4);
+        }
+        .modal-box h2 {
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+            color: #ff5252;
+        }
+        .modal-box p {
+            font-size: 1.05rem;
+            margin-bottom: 1.8rem;
+            line-height: 1.9;
+        }
+        .modal-box .btn {
+            background: #b71c1c;
+            color: white;
+            padding: 0.8rem 2.5rem;
+            font-size: 1rem;
+        }
+        .lockout-message {
+            background: #1e1e2f;
+            color: #ff5252;
+            border: 2px solid #ff5252;
+        }
+
+        /* استایل اضافی برای فایل‌های چندگانه */
+        .file-list-item {
+            background: #f1f3f4; border-radius: 8px; padding: 0.5rem 1rem;
+            margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;
+        }
+        .download-all-btn { margin-top: 1rem; margin-bottom: 1rem; }
+
+        @media (max-width: 600px) {
+            body { padding: 0.8rem; }
+            .header h1 { font-size: 1.6rem; }
+            .btn { padding: 0.6rem 1.2rem; font-size: 0.85rem; }
+            .input-row { flex-direction: column; align-items: stretch; }
+            .self-destruct-settings .settings-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .self-destruct-settings input[type="number"] {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+<div id="lockoutOverlay" style="display:none;"></div>
+
+<div class="app" id="mainApp">
+    <div class="header">
+        <h1>سامانه حفاظت از اسناد محرمانه</h1>
+    </div>
+
+    <div class="card">
+        <h2><span>🔒</span> قفل کردن فایل</h2>
+        <p style="color:var(--text-light); margin-bottom:1rem;">فایل شما به داده‌های تصادفی تبدیل می‌شود. بدون رمز، باز کردن آن غیرممکن است.</p>
+        <div class="file-upload-area" id="encryptFileArea">
+            <span style="font-size:3rem;">📁</span>
+            <p>فایل‌ها را اینجا بکشید یا کلیک کنید (می‌توانید چند فایل انتخاب کنید)</p>
+            <input type="file" id="encryptFileInput" multiple style="display:none;">
+        </div>
+        <div id="encryptFileInfo" style="display:none;"></div>
+
+        <div style="margin-top:1.5rem;">
+            <label style="font-weight:600; display:block; margin-bottom:0.3rem;">رمز عبور (حداقل ۱۲ کاراکتر قوی):</label>
+            <div class="input-row">
+                <input type="password" id="encryptPassword" placeholder="حروف بزرگ/کوچک، عدد، نماد">
+                <button class="btn btn-outline" id="togglePasswordBtn" type="button">👁️</button>
+                <button class="btn btn-outline" id="genStrongPasswordBtn" type="button">🎲 ساخت رمز تصادفی</button>
+            </div>
+            <div class="password-strength"><div class="password-strength-bar" id="passwordStrengthBar" style="width:0%;"></div></div>
+            <small id="passwordHint" style="color:var(--text-light);"></small>
+        </div>
+
+        <div class="self-destruct-section">
+            <label>
+                <input type="checkbox" id="enableSelfDestruct">
+                <span>فعال‌سازی خودتخریبی فایل (برای فایل خیلی محرمان خود تخریبی توصیه نمیشود)</span>
+            </label>
+            <div class="self-destruct-settings" id="selfDestructSettings" style="display:none;">
+                <div style="margin-bottom:1rem;">
+                    <label>
+                        <input type="radio" name="expireType" value="absolute" checked>
+                        <span>📅 تاریخ و ساعت مشخص</span>
+                    </label>
+                    <div class="settings-group" id="absoluteExpireGroup">
+                        <input type="date" id="expireDate" style="flex:1; min-width:140px;">
+                        <input type="time" id="expireTime" style="flex:1; min-width:130px;">
+                    </div>
+                </div>
+                <div>
+                    <label>
+                        <input type="radio" name="expireType" value="relative">
+                        <span>⏱️ مدت زمان نسبی (از هم‌اکنون)</span>
+                    </label>
+                    <div class="settings-group" id="relativeExpireGroup" style="display:none;">
+                        <input type="number" id="expireDuration" min="1" value="1" disabled>
+                        <select id="expireDurationUnit" disabled>
+                            <option value="minutes">دقیقه</option>
+                            <option value="hours">ساعت</option>
+                            <option value="days">روز</option>
+                        </select>
+                        <span style="color:var(--text-light); font-size:0.85rem;">بعد از</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top:1.2rem;">
+            <label style="font-weight:600; display:block; margin-bottom:0.3rem;">نام فایل خروجی (اختیاری):</label>
+            <div class="input-row">
+                <input type="text" id="encryptOutputName" placeholder="مثلاً: اسناد_محرمانه" style="flex:1;">
+                <span style="color:var(--text-light);">.enc</span>
+            </div>
+        </div>
+
+        <button class="btn btn-large" id="encryptBtn" disabled style="margin-top:1rem;">
+            🔐 رمزنگاری کن
+        </button>
+        <div id="encryptStatus"></div>
+    </div>
+
+    <div class="card">
+        <h2><span>🔓</span> باز کردن قفل فایل</h2>
+        <p style="color:var(--text-light); margin-bottom:1rem;">فایل رمزنگاری‌شده (enc.) را انتخاب و رمز را وارد کنید. محتوا در همین صفحه پیش‌نمایش می‌شود.</p>
+        <div class="file-upload-area" id="decryptFileArea">
+            <span style="font-size:3rem;">📂</span>
+            <p>فایل رمزنگاری‌شده را انتخاب کنید</p>
+            <input type="file" id="decryptFileInput" style="display:none;">
+        </div>
+        <div id="decryptFileInfo" style="display:none;"></div>
+
+        <div style="margin-top:1rem;">
+            <label style="font-weight:600; display:block; margin-bottom:0.3rem;">رمز عبور:</label>
+            <input type="password" id="decryptPassword" placeholder="رمز عبور فایل" style="width:100%; padding:0.7rem; border:1px solid var(--border); border-radius:8px; font-family:inherit;">
+        </div>
+
+        <div style="margin-top:1rem;">
+            <label style="font-weight:600; display:block; margin-bottom:0.3rem;">نام فایل خروجی (اختیاری - برای فایل‌های تکی):</label>
+            <input type="text" id="decryptOutputName" placeholder="مثلاً: عکس_شخصی.jpg" style="width:100%; padding:0.7rem; border:1px solid var(--border); border-radius:8px; font-family:inherit;">
+        </div>
+
+        <button class="btn btn-large" id="decryptBtn" disabled style="margin-top:1rem;">
+            🔓 رمزگشایی کن
+        </button>
+        <div id="decryptStatus"></div>
+    </div>
+</div>
+
+<script>
+    (() => {
+        // DOM elements
+        const encryptFileArea = document.getElementById('encryptFileArea');
+        const encryptFileInput = document.getElementById('encryptFileInput');
+        const encryptFileInfo = document.getElementById('encryptFileInfo');
+        const encryptPassword = document.getElementById('encryptPassword');
+        const encryptBtn = document.getElementById('encryptBtn');
+        const encryptStatus = document.getElementById('encryptStatus');
+        const passwordStrengthBar = document.getElementById('passwordStrengthBar');
+        const passwordHint = document.getElementById('passwordHint');
+        const encryptOutputName = document.getElementById('encryptOutputName');
+
+        const decryptFileArea = document.getElementById('decryptFileArea');
+        const decryptFileInput = document.getElementById('decryptFileInput');
+        const decryptFileInfo = document.getElementById('decryptFileInfo');
+        const decryptPassword = document.getElementById('decryptPassword');
+        const decryptBtn = document.getElementById('decryptBtn');
+        const decryptStatus = document.getElementById('decryptStatus');
+        const decryptOutputName = document.getElementById('decryptOutputName');
+
+        const enableSelfDestruct = document.getElementById('enableSelfDestruct');
+        const selfDestructSettings = document.getElementById('selfDestructSettings');
+        const expireDate = document.getElementById('expireDate');
+        const expireTime = document.getElementById('expireTime');
+        const expireDuration = document.getElementById('expireDuration');
+        const expireDurationUnit = document.getElementById('expireDurationUnit');
+        const absoluteExpireGroup = document.getElementById('absoluteExpireGroup');
+        const relativeExpireGroup = document.getElementById('relativeExpireGroup');
+
+        // تغییر: ذخیره آرایه فایل‌ها به جای بافر تکی
+        let encryptFileList = [];           // { name, buffer, size }
+        let decryptFileBuffer = null;
+
+        const SESSION_LOCKOUT_KEY = 'lockout_until';
+        const SESSION_EXPIRED_HASHES_KEY = 'expired_hashes';
+        const LOCKOUT_DURATION_MINUTES = 10;
+        const REPEAT_OFFENSE_LOCKOUT_MINUTES = 30;
+
+        // ─── Session helpers ───
+        function getSessionLockoutEnd() {
+            const val = sessionStorage.getItem(SESSION_LOCKOUT_KEY);
+            return val ? parseInt(val) : null;
+        }
+        function setSessionLockout(minutes) {
+            const endTime = Date.now() + minutes * 60 * 1000;
+            sessionStorage.setItem(SESSION_LOCKOUT_KEY, endTime.toString());
+        }
+        function clearSessionLockout() {
+            sessionStorage.removeItem(SESSION_LOCKOUT_KEY);
+        }
+        function isLockedOut() {
+            const end = getSessionLockoutEnd();
+            return end && Date.now() < end;
+        }
+        function getExpiredHashes() {
+            const raw = sessionStorage.getItem(SESSION_EXPIRED_HASHES_KEY);
+            return raw ? JSON.parse(raw) : [];
+        }
+        function addExpiredHash(hash) {
+            const hashes = getExpiredHashes();
+            if (!hashes.includes(hash)) {
+                hashes.push(hash);
+                sessionStorage.setItem(SESSION_EXPIRED_HASHES_KEY, JSON.stringify(hashes));
+            }
+        }
+
+        function checkLockoutOnLoad() {
+            if (isLockedOut()) {
+                showLockoutScreen();
+                return true;
+            }
+            return false;
+        }
+
+        function showLockoutScreen(customMessage = null) {
+            const overlay = document.getElementById('lockoutOverlay');
+            overlay.style.display = 'flex';
+            overlay.className = 'modal-overlay';
+            const remaining = getSessionLockoutEnd() - Date.now();
+            const minutesLeft = Math.ceil(remaining / 60000);
+            const message = customMessage || `شما شرایط و ضوابط امنیتی را رعایت نکرده‌اید. دسترسی شما به مدت ${minutesLeft} دقیقه مسدود شده است.`;
+            overlay.innerHTML = `
+                <div class="modal-box lockout-message">
+                    <h2>⛔ دسترسی مسدود</h2>
+                    <p>${message}</p>
+                    <p style="font-size:0.9rem; color:#aaa;">لطفاً پس از پایان مدت تعیین‌شده مجدداً تلاش فرمایید.</p>
+                </div>
+            `;
+            document.getElementById('mainApp').style.display = 'none';
+        }
+
+        function hideLockoutScreen() {
+            const overlay = document.getElementById('lockoutOverlay');
+            overlay.style.display = 'none';
+            overlay.innerHTML = '';
+            document.getElementById('mainApp').style.display = '';
+        }
+
+        if (checkLockoutOnLoad()) {
+            // locked out
+        } else {
+            hideLockoutScreen();
+        }
+
+        // ─── Time retrieval (network-first, system-fallback) ───
+        async function getCurrentTime() {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 4000);
+                const response = await fetch('https://worldtimeapi.org/api/timezone/Etc/UTC', {
+                    signal: controller.signal,
+                    cache: 'no-cache'
+                });
+                clearTimeout(timeoutId);
+                if (!response.ok) throw new Error('Network response not ok');
+                const data = await response.json();
+                if (data && data.unixtime) {
+                    return data.unixtime * 1000;
+                }
+                throw new Error('Invalid response format');
+            } catch (e) {
+                return Date.now();
+            }
+        }
+
+        // ─── Helpers ───
+        function formatSize(b) {
+            if (b < 1024) return b + ' B';
+            if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+            return (b/1024/1024).toFixed(2) + ' MB';
+        }
+
+        function calcStrength(pwd) {
+            let s = 0;
+            if (pwd.length >= 12) s++;
+            if (pwd.length >= 16) s++;
+            if (/[A-Z]/.test(pwd)) s++;
+            if (/[a-z]/.test(pwd)) s++;
+            if (/[0-9]/.test(pwd)) s++;
+            if (/[^A-Za-z0-9]/.test(pwd)) s++;
+            return Math.min(s, 5);
+        }
+
+        function updateStrengthUI() {
+            const s = calcStrength(encryptPassword.value);
+            passwordStrengthBar.style.width = (s/5*100) + '%';
+            const colors = ['#d93025','#f9ab00','#f9ab00','#188038','#188038','#0d47a1'];
+            passwordStrengthBar.style.background = colors[s];
+            const labels = ['ضعیف','متوسط','متوسط','خوب','قوی','بسیار قوی'];
+            passwordHint.textContent = labels[s];
+            passwordHint.style.color = colors[s];
+            encryptBtn.disabled = !(encryptFileList.length > 0 && s >= 3);
+        }
+
+        function updateSelfDestructUI() {
+            if (enableSelfDestruct.checked) {
+                selfDestructSettings.style.display = 'block';
+                const expireType = document.querySelector('input[name="expireType"]:checked');
+                if (expireType) {
+                    if (expireType.value === 'absolute') {
+                        absoluteExpireGroup.style.display = 'flex';
+                        relativeExpireGroup.style.display = 'none';
+                        expireDuration.disabled = true;
+                        expireDurationUnit.disabled = true;
+                    } else {
+                        absoluteExpireGroup.style.display = 'none';
+                        relativeExpireGroup.style.display = 'flex';
+                        expireDuration.disabled = false;
+                        expireDurationUnit.disabled = false;
+                    }
+                }
+                if (!expireDate.value) {
+                    const now = new Date();
+                    expireDate.value = now.toISOString().split('T')[0];
+                    expireTime.value = now.toTimeString().split(' ')[0].substring(0, 5);
+                }
+            } else {
+                selfDestructSettings.style.display = 'none';
+                absoluteExpireGroup.style.display = 'flex';
+                relativeExpireGroup.style.display = 'none';
+                expireDuration.disabled = true;
+                expireDurationUnit.disabled = true;
+            }
+        }
+
+        enableSelfDestruct.addEventListener('change', updateSelfDestructUI);
+        document.querySelectorAll('input[name="expireType"]').forEach(radio => {
+            radio.addEventListener('change', updateSelfDestructUI);
+        });
+
+        (() => {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            expireDate.value = `${year}-${month}-${day}`;
+            expireTime.value = `${hours}:${minutes}`;
+        })();
+
+        // ─── Crypto ───
+        async function deriveKey(password, salt) {
+            const enc = new TextEncoder();
+            const baseKey = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+            return crypto.subtle.deriveKey(
+                { name: 'PBKDF2', salt, iterations: 1000000, hash: 'SHA-256' },
+                baseKey,
+                { name: 'AES-GCM', length: 256 },
+                false,
+                ['encrypt', 'decrypt']
+            );
+        }
+
+        async function encryptData(key, plainBuffer) {
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plainBuffer);
+            const out = new Uint8Array(12 + cipher.byteLength);
+            out.set(iv, 0);
+            out.set(new Uint8Array(cipher), 12);
+            return out.buffer;
+        }
+
+        async function decryptData(key, dataBuffer) {
+            const bytes = new Uint8Array(dataBuffer);
+            const iv = bytes.slice(0, 12);
+            const cipher = bytes.slice(12);
+            return crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipher);
+        }
+
+        function detectFileType(buffer) {
+            const arr = new Uint8Array(buffer);
+            if (arr[0] === 0x25 && arr[1] === 0x50 && arr[2] === 0x44 && arr[3] === 0x46) return 'pdf';
+            if (arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF) return 'image';
+            if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47) return 'image';
+            if (arr[0] === 0x47 && arr[1] === 0x49 && arr[2] === 0x46) return 'image';
+            if (arr[0] === 0x42 && arr[1] === 0x4D) return 'image';
+            if (arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46 &&
+                arr[8] === 0x57 && arr[9] === 0x45 && arr[10] === 0x42 && arr[11] === 0x50) return 'image';
+            if ((arr[0] === 0x49 && arr[1] === 0x44 && arr[2] === 0x33) || (arr[0] === 0xFF && (arr[1] & 0xE0) === 0xE0)) return 'audio';
+            if (arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46 &&
+                arr[8] === 0x57 && arr[9] === 0x41 && arr[10] === 0x56 && arr[11] === 0x45) return 'audio';
+            if (arr[4] === 0x66 && arr[5] === 0x74 && arr[6] === 0x79 && arr[7] === 0x70) return 'video';
+            if (arr[0] === 0x1A && arr[1] === 0x45 && arr[2] === 0xDF && arr[3] === 0xA3) return 'video';
+            try {
+                new TextDecoder('utf-8', { fatal: true }).decode(arr.slice(0, 1000));
+                return 'text';
+            } catch {}
+            return 'binary';
+        }
+
+        // تابع کمکی برای ایجاد بافر از رشته (UTF-8)
+        function stringToBuffer(str) {
+            return new TextEncoder().encode(str).buffer;
+        }
+
+        // تابع کمکی برای خواندن رشته UTF-8 از DataView
+        function readString(view, offset, length) {
+            const bytes = new Uint8Array(view.buffer.slice(view.byteOffset + offset, view.byteOffset + offset + length));
+            return new TextDecoder().decode(bytes);
+        }
+
+        // ساخت بافر خام برای رمزنگاری (حاوی تمام فایل‌ها)
+        function buildPlainBufferForEncryption(fileList, expirationFlag, expireTimestamp, creationTimestamp) {
+            // محاسبه طول کل
+            let totalLength = 0;
+            if (expirationFlag) {
+                totalLength = 1 + 8 + 8; // flag, expire, creation
+            } else {
+                totalLength = 1; // فقط flag
+            }
+            // 4 بایت برای تعداد فایل‌ها
+            totalLength += 4;
+
+            // برای هر فایل: 4 بایت طول نام + نام + 4 بایت طول داده + داده
+            const encodedNames = fileList.map(f => new TextEncoder().encode(f.name));
+            for (let i = 0; i < fileList.length; i++) {
+                const nameBytes = encodedNames[i];
+                totalLength += 4 + nameBytes.length + 4 + fileList[i].buffer.byteLength;
+            }
+
+            const buffer = new ArrayBuffer(totalLength);
+            const view = new DataView(buffer);
+            let offset = 0;
+
+            // پرچم
+            view.setUint8(offset, expirationFlag ? 1 : 0);
+            offset += 1;
+
+            if (expirationFlag) {
+                view.setBigInt64(offset, BigInt(expireTimestamp), false);
+                offset += 8;
+                view.setBigInt64(offset, BigInt(creationTimestamp), false);
+                offset += 8;
+            }
+
+            // تعداد فایل‌ها
+            view.setUint32(offset, fileList.length, false);
+            offset += 4;
+
+            // فایل‌ها
+            for (let i = 0; i < fileList.length; i++) {
+                const nameBytes = encodedNames[i];
+                const dataBuffer = fileList[i].buffer;
+                const dataArray = new Uint8Array(dataBuffer);
+
+                // طول نام
+                view.setUint32(offset, nameBytes.length, false);
+                offset += 4;
+                // نام
+                new Uint8Array(buffer).set(nameBytes, offset);
+                offset += nameBytes.length;
+                // طول داده
+                view.setUint32(offset, dataArray.length, false);
+                offset += 4;
+                // داده
+                new Uint8Array(buffer).set(dataArray, offset);
+                offset += dataArray.length;
+            }
+
+            return buffer;
+        }
+
+        // استخراج فایل‌ها از بافر رمزگشایی‌شده
+        function extractFilesFromPlainBuffer(plainBuffer) {
+            const view = new DataView(plainBuffer);
+            let offset = 0;
+            if (plainBuffer.byteLength < 1) throw new Error('داده رمزگشایی شده نامعتبر است.');
+            const flag = view.getUint8(offset);
+            offset += 1;
+
+            let expireTimestamp = null;
+            let creationTimestamp = null;
+            if (flag === 1) {
+                if (plainBuffer.byteLength < 17) throw new Error('داده خودتخریبی ناقص است.');
+                expireTimestamp = Number(view.getBigInt64(offset, false));
+                offset += 8;
+                creationTimestamp = Number(view.getBigInt64(offset, false));
+                offset += 8;
+            } else if (flag !== 0) {
+                throw new Error('فرمت فایل پشتیبانی نمی‌شود.');
+            }
+
+            if (plainBuffer.byteLength < offset + 4) throw new Error('داده ناقص: تعداد فایل‌ها.');
+            const fileCount = view.getUint32(offset, false);
+            offset += 4;
+
+            const files = [];
+            for (let i = 0; i < fileCount; i++) {
+                if (offset + 4 > plainBuffer.byteLength) throw new Error('داده ناقص: طول نام فایل.');
+                const nameLength = view.getUint32(offset, false);
+                offset += 4;
+                if (offset + nameLength > plainBuffer.byteLength) throw new Error('داده ناقص: نام فایل.');
+                const name = readString(view, offset, nameLength);
+                offset += nameLength;
+
+                if (offset + 4 > plainBuffer.byteLength) throw new Error('داده ناقص: طول داده فایل.');
+                const dataLength = view.getUint32(offset, false);
+                offset += 4;
+                if (offset + dataLength > plainBuffer.byteLength) throw new Error('داده ناقص: داده فایل.');
+                const data = plainBuffer.slice(offset, offset + dataLength);
+                offset += dataLength;
+
+                files.push({ name, data });
+            }
+
+            return { flag, expireTimestamp, creationTimestamp, files };
+        }
+
+        // پیش‌نمایش و دکمه دانلود تکی یک فایل
+        function renderPreview(buffer, container, downloadName) {
+            const type = detectFileType(buffer);
+            const blob = new Blob([buffer]);
+            const url = URL.createObjectURL(blob);
+
+            if (type === 'image') {
+                const img = document.createElement('img');
+                img.src = url; img.alt = 'پیش‌نمایش'; container.appendChild(img);
+            } else if (type === 'pdf') {
+                const iframe = document.createElement('iframe');
+                iframe.src = url; container.appendChild(iframe);
+            } else if (type === 'audio') {
+                const audio = document.createElement('audio');
+                audio.controls = true; audio.src = url; container.appendChild(audio);
+            } else if (type === 'video') {
+                const video = document.createElement('video');
+                video.controls = true; video.src = url; container.appendChild(video);
+            } else if (type === 'text') {
+                const text = new TextDecoder().decode(buffer);
+                const ta = document.createElement('textarea');
+                ta.className = 'preview-text'; ta.readOnly = true;
+                ta.value = text.length > 5000 ? text.substring(0,5000)+'\n... (متن طولانی)' : text;
+                container.appendChild(ta);
+            } else {
+                container.innerHTML = '<p>📦 فایل باینری (پیش‌نمایش ندارد). از دکمه دانلود استفاده کنید.</p>';
+            }
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = downloadName || 'decrypted_file';
+            a.className = 'btn btn-outline';
+            a.style.marginTop = '0.8rem';
+            a.innerHTML = '⬇️ دانلود فایل اصلی';
+            container.appendChild(a);
+        }
+
+        // تابع جدید: نمایش همه فایل‌های رمزگشایی‌شده با دکمه‌های دانلود تکی و ZIP
+        function displayDecryptedFiles(files, decryptStatusDiv) {
+            decryptStatusDiv.innerHTML = '<div class="status-box success">✅ رمزگشایی موفق!</div>';
+
+            if (files.length === 0) {
+                decryptStatusDiv.innerHTML += '<p>فایلی یافت نشد.</p>';
+                return;
+            }
+
+            // دکمه دانلود همه‌فایل‌ها به‌صورت ZIP
+            const downloadAllBtn = document.createElement('button');
+            downloadAllBtn.className = 'btn btn-outline download-all-btn';
+            downloadAllBtn.textContent = '📦 دانلود همه فایل‌ها (ZIP)';
+            downloadAllBtn.addEventListener('click', async () => {
+                const zip = new JSZip();
+                for (const file of files) {
+                    zip.file(file.name, file.data);
+                }
+                const content = await zip.generateAsync({ type: 'blob' });
+                const url = URL.createObjectURL(content);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'decrypted_files.zip';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+            decryptStatusDiv.appendChild(downloadAllBtn);
+
+            // نمایش هر فایل
+            const filesContainer = document.createElement('div');
+            filesContainer.style.marginTop = '1rem';
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const fileDiv = document.createElement('div');
+                fileDiv.style.marginBottom = '1.5rem';
+                fileDiv.style.border = '1px solid var(--border)';
+                fileDiv.style.borderRadius = 'var(--radius-sm)';
+                fileDiv.style.padding = '1rem';
+                fileDiv.style.background = '#fff';
+
+                const title = document.createElement('h4');
+                title.style.marginBottom = '0.5rem';
+                title.textContent = `📄 ${file.name} (${formatSize(file.data.byteLength)})`;
+                fileDiv.appendChild(title);
+
+                const previewDiv = document.createElement('div');
+                previewDiv.className = 'preview-container';
+                fileDiv.appendChild(previewDiv);
+
+                // پیش‌نمایش و دکمه دانلود
+                renderPreview(file.data, previewDiv, file.name);
+
+                filesContainer.appendChild(fileDiv);
+            }
+            decryptStatusDiv.appendChild(filesContainer);
+        }
+
+        // تغییر: تنظیم آپلود چندفایلی برای بخش رمزنگاری
+        function setupUpload(area, input, infoDiv, onFilesSelected, multiple = false) {
+            area.addEventListener('click', () => input.click());
+            area.addEventListener('dragover', e => { e.preventDefault(); area.style.borderColor = 'var(--primary)'; });
+            area.addEventListener('dragleave', () => area.style.borderColor = 'var(--border)');
+            area.addEventListener('drop', e => {
+                e.preventDefault(); area.style.borderColor = 'var(--border)';
+                const files = Array.from(e.dataTransfer.files);
+                if (files.length) handleFiles(files);
+            });
+            input.addEventListener('change', e => {
+                const files = Array.from(e.target.files);
+                if (files.length) handleFiles(files);
+            });
+
+            async function handleFiles(files) {
+                if (multiple) {
+                    // ذخیره تمام فایل‌ها
+                    encryptFileList = [];
+                    for (const file of files) {
+                        if (file.size > 250 * 1024 * 1024) {
+                            alert('⚠️ فایل‌های بزرگتر از ۲۵۰ مگابایت ممکن است در مرورگر با مشکل مواجه شوند.');
+                        }
+                        const buffer = await file.arrayBuffer();
+                        encryptFileList.push({ name: file.name, buffer: buffer, size: file.size });
+                    }
+                    // به‌روزرسانی UI
+                    const totalSize = encryptFileList.reduce((sum, f) => sum + f.size, 0);
+                    infoDiv.style.display = 'flex';
+                    infoDiv.innerHTML = `
+                        <span style="font-size:2rem;">📁</span>
+                        <div><strong>${encryptFileList.length} فایل انتخاب شد</strong><br><small>حجم کل: ${formatSize(totalSize)}</small></div>
+                    `;
+                    // پیشنهاد نام خروجی بر اساس فایل اول
+                    if (encryptFileList.length > 0 && !encryptOutputName.value) {
+                        encryptOutputName.value = encryptFileList[0].name.replace(/\.[^/.]+$/, '') + '_bundle';
+                    }
+                    updateStrengthUI();
+                } else {
+                    // حالت تک فایل (بخش رمزگشایی)
+                    if (files.length > 1) {
+                        alert('لطفاً فقط یک فایل رمزنگاری‌شده انتخاب کنید.');
+                        return;
+                    }
+                    const file = files[0];
+                    if (file.size > 250 * 1024 * 1024) {
+                        alert('⚠️ فایل‌های بزرگتر از ۲۵۰ مگابایت ممکن است در مرورگر با مشکل مواجه شوند.');
+                    }
+                    const buffer = await file.arrayBuffer();
+                    onFilesSelected(file, buffer);
+                    infoDiv.style.display = 'flex';
+                    infoDiv.innerHTML = `
+                        <span style="font-size:2rem;">📄</span>
+                        <div><strong>${file.name}</strong><br><small>${formatSize(file.size)}</small></div>
+                    `;
+                }
+            }
+        }
+
+        // بخش رمزنگاری: multiple=true
+        setupUpload(encryptFileArea, encryptFileInput, encryptFileInfo, null, true);
+
+        // بخش رمزگشایی: همچنان تک فایل
+        setupUpload(decryptFileArea, decryptFileInput, decryptFileInfo, (f, buf) => {
+            decryptFileBuffer = buf;
+            decryptBtn.disabled = !decryptPassword.value;
+        }, false);
+
+        encryptPassword.addEventListener('input', updateStrengthUI);
+        decryptPassword.addEventListener('input', () => {
+            decryptBtn.disabled = !(decryptFileBuffer && decryptPassword.value);
+        });
+
+        document.getElementById('togglePasswordBtn').addEventListener('click', () => {
+            const isPass = encryptPassword.type === 'password';
+            encryptPassword.type = isPass ? 'text' : 'password';
+            document.getElementById('togglePasswordBtn').innerHTML = isPass ? '🙈' : '👁️';
+        });
+
+        document.getElementById('genStrongPasswordBtn').addEventListener('click', () => {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_-+=[]{}|;:,.<>?';
+            const rand = new Uint32Array(24);
+            crypto.getRandomValues(rand);
+            let pwd = '';
+            for (let i = 0; i < 24; i++) pwd += chars[rand[i] % chars.length];
+            encryptPassword.value = pwd;
+            updateStrengthUI();
+            navigator.clipboard.writeText(pwd).then(() => alert('رمز در کلیپ‌بورد کپی شد. آن را در جای امن ذخیره کنید!'));
+        });
+
+        async function sha256(buffer) {
+            const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        function showExpiredWarningModal(message, onConfirm) {
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.innerHTML = `
+                <div class="modal-box">
+                    <h2>⚠️ اخطار امنیتی</h2>
+                    <p>${message}</p>
+                    <button class="btn" id="modalConfirmBtn">متوجه شدم</button>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            document.getElementById('modalConfirmBtn').addEventListener('click', () => {
+                document.body.removeChild(overlay);
+                if (onConfirm) onConfirm();
+            });
+        }
+
+        function showStrictExpiredWarning(message) {
+            showExpiredWarningModal(message, () => {
+                setSessionLockout(LOCKOUT_DURATION_MINUTES);
+                location.reload();
+            });
+        }
+
+        function showRepeatOffenseWarning(message) {
+            showExpiredWarningModal(message, () => {
+                setSessionLockout(REPEAT_OFFENSE_LOCKOUT_MINUTES);
+                location.reload();
+            });
+        }
+
+        // ─── Encrypt (ویرایش‌شده برای چند فایل) ───
+        encryptBtn.addEventListener('click', async () => {
+            if (encryptFileList.length === 0 || calcStrength(encryptPassword.value) < 3) return;
+            encryptBtn.disabled = true;
+            encryptStatus.innerHTML = '<div class="status-box">⏳ در حال رمزنگاری (تولید کلید با ۱ میلیون تکرار)...</div>';
+            try {
+                let expirationFlag = false;
+                let expireTimestamp = null;
+                let creationTimestamp = null;
+
+                if (enableSelfDestruct.checked) {
+                    expirationFlag = true;
+                    const expireType = document.querySelector('input[name="expireType"]:checked').value;
+                    if (expireType === 'absolute') {
+                        const dateVal = expireDate.value;
+                        const timeVal = expireTime.value;
+                        if (!dateVal || !timeVal) {
+                            throw new Error('لطفاً تاریخ و ساعت خودتخریبی را به درستی تنظیم کنید.');
+                        }
+                        const localDateTime = new Date(`${dateVal}T${timeVal}:00`);
+                        if (isNaN(localDateTime.getTime())) {
+                            throw new Error('تاریخ یا ساعت وارد شده نامعتبر است.');
+                        }
+                        expireTimestamp = localDateTime.getTime();
+                        const now = await getCurrentTime();
+                        if (expireTimestamp <= now) {
+                            throw new Error('⚠️ تاریخ خودتخریبی باید در آینده باشد. لطفاً یک زمان معتبر انتخاب کنید.');
+                        }
+                    } else {
+                        const duration = parseInt(expireDuration.value);
+                        const unit = expireDurationUnit.value;
+                        if (!duration || duration < 1) {
+                            throw new Error('مدت زمان خودتخریبی نامعتبر است.');
+                        }
+                        let unitMs;
+                        switch (unit) {
+                            case 'minutes': unitMs = 60000; break;
+                            case 'hours': unitMs = 3600000; break;
+                            case 'days': unitMs = 86400000; break;
+                            default: unitMs = 3600000;
+                        }
+                        const now = await getCurrentTime();
+                        expireTimestamp = now + (duration * unitMs);
+                    }
+                    creationTimestamp = await getCurrentTime();
+                }
+
+                const plainBuffer = buildPlainBufferForEncryption(encryptFileList, expirationFlag, expireTimestamp, creationTimestamp);
+
+                const salt = crypto.getRandomValues(new Uint8Array(16));
+                const key = await deriveKey(encryptPassword.value, salt);
+                const encrypted = await encryptData(key, plainBuffer);
+                const final = new Uint8Array(16 + encrypted.byteLength);
+                final.set(salt, 0);
+                final.set(new Uint8Array(encrypted), 16);
+
+                const blob = new Blob([final], { type: 'application/octet-stream' });
+                const url = URL.createObjectURL(blob);
+                const outName = (encryptOutputName.value.trim() || 'encrypted_bundle') + '.enc';
+
+                encryptStatus.innerHTML = `
+                    <div class="status-box success">✅ رمزنگاری موفق! (AES-256-GCM) - ${encryptFileList.length} فایل</div>
+                    <a href="${url}" download="${outName}" class="btn" style="margin-top:0.5rem;">
+                        ⬇️ دانلود فایل رمزنگاری شده (${formatSize(final.byteLength)})
+                    </a>
+                `;
+            } catch (e) {
+                encryptStatus.innerHTML = `<div class="status-box error">❌ خطا: ${e.message}</div>`;
+            } finally {
+                encryptBtn.disabled = false;
+                updateStrengthUI();
+            }
+        });
+
+        // ─── Decrypt (ویرایش‌شده برای استخراج چند فایل) ───
+        decryptBtn.addEventListener('click', async () => {
+            if (!decryptFileBuffer || !decryptPassword.value) return;
+            decryptBtn.disabled = true;
+            decryptStatus.innerHTML = '<div class="status-box">⏳ در حال رمزگشایی...</div>';
+
+            const fileHash = await sha256(decryptFileBuffer);
+
+            const expiredHashes = getExpiredHashes();
+            if (expiredHashes.includes(fileHash)) {
+                showRepeatOffenseWarning(
+                    'شما به‌صورت مکرر در حال تلاش برای بازگشایی فایلی هستید که به دلایل امنیتی منهدم شده است. این اقدام تهدیدی برای سیستم محسوب می‌شود. برای حفظ امنیت، دسترسی شما برای مدت طولانی‌تری مسدود خواهد شد. لطفاً فایل تخریب‌شده را فوراً حذف کنید.'
+                );
+                decryptBtn.disabled = false;
+                decryptStatus.innerHTML = '';
+                return;
+            }
+
+            try {
+                const full = new Uint8Array(decryptFileBuffer);
+                if (full.length < 28) throw new Error('فایل ناقص است.');
+                const salt = full.slice(0, 16);
+                const encData = full.slice(16).buffer;
+
+                const key = await deriveKey(decryptPassword.value, salt);
+                const plainBuffer = await decryptData(key, encData);
+
+                // استخراج فایل‌ها
+                const extraction = extractFilesFromPlainBuffer(plainBuffer);
+                const { flag, expireTimestamp, creationTimestamp, files } = extraction;
+
+                // بررسی خودتخریبی
+                if (flag === 1) {
+                    const currentTime = await getCurrentTime();
+                    if (currentTime >= expireTimestamp || currentTime < creationTimestamp) {
+                        addExpiredHash(fileHash);
+
+                        let warningMessage;
+                        if (currentTime < creationTimestamp) {
+                            warningMessage = 'خطای امنیتی: ساعت سیستم با زمان ایجاد فایل مطابقت ندارد. احتمال دستکاری در تنظیمات زمان وجود دارد. فایل به دلایل امنیتی منهدم شده است.';
+                        } else {
+                            warningMessage = 'تاریخ انقضای این فایل گذشته است و فایل خودتخریبی کرده است. باز کردن این فایل می‌تواند به سیستم شما آسیب برساند. لطفاً هرچه سریع‌تر فایل را حذف کرده و از باز کردن مجدد آن خودداری فرمایید.';
+                        }
+
+                        showStrictExpiredWarning(warningMessage);
+                        decryptBtn.disabled = false;
+                        decryptStatus.innerHTML = '';
+                        return;
+                    }
+                }
+
+                // نمایش فایل‌ها
+                displayDecryptedFiles(files, decryptStatus);
+
+            } catch (e) {
+                decryptStatus.innerHTML = `<div class="status-box error">❌ رمز اشتباه یا فایل آسیب‌دیده است.</div>`;
+            } finally {
+                decryptBtn.disabled = false;
+            }
+        });
+
+        updateStrengthUI();
+        updateSelfDestructUI();
+    })();
+</script>
+</body>
+</html>

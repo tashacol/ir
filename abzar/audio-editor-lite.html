@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=1.0, touch-action=manipulation, viewport-fit=cover">
+    <title>ویرایشگر صوت | برش، افکت و ذخیره</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: linear-gradient(145deg, #1a1a2e 0%, #16213e 100%);
+            font-family: 'Segoe UI', 'Roboto', system-ui, sans-serif;
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; padding: 1rem 0.5rem; direction: rtl;
+            color: #e0e0e0; touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent; -webkit-overflow-scrolling: touch;
+        }
+
+        .container {
+            width: 100%; max-width: 1200px; background: rgba(20, 20, 35, 0.85);
+            backdrop-filter: blur(20px); border-radius: 2rem;
+            padding: 1.5rem 1.2rem 1.8rem;
+            box-shadow: 0 25px 55px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.08); position: relative;
+        }
+
+        h1 {
+            font-size: 1.8rem; font-weight: 600; text-align: center; margin-bottom: 1.2rem;
+            background: linear-gradient(135deg, #a3d8f4, #6baed9);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text; letter-spacing: -0.5px;
+        }
+
+        .upload-area {
+            background: #23233a; border: 2px dashed #4f9da6; border-radius: 1.5rem;
+            padding: 1rem 1.2rem; margin-bottom: 1.2rem; display: flex;
+            align-items: center; justify-content: space-between; flex-wrap: wrap;
+            gap: 0.8rem; transition: 0.25s; position: relative;
+        }
+
+        .upload-area:hover { border-color: #7ec8d0; background: #272741; }
+
+        .file-label {
+            background: #4f9da6; color: #fff; padding: 0.6rem 1.4rem;
+            border-radius: 2.5rem; font-weight: 600; cursor: pointer; transition: 0.2s;
+            box-shadow: 0 5px 15px rgba(79,157,166,0.3); display: inline-flex;
+            align-items: center; gap: 0.4rem; font-size: 0.95rem; min-height: 44px; white-space: nowrap;
+        }
+
+        .file-label:hover { background: #6fb7c0; box-shadow: 0 8px 20px rgba(79,157,166,0.45); }
+
+        input[type="file"] { display: none; }
+
+        .file-name {
+            background: #12121f; padding: 0.5rem 1rem; border-radius: 2rem;
+            color: #b0c7d0; font-size: 0.9rem; max-width: 200px; overflow: hidden;
+            text-overflow: ellipsis; white-space: nowrap; direction: ltr; min-height: 36px;
+            display: flex; align-items: center;
+        }
+
+        .loading-text {
+            display: none; align-items: center; gap: 0.5rem;
+            background: rgba(79,157,166,0.15); color: #7ec8d0; padding: 0.5rem 1rem;
+            border-radius: 2rem; font-size: 0.9rem; font-weight: 500;
+            animation: pulse 1.2s infinite alternate;
+        }
+        .loading-text.visible { display: inline-flex; }
+
+        @keyframes pulse { from { opacity: 0.6; } to { opacity: 1; } }
+
+        .loading-spinner {
+            width: 16px; height: 16px; border: 2px solid #4f9da6;
+            border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .waveform-loader {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            display: flex; gap: 4px; align-items: flex-end; height: 30px; z-index: 10; pointer-events: none;
+        }
+        .waveform-loader .bar {
+            width: 5px; background: #4f9da6; border-radius: 2px;
+            animation: musicBounce 0.7s infinite alternate ease-in-out;
+        }
+        .waveform-loader .bar:nth-child(1) { height: 15px; animation-delay: 0s; }
+        .waveform-loader .bar:nth-child(2) { height: 22px; animation-delay: 0.1s; }
+        .waveform-loader .bar:nth-child(3) { height: 18px; animation-delay: 0.2s; }
+        .waveform-loader .bar:nth-child(4) { height: 25px; animation-delay: 0.3s; }
+        .waveform-loader .bar:nth-child(5) { height: 16px; animation-delay: 0.4s; }
+
+        @keyframes musicBounce { to { height: 4px; } }
+
+        .pitch-loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center;
+            z-index: 2000; flex-direction: column; gap: 1rem;
+        }
+        .pitch-loading-overlay.visible { display: flex; }
+        .pitch-loading-text { color: #fff; font-size: 1.2rem; }
+
+        .play-pause-area { display: flex; justify-content: center; align-items: center; margin-bottom: 0.8rem; margin-top: 0.2rem; }
+
+        .btn-play-pause {
+            background: linear-gradient(135deg, #4f9da6, #3b7d85);
+            color: #fff; border: none; width: 56px; height: 56px; border-radius: 50%;
+            font-size: 1.6rem; cursor: pointer; transition: 0.3s;
+            box-shadow: 0 10px 25px rgba(79,157,166,0.45); display: flex;
+            align-items: center; justify-content: center;
+            border: 2px solid rgba(255,255,255,0.15); position: relative; z-index: 5;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .btn-play-pause:hover { transform: scale(1.08); box-shadow: 0 14px 32px rgba(79,157,166,0.6); background: linear-gradient(135deg, #5fb7c0, #4a9da5); }
+        .btn-play-pause:active { transform: scale(0.94); transition: 0.1s; }
+        .btn-play-pause.playing { background: linear-gradient(135deg, #e67e22, #d35400); box-shadow: 0 10px 25px rgba(230,126,34,0.5); }
+
+        .ruler-container { width: 100%; height: 24px; background: #0d0d1c; border-radius: 0.8rem 0.8rem 0 0; overflow: hidden; border: 1px solid #2e2e48; border-bottom: none; touch-action: none; position: relative; margin-bottom: -1px; }
+        .ruler-container canvas { width: 100%; height: 100%; display: block; }
+
+        .waveform-container { position: relative; width: 100%; height: 150px; background: #0b0b16; border-radius: 0 0 1.5rem 1.5rem; overflow: hidden; margin: 0 0 1rem 0; box-shadow: inset 0 4px 12px rgba(0,0,0,0.6); border: 1px solid #2e2e48; border-top: none; user-select: none; touch-action: none; }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; }
+
+        .zoom-controls { display: flex; align-items: center; gap: 0.6rem; margin: 0.5rem 0 0.2rem; background: #1a1a2e; padding: 0.5rem 1rem; border-radius: 2rem; flex-wrap: wrap; }
+        .zoom-label { font-size: 0.85rem; color: #b0c0d0; white-space: nowrap; min-width: 30px; }
+        .zoom-slider { flex: 1 1 100%; min-width: 80px; width: 100%; accent-color: #4f9da6; height: 6px; }
+        .pan-slider { flex: 1 1 100%; min-width: 80px; width: 100%; accent-color: #d89e4f; height: 6px; }
+        .zoom-controls .btn-sm { flex-shrink: 0; }
+
+        .time-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.8rem; margin: 0.8rem 0 1rem; background: #1f1f34; padding: 0.8rem 1rem; border-radius: 2rem; }
+
+        .player-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+
+        .btn {
+            background: #2f2f4a; border: none; color: #eaeef5; padding: 0.55rem 1rem;
+            border-radius: 2rem; font-weight: 550; cursor: pointer; transition: 0.2s;
+            font-size: 0.85rem; display: inline-flex; align-items: center; justify-content: center;
+            gap: 0.3rem; border: 1px solid rgba(255,255,255,0.06); white-space: nowrap;
+            min-height: 42px; -webkit-tap-highlight-color: transparent;
+        }
+        .btn-primary { background: #3f5ba0; box-shadow: 0 5px 14px rgba(58,80,150,0.4); border: 1px solid rgba(255,255,255,0.1); }
+        .btn-primary:hover { background: #5170c0; }
+        .btn-accent { background: #2e7d67; box-shadow: 0 5px 14px rgba(46,125,103,0.4); }
+        .btn-accent:hover { background: #3b9b7e; }
+        .btn-danger { background: #7a3a4a; }
+        .btn-danger:hover { background: #9e4b5e; }
+        .btn:hover { filter: brightness(1.2); transform: translateY(-1px); }
+        .btn:active { transform: scale(0.96); transition: 0.1s; }
+        .btn-stop-preview {
+            background: #b53a3a; color: #fff; font-weight: 600;
+            box-shadow: 0 4px 12px rgba(181,58,58,0.4);
+        }
+        .btn-stop-preview:hover { background: #d14a4a; }
+
+        .time-display { font-family: 'JetBrains Mono','Fira Code',monospace; background: #0e0e1c; padding: 0.4rem 0.8rem; border-radius: 2rem; color: #ccddff; font-size: 1rem; direction: ltr; display: inline-block; min-width: 85px; text-align: center; min-height: 42px; line-height: 1.4; }
+        .range-group { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+        .range-input { width: 75px; background: #12122a; border: 1px solid #3f3f62; color: #e0e0ff; padding: 0.4rem; border-radius: 1.5rem; text-align: center; font-family: monospace; font-size: 0.85rem; outline: none; direction: ltr; min-height: 42px; }
+        .range-input:focus { border-color: #7ea3d0; box-shadow: 0 0 10px #2d4b6e; }
+
+        .tabs-container { display: flex; gap: 0.3rem; margin: 1.2rem 0 0.6rem; flex-wrap: wrap; position: sticky; top: 0; z-index: 20; background: rgba(20,20,35,0.9); padding: 0.3rem 0; border-radius: 1rem; }
+        .tab-btn { background: #1e1e31; color: #b0b0d0; border: none; padding: 0.6rem 1.2rem; border-radius: 2rem 2rem 0 0; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 0.9rem; white-space: nowrap; min-height: 40px; -webkit-tap-highlight-color: transparent; }
+        .tab-btn.active { background: #2f2f4a; color: #ffffff; box-shadow: 0 -3px 10px rgba(0,0,0,0.3); }
+
+        .tab-content { background: #1e1e31; border-radius: 0 1.5rem 1.5rem 1.5rem; padding: 1rem; margin-bottom: 1rem; display: none; }
+        .tab-content.active { display: block; }
+
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; align-items: start; }
+        @media (max-width:700px) { .two-col { grid-template-columns: 1fr; } }
+
+        .segment-creator { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.8rem; margin-bottom: 0.8rem; }
+        .segment-name-input { flex: 1 1 150px; background: #0d0d1f; border: 1px solid #4a4a70; border-radius: 2rem; padding: 0.6rem 1rem; color: #f0f0ff; font-size: 0.9rem; outline: none; min-height: 42px; }
+
+        .effects-list, .segments-list { display: flex; flex-direction: column; gap: 0.6rem; max-height: 350px; overflow-y: auto; padding-right: 0.3rem; -webkit-overflow-scrolling: touch; }
+
+        .segment-card, .effect-card { background: #1b1b2f; border: 1px solid #313158; border-radius: 1.5rem; padding: 0.7rem 1rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+        .effect-card { border-left: 5px solid; }
+        .effect-card.mute { border-left-color: #e74c3c; }
+        .effect-card.volume { border-left-color: #3498db; }
+        .effect-card.pitch { border-left-color: #f39c12; }
+        .effect-card.bass { border-left-color: #9b59b6; }
+        .effect-card.treble { border-left-color: #1abc9c; }
+        .effect-card.speed { border-left-color: #e67e22; }
+        .effect-card.beep { border-left-color: #ff4757; }
+        .effect-card.echo { border-left-color: #9b59b6; }
+
+        .segment-info, .effect-info { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.85rem; flex: 1 1 auto; min-width: 120px; }
+        .segment-title, .effect-title { font-weight: 700; color: #c3d9ff; font-size: 0.95rem; }
+        .segment-time, .effect-desc { font-family: monospace; color: #9aa4c0; direction: ltr; display: inline-block; font-size: 0.8rem; }
+        .effect-type-badge { display: inline-block; background: rgba(255,255,255,0.1); padding: 0.1rem 0.6rem; border-radius: 1rem; font-size: 0.75rem; font-weight: 600; margin-left: 0.3rem; color: #fff; }
+        .effect-scope-badge { display: inline-block; background: rgba(255,193,7,0.2); color: #ffc107; padding: 0.1rem 0.6rem; border-radius: 1rem; font-size: 0.7rem; font-weight: 600; margin-left: 0.3rem; }
+        .effect-scope-badge.global { background: rgba(79,157,166,0.25); color: #7ec8d0; }
+        .segment-effects-count { display: inline-block; background: rgba(255,193,7,0.2); color: #ffc107; padding: 0.15rem 0.5rem; border-radius: 1rem; font-size: 0.7rem; font-weight: 600; margin-right: 0.3rem; }
+        .segment-actions, .effect-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.78rem; min-height: 38px; border-radius: 1.5rem; }
+
+        .download-all-area { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
+        .modal-content { background: #1e1e31; border-radius: 2rem; padding: 1.5rem; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; color: #e0e0e0; -webkit-overflow-scrolling: touch; }
+        .modal-content h3 { margin-bottom: 0.8rem; font-size: 1.2rem; }
+        .modal-field { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.8rem; }
+        .modal-field label { font-weight: 600; font-size: 0.9rem; }
+        .modal-field input, .modal-field select { padding: 0.55rem 0.9rem; border-radius: 1.5rem; border: 1px solid #4a4a70; background: #0d0d1f; color: white; font-family: inherit; font-size: 0.9rem; min-height: 42px; }
+        .modal-field input[type="checkbox"] { width: auto; min-height: auto; margin-left: 0.5rem; }
+        .modal-actions { display: flex; gap: 0.8rem; justify-content: flex-end; margin-top: 1.2rem; flex-wrap: wrap; }
+
+        .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+        @media (max-width:600px) {
+            .settings-grid { grid-template-columns: 1fr; }
+            .container { padding: 1rem 0.8rem; border-radius: 1.5rem; }
+            h1 { font-size: 1.4rem; margin-bottom: 0.8rem; }
+            .time-controls { flex-direction: column; align-items: stretch; gap: 0.6rem; }
+            .waveform-container { height: 120px; }
+            .zoom-controls { flex-direction: column; align-items: stretch; gap: 0.4rem; }
+            .btn { font-size: 0.8rem; padding: 0.5rem 0.9rem; min-height: 40px; }
+            .file-label { font-size: 0.85rem; padding: 0.5rem 1rem; }
+            .btn-play-pause { width: 48px; height: 48px; font-size: 1.3rem; }
+            .zoom-slider,.pan-slider { width: 100%; flex: 1 1 auto; }
+            .range-input { width: 65px; font-size: 0.8rem; min-height: 38px; }
+            .time-display { font-size: 0.85rem; min-width: 70px; padding: 0.3rem 0.6rem; }
+            .upload-area { padding: 0.8rem 1rem; gap: 0.5rem; }
+            .file-name { max-width: 150px; font-size: 0.8rem; }
+            .modal-content { padding: 1.2rem; border-radius: 1.5rem; max-width: 95vw; }
+            .segment-card,.effect-card { padding: 0.6rem 0.8rem; border-radius: 1.2rem; }
+            .segment-title,.effect-title { font-size: 0.85rem; }
+            .tabs-container { gap: 0.2rem; }
+            .tab-btn { padding: 0.5rem 0.8rem; font-size: 0.8rem; }
+            .btn-sm { padding: 0.35rem 0.7rem; font-size: 0.72rem; min-height: 34px; }
+        }
+        @media (max-width:400px) {
+            body { padding: 0.3rem; }
+            .container { padding: 0.8rem 0.5rem; border-radius: 1.2rem; }
+            h1 { font-size: 1.2rem; }
+            .waveform-container { height: 100px; }
+            .btn-play-pause { width: 42px; height: 42px; font-size: 1.1rem; }
+            .file-label { font-size: 0.8rem; padding: 0.4rem 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="main-container">
+        <h1>🎵 برش صوت هوشمند</h1>
+
+        <div class="upload-area">
+            <label class="file-label" for="audio-upload">📂 انتخاب فایل صوتی</label>
+            <input type="file" id="audio-upload" accept="audio/*">
+            <span class="file-name" id="file-name-display">فایلی انتخاب نشده</span>
+            <span class="loading-text" id="loading-text">
+                <span class="loading-spinner"></span> در حال بارگذاری...
+            </span>
+        </div>
+
+        <div class="play-pause-area">
+            <button class="btn-play-pause" id="play-pause-btn" title="پخش / توقف">▶</button>
+        </div>
+
+        <div class="ruler-container" id="ruler-container">
+            <canvas id="ruler-canvas"></canvas>
+        </div>
+
+        <div class="waveform-container" id="waveform-container">
+            <div class="waveform-loader" id="waveform-loader" style="display: none;">
+                <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            </div>
+            <canvas id="wave-canvas"></canvas>
+            <canvas id="overlay-canvas"></canvas>
+        </div>
+
+        <div class="zoom-controls">
+            <span class="zoom-label">🔍 زوم:</span>
+            <input type="range" class="zoom-slider" id="zoom-slider" min="1" max="20" value="1" step="0.1">
+            <span class="zoom-label" id="zoom-value">1x</span>
+            <span class="zoom-label">⬅️ پیمایش:</span>
+            <input type="range" class="pan-slider" id="pan-slider" min="0" max="0" value="0" step="0.1">
+            <button class="btn btn-sm" id="fit-btn">🗺️ نمایش کامل</button>
+        </div>
+
+        <div class="time-controls">
+            <div class="player-buttons">
+                <span class="time-display" id="current-time">00:00.0</span>
+                <span style="color:#8892b0;">/</span>
+                <span class="time-display" id="total-time">00:00.0</span>
+            </div>
+            <div class="range-group">
+                <span>⏱️ شروع:</span>
+                <input type="text" class="range-input" id="start-input" value="00:00.0" placeholder="mm:ss.ms">
+                <button class="btn btn-sm" id="set-start-btn">📌 تنظیم شروع</button>
+            </div>
+            <div class="range-group">
+                <span>🏁 پایان:</span>
+                <input type="text" class="range-input" id="end-input" value="00:00.0" placeholder="mm:ss.ms">
+                <button class="btn btn-sm" id="set-end-btn">📍 تنظیم پایان</button>
+            </div>
+            <button class="btn btn-sm" id="clear-selection-btn">❌ پاک کردن انتخاب</button>
+            <button class="btn btn-sm" id="undo-btn" style="background:#5f4b8b;">↩️ برگشت</button>
+        </div>
+
+        <div class="tabs-container" id="tabs-container">
+            <button class="tab-btn active" data-tab="cuts">✂️ برش‌ها</button>
+            <button class="tab-btn" data-tab="effects">✨ افکت‌ها</button>
+            <button class="tab-btn" data-tab="global">⚙️ تنظیمات کلی</button>
+        </div>
+
+        <!-- Tab: برش‌ها -->
+        <div class="tab-content active" id="tab-cuts">
+            <div class="two-col">
+                <div>
+                    <div class="segment-creator">
+                        <input type="text" class="segment-name-input" id="segment-name" placeholder="نام برش (مثلاً intro یا قطعه ۱)">
+                        <button class="btn btn-accent" id="add-segment-btn">➕ افزودن برش جدید</button>
+                    </div>
+                    <!-- دکمه توقف پیش‌نمایش در قسمت برش‌ها -->
+                    <div style="margin-bottom: 0.5rem;">
+                        <button class="btn btn-stop-preview btn-sm" id="stop-preview-cuts-btn">⏹ توقف پیش‌نمایش</button>
+                    </div>
+                </div>
+                <div id="segments-container" class="segments-list"></div>
+            </div>
+        </div>
+
+        <!-- Tab: افکت‌ها -->
+        <div class="tab-content" id="tab-effects">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
+                <button class="btn btn-accent" id="add-effect-btn">➕ افزودن افکت جدید</button>
+                <button class="btn btn-primary" id="download-processed-btn">🎵 دانلود صوت پردازش‌شده</button>
+                <!-- دکمه توقف پیش‌نمایش در قسمت افکت‌ها -->
+                <button class="btn btn-stop-preview btn-sm" id="stop-preview-effects-btn">⏹ توقف پیش‌نمایش</button>
+            </div>
+            <div id="effects-container" class="effects-list"></div>
+        </div>
+
+        <!-- Tab: تنظیمات کلی -->
+        <div class="tab-content" id="tab-global">
+            <div class="settings-grid">
+                <div class="modal-field">
+                    <label>🔊 ولوم کلی: <span id="global-volume-value">100%</span></label>
+                    <input type="range" id="global-volume" min="0" max="200" value="100" step="1">
+                </div>
+                <div class="modal-field">
+                    <label>⏩ سرعت پخش (Speed): <span id="global-speed-value">1.0x</span></label>
+                    <input type="range" id="global-speed" min="0.5" max="2.0" value="1.0" step="0.05">
+                </div>
+                <div class="modal-field">
+                    <label>🎵 زیر/بم (Pitch): <span id="global-pitch-value">1.0x</span></label>
+                    <input type="range" id="global-pitch" min="0.5" max="2.0" value="1.0" step="0.05">
+                </div>
+                <div class="modal-field">
+                    <label>🔽 بیس (Bass): <span id="global-bass-value">0 dB</span></label>
+                    <input type="range" id="global-bass" min="-12" max="12" value="0" step="0.5">
+                </div>
+                <div class="modal-field">
+                    <label>🔼 زیربالا (Treble): <span id="global-treble-value">0 dB</span></label>
+                    <input type="range" id="global-treble" min="-12" max="12" value="0" step="0.5">
+                </div>
+                <!-- تنظیمات اکوی کلی -->
+                <div class="modal-field">
+                    <label>
+                        <input type="checkbox" id="global-echo-enabled"> فعال‌سازی اکوی کلی
+                    </label>
+                </div>
+                <div class="modal-field">
+                    <label>🔄 تأخیر (ثانیه): <span id="global-echo-delay-value">0.30</span></label>
+                    <input type="range" id="global-echo-delay" min="0.05" max="2" value="0.3" step="0.01">
+                </div>
+                <div class="modal-field">
+                    <label>🔁 فیدبک: <span id="global-echo-feedback-value">0.40</span></label>
+                    <input type="range" id="global-echo-feedback" min="0" max="0.9" value="0.4" step="0.05">
+                </div>
+                <div class="modal-field">
+                    <label>🎚 ترکیب (Wet/Dry): <span id="global-echo-mix-value">0.50</span></label>
+                    <input type="range" id="global-echo-mix" min="0" max="1" value="0.5" step="0.05">
+                </div>
+            </div>
+            <div style="margin-top: 0.8rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button class="btn btn-accent" id="apply-global-btn">اعمال تنظیمات کلی</button>
+                <button class="btn btn-sm" id="reset-global-btn">بازنشانی</button>
+                <button class="btn btn-primary" id="download-global-btn">⬇️ دانلود با تنظیمات کلی</button>
+                <button class="btn btn-sm" id="preview-global-btn" style="background:#d89e4f;">▶ پیش‌نمایش</button>
+            </div>
+        </div>
+
+        <!-- مودال افزودن/ویرایش افکت -->
+        <div class="modal-overlay" id="effect-modal" style="display: none;">
+            <div class="modal-content">
+                <h3 id="modal-title">افزودن افکت جدید</h3>
+                <div class="modal-field">
+                    <label>نام افکت:</label>
+                    <input type="text" id="effect-name-input" placeholder="مثلاً بی‌صدا کردن مصاحبه">
+                </div>
+                <div class="modal-field">
+                    <label>نوع افکت:</label>
+                    <select id="effect-type-select">
+                        <option value="mute">بی‌صدا (Mute)</option>
+                        <option value="volume">ولوم (Volume)</option>
+                        <option value="pitch">زیر/بم (Pitch)</option>
+                        <option value="bass">باس (Bass Boost/Cut)</option>
+                        <option value="treble">زیربالا (Treble Boost/Cut)</option>
+                        <option value="speed">سرعت (Speed)</option>
+                        <option value="beep">صدای بوق (Beep)</option>
+                        <option value="echo">اکو (Echo)</option>
+                    </select>
+                </div>
+                <div class="modal-field">
+                    <label>اعمال روی:</label>
+                    <select id="effect-scope-select">
+                        <option value="global">کل فایل (عمومی)</option>
+                    </select>
+                </div>
+                <div class="modal-field">
+                    <label>زمان شروع (ثانیه):</label>
+                    <input type="text" id="effect-start-input" value="00:00.0" placeholder="mm:ss.ms">
+                </div>
+                <div class="modal-field">
+                    <label>زمان پایان (ثانیه):</label>
+                    <input type="text" id="effect-end-input" value="00:00.0" placeholder="mm:ss.ms">
+                </div>
+                <div class="modal-field" id="effect-param-field" style="display: none;">
+                    <label id="effect-param-label">پارامتر:</label>
+                    <input type="range" id="effect-param-slider" min="-20" max="20" value="0" step="0.5">
+                    <span id="effect-param-value">0</span>
+                </div>
+                <div class="modal-field" id="effect-beep-freq-field" style="display: none;">
+                    <label>فرکانس بوق (Hz):</label>
+                    <input type="range" id="effect-beep-freq-slider" min="200" max="3000" value="1000" step="50">
+                    <span id="effect-beep-freq-value">1000 Hz</span>
+                </div>
+                <div class="modal-field" id="effect-echo-delay-field" style="display: none;">
+                    <label>تأخیر (ثانیه):</label>
+                    <input type="range" id="effect-echo-delay-slider" min="0.05" max="2" value="0.3" step="0.01">
+                    <span id="effect-echo-delay-value">0.30 s</span>
+                </div>
+                <div class="modal-field" id="effect-echo-feedback-field" style="display: none;">
+                    <label>فیدبک:</label>
+                    <input type="range" id="effect-echo-feedback-slider" min="0" max="0.9" value="0.4" step="0.05">
+                    <span id="effect-echo-feedback-value">0.40</span>
+                </div>
+                <div class="modal-field" id="effect-echo-mix-field" style="display: none;">
+                    <label>ترکیب (Wet/Dry):</label>
+                    <input type="range" id="effect-echo-mix-slider" min="0" max="1" value="0.5" step="0.05">
+                    <span id="effect-echo-mix-value">0.50</span>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-sm" id="modal-cancel">لغو</button>
+                    <button class="btn btn-sm" id="modal-preview" style="background:#d89e4f;">▶ پیش‌نمایش</button>
+                    <button class="btn btn-accent" id="modal-save">ذخیره</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="download-all-area">
+            <button class="btn btn-primary" id="download-all-btn">⬇️ دانلود همه برش‌ها</button>
+        </div>
+    </div>
+
+    <!-- لودینگ پردازش گام (Pitch) -->
+    <div class="pitch-loading-overlay" id="pitch-loading-overlay">
+        <span class="loading-spinner" style="width:32px; height:32px; border-width:3px;"></span>
+        <span class="pitch-loading-text">در حال پردازش تغییر گام ...</span>
+    </div>
+
+    <script>
+        (function() {
+            // ==================== DOM elements ====================
+            const audioUpload = document.getElementById('audio-upload');
+            const fileNameDisplay = document.getElementById('file-name-display');
+            const loadingText = document.getElementById('loading-text');
+            const waveCanvas = document.getElementById('wave-canvas');
+            const overlayCanvas = document.getElementById('overlay-canvas');
+            const rulerCanvas = document.getElementById('ruler-canvas');
+            const rulerContainer = document.getElementById('ruler-container');
+            const waveContainer = document.getElementById('waveform-container');
+            const waveformLoader = document.getElementById('waveform-loader');
+            const playPauseBtn = document.getElementById('play-pause-btn');
+            const currentTimeSpan = document.getElementById('current-time');
+            const totalTimeSpan = document.getElementById('total-time');
+            const startInput = document.getElementById('start-input');
+            const endInput = document.getElementById('end-input');
+            const setStartBtn = document.getElementById('set-start-btn');
+            const setEndBtn = document.getElementById('set-end-btn');
+            const clearSelectionBtn = document.getElementById('clear-selection-btn');
+            const undoBtn = document.getElementById('undo-btn');
+            const segmentNameInput = document.getElementById('segment-name');
+            const addSegmentBtn = document.getElementById('add-segment-btn');
+            const segmentsContainer = document.getElementById('segments-container');
+            const downloadAllBtn = document.getElementById('download-all-btn');
+            const zoomSlider = document.getElementById('zoom-slider');
+            const zoomValueSpan = document.getElementById('zoom-value');
+            const panSlider = document.getElementById('pan-slider');
+            const fitBtn = document.getElementById('fit-btn');
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            const effectModal = document.getElementById('effect-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const effectNameInput = document.getElementById('effect-name-input');
+            const effectTypeSelect = document.getElementById('effect-type-select');
+            const effectScopeSelect = document.getElementById('effect-scope-select');
+            const effectStartInput = document.getElementById('effect-start-input');
+            const effectEndInput = document.getElementById('effect-end-input');
+            const effectParamField = document.getElementById('effect-param-field');
+            const effectParamLabel = document.getElementById('effect-param-label');
+            const effectParamSlider = document.getElementById('effect-param-slider');
+            const effectParamValue = document.getElementById('effect-param-value');
+            const effectBeepFreqField = document.getElementById('effect-beep-freq-field');
+            const effectBeepFreqSlider = document.getElementById('effect-beep-freq-slider');
+            const effectBeepFreqValue = document.getElementById('effect-beep-freq-value');
+            const effectEchoDelayField = document.getElementById('effect-echo-delay-field');
+            const effectEchoDelaySlider = document.getElementById('effect-echo-delay-slider');
+            const effectEchoDelayValue = document.getElementById('effect-echo-delay-value');
+            const effectEchoFeedbackField = document.getElementById('effect-echo-feedback-field');
+            const effectEchoFeedbackSlider = document.getElementById('effect-echo-feedback-slider');
+            const effectEchoFeedbackValue = document.getElementById('effect-echo-feedback-value');
+            const effectEchoMixField = document.getElementById('effect-echo-mix-field');
+            const effectEchoMixSlider = document.getElementById('effect-echo-mix-slider');
+            const effectEchoMixValue = document.getElementById('effect-echo-mix-value');
+            const modalCancel = document.getElementById('modal-cancel');
+            const modalSave = document.getElementById('modal-save');
+            const modalPreview = document.getElementById('modal-preview');
+            const addEffectBtn = document.getElementById('add-effect-btn');
+            const effectsContainer = document.getElementById('effects-container');
+            const downloadProcessedBtn = document.getElementById('download-processed-btn');
+            const globalVolume = document.getElementById('global-volume');
+            const globalVolumeValue = document.getElementById('global-volume-value');
+            const globalSpeed = document.getElementById('global-speed');
+            const globalSpeedValue = document.getElementById('global-speed-value');
+            const globalPitch = document.getElementById('global-pitch');
+            const globalPitchValue = document.getElementById('global-pitch-value');
+            const globalBass = document.getElementById('global-bass');
+            const globalBassValue = document.getElementById('global-bass-value');
+            const globalTreble = document.getElementById('global-treble');
+            const globalTrebleValue = document.getElementById('global-treble-value');
+            // اکوی کلی
+            const globalEchoEnabled = document.getElementById('global-echo-enabled');
+            const globalEchoDelay = document.getElementById('global-echo-delay');
+            const globalEchoDelayValue = document.getElementById('global-echo-delay-value');
+            const globalEchoFeedback = document.getElementById('global-echo-feedback');
+            const globalEchoFeedbackValue = document.getElementById('global-echo-feedback-value');
+            const globalEchoMix = document.getElementById('global-echo-mix');
+            const globalEchoMixValue = document.getElementById('global-echo-mix-value');
+            const applyGlobalBtn = document.getElementById('apply-global-btn');
+            const resetGlobalBtn = document.getElementById('reset-global-btn');
+            const downloadGlobalBtn = document.getElementById('download-global-btn');
+            const previewGlobalBtn = document.getElementById('preview-global-btn');
+            const pitchLoadingOverlay = document.getElementById('pitch-loading-overlay');
+            const stopPreviewCutsBtn = document.getElementById('stop-preview-cuts-btn');
+            const stopPreviewEffectsBtn = document.getElementById('stop-preview-effects-btn');
+
+            // ==================== Audio State ====================
+            let audioContext = null;
+            let audioBuffer = null;
+            let audioElement = null;
+            let animationFrameId = null;
+            let peaks = [];
+            let segments = [];
+            let pendingStart = null;
+            let pendingEnd = null;
+            let segmentIdCounter = 1;
+            let audioEffects = [];
+            let effectIdCounter = 1;
+            let editingEffectId = null;
+            let editingEffectScope = 'global';
+            let tempPreviewEffect = null;
+
+            // زنجیره افکت زنده
+            let mediaSourceNode = null;
+            let liveMainGainNode = null;
+            let liveBassFilter = null;
+            let liveTrebleFilter = null;
+            let liveMasterGain = null;
+            let liveBeepOscillator = null;
+            let liveBeepGainNode = null;
+            let liveEchoNodes = { dryGain: null, wetGain: null, delay: null, feedbackGain: null, inputGain: null, outputGain: null };
+            let liveGraphBuilt = false;
+
+            // مدیریت پیش‌نمایش (قطع صدای قبلی)
+            let activePreviewSource = null;
+
+            // Zoom & pan
+            let zoomFactor = 1;
+            let viewStart = 0;
+            let autoScrollEnabled = true;
+            let manualDragActive = false;
+            let isDraggingPlayhead = false;
+            let lastTapTime = 0;
+            const DOUBLE_TAP_DELAY = 300;
+
+            // Global settings
+            let globalVolumeSetting = 1.0;
+            let globalSpeedSetting = 1.0;
+            let globalPitchSetting = 1.0;
+            let globalBassSetting = 0;
+            let globalTrebleSetting = 0;
+            let globalEchoEnabledSetting = false;
+            let globalEchoDelaySetting = 0.3;
+            let globalEchoFeedbackSetting = 0.4;
+            let globalEchoMixSetting = 0.5;
+
+            // Pitch Worker
+            let pitchWorker = null;
+            const pendingWorkerRequests = new Map();
+
+            // حالت پخش با گام پردازش‌شده
+            let pitchProcessedBuffer = null;
+            let pitchSourceNode = null;
+            let pitchPlaybackStartTime = 0;
+            let pitchPlaybackOffset = 0;
+            let pitchIsPlaying = false;
+            let pitchModeActive = false;
+
+            // Undo stack
+            const undoStack = [];
+            const MAX_UNDO = 30;
+
+            function saveUndoState() {
+                const state = {
+                    segments: JSON.parse(JSON.stringify(segments)),
+                    audioEffects: JSON.parse(JSON.stringify(audioEffects)),
+                    globalVolumeSetting, globalSpeedSetting, globalPitchSetting, globalBassSetting, globalTrebleSetting,
+                    globalEchoEnabledSetting, globalEchoDelaySetting, globalEchoFeedbackSetting, globalEchoMixSetting,
+                    segmentIdCounter, effectIdCounter
+                };
+                undoStack.push(state);
+                if (undoStack.length > MAX_UNDO) undoStack.shift();
+            }
+
+            function performUndo() {
+                if (undoStack.length === 0) { alert('چیزی برای برگشت وجود ندارد.'); return; }
+                const state = undoStack.pop();
+                segments = state.segments;
+                audioEffects = state.audioEffects;
+                globalVolumeSetting = state.globalVolumeSetting;
+                globalSpeedSetting = state.globalSpeedSetting;
+                globalPitchSetting = state.globalPitchSetting;
+                globalBassSetting = state.globalBassSetting;
+                globalTrebleSetting = state.globalTrebleSetting;
+                globalEchoEnabledSetting = state.globalEchoEnabledSetting;
+                globalEchoDelaySetting = state.globalEchoDelaySetting;
+                globalEchoFeedbackSetting = state.globalEchoFeedbackSetting;
+                globalEchoMixSetting = state.globalEchoMixSetting;
+                segmentIdCounter = state.segmentIdCounter;
+                effectIdCounter = state.effectIdCounter;
+                // به‌روزرسانی UI
+                globalVolume.value = globalVolumeSetting * 100;
+                globalVolumeValue.textContent = Math.round(globalVolumeSetting * 100) + '%';
+                globalSpeed.value = globalSpeedSetting;
+                globalSpeedValue.textContent = globalSpeedSetting.toFixed(2) + 'x';
+                globalPitch.value = globalPitchSetting;
+                globalPitchValue.textContent = globalPitchSetting.toFixed(2) + 'x';
+                globalBass.value = globalBassSetting;
+                globalBassValue.textContent = globalBassSetting + ' dB';
+                globalTreble.value = globalTrebleSetting;
+                globalTrebleValue.textContent = globalTrebleSetting + ' dB';
+                globalEchoEnabled.checked = globalEchoEnabledSetting;
+                globalEchoDelay.value = globalEchoDelaySetting;
+                globalEchoDelayValue.textContent = globalEchoDelaySetting.toFixed(2);
+                globalEchoFeedback.value = globalEchoFeedbackSetting;
+                globalEchoFeedbackValue.textContent = globalEchoFeedbackSetting.toFixed(2);
+                globalEchoMix.value = globalEchoMixSetting;
+                globalEchoMixValue.textContent = globalEchoMixSetting.toFixed(2);
+                renderSegments();
+                renderEffects();
+                drawOverlay();
+                if (needsPitchProcessing()) { pitchProcessedBuffer = null; if (pitchModeActive) stopPitchPlayback(); }
+                applyGlobalLiveSettings();
+            }
+
+            undoBtn.addEventListener('click', performUndo);
+
+            // ==================== Utility Functions ====================
+            function formatTime(seconds) {
+                if (isNaN(seconds) || seconds < 0) return '00:00.0';
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                const tenth = Math.floor((seconds % 1) * 10);
+                return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${tenth}`;
+            }
+
+            function parseTimeInput(str) {
+                if (!str) return NaN;
+                str = str.trim();
+                const parts = str.split(':');
+                let mins = 0, secs = 0;
+                if (parts.length === 2) { mins = parseFloat(parts[0]) || 0; secs = parseFloat(parts[1]) || 0; }
+                else { secs = parseFloat(parts[0]) || 0; }
+                return mins * 60 + secs;
+            }
+
+            function getAudioContext() {
+                if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioContext.state === 'suspended') audioContext.resume();
+                return audioContext;
+            }
+
+            function stopAllPreviews() {
+                if (activePreviewSource) {
+                    try { activePreviewSource.stop(); } catch(e) {}
+                    activePreviewSource.disconnect();
+                    activePreviewSource = null;
+                }
+                if (tempPreviewEffect) {
+                    tempPreviewEffect = null;
+                    if (audioElement && !audioElement.paused) {
+                        audioElement.pause();
+                        updatePlayPauseButton();
+                    }
+                }
+            }
+
+            function stopAllPlaybackAndPreviews() {
+                stopAllPreviews();
+                stopBeepLive();
+                stopPitchPlayback();
+                if (audioElement) {
+                    audioElement.pause();
+                    updatePlayPauseButton();
+                }
+                pitchModeActive = false;
+                pitchProcessedBuffer = null;
+                tempPreviewEffect = null;
+                if (animationFrameId) stopPlayheadAnimation();
+                drawOverlay();
+                drawRuler();
+            }
+
+            // ==================== Web Worker (الگوریتم گام اجباری) ====================
+            function createPitchWorker() {
+                const workerCode = `
+                function hannWindow(n, L) { return 0.5 * (1 - Math.cos((2 * Math.PI * n) / (L - 1))); }
+                function cubicInterpolate(x, y0, y1, y2, y3) {
+                    const a = y3 - y2 - y0 + y1, b = y0 - y1 - a, c = y2 - y0, d = y1;
+                    return a * x * x * x + b * x * x + c * x + d;
+                }
+                function getSampleCubic(pos, data) {
+                    const len = data.length;
+                    if (pos < 0) return data[0] || 0;
+                    const idx = Math.floor(pos), frac = pos - idx;
+                    const y0 = (idx - 1 >= 0) ? data[idx - 1] : 0;
+                    const y1 = (idx >= 0 && idx < len) ? data[idx] : 0;
+                    const y2 = (idx + 1 < len) ? data[idx + 1] : 0;
+                    const y3 = (idx + 2 < len) ? data[idx + 2] : 0;
+                    return cubicInterpolate(frac, y0, y1, y2, y3);
+                }
+                function resampleBuffer(data, ratio) {
+                    const originalLength = data.length;
+                    const newLength = Math.floor(originalLength / ratio);
+                    const output = new Float32Array(newLength);
+                    for (let i = 0; i < newLength; i++) output[i] = getSampleCubic(i * ratio, data);
+                    return output;
+                }
+                function timeStretch(input, targetLength) {
+                    const GRAIN_SIZE = 4096, HOP_IN = GRAIN_SIZE / 4;
+                    const inputLen = input.length;
+                    if (inputLen === 0) return new Float32Array(targetLength);
+                    const numGrains = Math.floor((inputLen - GRAIN_SIZE) / HOP_IN) + 1;
+                    if (numGrains <= 1) { const out = new Float32Array(targetLength); out.set(input.subarray(0, Math.min(inputLen, targetLength))); return out; }
+                    const hopOut = (targetLength - GRAIN_SIZE) / (numGrains - 1);
+                    const output = new Float32Array(targetLength);
+                    const weightSum = new Float32Array(targetLength);
+                    const windowArray = new Float32Array(GRAIN_SIZE);
+                    for (let i = 0; i < GRAIN_SIZE; i++) windowArray[i] = hannWindow(i, GRAIN_SIZE);
+                    for (let g = 0; g < numGrains; g++) {
+                        const inputPos = g * HOP_IN, outputPos = Math.round(g * hopOut);
+                        for (let i = 0; i < GRAIN_SIZE; i++) {
+                            const outIdx = outputPos + i; if (outIdx >= targetLength) break;
+                            const inIdx = inputPos + i;
+                            const sample = (inIdx < inputLen) ? input[inIdx] : 0;
+                            const w = windowArray[i];
+                            output[outIdx] += sample * w; weightSum[outIdx] += w;
+                        }
+                    }
+                    for (let i = 0; i < targetLength; i++) if (weightSum[i] > 0.0001) output[i] /= weightSum[i];
+                    const fadeLen = Math.min(512, targetLength);
+                    for (let i = 0; i < fadeLen; i++) output[i] *= i / fadeLen;
+                    for (let i = targetLength - fadeLen; i < targetLength; i++) output[i] *= (targetLength - 1 - i) / fadeLen;
+                    return output;
+                }
+                self.onmessage = function(e) {
+                    const { id, channelData, ratio, sampleRate } = e.data;
+                    try {
+                        const resampled = resampleBuffer(channelData, ratio);
+                        const originalLength = channelData.length;
+                        const stretched = timeStretch(resampled, originalLength);
+                        self.postMessage({ id, buffer: stretched.buffer, sampleRate }, [stretched.buffer]);
+                    } catch (error) { self.postMessage({ id, error: error.message }); }
+                };
+                `;
+                const blob = new Blob([workerCode], { type: 'application/javascript' });
+                const worker = new Worker(URL.createObjectURL(blob));
+                worker.onmessage = function(e) {
+                    const { id, buffer, sampleRate, error } = e.data;
+                    const resolver = pendingWorkerRequests.get(id);
+                    if (resolver) {
+                        if (error) resolver.reject(new Error(error));
+                        else resolver.resolve({ buffer, sampleRate });
+                        pendingWorkerRequests.delete(id);
+                    }
+                };
+                return worker;
+            }
+
+            function getPitchWorker() {
+                if (!pitchWorker) pitchWorker = createPitchWorker();
+                return pitchWorker;
+            }
+
+            function pitchShiftBufferWithWorker(buffer, ratio) {
+                return new Promise((resolve, reject) => {
+                    if (Math.abs(ratio - 1.0) < 0.001) { resolve(buffer); return; }
+                    const worker = getPitchWorker();
+                    const numChannels = buffer.numberOfChannels;
+                    const sr = buffer.sampleRate;
+                    const results = new Array(numChannels);
+                    let completed = 0;
+                    let hasError = false;
+                    for (let ch = 0; ch < numChannels; ch++) {
+                        const channelData = new Float32Array(buffer.getChannelData(ch));
+                        const id = Date.now() + Math.random() + '_' + ch;
+                        pendingWorkerRequests.set(id, { resolve: (data) => {
+                            results[ch] = new Float32Array(data.buffer);
+                            completed++;
+                            if (completed === numChannels && !hasError) {
+                                const newBuffer = audioContext.createBuffer(numChannels, results[0].length, sr);
+                                for (let c = 0; c < numChannels; c++) newBuffer.getChannelData(c).set(results[c]);
+                                resolve(newBuffer);
+                            }
+                        }, reject: (err) => { hasError = true; reject(err); } });
+                        worker.postMessage({ id, channelData, ratio, sampleRate: sr }, [channelData.buffer]);
+                    }
+                });
+            }
+
+            function showPitchLoading() { pitchLoadingOverlay.classList.add('visible'); }
+            function hidePitchLoading() { pitchLoadingOverlay.classList.remove('visible'); }
+
+            // ==================== Canvas & Peaks ====================
+            function updateCanvasDimensions() {
+                const waveWidth = waveContainer.clientWidth, waveHeight = waveContainer.clientHeight;
+                const rulerWidth = rulerContainer.clientWidth, rulerHeight = rulerContainer.clientHeight;
+                if (waveWidth === 0 || waveHeight === 0 || rulerWidth === 0 || rulerHeight === 0) return false;
+                waveCanvas.width = waveWidth; waveCanvas.height = waveHeight;
+                overlayCanvas.width = waveWidth; overlayCanvas.height = waveHeight;
+                rulerCanvas.width = rulerWidth; rulerCanvas.height = rulerHeight;
+                return true;
+            }
+
+            function computePeaks() {
+                if (!audioBuffer) { peaks = []; return; }
+                const length = audioBuffer.length;
+                const data = audioBuffer.getChannelData(0);
+                const PEAK_RESOLUTION = 2000;
+                peaks = new Array(PEAK_RESOLUTION).fill(0);
+                const samplesPerPixel = length / PEAK_RESOLUTION;
+                for (let i = 0; i < length; i++) {
+                    const val = Math.abs(data[i]);
+                    const idx = Math.min(Math.floor(i / samplesPerPixel), PEAK_RESOLUTION - 1);
+                    if (val > peaks[idx]) peaks[idx] = val;
+                }
+            }
+
+            function timeFromX(x, canvasEl = overlayCanvas) {
+                if (!audioBuffer) return 0;
+                const w = canvasEl.width; if (w === 0) return 0;
+                const viewDur = audioBuffer.duration / zoomFactor;
+                return viewStart + (x / w) * viewDur;
+            }
+
+            function xFromTime(time, canvasEl = overlayCanvas) {
+                if (!audioBuffer) return 0;
+                const w = canvasEl.width; if (w === 0) return 0;
+                const viewDur = audioBuffer.duration / zoomFactor;
+                return ((time - viewStart) / viewDur) * w;
+            }
+
+            function drawWaveform() {
+                if (!waveCanvas || !audioBuffer || peaks.length === 0) return;
+                const ctx = waveCanvas.getContext('2d');
+                const w = waveCanvas.width, h = waveCanvas.height;
+                ctx.clearRect(0, 0, w, h);
+                const mid = h / 2, totalDur = audioBuffer.duration, nPeaks = peaks.length;
+                const gradTop = ctx.createLinearGradient(0, 0, 0, mid);
+                gradTop.addColorStop(0, '#2ecc71'); gradTop.addColorStop(1, '#1abc9c');
+                const gradBottom = ctx.createLinearGradient(0, mid, 0, h);
+                gradBottom.addColorStop(0, '#e67e22'); gradBottom.addColorStop(1, '#e74c3c');
+                ctx.fillStyle = gradTop; ctx.beginPath(); ctx.moveTo(0, mid);
+                for (let x = 0; x < w; x++) {
+                    const t = timeFromX(x);
+                    const idx = Math.min(Math.floor((t / totalDur) * nPeaks), nPeaks - 1);
+                    const peak = peaks[idx] || 0;
+                    const y = mid - peak * (h * 0.45);
+                    ctx.lineTo(x, y);
+                }
+                ctx.lineTo(w, mid); ctx.closePath(); ctx.fill();
+                ctx.fillStyle = gradBottom; ctx.beginPath(); ctx.moveTo(0, mid);
+                for (let x = 0; x < w; x++) {
+                    const t = timeFromX(x);
+                    const idx = Math.min(Math.floor((t / totalDur) * nPeaks), nPeaks - 1);
+                    const peak = peaks[idx] || 0;
+                    const y = mid + peak * (h * 0.45);
+                    ctx.lineTo(x, y);
+                }
+                ctx.lineTo(w, mid); ctx.closePath(); ctx.fill();
+                ctx.strokeStyle = '#2f3b54'; ctx.lineWidth = 0.8; ctx.beginPath();
+                ctx.moveTo(0, mid); ctx.lineTo(w, mid); ctx.stroke();
+            }
+
+            function drawOverlay() {
+                if (!overlayCanvas || !audioBuffer) return;
+                const ctx = overlayCanvas.getContext('2d');
+                const w = overlayCanvas.width, h = overlayCanvas.height;
+                ctx.clearRect(0, 0, w, h);
+                const dur = audioBuffer.duration, viewEnd = viewStart + dur / zoomFactor;
+                function clampX(t) { return Math.max(0, Math.min(w, xFromTime(t))); }
+
+                audioEffects.forEach(eff => {
+                    if (eff.end <= viewStart || eff.start >= viewEnd) return;
+                    const x1 = clampX(eff.start), x2 = clampX(eff.end);
+                    let color;
+                    switch (eff.type) {
+                        case 'mute': color = 'rgba(231,76,60,0.35)'; break; case 'volume': color = 'rgba(52,152,219,0.35)'; break;
+                        case 'pitch': color = 'rgba(243,156,18,0.35)'; break; case 'bass': color = 'rgba(155,89,182,0.35)'; break;
+                        case 'treble': color = 'rgba(26,188,156,0.35)'; break; case 'speed': color = 'rgba(230,126,34,0.35)'; break;
+                        case 'beep': color = 'rgba(255,71,87,0.35)'; break; case 'echo': color = 'rgba(155,89,182,0.35)'; break;
+                        default: color = 'rgba(255,255,255,0.2)';
+                    }
+                    ctx.fillStyle = color; ctx.fillRect(x1, 0, x2 - x1, h);
+                    ctx.fillStyle = '#fff'; ctx.font = '10px monospace';
+                    ctx.fillText(eff.type, x1 + 3, 14); ctx.fillText(eff.name, x1 + 3, 28);
+                });
+
+                segments.forEach(seg => {
+                    if (!seg.effects) return;
+                    seg.effects.forEach(eff => {
+                        if (eff.end <= viewStart || eff.start >= viewEnd) return;
+                        const x1 = clampX(eff.start), x2 = clampX(eff.end);
+                        let color;
+                        switch (eff.type) {
+                            case 'mute': color = 'rgba(231,76,60,0.3)'; break; case 'volume': color = 'rgba(52,152,219,0.3)'; break;
+                            case 'pitch': color = 'rgba(243,156,18,0.3)'; break; case 'bass': color = 'rgba(155,89,182,0.3)'; break;
+                            case 'treble': color = 'rgba(26,188,156,0.3)'; break; case 'speed': color = 'rgba(230,126,34,0.3)'; break;
+                            case 'beep': color = 'rgba(255,71,87,0.3)'; break; case 'echo': color = 'rgba(155,89,182,0.3)'; break;
+                            default: color = 'rgba(255,255,255,0.15)';
+                        }
+                        ctx.fillStyle = color; ctx.fillRect(x1, h * 0.55, x2 - x1, h * 0.45);
+                        ctx.fillStyle = '#ffc107'; ctx.font = '9px monospace';
+                        ctx.fillText('✂' + eff.type, x1 + 2, h * 0.65);
+                    });
+                });
+
+                segments.forEach(seg => {
+                    if (seg.end <= viewStart || seg.start >= viewEnd) return;
+                    const x1 = clampX(seg.start), x2 = clampX(seg.end);
+                    ctx.fillStyle = 'rgba(90,180,140,0.25)'; ctx.fillRect(x1, 0, x2 - x1, h);
+                    ctx.strokeStyle = '#5ab48c'; ctx.lineWidth = 1.5; ctx.strokeRect(x1, 0, x2 - x1, h);
+                    ctx.fillStyle = '#e0ffe0'; ctx.font = '11px "Segoe UI"'; ctx.fillText(seg.name, x1 + 4, 16);
+                });
+
+                if (pendingStart !== null && pendingEnd !== null && pendingEnd > pendingStart) {
+                    if (!(pendingEnd <= viewStart || pendingStart >= viewEnd)) {
+                        const x1 = clampX(pendingStart), x2 = clampX(pendingEnd);
+                        ctx.fillStyle = 'rgba(210,160,80,0.35)'; ctx.fillRect(x1, 0, x2 - x1, h);
+                        ctx.strokeStyle = '#e2a03f'; ctx.lineWidth = 2; ctx.setLineDash([5,4]); ctx.strokeRect(x1, 0, x2 - x1, h); ctx.setLineDash([]);
+                    }
+                } else if (pendingStart !== null) {
+                    const xs = clampX(pendingStart);
+                    ctx.strokeStyle = '#f0b34b'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(xs, 0); ctx.lineTo(xs, h); ctx.stroke();
+                }
+
+                let currentTime = getCurrentPlaybackTime();
+                if (currentTime > 0 && isFinite(currentTime)) {
+                    const px = clampX(currentTime);
+                    ctx.strokeStyle = '#f08080'; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, h); ctx.stroke();
+                }
+            }
+
+            function drawRuler() {
+                if (!rulerCanvas || !audioBuffer) return;
+                const ctx = rulerCanvas.getContext('2d');
+                const w = rulerCanvas.width, h = rulerCanvas.height;
+                ctx.clearRect(0, 0, w, h);
+                ctx.fillStyle = '#0d0d1c'; ctx.fillRect(0, 0, w, h);
+                ctx.strokeStyle = '#5f6b8a'; ctx.lineWidth = 1; ctx.font = '10px "JetBrains Mono", monospace'; ctx.fillStyle = '#bcc6e0';
+                const viewDuration = audioBuffer.duration / zoomFactor;
+                const minPixelBetweenMajor = 80;
+                const majorStepCandidates = [0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10, 20, 30, 60, 120, 300, 600, 1200, 1800, 3600];
+                let majorStep = majorStepCandidates[majorStepCandidates.length - 1];
+                for (const step of majorStepCandidates) { if ((step / viewDuration) * w >= minPixelBetweenMajor) { majorStep = step; break; } }
+                const minorStep = majorStep / 2;
+                const viewEnd = viewStart + viewDuration;
+                let t = Math.floor(viewStart / majorStep) * majorStep;
+                while (t <= viewEnd) {
+                    const x = xFromTime(t, rulerCanvas);
+                    if (x < 0 || x > w) { t += majorStep; continue; }
+                    ctx.beginPath(); ctx.moveTo(x, h - 10); ctx.lineTo(x, h); ctx.stroke();
+                    const mins = Math.floor(t / 60), secs = Math.floor(t % 60);
+                    ctx.fillText(`${mins}:${String(secs).padStart(2, '0')}`, x + 2, h - 12);
+                    for (let st = t + minorStep; st < t + majorStep && st <= viewEnd; st += minorStep) {
+                        const sx = xFromTime(st, rulerCanvas); if (sx < 0 || sx > w) continue;
+                        ctx.beginPath(); ctx.moveTo(sx, h - 5); ctx.lineTo(sx, h); ctx.stroke();
+                    }
+                    t += majorStep;
+                }
+                let currentTime = getCurrentPlaybackTime();
+                if (currentTime > 0 && isFinite(currentTime)) {
+                    const px = xFromTime(currentTime, rulerCanvas);
+                    ctx.fillStyle = '#f08080'; ctx.beginPath(); ctx.moveTo(px, 1); ctx.lineTo(px - 6, h - 2); ctx.lineTo(px + 6, h - 2); ctx.closePath(); ctx.fill();
+                    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
+                }
+            }
+
+            function refreshWaveform() { if (!updateCanvasDimensions()) return; updatePanSliderRange(); drawWaveform(); drawOverlay(); drawRuler(); }
+            function updatePanSliderRange() {
+                if (!audioBuffer) { panSlider.max = 0; panSlider.value = 0; return; }
+                const viewDur = audioBuffer.duration / zoomFactor;
+                const maxPan = Math.max(0, audioBuffer.duration - viewDur);
+                panSlider.max = maxPan;
+                if (viewStart > maxPan) { viewStart = maxPan; panSlider.value = maxPan; }
+                else panSlider.value = viewStart;
+                panSlider.step = Math.max(0.01, viewDur / 100);
+            }
+
+            function needsPitchProcessing() {
+                if (Math.abs(globalPitchSetting - 1.0) > 0.001) return true;
+                for (const eff of audioEffects) if (eff.type === 'pitch') return true;
+                for (const seg of segments) if (seg.effects) for (const eff of seg.effects) if (eff.type === 'pitch') return true;
+                return false;
+            }
+
+            // ==================== حالت پخش با بافر پردازش‌شده ====================
+            async function buildPitchProcessedBuffer() {
+                const allEffs = [...audioEffects];
+                segments.forEach(seg => { if (seg.effects) allEffs.push(...seg.effects); });
+                return await processAudioWithEffects(audioBuffer, allEffs, globalVolumeSetting, globalSpeedSetting, globalPitchSetting, globalBassSetting, globalTrebleSetting);
+            }
+
+            function stopPitchPlayback() {
+                if (pitchSourceNode) { try { pitchSourceNode.stop(); } catch(e) {} pitchSourceNode.disconnect(); pitchSourceNode = null; }
+                pitchIsPlaying = false;
+            }
+
+            function startPitchPlayback(offset = 0) {
+                if (!pitchProcessedBuffer) return;
+                stopPitchPlayback();
+                const ctx = getAudioContext();
+                if (ctx.state === 'suspended') ctx.resume();
+                const source = ctx.createBufferSource();
+                source.buffer = pitchProcessedBuffer;
+                const gainNode = ctx.createGain();
+                gainNode.gain.value = 1;
+                source.connect(gainNode); gainNode.connect(ctx.destination);
+                source.onended = () => { pitchIsPlaying = false; pitchSourceNode = null; updatePlayPauseButton(); drawOverlay(); drawRuler(); };
+                const now = ctx.currentTime;
+                source.start(now, offset);
+                pitchSourceNode = source;
+                pitchPlaybackStartTime = now;
+                pitchPlaybackOffset = offset;
+                pitchIsPlaying = true;
+                pitchModeActive = true;
+                updatePlayPauseButton();
+            }
+
+            function getCurrentPlaybackTime() {
+                if (pitchModeActive && pitchSourceNode && pitchIsPlaying) {
+                    return Math.min(pitchProcessedBuffer ? pitchProcessedBuffer.duration : Infinity, pitchPlaybackOffset + (getAudioContext().currentTime - pitchPlaybackStartTime));
+                }
+                if (audioElement && isFinite(audioElement.currentTime)) return audioElement.currentTime;
+                return 0;
+            }
+
+            function seekTo(time) {
+                if (!audioBuffer) return;
+                const nt = Math.min(Math.max(time, 0), audioBuffer.duration);
+                if (pitchModeActive && pitchProcessedBuffer) {
+                    stopPitchPlayback();
+                    pitchPlaybackOffset = nt;
+                    if (pitchIsPlaying) startPitchPlayback(nt);
+                    else { currentTimeSpan.textContent = formatTime(nt); drawOverlay(); drawRuler(); }
+                } else if (audioElement) {
+                    audioElement.currentTime = nt;
+                }
+                currentTimeSpan.textContent = formatTime(nt);
+            }
+
+            function updatePlayPauseButton() {
+                const playing = (pitchModeActive && pitchIsPlaying) || (audioElement && !audioElement.paused);
+                playPauseBtn.textContent = playing ? '⏸' : '▶';
+                playPauseBtn.classList.toggle('playing', playing);
+                playPauseBtn.title = playing ? 'توقف' : 'پخش';
+            }
+
+            playPauseBtn.addEventListener('click', async () => {
+                if (!audioBuffer) { alert('فایل صوتی بارگذاری نشده.'); return; }
+                getAudioContext();
+                if (needsPitchProcessing()) {
+                    if (pitchIsPlaying) { stopPitchPlayback(); drawOverlay(); return; }
+                    if (pitchProcessedBuffer) { startPitchPlayback(pitchPlaybackOffset); drawOverlay(); return; }
+                    showPitchLoading();
+                    playPauseBtn.disabled = true;
+                    try {
+                        pitchProcessedBuffer = await buildPitchProcessedBuffer();
+                        startPitchPlayback(0);
+                    } catch (err) { alert('خطا در پردازش گام: ' + err.message); }
+                    finally { hidePitchLoading(); playPauseBtn.disabled = false; drawOverlay(); }
+                } else {
+                    if (pitchModeActive) { stopPitchPlayback(); pitchModeActive = false; }
+                    if (!audioElement) { alert('فایل صوتی بارگذاری نشده.'); return; }
+                    ensureLiveGraph();
+                    if (audioElement.paused) { audioElement.play(); startPlayheadAnimation(); }
+                    else { audioElement.pause(); stopPlayheadAnimation(); stopBeepLive(); tempPreviewEffect = null; drawOverlay(); }
+                    updatePlayPauseButton();
+                }
+            });
+
+            // ==================== Load file ====================
+            audioUpload.addEventListener('change', async (e) => {
+                const file = e.target.files[0]; if (!file) return;
+                fileNameDisplay.textContent = file.name;
+                loadingText.classList.add('visible'); waveformLoader.style.display = 'flex';
+                try {
+                    const arrBuf = await file.arrayBuffer();
+                    const ctx = getAudioContext();
+                    audioBuffer = await ctx.decodeAudioData(arrBuf);
+                    if (audioElement) { audioElement.pause(); audioElement.removeEventListener('timeupdate', onTimeUpdate); URL.revokeObjectURL(audioElement.src); }
+                    destroyLiveGraph(); stopPitchPlayback();
+                    pitchModeActive = false; pitchProcessedBuffer = null;
+                    audioElement = new Audio(URL.createObjectURL(file));
+                    audioElement.addEventListener('timeupdate', onTimeUpdate);
+                    audioElement.addEventListener('loadedmetadata', () => totalTimeSpan.textContent = formatTime(audioElement.duration));
+                    audioElement.addEventListener('ended', () => { currentTimeSpan.textContent = formatTime(audioElement.duration); stopPlayheadAnimation(); stopBeepLive(); tempPreviewEffect = null; updatePlayPauseButton(); drawOverlay(); });
+                    audioElement.addEventListener('play', () => { if (!pitchModeActive) ensureLiveGraph(); updatePlayPauseButton(); });
+                    audioElement.addEventListener('pause', () => { stopBeepLive(); updatePlayPauseButton(); });
+                    segments = []; pendingStart = null; pendingEnd = null; audioEffects = [];
+                    startInput.value = '00:00.0'; endInput.value = '00:00.0'; segmentNameInput.value = '';
+                    segmentIdCounter = 1; effectIdCounter = 1; tempPreviewEffect = null;
+                    undoStack.length = 0;
+                    renderSegments(); renderEffects();
+                    zoomFactor = 1; zoomSlider.value = 1; zoomValueSpan.textContent = '1x'; viewStart = 0;
+                    autoScrollEnabled = true; manualDragActive = false;
+                    computePeaks(); refreshWaveform();
+                    liveGraphBuilt = false; ensureLiveGraph(); applyGlobalLiveSettings();
+                    totalTimeSpan.textContent = formatTime(audioBuffer.duration);
+                    currentTimeSpan.textContent = '00:00.0'; updatePlayPauseButton();
+                } catch (err) { alert('خطا در پردازش فایل: ' + err.message); }
+                finally { loadingText.classList.remove('visible'); waveformLoader.style.display = 'none'; }
+            });
+
+            window.addEventListener('resize', () => { if (audioBuffer) refreshWaveform(); });
+
+            // ==================== Zoom & Pan ====================
+            zoomSlider.addEventListener('input', () => { zoomFactor = parseFloat(zoomSlider.value); zoomValueSpan.textContent = zoomFactor.toFixed(1) + 'x'; updatePanSliderRange(); refreshWaveform(); });
+            panSlider.addEventListener('input', () => { viewStart = parseFloat(panSlider.value); drawWaveform(); drawOverlay(); drawRuler(); });
+            fitBtn.addEventListener('click', () => { zoomFactor = 1; zoomSlider.value = 1; zoomValueSpan.textContent = '1x'; viewStart = 0; updatePanSliderRange(); refreshWaveform(); });
+
+            // ==================== Ruler & Overlay dragging ====================
+            rulerCanvas.addEventListener('mousedown', e => { e.preventDefault(); handleRulerStart(e.clientX); });
+            window.addEventListener('mousemove', e => { if (manualDragActive) handleRulerMove(e.clientX); });
+            window.addEventListener('mouseup', () => { if (manualDragActive) handleRulerEnd(); });
+            rulerCanvas.addEventListener('touchstart', e => { e.preventDefault(); handleRulerStart(e.touches[0].clientX); }, { passive: false });
+            rulerCanvas.addEventListener('touchmove', e => { e.preventDefault(); if (manualDragActive) handleRulerMove(e.touches[0].clientX); }, { passive: false });
+            rulerCanvas.addEventListener('touchend', e => { e.preventDefault(); handleRulerEnd(); });
+
+            function handleRulerStart(cx) { if (!audioBuffer) return; const rect = rulerCanvas.getBoundingClientRect(); seekTo(timeFromX(cx - rect.left, rulerCanvas)); manualDragActive = true; }
+            function handleRulerMove(cx) { if (!manualDragActive) return; const rect = rulerCanvas.getBoundingClientRect(); seekTo(timeFromX(cx - rect.left, rulerCanvas)); drawRuler(); drawOverlay(); }
+            function handleRulerEnd() { manualDragActive = false; }
+
+            overlayCanvas.addEventListener('mousedown', e => { if (!audioBuffer) return; if (isNearPlayhead(e.clientX)) { e.preventDefault(); isDraggingPlayhead = true; manualDragActive = true; overlayCanvas.style.cursor = 'ew-resize'; return; } handleSelectionClick(e.clientX); });
+            window.addEventListener('mousemove', e => { if (isDraggingPlayhead) { const rect = overlayCanvas.getBoundingClientRect(); seekTo(timeFromX(e.clientX - rect.left)); drawOverlay(); drawRuler(); } });
+            window.addEventListener('mouseup', () => { if (isDraggingPlayhead) { isDraggingPlayhead = false; manualDragActive = false; overlayCanvas.style.cursor = ''; } });
+            overlayCanvas.addEventListener('touchstart', e => { e.preventDefault(); if (!audioBuffer) return; const touch = e.touches[0]; if (isNearPlayhead(touch.clientX)) { isDraggingPlayhead = true; manualDragActive = true; return; } const now = Date.now(); if (now - lastTapTime < DOUBLE_TAP_DELAY) { const rect = overlayCanvas.getBoundingClientRect(); seekTo(timeFromX(touch.clientX - rect.left)); lastTapTime = 0; return; } lastTapTime = now; handleSelectionClickByX(touch.clientX - overlayCanvas.getBoundingClientRect().left); }, { passive: false });
+            overlayCanvas.addEventListener('touchmove', e => { e.preventDefault(); if (isDraggingPlayhead) { const rect = overlayCanvas.getBoundingClientRect(); seekTo(timeFromX(e.touches[0].clientX - rect.left)); drawOverlay(); drawRuler(); } }, { passive: false });
+            overlayCanvas.addEventListener('touchend', e => { e.preventDefault(); if (isDraggingPlayhead) { isDraggingPlayhead = false; manualDragActive = false; } });
+            overlayCanvas.addEventListener('dblclick', e => { if (!audioBuffer) return; const rect = overlayCanvas.getBoundingClientRect(); seekTo(timeFromX(e.clientX - rect.left)); });
+
+            function isNearPlayhead(cx) { const rect = overlayCanvas.getBoundingClientRect(); return Math.abs((cx - rect.left) - xFromTime(getCurrentPlaybackTime())) <= 10; }
+
+            function handleSelectionClickByX(mx) {
+                if (!audioBuffer) return; const ct = timeFromX(mx); if (ct < 0 || ct > audioBuffer.duration) return;
+                if (pendingStart !== null && pendingEnd !== null && pendingEnd > pendingStart) { pendingStart = ct; pendingEnd = null; startInput.value = formatTime(pendingStart); endInput.value = ''; drawOverlay(); return; }
+                if (pendingStart === null) { pendingStart = ct; pendingEnd = null; startInput.value = formatTime(pendingStart); endInput.value = ''; }
+                else { let et = ct; if (et < pendingStart) [pendingStart, et] = [et, pendingStart]; pendingEnd = et; startInput.value = formatTime(pendingStart); endInput.value = formatTime(pendingEnd); }
+                drawOverlay();
+            }
+            function handleSelectionClick(cx) { handleSelectionClickByX(cx - overlayCanvas.getBoundingClientRect().left); }
+
+            setStartBtn.addEventListener('click', () => { if (!audioBuffer) return; pendingStart = getCurrentPlaybackTime(); startInput.value = formatTime(pendingStart); drawOverlay(); });
+            setEndBtn.addEventListener('click', () => { if (!audioBuffer) return; let et = getCurrentPlaybackTime(); if (pendingStart !== null && et < pendingStart) { alert('پایان قبل از شروع'); return; } pendingEnd = et; endInput.value = formatTime(pendingEnd); drawOverlay(); });
+            clearSelectionBtn.addEventListener('click', () => { pendingStart = null; pendingEnd = null; startInput.value = '00:00.0'; endInput.value = '00:00.0'; drawOverlay(); });
+            startInput.addEventListener('input', () => { const v = parseTimeInput(startInput.value); if (!isNaN(v) && audioBuffer) { pendingStart = Math.min(Math.max(v, 0), audioBuffer.duration); drawOverlay(); } });
+            endInput.addEventListener('input', () => { const v = parseTimeInput(endInput.value); if (!isNaN(v) && audioBuffer) { pendingEnd = Math.min(Math.max(v, 0), audioBuffer.duration); drawOverlay(); } });
+
+            // ==================== توقف پیش‌نمایش ====================
+            stopPreviewCutsBtn.addEventListener('click', stopAllPlaybackAndPreviews);
+            stopPreviewEffectsBtn.addEventListener('click', stopAllPlaybackAndPreviews);
+
+            // ==================== Segments ====================
+            addSegmentBtn.addEventListener('click', () => {
+                if (!audioBuffer) { alert('ابتدا فایل صوتی بارگذاری کنید.'); return; }
+                if (pendingStart === null || pendingEnd === null || pendingEnd <= pendingStart) { alert('بازه معتبر انتخاب کنید.'); return; }
+                saveUndoState();
+                let name = segmentNameInput.value.trim() || `برش_${segmentIdCounter++}`;
+                segments.push({ name, start: pendingStart, end: pendingEnd, effects: [] });
+                pendingStart = null; pendingEnd = null;
+                startInput.value = '00:00.0'; endInput.value = '00:00.0'; segmentNameInput.value = '';
+                renderSegments(); drawOverlay();
+            });
+
+            function renderSegments() {
+                segmentsContainer.innerHTML = '';
+                if (segments.length === 0) { segmentsContainer.innerHTML = '<div style="text-align:center;color:#6c7293;padding:1.5rem;">هنوز هیچ برشی تعریف نشده است.</div>'; return; }
+                segments.forEach((seg, i) => {
+                    const card = document.createElement('div'); card.className = 'segment-card';
+                    const effCount = (seg.effects && seg.effects.length) ? seg.effects.length : 0;
+                    card.innerHTML = `<div class="segment-info"><span class="segment-title">📁 ${escapeHtml(seg.name)}${effCount ? `<span class="segment-effects-count">✨ ${effCount} افکت</span>` : ''}</span><span class="segment-time">${formatTime(seg.start)} → ${formatTime(seg.end)} (${formatTime(seg.end - seg.start)})</span></div>`;
+                    const acts = document.createElement('div'); acts.className = 'segment-actions';
+                    const playBtn = document.createElement('button'); playBtn.className = 'btn btn-sm'; playBtn.textContent = '▶ گوش دادن'; playBtn.onclick = () => previewSegment(i);
+                    const dlBtn = document.createElement('button'); dlBtn.className = 'btn btn-accent btn-sm'; dlBtn.textContent = '⬇️ دانلود'; dlBtn.onclick = () => downloadSegment(i);
+                    const dlEffBtn = document.createElement('button'); dlEffBtn.className = 'btn btn-sm'; dlEffBtn.textContent = '✨ با افکت'; dlEffBtn.onclick = () => downloadSegmentWithEffects(i);
+                    const addEffBtn = document.createElement('button'); addEffBtn.className = 'btn btn-sm'; addEffBtn.textContent = '🎛️ افزودن افکت'; addEffBtn.style.background = '#5f4b8b'; addEffBtn.onclick = () => openEffectModalForSegment(i);
+                    const delBtn = document.createElement('button'); delBtn.className = 'btn btn-danger btn-sm'; delBtn.textContent = '🗑️';
+                    delBtn.onclick = () => { saveUndoState(); segments.splice(i, 1); renderSegments(); drawOverlay(); };
+                    acts.append(playBtn, dlBtn, dlEffBtn, addEffBtn, delBtn); card.appendChild(acts); segmentsContainer.appendChild(card);
+                });
+            }
+            function escapeHtml(t) { return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+            // ==================== Effects ====================
+            function getEffectTypeLabelFa(type) { const labels = { 'mute': 'بی‌صدا', 'volume': 'ولوم', 'pitch': 'زیر/بم', 'bass': 'باس', 'treble': 'زیربالا', 'speed': 'سرعت', 'beep': 'بوق', 'echo': 'اکو' }; return labels[type] || type; }
+            function renderEffects() {
+                effectsContainer.innerHTML = '';
+                const allEffects = [];
+                audioEffects.forEach(eff => allEffects.push({ ...eff, scope: 'global', scopeLabel: 'عمومی', scopeClass: 'global' }));
+                segments.forEach((seg, segIdx) => { if (!seg.effects) return; seg.effects.forEach(eff => allEffects.push({ ...eff, scope: 'segment', scopeLabel: seg.name, scopeClass: '', segIndex: segIdx })); });
+                if (allEffects.length === 0) { effectsContainer.innerHTML = '<div style="text-align:center;color:#6c7293;padding:1.5rem;">هیچ افکتی تعریف نشده است.</div>'; return; }
+                allEffects.forEach((eff, i) => {
+                    const card = document.createElement('div'); card.className = `effect-card ${eff.type}`;
+                    let desc = `${eff.type} `;
+                    if (eff.type === 'volume') desc += `${eff.params.volume > 1 ? '+' : ''}${((eff.params.volume - 1) * 100).toFixed(0)}%`;
+                    else if (eff.type === 'pitch') desc += `${(eff.params.pitch || 1).toFixed(2)}x`;
+                    else if (eff.type === 'bass') desc += `${(eff.params.bass || 0) > 0 ? '+' : ''}${eff.params.bass || 0}dB`;
+                    else if (eff.type === 'treble') desc += `${(eff.params.treble || 0) > 0 ? '+' : ''}${eff.params.treble || 0}dB`;
+                    else if (eff.type === 'speed') desc += `${(eff.params.speed || 1).toFixed(2)}x`;
+                    else if (eff.type === 'beep') desc += `${eff.params.beepFreq || 1000}Hz`;
+                    else if (eff.type === 'echo') desc += `تأخیر${eff.params.echoDelay || 0.3}s فیدبک${eff.params.echoFeedback || 0.4} ترکیب${eff.params.echoMix || 0.5}`;
+                    card.innerHTML = `<div class="effect-info"><span class="effect-title">✨ ${escapeHtml(eff.name)} <span class="effect-type-badge">${getEffectTypeLabelFa(eff.type)}</span><span class="effect-scope-badge${eff.scopeClass ? ' ' + eff.scopeClass : ''}">📌 ${eff.scopeLabel}</span></span><span class="effect-desc">${formatTime(eff.start)} → ${formatTime(eff.end)} | ${desc}</span></div>`;
+                    const acts = document.createElement('div'); acts.className = 'effect-actions';
+                    const previewBtn = document.createElement('button'); previewBtn.className = 'btn btn-sm'; previewBtn.textContent = '▶ پیش‌نمایش'; previewBtn.style.background = '#d89e4f'; previewBtn.onclick = () => previewEffect(eff);
+                    const editBtn = document.createElement('button'); editBtn.className = 'btn btn-sm'; editBtn.textContent = '✏️ ویرایش'; editBtn.onclick = () => openEffectModalForEdit(eff, i);
+                    const delBtn = document.createElement('button'); delBtn.className = 'btn btn-danger btn-sm'; delBtn.textContent = '🗑️';
+                    delBtn.onclick = () => { saveUndoState(); removeEffectByReference(eff); renderEffects(); drawOverlay(); };
+                    acts.append(previewBtn, editBtn, delBtn); card.appendChild(acts); effectsContainer.appendChild(card);
+                });
+            }
+            function removeEffectByReference(eff) {
+                if (eff.scope === 'global') { const idx = audioEffects.findIndex(e => e.id === eff.id); if (idx >= 0) audioEffects.splice(idx, 1); }
+                else if (eff.scope === 'segment' && eff.segIndex !== undefined) { const seg = segments[eff.segIndex]; if (seg && seg.effects) { const idx = seg.effects.findIndex(e => e.id === eff.id); if (idx >= 0) seg.effects.splice(idx, 1); } }
+            }
+            function openEffectModalForSegment(segIndex) { editingEffectId = null; editingEffectScope = 'segment'; const seg = segments[segIndex]; modalTitle.textContent = 'افزودن افکت برای برش: ' + seg.name; effectNameInput.value = ''; effectTypeSelect.value = 'mute'; populateScopeSelect(segIndex); effectStartInput.value = formatTime(seg.start); effectEndInput.value = formatTime(seg.end); updateParamUI('mute', {}); effectModal.style.display = 'flex'; }
+            function openEffectModal(editIndex = null) { editingEffectId = editIndex; editingEffectScope = 'global'; if (editIndex !== null) { const eff = audioEffects[editIndex]; modalTitle.textContent = 'ویرایش افکت'; effectNameInput.value = eff.name; effectTypeSelect.value = eff.type; populateScopeSelect(-1); effectScopeSelect.value = 'global'; effectStartInput.value = formatTime(eff.start); effectEndInput.value = formatTime(eff.end); updateParamUI(eff.type, eff.params); } else { modalTitle.textContent = 'افزودن افکت جدید'; effectNameInput.value = ''; effectTypeSelect.value = 'mute'; populateScopeSelect(-1); effectScopeSelect.value = 'global'; effectStartInput.value = pendingStart !== null ? formatTime(pendingStart) : '00:00.0'; effectEndInput.value = pendingEnd !== null ? formatTime(pendingEnd) : '00:00.0'; updateParamUI('mute', {}); } effectModal.style.display = 'flex'; }
+            function openEffectModalForEdit(eff, allIndex) { editingEffectId = allIndex; editingEffectScope = eff.scope || 'global'; modalTitle.textContent = 'ویرایش افکت'; effectNameInput.value = eff.name; effectTypeSelect.value = eff.type; populateScopeSelect(eff.scope === 'segment' ? eff.segIndex : -1); effectScopeSelect.value = eff.scope === 'segment' ? 'segment_' + eff.segIndex : 'global'; effectStartInput.value = formatTime(eff.start); effectEndInput.value = formatTime(eff.end); updateParamUI(eff.type, eff.params); effectModal.style.display = 'flex'; }
+            function populateScopeSelect(selectedSegIndex) { effectScopeSelect.innerHTML = '<option value="global">کل فایل (عمومی)</option>'; segments.forEach((seg, idx) => effectScopeSelect.innerHTML += `<option value="segment_${idx}"${idx === selectedSegIndex ? ' selected' : ''}>✂️ ${escapeHtml(seg.name)}</option>`); if (selectedSegIndex >= 0) effectScopeSelect.value = 'segment_' + selectedSegIndex; }
+            effectScopeSelect.addEventListener('change', () => { const val = effectScopeSelect.value; if (val.startsWith('segment_')) { const segIdx = parseInt(val.replace('segment_', '')); if (segIdx >= 0 && segIdx < segments.length) { effectStartInput.value = formatTime(segments[segIdx].start); effectEndInput.value = formatTime(segments[segIdx].end); } } });
+
+            function updateParamUI(type, params = {}) {
+                effectParamField.style.display = 'none'; effectBeepFreqField.style.display = 'none';
+                effectEchoDelayField.style.display = 'none'; effectEchoFeedbackField.style.display = 'none'; effectEchoMixField.style.display = 'none';
+                if (type === 'mute') return;
+                if (type === 'beep') {
+                    effectBeepFreqField.style.display = 'block';
+                    effectBeepFreqSlider.value = params.beepFreq || 1000;
+                    effectBeepFreqValue.textContent = (params.beepFreq || 1000) + ' Hz';
+                    return;
+                }
+                if (type === 'echo') {
+                    effectEchoDelayField.style.display = 'block';
+                    effectEchoFeedbackField.style.display = 'block';
+                    effectEchoMixField.style.display = 'block';
+                    effectEchoDelaySlider.value = params.echoDelay || 0.3;
+                    effectEchoDelayValue.textContent = (params.echoDelay || 0.3).toFixed(2) + ' s';
+                    effectEchoFeedbackSlider.value = params.echoFeedback || 0.4;
+                    effectEchoFeedbackValue.textContent = (params.echoFeedback || 0.4).toFixed(2);
+                    effectEchoMixSlider.value = params.echoMix || 0.5;
+                    effectEchoMixValue.textContent = (params.echoMix || 0.5).toFixed(2);
+                    return;
+                }
+                effectParamField.style.display = 'block';
+                if (type === 'volume') { effectParamLabel.textContent = 'ولوم (درصد)'; effectParamSlider.min = 0; effectParamSlider.max = 200; effectParamSlider.step = 1; effectParamSlider.value = (params.volume || 1) * 100; effectParamValue.textContent = Math.round((params.volume || 1) * 100) + '%'; }
+                else if (type === 'pitch') { effectParamLabel.textContent = 'Pitch'; effectParamSlider.min = 0.5; effectParamSlider.max = 2.0; effectParamSlider.step = 0.05; effectParamSlider.value = params.pitch || 1; effectParamValue.textContent = (params.pitch || 1).toFixed(2) + 'x'; }
+                else if (type === 'bass') { effectParamLabel.textContent = 'Bass (dB)'; effectParamSlider.min = -12; effectParamSlider.max = 12; effectParamSlider.step = 0.5; effectParamSlider.value = params.bass || 0; effectParamValue.textContent = (params.bass || 0) + 'dB'; }
+                else if (type === 'treble') { effectParamLabel.textContent = 'Treble (dB)'; effectParamSlider.min = -12; effectParamSlider.max = 12; effectParamSlider.step = 0.5; effectParamSlider.value = params.treble || 0; effectParamValue.textContent = (params.treble || 0) + 'dB'; }
+                else if (type === 'speed') { effectParamLabel.textContent = 'Speed'; effectParamSlider.min = 0.25; effectParamSlider.max = 4.0; effectParamSlider.step = 0.05; effectParamSlider.value = params.speed || 1; effectParamValue.textContent = (params.speed || 1).toFixed(2) + 'x'; }
+            }
+            effectTypeSelect.addEventListener('change', () => updateParamUI(effectTypeSelect.value));
+            effectParamSlider.addEventListener('input', () => { const t = effectTypeSelect.value; if (t === 'volume') effectParamValue.textContent = Math.round(effectParamSlider.value) + '%'; else if (t === 'pitch') effectParamValue.textContent = parseFloat(effectParamSlider.value).toFixed(2) + 'x'; else if (t === 'speed') effectParamValue.textContent = parseFloat(effectParamSlider.value).toFixed(2) + 'x'; else effectParamValue.textContent = effectParamSlider.value + 'dB'; });
+            effectBeepFreqSlider.addEventListener('input', () => { effectBeepFreqValue.textContent = effectBeepFreqSlider.value + ' Hz'; });
+            effectEchoDelaySlider.addEventListener('input', () => effectEchoDelayValue.textContent = parseFloat(effectEchoDelaySlider.value).toFixed(2) + ' s');
+            effectEchoFeedbackSlider.addEventListener('input', () => effectEchoFeedbackValue.textContent = parseFloat(effectEchoFeedbackSlider.value).toFixed(2));
+            effectEchoMixSlider.addEventListener('input', () => effectEchoMixValue.textContent = parseFloat(effectEchoMixSlider.value).toFixed(2));
+
+            modalSave.addEventListener('click', () => {
+                const name = effectNameInput.value.trim() || `افکت ${effectIdCounter++}`;
+                const type = effectTypeSelect.value;
+                const start = parseTimeInput(effectStartInput.value), end = parseTimeInput(effectEndInput.value);
+                if (isNaN(start) || isNaN(end) || start >= end) { alert('بازه زمانی نامعتبر'); return; }
+                const params = {};
+                if (type === 'volume') params.volume = parseFloat(effectParamSlider.value) / 100;
+                else if (type === 'pitch') params.pitch = parseFloat(effectParamSlider.value);
+                else if (type === 'bass') params.bass = parseFloat(effectParamSlider.value);
+                else if (type === 'treble') params.treble = parseFloat(effectParamSlider.value);
+                else if (type === 'speed') params.speed = parseFloat(effectParamSlider.value);
+                else if (type === 'beep') params.beepFreq = parseInt(effectBeepFreqSlider.value) || 1000;
+                else if (type === 'echo') { params.echoDelay = parseFloat(effectEchoDelaySlider.value); params.echoFeedback = parseFloat(effectEchoFeedbackSlider.value); params.echoMix = parseFloat(effectEchoMixSlider.value); }
+                const eff = { id: effectIdCounter++, name, type, start, end, params };
+                const scopeVal = effectScopeSelect.value;
+                saveUndoState();
+                if (scopeVal === 'global') {
+                    if (editingEffectId !== null && editingEffectScope === 'global') audioEffects[editingEffectId] = eff;
+                    else audioEffects.push(eff);
+                } else if (scopeVal.startsWith('segment_')) {
+                    const segIdx = parseInt(scopeVal.replace('segment_', ''));
+                    if (segIdx >= 0 && segIdx < segments.length) {
+                        if (!segments[segIdx].effects) segments[segIdx].effects = [];
+                        if (editingEffectId !== null && editingEffectScope === 'segment') {
+                            const idx = segments[segIdx].effects.findIndex(e => e.id === editingEffectId);
+                            if (idx >= 0) segments[segIdx].effects[idx] = eff; else segments[segIdx].effects.push(eff);
+                        } else segments[segIdx].effects.push(eff);
+                    }
+                }
+                editingEffectId = null; editingEffectScope = 'global'; effectModal.style.display = 'none';
+                if (type === 'pitch' || type === 'echo') { pitchProcessedBuffer = null; if (pitchModeActive) stopPitchPlayback(); }
+                renderEffects(); renderSegments(); drawOverlay();
+            });
+
+            modalCancel.addEventListener('click', () => { effectModal.style.display = 'none'; editingEffectId = null; editingEffectScope = 'global'; drawOverlay(); });
+
+            modalPreview.addEventListener('click', async () => {
+                if (!audioBuffer) { alert('فایل صوتی بارگذاری نشده.'); return; }
+                stopAllPreviews();
+                const type = effectTypeSelect.value;
+                const start = parseTimeInput(effectStartInput.value), end = parseTimeInput(effectEndInput.value);
+                if (isNaN(start) || isNaN(end) || start >= end) { alert('بازه زمانی نامعتبر'); return; }
+                const params = {};
+                if (type === 'volume') params.volume = parseFloat(effectParamSlider.value) / 100;
+                else if (type === 'pitch') params.pitch = parseFloat(effectParamSlider.value);
+                else if (type === 'bass') params.bass = parseFloat(effectParamSlider.value);
+                else if (type === 'treble') params.treble = parseFloat(effectParamSlider.value);
+                else if (type === 'speed') params.speed = parseFloat(effectParamSlider.value);
+                else if (type === 'beep') params.beepFreq = parseInt(effectBeepFreqSlider.value) || 1000;
+                else if (type === 'echo') { params.echoDelay = parseFloat(effectEchoDelaySlider.value); params.echoFeedback = parseFloat(effectEchoFeedbackSlider.value); params.echoMix = parseFloat(effectEchoMixSlider.value); }
+                if (type === 'pitch' || type === 'echo') {
+                    showPitchLoading();
+                    try {
+                        const sliced = sliceAudioBuffer(audioBuffer, start, end);
+                        if (!sliced) return;
+                        const eff = { type, params, start: 0, end: sliced.duration };
+                        const processed = await processAudioWithEffects(sliced, [eff], 1, 1, 1, 0, 0);
+                        const ctx = getAudioContext();
+                        const source = ctx.createBufferSource();
+                        source.buffer = processed; source.connect(ctx.destination);
+                        source.onended = () => { activePreviewSource = null; };
+                        source.start(0);
+                        activePreviewSource = source;
+                    } catch (err) { alert('خطا: ' + err.message); } finally { hidePitchLoading(); }
+                    return;
+                }
+                ensureLiveGraph();
+                audioElement.currentTime = start;
+                audioElement.play();
+                startPlayheadAnimation(); updatePlayPauseButton();
+                const stopAtEnd = () => { if (audioElement.currentTime >= end) { audioElement.pause(); audioElement.removeEventListener('timeupdate', stopAtEnd); updatePlayPauseButton(); stopBeepLive(); } };
+                audioElement.addEventListener('timeupdate', stopAtEnd);
+            });
+
+            addEffectBtn.addEventListener('click', () => openEffectModal(null));
+            downloadProcessedBtn.addEventListener('click', () => downloadProcessedAudio());
+
+            // ==================== پیش‌نمایش برای تنظیمات کلی ====================
+            previewGlobalBtn.addEventListener('click', () => {
+                if (!audioBuffer) { alert('فایلی بارگذاری نشده.'); return; }
+                stopAllPreviews();
+                ensureLiveGraph();
+                applyGlobalLiveSettings();
+                if (audioElement.paused) {
+                    audioElement.play();
+                    startPlayheadAnimation();
+                } else {
+                    audioElement.pause();
+                    stopPlayheadAnimation();
+                }
+                updatePlayPauseButton();
+            });
+
+            function previewSegment(i) {
+                if (!audioBuffer) return;
+                stopAllPreviews();
+                const seg = segments[i];
+                if (needsPitchProcessing()) {
+                    stopPitchPlayback(); pitchModeActive = true;
+                    showPitchLoading();
+                    buildPitchProcessedBuffer().then(buf => {
+                        pitchProcessedBuffer = buf; hidePitchLoading();
+                        startPitchPlayback(seg.start);
+                        const stop = () => { if (getCurrentPlaybackTime() >= seg.end) { stopPitchPlayback(); drawOverlay(); } };
+                        const interval = setInterval(() => { if (!pitchIsPlaying) { clearInterval(interval); return; } stop(); drawOverlay(); drawRuler(); }, 50);
+                    }).catch(err => { hidePitchLoading(); alert(err.message); });
+                    return;
+                }
+                ensureLiveGraph(); audioElement.currentTime = seg.start; audioElement.play(); startPlayheadAnimation(); updatePlayPauseButton();
+                const stop = () => { if (audioElement.currentTime >= seg.end) { audioElement.pause(); audioElement.removeEventListener('timeupdate', stop); updatePlayPauseButton(); stopBeepLive(); } };
+                audioElement.addEventListener('timeupdate', stop);
+            }
+
+            function previewEffect(eff) {
+                if (!audioBuffer) return;
+                stopAllPreviews();
+                if (eff.type === 'pitch' || eff.type === 'echo') {
+                    showPitchLoading();
+                    const sliced = sliceAudioBuffer(audioBuffer, eff.start, eff.end);
+                    if (!sliced) { hidePitchLoading(); return; }
+                    processAudioWithEffects(sliced, [eff], 1, 1, 1, 0, 0).then(processed => {
+                        hidePitchLoading();
+                        const ctx = getAudioContext();
+                        const source = ctx.createBufferSource();
+                        source.buffer = processed; source.connect(ctx.destination);
+                        source.onended = () => { activePreviewSource = null; };
+                        source.start(0);
+                        activePreviewSource = source;
+                    }).catch(err => { hidePitchLoading(); alert('خطا: ' + err.message); });
+                    return;
+                }
+                ensureLiveGraph(); audioElement.currentTime = eff.start;
+                audioElement.play(); startPlayheadAnimation(); updatePlayPauseButton();
+                const stopAtEnd = () => { if (audioElement.currentTime >= eff.end) { audioElement.pause(); audioElement.removeEventListener('timeupdate', stopAtEnd); updatePlayPauseButton(); stopBeepLive(); } };
+                audioElement.addEventListener('timeupdate', stopAtEnd);
+            }
+
+            // ==================== Offline Processing ====================
+            async function processAudioWithEffects(buffer, effs, gVol, gSpeed, gPitch, gBass, gTreble) {
+                // افزودن افکت اکوی کلی در صورت فعال بودن
+                let finalEffs = [...effs];
+                if (globalEchoEnabledSetting) {
+                    finalEffs.push({
+                        type: 'echo',
+                        start: 0,
+                        end: buffer.duration,
+                        params: {
+                            echoDelay: globalEchoDelaySetting,
+                            echoFeedback: globalEchoFeedbackSetting,
+                            echoMix: globalEchoMixSetting
+                        }
+                    });
+                }
+                return await processAudioWithComplexEffects(buffer, finalEffs, gVol, gSpeed, gPitch, gBass, gTreble);
+            }
+
+            async function processAudioWithComplexEffects(buffer, effs, gVol, gSpeed, gPitch, gBass, gTreble) {
+                const sr = buffer.sampleRate, ch = buffer.numberOfChannels;
+                let timePoints = new Set([0, buffer.duration]);
+                for (const eff of effs) { timePoints.add(Math.max(0, eff.start)); timePoints.add(Math.min(buffer.duration, eff.end)); }
+                const sortedPoints = Array.from(timePoints).sort((a, b) => a - b);
+                const slices = [];
+                for (let i = 0; i < sortedPoints.length - 1; i++) {
+                    const sliceStart = sortedPoints[i], sliceEnd = sortedPoints[i + 1];
+                    if (sliceEnd - sliceStart < 0.001) continue;
+                    const midPoint = (sliceStart + sliceEnd) / 2;
+                    const activeEffs = effs.filter(e => midPoint >= e.start && midPoint < e.end);
+                    let sliceSpeed = gSpeed, slicePitch = gPitch, sliceVol = gVol, sliceBass = gBass, sliceTreble = gTreble;
+                    let isMuted = false, hasBeep = false, beepFreq = 1000;
+                    let hasEcho = false, echoParams = null;
+                    for (const eff of activeEffs) {
+                        if (eff.type === 'mute') isMuted = true;
+                        else if (eff.type === 'volume') sliceVol *= (eff.params.volume || 1);
+                        else if (eff.type === 'speed') sliceSpeed *= (eff.params.speed || 1);
+                        else if (eff.type === 'pitch') slicePitch *= (eff.params.pitch || 1);
+                        else if (eff.type === 'bass') sliceBass += (eff.params.bass || 0);
+                        else if (eff.type === 'treble') sliceTreble += (eff.params.treble || 0);
+                        else if (eff.type === 'beep') { hasBeep = true; beepFreq = eff.params.beepFreq || 1000; }
+                        else if (eff.type === 'echo') { hasEcho = true; echoParams = { delay: eff.params.echoDelay || 0.3, feedback: eff.params.echoFeedback || 0.4, mix: eff.params.echoMix || 0.5 }; }
+                    }
+                    const sS = Math.floor(sliceStart * sr), eS = Math.floor(sliceEnd * sr), sliceLen = eS - sS;
+                    if (sliceLen <= 0) continue;
+                    const sliceBuffer = getAudioContext().createBuffer(ch, sliceLen, sr);
+                    for (let c = 0; c < ch; c++) { const od = buffer.getChannelData(c), nd = sliceBuffer.getChannelData(c); for (let j = 0; j < sliceLen; j++) nd[j] = od[sS + j]; }
+                    slices.push({ buffer: sliceBuffer, originalDuration: sliceEnd - sliceStart, speed: sliceSpeed, pitch: slicePitch, vol: sliceVol, bass: sliceBass, treble: sliceTreble, beep: hasBeep, beepFreq, echo: hasEcho, echoParams, isMuted });
+                }
+                const renderedSlices = [];
+                for (const sl of slices) {
+                    const sliceSr = sl.buffer.sampleRate, sliceCh = sl.buffer.numberOfChannels;
+                    const outDuration = sl.originalDuration / sl.speed;
+                    const renderLen = Math.ceil(outDuration * sliceSr) + 4096;
+                    let pitchedBuffer = sl.buffer;
+                    if (Math.abs(sl.pitch - 1.0) > 0.001) pitchedBuffer = await pitchShiftBufferWithWorker(sl.buffer, sl.pitch);
+                    if (sl.isMuted) { const silent = getAudioContext().createBuffer(sliceCh, renderLen, sliceSr); renderedSlices.push(silent); continue; }
+                    const octx = new OfflineAudioContext(sliceCh, renderLen, sliceSr);
+                    const src = octx.createBufferSource();
+                    src.buffer = pitchedBuffer;
+                    src.playbackRate.value = sl.speed;
+                    let lastNode = src;
+                    if (sl.bass !== 0) { const bf = octx.createBiquadFilter(); bf.type = 'lowshelf'; bf.frequency.value = 200; bf.gain.value = sl.bass; lastNode.connect(bf); lastNode = bf; }
+                    if (sl.treble !== 0) { const tf = octx.createBiquadFilter(); tf.type = 'highshelf'; tf.frequency.value = 3000; tf.gain.value = sl.treble; lastNode.connect(tf); lastNode = tf; }
+                    if (sl.beep) {
+                        const beepOsc = octx.createOscillator(); beepOsc.type = 'sine'; beepOsc.frequency.value = sl.beepFreq;
+                        const beepGain = octx.createGain(); beepGain.gain.value = 0.5 * sl.vol;
+                        beepOsc.connect(beepGain); beepGain.connect(octx.destination);
+                        beepOsc.start(0); beepOsc.stop(outDuration);
+                        const muteG = octx.createGain(); muteG.gain.value = 0; lastNode.connect(muteG); muteG.connect(octx.destination);
+                    } else if (sl.echo) {
+                        const dryGain = octx.createGain(); dryGain.gain.value = 1 - sl.echoParams.mix;
+                        const wetGain = octx.createGain(); wetGain.gain.value = sl.echoParams.mix;
+                        const delay = octx.createDelay(Math.max(0.05, sl.echoParams.delay));
+                        delay.delayTime.value = sl.echoParams.delay;
+                        const feedbackGain = octx.createGain(); feedbackGain.gain.value = sl.echoParams.feedback;
+                        lastNode.connect(dryGain); dryGain.connect(octx.destination);
+                        lastNode.connect(delay); delay.connect(feedbackGain); feedbackGain.connect(delay); delay.connect(wetGain); wetGain.connect(octx.destination);
+                    } else {
+                        const fGain = octx.createGain(); fGain.gain.value = sl.vol;
+                        lastNode.connect(fGain); fGain.connect(octx.destination);
+                    }
+                    src.start(0);
+                    const rendered = await octx.startRendering();
+                    renderedSlices.push(rendered);
+                }
+                let totalLen = 0; for (const rs of renderedSlices) totalLen += rs.length;
+                const finalBuffer = getAudioContext().createBuffer(ch, totalLen, sr);
+                let offset = 0;
+                for (const rs of renderedSlices) {
+                    const len = rs.length;
+                    for (let c = 0; c < ch; c++) { const srcData = rs.getChannelData(c), dstData = finalBuffer.getChannelData(c); for (let j = 0; j < len; j++) dstData[offset + j] = srcData[j]; }
+                    offset += len;
+                }
+                return finalBuffer;
+            }
+
+            async function downloadProcessedAudio() {
+                if (!audioBuffer) return;
+                showPitchLoading();
+                try {
+                    const allEffs = [...audioEffects]; segments.forEach(seg => { if (seg.effects) allEffs.push(...seg.effects); });
+                    const processed = await processAudioWithEffects(audioBuffer, allEffs, globalVolumeSetting, globalSpeedSetting, globalPitchSetting, globalBassSetting, globalTrebleSetting);
+                    const wav = audioBufferToWav(processed); downloadBlob(new Blob([wav], { type: 'audio/wav' }), 'processed_audio.wav');
+                } catch (err) { alert('خطا: ' + err.message); } finally { hidePitchLoading(); }
+            }
+
+            async function downloadSegmentWithEffects(index) {
+                if (!audioBuffer) return;
+                showPitchLoading();
+                try {
+                    const seg = segments[index]; const sliced = sliceAudioBuffer(audioBuffer, seg.start, seg.end); if (!sliced) return;
+                    const relevantGlobal = audioEffects.filter(e => e.end > seg.start && e.start < seg.end).map(e => ({ ...e, start: Math.max(0, e.start - seg.start), end: Math.min(sliced.duration, e.end - seg.start) }));
+                    const relevantSeg = (seg.effects || []).map(e => ({ ...e, start: Math.max(0, e.start - seg.start), end: Math.min(sliced.duration, e.end - seg.start) }));
+                    const processed = await processAudioWithEffects(sliced, [...relevantGlobal, ...relevantSeg], globalVolumeSetting, globalSpeedSetting, globalPitchSetting, globalBassSetting, globalTrebleSetting);
+                    downloadBlob(new Blob([audioBufferToWav(processed)]), seg.name + '_effected.wav');
+                } catch (err) { alert('خطا: ' + err.message); } finally { hidePitchLoading(); }
+            }
+
+            function sliceAudioBuffer(buffer, start, end) {
+                const sr = buffer.sampleRate, ch = buffer.numberOfChannels;
+                const sS = Math.floor(start * sr), eS = Math.floor(end * sr), len = eS - sS;
+                if (len <= 0) return null;
+                const nb = getAudioContext().createBuffer(ch, len, sr);
+                for (let c = 0; c < ch; c++) { const od = buffer.getChannelData(c), nd = nb.getChannelData(c); for (let i = 0; i < len; i++) nd[i] = od[sS + i]; }
+                return nb;
+            }
+
+            function audioBufferToWav(buffer) {
+                const nc = buffer.numberOfChannels, sr = buffer.sampleRate, len = buffer.length;
+                const samples = new Float32Array(len * nc);
+                for (let ch = 0; ch < nc; ch++) { const d = buffer.getChannelData(ch); for (let i = 0; i < len; i++) samples[i * nc + ch] = d[i]; }
+                return encodeWAV(samples, sr, nc);
+            }
+            function encodeWAV(samples, sampleRate, numChannels) {
+                const buf = new ArrayBuffer(44 + samples.length * 2), v = new DataView(buf);
+                function ws(o, s) { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); }
+                ws(0, 'RIFF'); v.setUint32(4, 36 + samples.length * 2, true); ws(8, 'WAVE'); ws(12, 'fmt ');
+                v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, numChannels, true);
+                v.setUint32(24, sampleRate, true); v.setUint32(28, sampleRate * numChannels * 2, true);
+                v.setUint16(32, numChannels * 2, true); v.setUint16(34, 16, true); ws(36, 'data');
+                v.setUint32(40, samples.length * 2, true);
+                let off = 44;
+                for (let i = 0; i < samples.length; i++) {
+                    let s = Math.max(-1, Math.min(1, samples[i])); s = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                    v.setInt16(off, s, true); off += 2;
+                }
+                return buf;
+            }
+            function downloadBlob(blob, fname) {
+                const u = URL.createObjectURL(blob), a = document.createElement('a');
+                a.href = u; a.download = fname.endsWith('.wav') ? fname : fname + '.wav';
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(u), 200);
+            }
+            function downloadSegment(i) { if (!audioBuffer) return; const seg = segments[i]; const sl = sliceAudioBuffer(audioBuffer, seg.start, seg.end); if (!sl) { alert('خطا'); return; } downloadBlob(new Blob([audioBufferToWav(sl)]), seg.name); }
+
+            // ==================== Tabs ====================
+            tabBtns.forEach(b => b.addEventListener('click', () => {
+                tabBtns.forEach(t => t.classList.remove('active')); b.classList.add('active');
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                document.getElementById('tab-' + b.dataset.tab).classList.add('active');
+            }));
+
+            // ==================== Global Settings ====================
+            globalVolume.addEventListener('input', () => { globalVolumeSetting = globalVolume.value / 100; globalVolumeValue.textContent = Math.round(globalVolumeSetting * 100) + '%'; if (liveMasterGain) liveMasterGain.gain.setTargetAtTime(globalVolumeSetting, audioContext.currentTime, 0.02); });
+            globalSpeed.addEventListener('input', () => { globalSpeedSetting = parseFloat(globalSpeed.value); globalSpeedValue.textContent = globalSpeedSetting.toFixed(2) + 'x'; if (!needsPitchProcessing()) applyGlobalLiveSettings(); });
+            globalPitch.addEventListener('input', () => { globalPitchSetting = parseFloat(globalPitch.value); globalPitchValue.textContent = globalPitchSetting.toFixed(2) + 'x'; pitchProcessedBuffer = null; if (pitchModeActive) { stopPitchPlayback(); updatePlayPauseButton(); } });
+            globalBass.addEventListener('input', () => { globalBassSetting = parseFloat(globalBass.value); globalBassValue.textContent = globalBassSetting + ' dB'; if (liveBassFilter) liveBassFilter.gain.setTargetAtTime(globalBassSetting, audioContext.currentTime, 0.02); });
+            globalTreble.addEventListener('input', () => { globalTrebleSetting = parseFloat(globalTreble.value); globalTrebleValue.textContent = globalTrebleSetting + ' dB'; if (liveTrebleFilter) liveTrebleFilter.gain.setTargetAtTime(globalTrebleSetting, audioContext.currentTime, 0.02); });
+
+            globalEchoEnabled.addEventListener('change', () => {
+                globalEchoEnabledSetting = globalEchoEnabled.checked;
+                updateLiveEcho();
+                if (!pitchModeActive) applyGlobalLiveSettings();
+            });
+            globalEchoDelay.addEventListener('input', () => {
+                globalEchoDelaySetting = parseFloat(globalEchoDelay.value);
+                globalEchoDelayValue.textContent = globalEchoDelaySetting.toFixed(2);
+                updateLiveEcho();
+            });
+            globalEchoFeedback.addEventListener('input', () => {
+                globalEchoFeedbackSetting = parseFloat(globalEchoFeedback.value);
+                globalEchoFeedbackValue.textContent = globalEchoFeedbackSetting.toFixed(2);
+                updateLiveEcho();
+            });
+            globalEchoMix.addEventListener('input', () => {
+                globalEchoMixSetting = parseFloat(globalEchoMix.value);
+                globalEchoMixValue.textContent = globalEchoMixSetting.toFixed(2);
+                updateLiveEcho();
+            });
+
+            function applyGlobalLiveSettings() {
+                if (!audioElement) return;
+                if (!needsPitchProcessing()) audioElement.playbackRate = globalSpeedSetting;
+                if (liveMasterGain) liveMasterGain.gain.setTargetAtTime(globalVolumeSetting, audioContext.currentTime, 0.02);
+                if (liveBassFilter) liveBassFilter.gain.setTargetAtTime(globalBassSetting, audioContext.currentTime, 0.02);
+                if (liveTrebleFilter) liveTrebleFilter.gain.setTargetAtTime(globalTrebleSetting, audioContext.currentTime, 0.02);
+                updateLiveEcho();
+            }
+
+            applyGlobalBtn.addEventListener('click', () => {
+                saveUndoState();
+                if (needsPitchProcessing()) { pitchProcessedBuffer = null; if (pitchModeActive) stopPitchPlayback(); }
+                ensureLiveGraph(); applyGlobalLiveSettings();
+            });
+            resetGlobalBtn.addEventListener('click', () => {
+                saveUndoState();
+                globalVolumeSetting = 1.0; globalSpeedSetting = 1.0; globalPitchSetting = 1.0; globalBassSetting = 0; globalTrebleSetting = 0;
+                globalEchoEnabledSetting = false; globalEchoDelaySetting = 0.3; globalEchoFeedbackSetting = 0.4; globalEchoMixSetting = 0.5;
+                globalVolume.value = 100; globalSpeed.value = 1.0; globalPitch.value = 1.0; globalBass.value = 0; globalTreble.value = 0;
+                globalVolumeValue.textContent = '100%'; globalSpeedValue.textContent = '1.00x'; globalPitchValue.textContent = '1.00x'; globalBassValue.textContent = '0 dB'; globalTrebleValue.textContent = '0 dB';
+                globalEchoEnabled.checked = false;
+                globalEchoDelay.value = 0.3; globalEchoDelayValue.textContent = '0.30';
+                globalEchoFeedback.value = 0.4; globalEchoFeedbackValue.textContent = '0.40';
+                globalEchoMix.value = 0.5; globalEchoMixValue.textContent = '0.50';
+                pitchProcessedBuffer = null; if (pitchModeActive) stopPitchPlayback();
+                applyGlobalLiveSettings();
+            });
+            downloadGlobalBtn.addEventListener('click', () => downloadProcessedAudio());
+
+            // ==================== Download all ====================
+            downloadAllBtn.addEventListener('click', () => { if (!audioBuffer || segments.length === 0) alert('برشی وجود ندارد.'); else segments.forEach((s, i) => setTimeout(() => downloadSegment(i), i * 350)); });
+
+            // ==================== Live chain (همراه با پشتیبانی اکوی کلی) ====================
+            function buildPersistentLiveGraph() {
+                if (!audioElement || !audioContext) return; if (liveGraphBuilt) return;
+                if (!mediaSourceNode) { try { mediaSourceNode = audioContext.createMediaElementSource(audioElement); } catch (e) { return; } }
+                liveMainGainNode = audioContext.createGain(); liveMainGainNode.gain.value = 1;
+                liveBassFilter = audioContext.createBiquadFilter(); liveBassFilter.type = 'lowshelf'; liveBassFilter.frequency.value = 200; liveBassFilter.gain.value = 0;
+                liveTrebleFilter = audioContext.createBiquadFilter(); liveTrebleFilter.type = 'highshelf'; liveTrebleFilter.frequency.value = 3000; liveTrebleFilter.gain.value = 0;
+                liveMasterGain = audioContext.createGain(); liveMasterGain.gain.value = globalVolumeSetting;
+                // مدار اکو (همیشه وصل ولی پارامترها بر اساس تنظیمات کلی یا افکت مشخص می‌شود)
+                liveEchoNodes.inputGain = audioContext.createGain(); liveEchoNodes.inputGain.gain.value = 1;
+                liveEchoNodes.dryGain = audioContext.createGain(); liveEchoNodes.dryGain.gain.value = 1;
+                liveEchoNodes.wetGain = audioContext.createGain(); liveEchoNodes.wetGain.gain.value = 0;
+                liveEchoNodes.delay = audioContext.createDelay(2); liveEchoNodes.delay.delayTime.value = globalEchoDelaySetting;
+                liveEchoNodes.feedbackGain = audioContext.createGain(); liveEchoNodes.feedbackGain.gain.value = globalEchoFeedbackSetting;
+                liveEchoNodes.outputGain = audioContext.createGain(); liveEchoNodes.outputGain.gain.value = 1;
+
+                mediaSourceNode.disconnect();
+                mediaSourceNode.connect(liveMainGainNode);
+                liveMainGainNode.connect(liveBassFilter);
+                liveBassFilter.connect(liveTrebleFilter);
+                liveTrebleFilter.connect(liveEchoNodes.inputGain);
+                // مسیر خشک
+                liveEchoNodes.inputGain.connect(liveEchoNodes.dryGain);
+                liveEchoNodes.dryGain.connect(liveEchoNodes.outputGain);
+                // مسیر تر (delay)
+                liveEchoNodes.inputGain.connect(liveEchoNodes.delay);
+                liveEchoNodes.delay.connect(liveEchoNodes.feedbackGain);
+                liveEchoNodes.feedbackGain.connect(liveEchoNodes.delay);
+                liveEchoNodes.delay.connect(liveEchoNodes.wetGain);
+                liveEchoNodes.wetGain.connect(liveEchoNodes.outputGain);
+                // خروجی
+                liveEchoNodes.outputGain.connect(liveMasterGain);
+                liveMasterGain.connect(audioContext.destination);
+                liveGraphBuilt = true;
+            }
+
+            function updateLiveEcho() {
+                if (!liveGraphBuilt) return;
+                // اولویت: اگر اکوی کلی فعال باشد، از تنظیمات کلی استفاده کن، در غیر این صورت افکت فعال را بررسی کن
+                let echoParams = null;
+                if (globalEchoEnabledSetting) {
+                    echoParams = {
+                        echoDelay: globalEchoDelaySetting,
+                        echoFeedback: globalEchoFeedbackSetting,
+                        echoMix: globalEchoMixSetting
+                    };
+                } else {
+                    const ct = getCurrentPlaybackTime();
+                    if (isFinite(ct)) {
+                        const activeEcho = getAllActiveEffects(ct).find(e => e.type === 'echo');
+                        if (activeEcho) echoParams = activeEcho.params;
+                    }
+                }
+                if (echoParams) {
+                    liveEchoNodes.delay.delayTime.setTargetAtTime(echoParams.echoDelay, audioContext.currentTime, 0.02);
+                    liveEchoNodes.feedbackGain.gain.setTargetAtTime(echoParams.echoFeedback, audioContext.currentTime, 0.02);
+                    liveEchoNodes.dryGain.gain.setTargetAtTime(1 - echoParams.echoMix, audioContext.currentTime, 0.02);
+                    liveEchoNodes.wetGain.gain.setTargetAtTime(echoParams.echoMix, audioContext.currentTime, 0.02);
+                } else {
+                    liveEchoNodes.dryGain.gain.setTargetAtTime(1, audioContext.currentTime, 0.02);
+                    liveEchoNodes.wetGain.gain.setTargetAtTime(0, audioContext.currentTime, 0.02);
+                }
+            }
+
+            function applyLiveEffectsFromPosition() {
+                if (pitchModeActive || !audioElement || !liveMainGainNode) return;
+                const ct = audioElement.currentTime; if (!isFinite(ct)) return;
+                const allEffs = getAllActiveEffects(ct);
+                let targetGain = 1, activeBeep = null, activeSpeed = null;
+                for (const eff of allEffs) {
+                    if (eff.type === 'mute') targetGain = 0;
+                    else if (eff.type === 'volume') targetGain = eff.params.volume;
+                    else if (eff.type === 'beep') { activeBeep = eff; targetGain = 0; }
+                    else if (eff.type === 'speed') activeSpeed = eff;
+                }
+                liveMainGainNode.gain.setTargetAtTime(targetGain, audioContext.currentTime, 0.015);
+                let bassDb = globalBassSetting, trebleDb = globalTrebleSetting;
+                for (const eff of allEffs) { if (eff.type === 'bass') bassDb += (eff.params.bass || 0); else if (eff.type === 'treble') trebleDb += (eff.params.treble || 0); }
+                liveBassFilter.gain.setTargetAtTime(bassDb, audioContext.currentTime, 0.015);
+                liveTrebleFilter.gain.setTargetAtTime(trebleDb, audioContext.currentTime, 0.015);
+                liveMasterGain.gain.setTargetAtTime(globalVolumeSetting, audioContext.currentTime, 0.015);
+                if (activeBeep && !liveBeepOscillator) startBeepLive(activeBeep); else if (!activeBeep && liveBeepOscillator) stopBeepLive();
+                if (activeSpeed) { if (audioElement.playbackRate !== activeSpeed.params.speed * globalSpeedSetting) audioElement.playbackRate = activeSpeed.params.speed * globalSpeedSetting; }
+                else if (Math.abs(audioElement.playbackRate - globalSpeedSetting) > 0.01) audioElement.playbackRate = globalSpeedSetting;
+                updateLiveEcho();
+            }
+
+            function startBeepLive(eff) { if (!audioContext) return; if (liveBeepOscillator) stopBeepLive(); const osc = audioContext.createOscillator(); osc.type = 'sine'; osc.frequency.value = eff.params.beepFreq || 1000; const gainNode = audioContext.createGain(); gainNode.gain.value = 0.3; osc.connect(gainNode); gainNode.connect(audioContext.destination); osc.start(audioContext.currentTime); liveBeepOscillator = osc; liveBeepGainNode = gainNode; }
+            function stopBeepLive() { if (liveBeepOscillator) { try { liveBeepOscillator.stop(); } catch(e) {} liveBeepOscillator.disconnect(); liveBeepOscillator = null; } if (liveBeepGainNode) { liveBeepGainNode.disconnect(); liveBeepGainNode = null; } }
+            function destroyLiveGraph() {
+                stopBeepLive();
+                if (liveMasterGain) { try { liveMasterGain.disconnect(); } catch(e) {} liveMasterGain = null; }
+                if (liveTrebleFilter) { try { liveTrebleFilter.disconnect(); } catch(e) {} liveTrebleFilter = null; }
+                if (liveBassFilter) { try { liveBassFilter.disconnect(); } catch(e) {} liveBassFilter = null; }
+                if (liveMainGainNode) { try { liveMainGainNode.disconnect(); } catch(e) {} liveMainGainNode = null; }
+                if (liveEchoNodes.inputGain) { try { liveEchoNodes.inputGain.disconnect(); } catch(e) {} }
+                if (liveEchoNodes.dryGain) { try { liveEchoNodes.dryGain.disconnect(); } catch(e) {} }
+                if (liveEchoNodes.wetGain) { try { liveEchoNodes.wetGain.disconnect(); } catch(e) {} }
+                if (liveEchoNodes.delay) { try { liveEchoNodes.delay.disconnect(); } catch(e) {} }
+                if (liveEchoNodes.feedbackGain) { try { liveEchoNodes.feedbackGain.disconnect(); } catch(e) {} }
+                if (liveEchoNodes.outputGain) { try { liveEchoNodes.outputGain.disconnect(); } catch(e) {} }
+                if (mediaSourceNode) { try { mediaSourceNode.disconnect(); } catch(e) {} }
+                liveGraphBuilt = false;
+            }
+            function ensureLiveGraph() { if (!pitchModeActive && !liveGraphBuilt && audioElement && audioContext) buildPersistentLiveGraph(); }
+
+            function getAllActiveEffects(currentTime) {
+                const all = [];
+                for (const eff of audioEffects) if (currentTime >= eff.start && currentTime < eff.end) all.push(eff);
+                for (const seg of segments) if (seg.effects && currentTime >= seg.start && currentTime < seg.end) for (const eff of seg.effects) if (currentTime >= eff.start && currentTime < eff.end) all.push(eff);
+                return all;
+            }
+
+            function onTimeUpdate() {
+                if (pitchModeActive) return;
+                if (!audioElement) return;
+                currentTimeSpan.textContent = formatTime(audioElement.currentTime);
+                if (autoScrollEnabled && !manualDragActive && !audioElement.paused) {
+                    const px = xFromTime(audioElement.currentTime);
+                    if (px > overlayCanvas.width * 0.9 && zoomFactor > 1) {
+                        const viewDur = audioBuffer.duration / zoomFactor;
+                        const target = audioElement.currentTime - 0.1 * viewDur;
+                        const maxPan = Math.max(0, audioBuffer.duration - viewDur);
+                        viewStart = Math.min(maxPan, Math.max(0, viewStart + (target - viewStart) * 0.25));
+                        panSlider.value = viewStart; drawWaveform(); drawOverlay(); drawRuler();
+                    }
+                }
+                drawOverlay(); drawRuler();
+                if (audioElement.paused) stopPlayheadAnimation(); else startPlayheadAnimation();
+                applyLiveEffectsFromPosition();
+            }
+
+            function startPlayheadAnimation() {
+                if (animationFrameId) return;
+                function step() {
+                    const playing = (pitchModeActive && pitchIsPlaying) || (audioElement && !audioElement.paused);
+                    if (playing) {
+                        animationFrameId = requestAnimationFrame(step);
+                        currentTimeSpan.textContent = formatTime(getCurrentPlaybackTime());
+                        drawOverlay(); drawRuler();
+                        if (!pitchModeActive) applyLiveEffectsFromPosition();
+                    } else stopPlayheadAnimation();
+                }
+                animationFrameId = requestAnimationFrame(step);
+            }
+
+            function stopPlayheadAnimation() { if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; } }
+
+            // Cleanup
+            window.addEventListener('beforeunload', () => { stopBeepLive(); stopPitchPlayback(); if (audioElement) { audioElement.pause(); audioElement.removeEventListener('timeupdate', onTimeUpdate); URL.revokeObjectURL(audioElement.src); } if (audioContext) audioContext.close(); if (pitchWorker) pitchWorker.terminate(); });
+
+            refreshWaveform();
+            updatePlayPauseButton();
+        })();
+    </script>
+</body>
+</html>

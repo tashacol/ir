@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سامانه صدور گواهی</title>
+    <style>
+        :root {
+            --gold: #c59b27;
+            --gold-light: #e5c76b;
+            --gold-dark: #8b6914;
+            --cream: #fdf8f0;
+            --card-bg: rgba(255,252,245,0.95);
+            --text: #2c1810;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+            background: #f5f0e0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cg fill='none' stroke='%23c59b27' stroke-width='0.5' stroke-opacity='0.08'%3E%3Cpath d='M200 0 L400 200 L200 400 L0 200 Z'/%3E%3Ccircle cx='200' cy='200' r='140'/%3E%3Ccircle cx='200' cy='200' r='70'/%3E%3C/g%3E%3C/svg%3E");
+            background-size: 200px;
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .app-header {
+            background: linear-gradient(135deg, #2a1a0a, #3d2b1a, #1e1005);
+            border-bottom: 3px solid var(--gold);
+            padding: 10px 25px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            color: var(--gold-light);
+            font-size: 1.2rem;
+            font-weight: bold;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+        .header-title {
+            font-size: 1.4rem;
+            white-space: nowrap;
+        }
+        .header-nav {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .header-nav .btn {
+            background: rgba(197,155,39,0.2);
+            color: var(--gold-light);
+            border: 1px solid var(--gold);
+            padding: 8px 16px;
+            font-size: 0.85rem;
+        }
+        .header-nav .btn:hover {
+            background: rgba(197,155,39,0.5);
+            color: white;
+        }
+        .main-container {
+            flex: 1;
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 20px;
+            width: 100%;
+            display: flex;
+            gap: 30px;
+            position: relative; /* اضافه شد برای موقعیت‌دهی loadingOverlay */
+        }
+        .form-panel {
+            flex: 1;
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.08), 0 0 0 1px rgba(197,155,39,0.3);
+            border: 1px solid var(--gold-light);
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        .preview-panel {
+            flex: 1.5;
+            background: #fff9e6;
+            border-radius: 20px;
+            border: 2px solid var(--gold);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 600px;
+            position: relative;
+            overflow: auto;
+        }
+        h2 { color: var(--gold-dark); border-bottom: 2px solid var(--gold-light); padding-bottom: 10px; margin-bottom: 20px; font-size: 1.3rem; }
+        .form-row { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; align-items: flex-end; }
+        .form-group { flex: 1 1 200px; }
+        label { font-weight: bold; color: var(--gold-dark); display: block; margin-bottom: 5px; font-size: 0.9rem; }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #d1c4a5;
+            border-radius: 10px;
+            font-family: 'Vazirmatn', sans-serif;
+            font-size: 0.9rem;
+            background: white;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus, textarea:focus { border-color: var(--gold); outline: none; }
+        textarea { resize: vertical; min-height: 70px; }
+        .radio-group, .checkbox-group { display: flex; gap: 20px; align-items: center; }
+        .radio-group label, .checkbox-group label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+        .btn {
+            padding: 10px 22px;
+            border: none;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: 'Vazirmatn', sans-serif;
+            transition: 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--gold);
+            color: white;
+            font-size: 0.9rem;
+        }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .file-upload {
+            border: 2px dashed var(--gold);
+            padding: 10px;
+            border-radius: 8px;
+            background: #fef9ef;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+        .file-upload input { border: none; padding: 5px; }
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,249,230,0.9);
+            z-index: 10;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: var(--gold-dark);
+            flex-direction: column;
+            gap: 15px;
+            /* حالا روی کل main-container قرار می‌گیرد */
+        }
+        .spinner {
+            border: 4px solid var(--gold-light);
+            border-top: 4px solid var(--gold);
+            border-radius: 50%;
+            width: 40px; height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7); z-index: 300;
+            display: none; align-items: center; justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        .modal {
+            background: var(--card-bg);
+            border-radius: 20px; padding: 25px;
+            width: 90%; max-width: 600px;
+            border: 2px solid var(--gold);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            max-height: 80vh; overflow-y: auto;
+            animation: popIn 0.3s;
+        }
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal h2 { margin-top: 0; }
+        @media (max-width: 900px) {
+            .main-container { flex-direction: column; }
+            .preview-panel { min-height: 400px; }
+        }
+        .file-name {
+            display: block;
+            margin-top: 4px;
+            font-size: 0.8rem;
+            color: #555;
+            word-break: break-all;
+        }
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            margin: 15px 0;
+        }
+        .history-table th, .history-table td {
+            border: 1px solid #d1c4a5;
+            padding: 6px 8px;
+            text-align: center;
+        }
+        .history-table th {
+            background: var(--gold-light);
+            color: var(--gold-dark);
+        }
+        .range-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .range-group input[type=range] { flex: 1; }
+        .btn-remove {
+            background: none;
+            border: none;
+            color: #d9534f;
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 0 4px;
+            vertical-align: middle;
+        }
+        .btn-remove:hover { color: #c9302c; }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <span class="header-title">📜 سامانه صدور گواهی</span>
+        <div class="header-nav">
+            <button class="btn" onclick="openInstituteModal()">🏛 مشخصات مؤسسه</button>
+            <button class="btn" onclick="openDesignModal()">🎨 طراحی</button>
+            <button class="btn" onclick="document.querySelector('.form-panel').scrollIntoView({behavior:'smooth'})">📜 صدور گواهی</button>
+            <button class="btn" onclick="openHistoryModal()">📋 گواهی‌های صادره</button>
+        </div>
+    </header>
+    <div class="main-container">
+        <!-- فرم -->
+        <div class="form-panel">
+            <h2>📝 اطلاعات گواهی</h2>
+            <div class="form-row">
+                <div class="form-group"><label>نام دوره</label><input type="text" id="courseName" placeholder="مثال: روخوانی قرآن"></div>
+                <div class="form-group"><label>مدت دوره</label><input type="text" id="courseDays" placeholder="۳۰"></div>
+                <div class="form-group"><label>نوع مدت</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="durationType" value="days" checked> روز</label>
+                        <label><input type="radio" name="durationType" value="hours"> ساعت</label>
+                    </div>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>تاریخ شروع</label><input type="text" id="startDate" placeholder="۱۴۰۳/۰۸/۰۱"></div>
+                <div class="form-group"><label>تاریخ اتمام</label><input type="text" id="endDate" placeholder="۱۴۰۳/۰۸/۳۰"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>نام</label><input type="text" id="firstName" placeholder="نام"></div>
+                <div class="form-group"><label>نام خانوادگی</label><input type="text" id="lastName" placeholder="نام خانوادگی"></div>
+                <div class="form-group"><label>کد ملی</label><input type="text" id="nationalCode" placeholder="۱۰ رقمی"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>جنسیت</label><div class="radio-group"><label><input type="radio" name="gender" value="male" checked> آقا</label><label><input type="radio" name="gender" value="female"> خانم</label></div></div>
+                <div class="form-group"><label>نمره</label><input type="text" id="grade" placeholder="۹۵"></div>
+                <div class="form-group"><label>نام استاد</label><input type="text" id="teacherName" placeholder="نام کامل"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>امضای استاد</label><div class="file-upload"><input type="file" id="teacherSignUpload" accept="image/*"></div><span class="file-name" id="teacherSignFileName"></span><button type="button" class="btn-remove" onclick="clearFile('teacherSignUpload','teacherSignFileName')" title="حذف تصویر">❌</button></div>
+                <div class="form-group"><label>تاریخ صدور</label><input type="text" id="issueDate" placeholder="۱۴۰۳/۰۸/۰۱"></div>
+                <div class="form-group"><label>شماره نامه</label><input type="text" id="certNumber" placeholder="۱۲۲۰"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group checkbox-group">
+                    <label><input type="checkbox" id="showGrade" checked> نمایش نمره</label>
+                </div>
+            </div>
+            <div style="text-align:center; margin-top:20px; display:flex; flex-wrap:wrap; gap:10px; justify-content:center;">
+                <button class="btn" onclick="showPreview()" style="font-size:1.1rem; padding:12px 35px;">👁️ مشاهده و چاپ گواهی</button>
+                <button class="btn" onclick="showPreview()" style="font-size:1rem; padding:10px 25px; background: #8b6914;">🔄 بروزرسانی</button>
+                <button class="btn" onclick="saveCertificate()" style="font-size:1rem; padding:10px 25px;">💾 ثبت گواهی</button>
+                <button class="btn" onclick="openHistoryModal()" style="font-size:1rem; padding:10px 25px;">📋 لیست گواهی‌ها</button>
+            </div>
+        </div>
+
+        <!-- پیش‌نمایش -->
+        <div class="preview-panel" id="previewContainer">
+            <p style="color:#8b6914;">پس از تکمیل فرم، روی «مشاهده و چاپ» کلیک کنید</p>
+        </div>
+
+        <!-- loading overlay به خارج از previewContainer منتقل شد -->
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="spinner"></div>
+            در حال ساخت گواهی...
+        </div>
+    </div>
+
+    <!-- مودال مؤسسه -->
+    <div class="modal-overlay" id="instituteModal">
+        <div class="modal">
+            <h2>🏛 اطلاعات مؤسسه</h2>
+            <div class="form-group"><label>نام مؤسسه / مجموعه</label><input type="text" id="instName" placeholder="مثلاً خانه قرآن نسیم وحی"></div>
+            <div class="form-row">
+                <div class="form-group"><label>استان</label><input type="text" id="instProvince" placeholder="کرمان"></div>
+                <div class="form-group"><label>شهر</label><input type="text" id="instCity" placeholder="جیرفت"></div>
+            </div>
+            <div class="form-group"><label>نوع شناسه</label>
+                <select id="instIdType" onchange="toggleCustomIdType()">
+                    <option value="شناسه">شناسه</option>
+                    <option value="کد شناسایی">کد شناسایی</option>
+                    <option value="شماره ثبت">شماره ثبت</option>
+                    <option value="شناسه ملی">شناسه ملی</option>
+                    <option value="custom">سایر (دلخواه)</option>
+                </select>
+            </div>
+            <div class="form-group" id="customIdTypeGroup" style="display:none;"><label>عنوان شناسه دلخواه</label><input type="text" id="customIdType" placeholder="مثلاً کد"></div>
+            <div class="form-group"><label>مقدار شناسه</label><input type="text" id="instCode" placeholder="۶۶۲۶۳۷۳۷۳"></div>
+            <div class="form-group"><label>شماره مجوز</label><input type="text" id="instLicenseNumber" placeholder="شماره مجوز"></div>
+            <div class="form-group"><label>صادر کننده مجوز</label><input type="text" id="instLicenseIssuer" placeholder="مثلاً وزارت ارشاد"></div>
+            <div class="form-group checkbox-group">
+                <label><input type="checkbox" id="instShowLicense"> نمایش مجوز</label>
+            </div>
+            <div class="form-group"><label>آدرس</label><input type="text" id="instAddress" placeholder="آدرس کامل"></div>
+            <div class="form-group"><label>تلفن</label><input type="text" id="instPhone" placeholder="۰۹۱۳۶۳۹۵۵۶۲"></div>
+            <div class="form-group"><label>نام مدیر</label><input type="text" id="managerName" placeholder="نام کامل مدیر"></div>
+            <div class="form-group"><label>لوگو</label><div class="file-upload"><input type="file" id="logoUpload" accept="image/*"></div><span class="file-name" id="logoFileName"></span><button type="button" class="btn-remove" onclick="clearInstituteFile('logoUpload','logoFileName','logoBase64')" title="حذف لوگو">❌</button></div>
+            <div class="form-group"><label>مهر مؤسسه</label><div class="file-upload"><input type="file" id="managerStamp" accept="image/*"></div><span class="file-name" id="stampFileName"></span><button type="button" class="btn-remove" onclick="clearInstituteFile('managerStamp','stampFileName','stampBase64')" title="حذف مهر">❌</button></div>
+            <div class="form-group"><label>امضای مدیر</label><div class="file-upload"><input type="file" id="managerSign" accept="image/*"></div><span class="file-name" id="managerSignFileName"></span><button type="button" class="btn-remove" onclick="clearInstituteFile('managerSign','managerSignFileName','managerSignBase64')" title="حذف امضای مدیر">❌</button></div>
+            <div style="text-align:center; margin-top:20px;">
+                <button class="btn" onclick="saveInstituteAndClose()">💾 ذخیره</button>
+                <button class="btn" style="background: #8b6914;" onclick="closeInstituteModal()">انصراف</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- مودال طراحی -->
+    <div class="modal-overlay" id="designModal">
+        <div class="modal">
+            <h2>🎨 تنظیمات طراحی</h2>
+            <div class="form-group"><label>فونت سفارشی</label><div class="file-upload"><input type="file" id="designFontUpload" accept=".ttf,.otf,.woff,.woff2"></div><span class="file-name" id="designFontFileName"></span><button type="button" class="btn-remove" onclick="clearDesignFile('designFontUpload','designFontFileName','fontBase64','fontFileName')" title="حذف فونت">❌</button></div>
+            <div class="form-group"><label>پس‌زمینه سفارشی</label><div class="file-upload"><input type="file" id="designBgUpload" accept="image/*"></div><span class="file-name" id="designBgFileName"></span><button type="button" class="btn-remove" onclick="clearDesignFile('designBgUpload','designBgFileName','bgBase64','bgFileName')" title="حذف پس‌زمینه">❌</button></div>
+            <div class="form-group checkbox-group">
+                <label><input type="checkbox" id="designShowBorder" checked> نمایش حاشیه گواهی</label>
+            </div>
+            <div class="form-group"><label>کد SVG</label><textarea id="designSvgCode" placeholder="<svg>...</svg>"></textarea></div>
+            <div class="form-group"><label>یا بارگذاری فایل SVG</label><div class="file-upload"><input type="file" id="designSvgFileUpload" accept=".svg"></div><span class="file-name" id="designSvgFileName"></span><button type="button" class="btn-remove" onclick="clearDesignFile('designSvgFileUpload','designSvgFileName','svgFileBase64','svgFileName')" title="حذف SVG">❌</button></div>
+            <div class="form-group"><label>میزان شفافیت (Opacity)</label>
+                <div class="range-group">
+                    <input type="range" id="designSvgOpacity" min="0" max="100" value="30" step="1">
+                    <span id="designSvgOpacityValue">30%</span>
+                </div>
+            </div>
+            <div style="text-align:center; margin-top:20px;">
+                <button class="btn" onclick="saveDesignAndClose()">💾 ذخیره طراحی</button>
+                <button class="btn" style="background: #8b6914;" onclick="closeDesignModal()">انصراف</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- مودال تاریخچه -->
+    <div class="modal-overlay" id="historyModal">
+        <div class="modal" style="max-width:800px;">
+            <h2>📋 لیست گواهی‌های ثبت شده</h2>
+            <div id="historyContent"></div>
+            <div style="text-align:center; margin-top:20px;">
+                <button class="btn" onclick="downloadCSV()">📥 دانلود CSV</button>
+                <button class="btn" style="background: #8b6914;" onclick="closeHistoryModal()">بستن</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== ابزار تبدیل اعداد فارسی ==========
+        function toPersianDigits(str) {
+            if (!str) return '';
+            return String(str).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
+        }
+
+        // ========== ابزار ذخیره و بازیابی ==========
+        function getInstitute() {
+            return JSON.parse(localStorage.getItem('cert_institute') || '{}');
+        }
+        function saveInstitute(data) {
+            localStorage.setItem('cert_institute', JSON.stringify(data));
+        }
+        function getDesign() {
+            return JSON.parse(localStorage.getItem('cert_design') || '{}');
+        }
+        function saveDesign(data) {
+            localStorage.setItem('cert_design', JSON.stringify(data));
+        }
+        function getCurrentPersianDateNumeric() {
+            const now = new Date();
+            const parts = new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(now).split('/');
+            return parts[0] + '/' + parts[1] + '/' + parts[2];
+        }
+        function getCurrentTimeNumber() {
+            const now = new Date();
+            return toPersianDigits(String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0'));
+        }
+        function readFileAsDataURL(file) {
+            return new Promise(resolve => {
+                if (!file) return resolve('');
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // ========== تغییر ابعاد تصویر به ۲۴۸۰×۳۵۰۸ پیکسل ==========
+        function resizeImageToCertificate(dataUrl, width = 2480, height = 3508) {
+            return new Promise((resolve, reject) => {
+                if (!dataUrl) return resolve('');
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/png'));
+                };
+                img.onerror = () => resolve(dataUrl); // fallback to original
+                img.src = dataUrl;
+            });
+        }
+
+        // ========== ذخیره‌سازی داده‌های فرم ==========
+        function saveFormData() {
+            const data = {
+                courseName: document.getElementById('courseName').value,
+                courseDays: document.getElementById('courseDays').value,
+                durationType: document.querySelector('input[name="durationType"]:checked')?.value || 'days',
+                startDate: document.getElementById('startDate').value,
+                endDate: document.getElementById('endDate').value,
+                firstName: document.getElementById('firstName').value,
+                lastName: document.getElementById('lastName').value,
+                nationalCode: document.getElementById('nationalCode').value,
+                gender: document.querySelector('input[name="gender"]:checked')?.value || 'male',
+                grade: document.getElementById('grade').value,
+                teacherName: document.getElementById('teacherName').value,
+                issueDate: document.getElementById('issueDate').value,
+                certNumber: document.getElementById('certNumber').value,
+                showGrade: document.getElementById('showGrade').checked,
+                teacherSignFileName: document.getElementById('teacherSignFileName').innerText
+            };
+            localStorage.setItem('cert_form_data', JSON.stringify(data));
+        }
+
+        function loadFormData() {
+            const saved = localStorage.getItem('cert_form_data');
+            if (!saved) return;
+            try {
+                const data = JSON.parse(saved);
+                document.getElementById('courseName').value = data.courseName || '';
+                document.getElementById('courseDays').value = data.courseDays || '';
+                const durationRadio = document.querySelector(`input[name="durationType"][value="${data.durationType || 'days'}"]`);
+                if (durationRadio) durationRadio.checked = true;
+                document.getElementById('startDate').value = data.startDate || '';
+                document.getElementById('endDate').value = data.endDate || '';
+                document.getElementById('firstName').value = data.firstName || '';
+                document.getElementById('lastName').value = data.lastName || '';
+                document.getElementById('nationalCode').value = data.nationalCode || '';
+                const genderRadio = document.querySelector(`input[name="gender"][value="${data.gender || 'male'}"]`);
+                if (genderRadio) genderRadio.checked = true;
+                document.getElementById('grade').value = data.grade || '';
+                document.getElementById('teacherName').value = data.teacherName || '';
+                document.getElementById('issueDate').value = data.issueDate || '';
+                document.getElementById('certNumber').value = data.certNumber || '';
+                document.getElementById('showGrade').checked = data.showGrade !== false;
+                document.getElementById('teacherSignFileName').innerText = data.teacherSignFileName || '';
+            } catch(e) { /* ignore */ }
+        }
+
+        // ========== نمایش نام فایل ==========
+        function setupFileInputDisplay(inputId, spanId) {
+            const input = document.getElementById(inputId);
+            const span = document.getElementById(spanId);
+            if (!input || !span) return;
+            input.addEventListener('change', () => {
+                span.innerText = input.files && input.files[0] ? input.files[0].name : '';
+                if (inputId.includes('design')) saveDesignFromModal();
+                else saveFormData();
+            });
+        }
+
+        // ========== پاک کردن فایل‌ها ==========
+        function clearFile(inputId, spanId) {
+            const input = document.getElementById(inputId);
+            const span = document.getElementById(spanId);
+            if (input) input.value = '';
+            if (span) span.innerText = '';
+            saveFormData();
+        }
+
+        function clearInstituteFile(inputId, spanId, storageKey) {
+            const input = document.getElementById(inputId);
+            const span = document.getElementById(spanId);
+            if (input) input.value = '';
+            if (span) span.innerText = '';
+            const inst = getInstitute();
+            inst[storageKey] = '';
+            saveInstitute(inst);
+        }
+
+        function clearDesignFile(inputId, spanId, base64Key, nameKey) {
+            const input = document.getElementById(inputId);
+            const span = document.getElementById(spanId);
+            if (input) input.value = '';
+            if (span) span.innerText = '';
+            const design = getDesign();
+            design[base64Key] = '';
+            design[nameKey] = '';
+            saveDesign(design);
+        }
+
+        // ========== نوع شناسه سفارشی ==========
+        function toggleCustomIdType() {
+            const select = document.getElementById('instIdType');
+            const customGroup = document.getElementById('customIdTypeGroup');
+            customGroup.style.display = select.value === 'custom' ? 'block' : 'none';
+        }
+
+        // ========== مؤسسه ==========
+        function openInstituteModal() {
+            const inst = getInstitute();
+            document.getElementById('instName').value = inst.instName || '';
+            document.getElementById('instProvince').value = inst.instProvince || '';
+            document.getElementById('instCity').value = inst.instCity || '';
+            document.getElementById('instAddress').value = inst.instAddress || '';
+            document.getElementById('instPhone').value = inst.instPhone || '';
+            document.getElementById('managerName').value = inst.managerName || '';
+            document.getElementById('instCode').value = inst.instCode || '';
+            document.getElementById('instLicenseNumber').value = inst.instLicenseNumber || '';
+            document.getElementById('instLicenseIssuer').value = inst.instLicenseIssuer || '';
+            document.getElementById('instShowLicense').checked = inst.showLicense !== false;
+
+            const idType = inst.instIdType || 'شناسه';
+            const select = document.getElementById('instIdType');
+            select.value = (['شناسه','کد شناسایی','شماره ثبت','شناسه ملی'].includes(idType) || idType === 'custom') ? idType : 'شناسه';
+            if (idType === 'custom') {
+                document.getElementById('customIdType').value = inst.instCustomIdType || '';
+                document.getElementById('customIdTypeGroup').style.display = 'block';
+            } else {
+                document.getElementById('customIdType').value = '';
+                document.getElementById('customIdTypeGroup').style.display = 'none';
+            }
+
+            document.getElementById('logoFileName').innerText = inst.logoFileName || '';
+            document.getElementById('stampFileName').innerText = inst.stampFileName || '';
+            document.getElementById('managerSignFileName').innerText = inst.managerSignFileName || '';
+
+            document.getElementById('instituteModal').style.display = 'flex';
+        }
+
+        function closeInstituteModal() {
+            document.getElementById('instituteModal').style.display = 'none';
+        }
+
+        async function saveInstituteAndClose() {
+            const logoFile = document.getElementById('logoUpload').files[0];
+            const stampFile = document.getElementById('managerStamp').files[0];
+            const signFile = document.getElementById('managerSign').files[0];
+            const prev = getInstitute();
+            const [logoB64, stampB64, signB64] = await Promise.all([
+                logoFile ? readFileAsDataURL(logoFile) : prev.logoBase64 || '',
+                stampFile ? readFileAsDataURL(stampFile) : prev.stampBase64 || '',
+                signFile ? readFileAsDataURL(signFile) : prev.managerSignBase64 || ''
+            ]);
+
+            let idType = document.getElementById('instIdType').value;
+            let customIdType = '';
+            if (idType === 'custom') {
+                customIdType = document.getElementById('customIdType').value.trim();
+                if (!customIdType) customIdType = 'شناسه';
+            }
+
+            const data = {
+                instName: document.getElementById('instName').value,
+                instProvince: document.getElementById('instProvince').value,
+                instCity: document.getElementById('instCity').value,
+                instAddress: document.getElementById('instAddress').value,
+                instPhone: document.getElementById('instPhone').value,
+                managerName: document.getElementById('managerName').value,
+                instCode: document.getElementById('instCode').value,
+                instLicenseNumber: document.getElementById('instLicenseNumber').value,
+                instLicenseIssuer: document.getElementById('instLicenseIssuer').value,
+                showLicense: document.getElementById('instShowLicense').checked,
+                instIdType: idType === 'custom' ? customIdType : idType,
+                instCustomIdType: idType === 'custom' ? customIdType : '',
+                logoBase64: logoB64,
+                logoFileName: logoFile ? logoFile.name : (prev.logoFileName || ''),
+                stampBase64: stampB64,
+                stampFileName: stampFile ? stampFile.name : (prev.stampFileName || ''),
+                managerSignBase64: signB64,
+                managerSignFileName: signFile ? signFile.name : (prev.managerSignFileName || '')
+            };
+            saveInstitute(data);
+            closeInstituteModal();
+            alert('اطلاعات مؤسسه ذخیره شد.');
+        }
+
+        // ========== طراحی ==========
+        function openDesignModal() {
+            const design = getDesign();
+            document.getElementById('designShowBorder').checked = design.showBorder !== false;
+            document.getElementById('designSvgCode').value = design.svgCode || '';
+            document.getElementById('designSvgOpacity').value = design.svgOpacity ? Math.round(design.svgOpacity * 100) : 30;
+            document.getElementById('designSvgOpacityValue').innerText = (design.svgOpacity ? Math.round(design.svgOpacity * 100) : 30) + '%';
+            document.getElementById('designSvgFileName').innerText = design.svgFileName || '';
+            document.getElementById('designFontFileName').innerText = design.fontFileName || '';
+            document.getElementById('designBgFileName').innerText = design.bgFileName || '';
+            document.getElementById('designModal').style.display = 'flex';
+        }
+
+        function closeDesignModal() {
+            document.getElementById('designModal').style.display = 'none';
+        }
+
+        async function saveDesignFromModal() {
+            const fontFile = document.getElementById('designFontUpload').files[0];
+            const bgFile = document.getElementById('designBgUpload').files[0];
+            const svgFile = document.getElementById('designSvgFileUpload').files[0];
+            const prev = getDesign();
+
+            // فونت و SVG معمولی هستند
+            const [fontB64, svgB64] = await Promise.all([
+                fontFile ? readFileAsDataURL(fontFile) : prev.fontBase64 || '',
+                svgFile ? readFileAsDataURL(svgFile) : prev.svgFileBase64 || ''
+            ]);
+
+            // پس‌زمینه: خوانده و resize می‌شود
+            let bgB64 = '';
+            if (bgFile) {
+                const raw = await readFileAsDataURL(bgFile);
+                bgB64 = await resizeImageToCertificate(raw, 2480, 3508);
+            } else {
+                bgB64 = prev.bgBase64 || '';
+            }
+
+            const design = {
+                showBorder: document.getElementById('designShowBorder').checked,
+                svgCode: document.getElementById('designSvgCode').value,
+                svgFileBase64: svgB64,
+                svgFileName: svgFile ? svgFile.name : (prev.svgFileName || ''),
+                svgOpacity: parseInt(document.getElementById('designSvgOpacity').value) / 100,
+                fontBase64: fontB64,
+                fontFileName: fontFile ? fontFile.name : (prev.fontFileName || ''),
+                bgBase64: bgB64,
+                bgFileName: bgFile ? bgFile.name : (prev.bgFileName || '')
+            };
+            saveDesign(design);
+            return design;
+        }
+
+        async function saveDesignAndClose() {
+            await saveDesignFromModal();
+            closeDesignModal();
+            alert('تنظیمات طراحی ذخیره شد.');
+        }
+
+        // ========== ساخت گواهی ==========
+        async function buildCertificateHTML(data) {
+            const {
+                course, days, startDate, endDate,
+                firstName, lastName, nationalCode, isMale, grade,
+                teacher, teacherSignData,
+                instName, instCode, instProvince, instCity, instAddress, instPhone,
+                managerName, logoData, stampData, managerSignData,
+                issueDate, certNumber, durationType, instIdType,
+                licenseNumber, licenseIssuer, showGrade, showLicense
+            } = data;
+
+            const design = getDesign();
+            const customFontBase64 = design.fontBase64 || '';
+            const bgImageBase64 = design.bgBase64 || '';
+            const showBorder = design.showBorder !== false;
+            const svgCode = design.svgCode || '';
+            const svgFileBase64 = design.svgFileBase64 || '';
+            const svgOpacity = design.svgOpacity != null ? design.svgOpacity : 0.3;
+            const hasSvg = svgCode || svgFileBase64;
+
+            const title = isMale ? 'جناب آقا' : 'سرکار خانم';
+            const durationText = durationType === 'hours' ? 'ساعت' : 'روز';
+
+            const farsiCertNumber = toPersianDigits(certNumber);
+            const farsiIssueDate = toPersianDigits(issueDate);
+            const farsiNationalCode = toPersianDigits(nationalCode);
+            const farsiDays = toPersianDigits(days);
+            const farsiGrade = toPersianDigits(grade);
+            const farsiStartDate = toPersianDigits(startDate);
+            const farsiEndDate = toPersianDigits(endDate);
+            const farsiInstCode = toPersianDigits(instCode);
+            const farsiInstPhone = toPersianDigits(instPhone);
+            const farsiInstProvince = instProvince ? toPersianDigits(instProvince) : '';
+            const farsiInstCity = instCity ? toPersianDigits(instCity) : '';
+            const farsiLicenseNumber = toPersianDigits(licenseNumber);
+            const farsiLicenseIssuer = licenseIssuer || '';
+
+            const idLabel = instIdType || 'شناسه';
+
+            let fontFace = '';
+            if (customFontBase64) {
+                fontFace = `
+                @font-face {
+                    font-family: 'CustomFont';
+                    src: url(${customFontBase64});
+                    font-weight: normal; font-style: normal;
+                }
+                body { font-family: 'CustomFont', sans-serif; }
+                `;
+            } else {
+                fontFace = `body { font-family: 'Vazirmatn', sans-serif; }`;
+            }
+
+            // استایل پس‌زمینه (ابعاد ۲۴۸۰×۳۵۰۸ به‌صورت cover نمایش داده می‌شود)
+            let bgStyle = '';
+            if (bgImageBase64) {
+                bgStyle = `
+                .certificate-wrapper {
+                    background: transparent !important;
+                    background-image: url("${bgImageBase64}") !important;
+                    background-size: cover !important;
+                    background-position: center !important;
+                    background-repeat: no-repeat !important;
+                }
+                `;
+            }
+
+            // متن نمره
+            const gradeText = showGrade ? ` با کسب نمره <strong>${farsiGrade}</strong>` : '';
+
+            // متن مجوز (فقط در صورت تیک خورده بودن نمایش داده می‌شود)
+            const licenseText = showLicense && licenseNumber ? ` و مجوز <strong>${farsiLicenseNumber}</strong> از <strong>${farsiLicenseIssuer || 'مرجع ذیصلاح'}</strong>` : '';
+
+            // SVG overlay: ابعاد ۷۰٪ و حداکثر ۵۰۰px
+            let svgOverlay = '';
+            if (hasSvg) {
+                let svgDataUri = '';
+                if (svgFileBase64) {
+                    svgDataUri = svgFileBase64;
+                } else if (svgCode) {
+                    svgDataUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgCode);
+                }
+                svgOverlay = `<div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:70%; height:70%; max-width:500px; max-height:500px; opacity:${svgOpacity}; pointer-events:none; z-index:0; overflow:hidden;">
+                    <img src="${svgDataUri}" style="width:100%; height:100%; object-fit:contain;" />
+                </div>`;
+            }
+
+            // کلاس border
+            const borderClass = showBorder ? '' : 'no-border';
+            // کلاس پس‌زمینه پیش‌فرض (گرادیان طلایی محو شونده) فقط زمانی که تصویر سفارشی وجود ندارد
+            const defaultBgClass = !bgImageBase64 ? 'has-default-bg' : '';
+
+            // مُهر زمانی برای جلوگیری از کش مرورگر
+            const timestamp = Date.now();
+
+            return `<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head><meta charset="UTF-8"><title>گواهی ${course} - ${firstName} ${lastName}</title>
+<style>
+    ${fontFace}
+    body {
+        direction: rtl; margin: 0; padding: 0;
+        background: #fdf8f0;
+        display: flex; justify-content: center; align-items: center; min-height: 100vh;
+    }
+    @page { size: A4; margin: 0; }
+    @media print {
+        body { print-color-adjust: exact; -webkit-print-color-adjust: exact; background: #fdf8f0; }
+    }
+    .certificate-wrapper {
+        width: 210mm; height: 297mm;
+        background: #ffffff;
+        box-sizing: border-box;
+        margin: auto;
+        display: flex; flex-direction: column; justify-content: center;
+        padding: 12mm;
+    }
+    .certificate-inner {
+        background: transparent;
+        border: 5px solid #c59b27;
+        outline: 2px solid #8b6914;
+        outline-offset: 4px;
+        border-radius: 16px;
+        box-shadow: 0 0 0 4px #e5c76b, 0 0 0 8px #c59b27, 0 20px 45px rgba(0,0,0,0.25);
+        padding: 15mm 20mm 12mm 20mm;
+        box-sizing: border-box;
+        flex: 1;
+        display: flex; flex-direction: column; justify-content: space-between;
+        position: relative;
+    }
+    .certificate-inner.has-default-bg {
+        background: linear-gradient(to bottom, rgba(197,155,39,0.1) 0%, rgba(197,155,39,0.03) 50%, rgba(255,255,255,0) 100%);
+    }
+    .certificate-inner.no-border {
+        border: none;
+        outline: none;
+        box-shadow: none;
+    }
+    .no-print { } @media print { .no-print { display: none; } }
+    .top-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0; }
+    .cert-info { text-align: right; font-size: 10pt; color: #5c4030; line-height: 1.8; }
+    .cert-info span { font-weight: bold; color: #2c1810; }
+    .logo-container { max-width: 120px; text-align: left; } .logo-container img { max-width: 100%; max-height: 80px; }
+    .basmala { text-align: center; font-size: 20pt; color: #8b6914; margin: 2px 0 0; font-weight: bold; letter-spacing: 1px; }
+    .institute-name { text-align: center; font-size: 14pt; font-weight: bold; color: #2c1810; margin: 0 0 2px 0; }
+    .institute-id { text-align: center; font-size: 9pt; color: #5c4030; margin: 0 0 6px 0; font-weight: bold; }
+    .title { text-align: center; font-size: 15pt; font-weight: bold; color: #2c1810; margin: 10px 0 15px; border-top: 2px solid #c59b27; border-bottom: 2px solid #c59b27; padding: 6px 0; display: inline-block; }
+    .body-text { text-align: justify; line-height: 2.4; font-size: 11pt; margin: 15px 0 10px; color: #3d2b1a; padding: 0 10px; }
+    .body-text strong { color: #8b6914; }
+    .dua { text-align: center; font-size: 10pt; color: #5c4030; margin: 5px 0 20px; font-style: italic; }
+    .signatures { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 10px; }
+    .signature-col { display: flex; flex-direction: column; align-items: center; width: 30%; text-align: center; }
+    .signature-col img { max-height: 65px; margin-bottom: 6px; object-fit: contain; }
+    .signature-col .name { font-weight: bold; font-size: 10pt; margin-top: 4px; }
+    .signature-col .role { font-size: 8pt; color: #5c4030; }
+    .stamp-col .stamp-img { max-height: 75px; }
+    .contact-info { text-align: center; font-size: 8pt; color: #5c4030; margin-top: 15px; padding-top: 6px; }
+    .print-btn {
+        position: absolute; top: 18mm; right: 18mm;
+        background: #c59b27; color: white; border: none;
+        padding: 8px 16px; border-radius: 20px;
+        cursor: pointer; font-size: 10pt; font-weight: bold;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        z-index: 10;
+    }
+    .print-btn:hover { background: #8b6914; }
+    ${bgStyle}
+</style></head>
+<body>
+<div class="certificate-wrapper">
+    <div class="certificate-inner ${borderClass} ${defaultBgClass}">
+        <button class="no-print print-btn" onclick="window.print()">🖨️ چاپ گواهی</button>
+        ${svgOverlay}
+        <div class="top-row">
+            <div class="cert-info"><div>شماره: <span>${farsiCertNumber}</span></div><div>تاریخ صدور: <span>${farsiIssueDate}</span></div></div>
+            <div class="logo-container">${logoData ? '<img src="' + logoData + '" alt="لوگو">' : ''}</div>
+        </div>
+        <div class="basmala">بسم الله الرحمن الرحیم</div>
+        <div class="institute-name">${instName || 'مؤسسه قرآنی'}</div>
+        ${instCode ? '<div class="institute-id">' + idLabel + ': ' + farsiInstCode + '</div>' : ''}
+        <div style="text-align:center;margin:5px 0 15px;"><span class="title">گواهی دوره ${course}</span></div>
+        <div class="body-text">
+            <p>بدین‌وسیله گواهی می‌شود ${title} <strong>${firstName} ${lastName}</strong> به کد ملی <strong>${farsiNationalCode}</strong> در دوره آموزشی «<strong>${course}</strong>» که توسط <strong>${instName || 'این مجموعه'}</strong> با ${idLabel} <strong>${farsiInstCode}</strong>${licenseText} در استان <strong>${farsiInstProvince || '---'}</strong> شهر <strong>${farsiInstCity || '---'}</strong> از تاریخ <strong>${farsiStartDate}</strong> لغایت <strong>${farsiEndDate}</strong> (به مدت <strong>${farsiDays}</strong> ${durationText}) برگزار گردید،${gradeText} شرکت نموده است.</p>
+        </div>
+        <div class="dua">توفیقات روز افزون ایشان را از خداوند منان خواستاریم.</div>
+        <div class="signatures">
+            <div class="signature-col">${teacherSignData ? '<img src="' + teacherSignData + '" alt="امضای استاد">' : ''}<div class="name">${teacher}</div><div class="role">استاد دوره</div></div>
+            <div class="signature-col stamp-col">${stampData ? '<img class="stamp-img" src="' + stampData + '" alt="مهر">' : ''}<div class="name">${instName || 'مؤسسه'}</div></div>
+            <div class="signature-col">${managerSignData ? '<img src="' + managerSignData + '" alt="امضای مدیر">' : ''}<div class="name">${managerName}</div><div class="role">مدیر مؤسسه</div></div>
+        </div>
+        <div class="contact-info">${instAddress ? 'آدرس: ' + instAddress + ' | ' : ''} تلفن: ${farsiInstPhone || '---'}</div>
+    </div>
+</div>
+<!-- timestamp: ${timestamp} -->
+</body></html>`;
+        }
+
+        // ========== جمع‌آوری داده ==========
+        async function gatherData() {
+            const isMale = document.querySelector('input[name="gender"]:checked').value === 'male';
+            const durationType = document.querySelector('input[name="durationType"]:checked')?.value || 'days';
+            const teacherSignFile = document.getElementById('teacherSignUpload').files[0];
+            const showGrade = document.getElementById('showGrade').checked;
+            const [teacherSignData] = await Promise.all([
+                readFileAsDataURL(teacherSignFile)
+            ]);
+            const inst = getInstitute();
+            return {
+                course: document.getElementById('courseName').value,
+                days: document.getElementById('courseDays').value,
+                startDate: document.getElementById('startDate').value,
+                endDate: document.getElementById('endDate').value,
+                firstName: document.getElementById('firstName').value,
+                lastName: document.getElementById('lastName').value,
+                nationalCode: document.getElementById('nationalCode').value,
+                isMale,
+                grade: document.getElementById('grade').value,
+                teacher: document.getElementById('teacherName').value,
+                teacherSignData,
+                instName: inst.instName,
+                instCode: inst.instCode,
+                instProvince: inst.instProvince,
+                instCity: inst.instCity,
+                instAddress: inst.instAddress,
+                instPhone: inst.instPhone,
+                managerName: inst.managerName,
+                logoData: inst.logoBase64,
+                stampData: inst.stampBase64,
+                managerSignData: inst.managerSignBase64,
+                issueDate: document.getElementById('issueDate').value,
+                certNumber: document.getElementById('certNumber').value,
+                durationType,
+                instIdType: inst.instIdType || 'شناسه',
+                licenseNumber: inst.instLicenseNumber,
+                licenseIssuer: inst.instLicenseIssuer,
+                showGrade,
+                showLicense: inst.showLicense !== false
+            };
+        }
+
+        function showLoading() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        let previewGenerated = false;
+
+        async function showPreview() {
+            showLoading();
+            try {
+                const data = await gatherData();
+                const html = await buildCertificateHTML(data);
+                const container = document.getElementById('previewContainer');
+                container.innerHTML = '';
+                const iframe = document.createElement('iframe');
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                iframe.style.border = 'none';
+                const blob = new Blob([html], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                iframe.src = url;
+                iframe.onload = () => {
+                    URL.revokeObjectURL(url);
+                };
+                container.appendChild(iframe);
+                previewGenerated = true;
+            } finally { hideLoading(); }
+        }
+
+        // ========== مدیریت گواهی‌های ثبت شده ==========
+        function getHistory() {
+            return JSON.parse(localStorage.getItem('cert_history') || '[]');
+        }
+        function saveHistory(list) {
+            localStorage.setItem('cert_history', JSON.stringify(list));
+        }
+
+        function resetForm() {
+            document.getElementById('courseName').value = '';
+            document.getElementById('courseDays').value = '';
+            document.querySelector('input[name="durationType"][value="days"]').checked = true;
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
+            document.getElementById('firstName').value = '';
+            document.getElementById('lastName').value = '';
+            document.getElementById('nationalCode').value = '';
+            document.querySelector('input[name="gender"][value="male"]').checked = true;
+            document.getElementById('grade').value = '';
+            document.getElementById('teacherName').value = '';
+            document.getElementById('issueDate').value = getCurrentPersianDateNumeric();
+            document.getElementById('certNumber').value = getCurrentTimeNumber();
+            document.getElementById('showGrade').checked = true;
+            document.getElementById('teacherSignUpload').value = '';
+            document.getElementById('teacherSignFileName').innerText = '';
+            document.getElementById('previewContainer').innerHTML = '<p style="color:#8b6914;">پس از تکمیل فرم، روی «مشاهده و چاپ» کلیک کنید</p>';
+            previewGenerated = false;
+            localStorage.removeItem('cert_form_data');
+        }
+
+        async function saveCertificate() {
+            if (!previewGenerated) {
+                alert('لطفاً ابتدا گواهی را پیش‌نمایش کنید.');
+                return;
+            }
+            const data = await gatherData();
+            const record = {
+                certNumber: data.certNumber,
+                issueDate: data.issueDate,
+                course: data.course,
+                firstName: data.firstName,
+                lastName: data.lastName,
+                nationalCode: data.nationalCode,
+                grade: data.grade,
+                teacher: data.teacher,
+                duration: data.days + ' ' + (data.durationType === 'hours' ? 'ساعت' : 'روز'),
+                startDate: data.startDate,
+                endDate: data.endDate,
+                instName: data.instName,
+                instProvince: data.instProvince,
+                instCity: data.instCity,
+                instIdType: data.instIdType,
+                instCode: data.instCode,
+                licenseNumber: data.licenseNumber,
+                licenseIssuer: data.licenseIssuer,
+                showGrade: data.showGrade,
+                showLicense: data.showLicense,
+                timestamp: new Date().toISOString()
+            };
+            const history = getHistory();
+            history.push(record);
+            saveHistory(history);
+            alert('گواهی با موفقیت ثبت شد.');
+            resetForm();
+        }
+
+        function openHistoryModal() {
+            const history = getHistory();
+            const contentDiv = document.getElementById('historyContent');
+            if (history.length === 0) {
+                contentDiv.innerHTML = '<p>هیچ گواهی ثبت نشده است.</p>';
+            } else {
+                let tableHTML = '<table class="history-table"><thead><tr><th>شماره نامه</th><th>نام و نام خانوادگی</th><th>دوره</th><th>تاریخ صدور</th><th>مدت</th><th>نام استاد</th></tr></thead><tbody>';
+                history.forEach(rec => {
+                    tableHTML += `<tr><td>${rec.certNumber}</td><td>${rec.firstName} ${rec.lastName}</td><td>${rec.course}</td><td>${rec.issueDate}</td><td>${rec.duration}</td><td>${rec.teacher || ''}</td></tr>`;
+                });
+                tableHTML += '</tbody></table>';
+                contentDiv.innerHTML = tableHTML;
+            }
+            document.getElementById('historyModal').style.display = 'flex';
+        }
+        function closeHistoryModal() {
+            document.getElementById('historyModal').style.display = 'none';
+        }
+
+        function downloadCSV() {
+            const history = getHistory();
+            if (history.length === 0) {
+                alert('لیست خالی است.');
+                return;
+            }
+            let csv = 'شماره نامه,نام و نام خانوادگی,دوره,تاریخ صدور,مدت,تاریخ شروع,تاریخ پایان,نمره,نام استاد,مؤسسه,استان,شهر,نوع شناسه,مقدار شناسه,شماره مجوز,صادرکننده مجوز\n';
+            history.forEach(rec => {
+                const row = [
+                    rec.certNumber,
+                    rec.firstName + ' ' + rec.lastName,
+                    rec.course,
+                    rec.issueDate,
+                    rec.duration,
+                    rec.startDate,
+                    rec.endDate,
+                    rec.grade,
+                    rec.teacher,
+                    rec.instName,
+                    rec.instProvince || '',
+                    rec.instCity || '',
+                    rec.instIdType || '',
+                    rec.instCode || '',
+                    rec.licenseNumber || '',
+                    rec.licenseIssuer || ''
+                ].map(field => `"${field || ''}"`).join(',');
+                csv += row + '\n';
+            });
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'certificates.csv';
+            link.click();
+        }
+
+        // ========== مقداردهی اولیه ==========
+        function initDefaults() {
+            const dateInput = document.getElementById('issueDate');
+            const certInput = document.getElementById('certNumber');
+            if (!dateInput.value) dateInput.value = getCurrentPersianDateNumeric();
+            if (!certInput.value) certInput.value = getCurrentTimeNumber();
+        }
+
+        // ========== رویدادهای ذخیره فرم ==========
+        function attachFormListeners() {
+            const formPanel = document.querySelector('.form-panel');
+            formPanel.addEventListener('input', saveFormData);
+            formPanel.addEventListener('change', saveFormData);
+        }
+
+        window.onload = () => {
+            const inst = getInstitute();
+            if (!inst.instName) {
+                document.getElementById('previewContainer').innerHTML = '<p style="color:#8b6914;">لطفاً ابتدا اطلاعات مؤسسه را از طریق دکمه «مشخصات مؤسسه» وارد کنید.</p>';
+            }
+            loadFormData();
+            initDefaults();
+            attachFormListeners();
+            setupFileInputDisplay('teacherSignUpload', 'teacherSignFileName');
+            setupFileInputDisplay('designFontUpload', 'designFontFileName');
+            setupFileInputDisplay('designBgUpload', 'designBgFileName');
+            setupFileInputDisplay('designSvgFileUpload', 'designSvgFileName');
+
+            // opacity slider live update
+            const opacitySlider = document.getElementById('designSvgOpacity');
+            const opacityValue = document.getElementById('designSvgOpacityValue');
+            if (opacitySlider && opacityValue) {
+                opacitySlider.addEventListener('input', () => {
+                    opacityValue.innerText = opacitySlider.value + '%';
+                });
+            }
+        };
+    </script>
+</body>
+</html>
