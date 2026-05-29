@@ -774,11 +774,11 @@
         <span class="settings-badge">⚙️ تنظیمات فشرده‌سازی</span>
         <div class="setting-group">
             <label for="targetKB">حداکثر حجم (KB):</label>
-            <input type="range" id="targetKBRange" min="80" max="800" value="380" step="10">
-            <input type="number" id="targetKBNumber" min="80" max="800" value="380" step="10">
+            <input type="range" id="targetKBRange" min="5" max="800" value="380" step="5">
+            <input type="number" id="targetKBNumber" min="5" max="800" value="380" step="1">
             <span class="kb-display" id="kbDisplay">۳۸۰ KB</span>
         </div>
-        <span class="setting-hint">💡 مقدار کمتر = حجم کمتر / مقدار بیشتر = کیفیت بالاتر</span>
+        <span class="setting-hint">💡 از ۵KB تا ۸۰۰KB — مقدار کمتر = حجم کمتر</span>
     </div>
 
     <!-- ═══════════ Toolbar ═══════════ -->
@@ -918,9 +918,28 @@
             }
 
             // ═══════════════════════════════════════════
-            // تولید thumbnail (عرض ۲۰۰px)
+            // تشخیص شفافیت تصویر (برای پشتیبانی از PNG بدون پس‌زمینه)
             // ═══════════════════════════════════════════
-            async function generateThumbnail(img) {
+            function hasTransparency(img) {
+                // نمونه‌برداری کوچک برای سرعت بیشتر
+                const sampleSize = 50; // بررسی ۵۰×۵۰ پیکسل
+                const canvas = document.createElement('canvas');
+                canvas.width = sampleSize;
+                canvas.height = sampleSize;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, sampleSize, sampleSize);
+                const imageData = ctx.getImageData(0, 0, sampleSize, sampleSize);
+                const data = imageData.data;
+                for (let i = 3; i < data.length; i += 4) {
+                    if (data[i] < 255) return true;
+                }
+                return false;
+            }
+
+            // ═══════════════════════════════════════════
+            // تولید thumbnail (عرض ۲۰۰px) - با قابلیت خروجی PNG در صورت نیاز
+            // ═══════════════════════════════════════════
+            async function generateThumbnail(img, usePNG = false) {
                 const thumbWidth = 200;
                 const scale = thumbWidth / img.naturalWidth;
                 const thumbHeight = Math.round(img.naturalHeight * scale);
@@ -929,23 +948,27 @@
                 canvas.height = thumbHeight;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, thumbWidth, thumbHeight);
-                const blob = await canvasToBlob(canvas, 'image/jpeg', 0.6);
+                const mimeType = usePNG ? 'image/png' : 'image/jpeg';
+                const quality = usePNG ? undefined : 0.6;
+                const blob = await canvasToBlob(canvas, mimeType, quality);
                 return await blobToBase64(blob);
             }
 
             // ═══════════════════════════════════════════
-            // فشرده‌سازی پایه
+            // فشرده‌سازی پایه - اکنون می‌تواند PNG یا JPEG خروجی دهد
+            // و به‌شدت ابعاد و کیفیت را کاهش می‌دهد تا به حجم هدف برسد
             // ═══════════════════════════════════════════
-            async function compressBaseImage(img, maxKB) {
+            async function compressBaseImage(img, maxKB, usePNG = false) {
                 const origW = img.naturalWidth;
                 const origH = img.naturalHeight;
                 const maxBytes = maxKB * 1024;
-                const MIN_DIM = 1200;
-                const MAX_DIM = 1600;
+                const MIN_DIM = 10;   // کوچک‌ترین بعد مجاز (برای رسیدن به حجم‌های بسیار کم)
+                const MAX_DIM = 1600; // بزرگ‌ترین بعد اولیه
 
                 let w = origW;
                 let h = origH;
 
+                // اگر بزرگتر از حد مجاز باشد، ابتدا کوچک می‌کنیم
                 if (Math.max(origW, origH) > MAX_DIM) {
                     const scale = MAX_DIM / Math.max(origW, origH);
                     w = Math.round(origW * scale);
@@ -958,37 +981,37 @@
                 canvas.height = h;
                 ctx.drawImage(img, 0, 0, w, h);
 
-                let quality = 0.65;
-                let blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+                const mimeType = usePNG ? 'image/png' : 'image/jpeg';
+                let quality = usePNG ? undefined : 0.65;
+                let blob = await canvasToBlob(canvas, mimeType, quality);
 
-                while (blob.size > maxBytes && quality > 0.3) {
-                    quality -= 0.02;
-                    blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+                // کاهش کیفیت JPEG تا حد 0.01
+                if (!usePNG) {
+                    while (blob.size > maxBytes && quality > 0.01) {
+                        quality = Math.max(0.01, quality - 0.05);
+                        blob = await canvasToBlob(canvas, mimeType, quality);
+                    }
                 }
 
+                // کاهش ابعاد تا رسیدن به حجم هدف (تا ۵۰ تلاش)
                 let resizeAttempts = 0;
-                while (blob.size > maxBytes && (w > MIN_DIM || h > MIN_DIM) && resizeAttempts < 6) {
-                    const newW = Math.max(MIN_DIM, Math.round(w * 0.9));
-                    const newH = Math.round(h * (newW / w));
-                    w = newW;
-                    h = newH;
+                while (blob.size > maxBytes && (w > MIN_DIM || h > MIN_DIM) && resizeAttempts < 50) {
+                    const scaleFactor = 0.7; // کاهش ۳۰٪ هر بار
+                    w = Math.max(MIN_DIM, Math.round(w * scaleFactor));
+                    h = Math.max(MIN_DIM, Math.round(h * scaleFactor));
                     canvas = document.createElement('canvas');
                     ctx = canvas.getContext('2d');
                     canvas.width = w;
                     canvas.height = h;
                     ctx.drawImage(img, 0, 0, w, h);
-                    blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+                    blob = await canvasToBlob(canvas, mimeType, quality);
                     resizeAttempts++;
                 }
 
-                if (blob.size > maxBytes && quality > 0.25) {
-                    quality = 0.25;
-                    blob = await canvasToBlob(canvas, 'image/jpeg', quality);
-                }
-
-                if (blob.size > maxBytes) {
-                    quality = 0.2;
-                    blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+                // تلاش نهایی برای JPEG (اگر هنوز بزرگتر است)
+                if (!usePNG && blob.size > maxBytes) {
+                    quality = 0.01;
+                    blob = await canvasToBlob(canvas, mimeType, quality);
                 }
 
                 const base64 = await blobToBase64(blob);
@@ -1000,16 +1023,16 @@
                 let quality = 0.8;
                 let blob = await canvasToBlob(canvas, 'image/jpeg', quality);
 
-                while (blob.size > maxBytes && quality > 0.2) {
-                    quality -= 0.05;
-                    blob = await canvasToBlob(canvas, 'image/jpeg', Math.max(0.1, quality));
+                while (blob.size > maxBytes && quality > 0.01) {
+                    quality = Math.max(0.01, quality - 0.05);
+                    blob = await canvasToBlob(canvas, 'image/jpeg', quality);
                 }
 
                 let w = canvas.width;
                 let h = canvas.height;
                 let tempCanvas = canvas;
-                while (blob.size > maxBytes && (w > 400 || h > 400)) {
-                    const newW = Math.max(400, Math.round(w * 0.9));
+                while (blob.size > maxBytes && (w > 10 || h > 10)) {
+                    const newW = Math.max(10, Math.round(w * 0.7));
                     const newH = Math.round(h * (newW / w));
                     const resizedCanvas = document.createElement('canvas');
                     resizedCanvas.width = newW;
@@ -1115,8 +1138,14 @@
                 const origW = img.naturalWidth,
                     origH = img.naturalHeight;
 
-                const thumb = await generateThumbnail(img);
-                const baseData = await compressBaseImage(img, maxKB);
+                // تشخیص شفافیت
+                const isTransparent = hasTransparency(img);
+
+                // تولید thumbnail با فرمت مناسب
+                const thumb = await generateThumbnail(img, isTransparent);
+
+                // فشرده‌سازی پایه با فرمت مناسب
+                const baseData = await compressBaseImage(img, maxKB, isTransparent);
                 const base = baseData.base64;
                 const width = baseData.width;
                 const height = baseData.height;
@@ -1142,7 +1171,8 @@
                                 origW,
                                 origH,
                                 edgeScale: 0,
-                                originalName: file.name
+                                originalName: file.name,
+                                isTransparent
                             };
                         }
                         return {
@@ -1155,7 +1185,8 @@
                             origW,
                             origH,
                             edgeScale: edgeData.scale,
-                            originalName: file.name
+                            originalName: file.name,
+                            isTransparent
                         };
                     }
                     if (edge) {
@@ -1169,7 +1200,8 @@
                             origW,
                             origH,
                             edgeScale: 0,
-                            originalName: file.name
+                            originalName: file.name,
+                            isTransparent
                         };
                     }
                 }
@@ -1184,7 +1216,8 @@
                     origW,
                     origH,
                     edgeScale: edge ? edgeData.scale : 0,
-                    originalName: file.name
+                    originalName: file.name,
+                    isTransparent
                 };
             }
 
@@ -1223,6 +1256,7 @@
                                     outData.data[idx] = imgData.data[idx];
                                     outData.data[idx + 1] = imgData.data[idx + 1];
                                     outData.data[idx + 2] = imgData.data[idx + 2];
+                                    outData.data[idx + 3] = imgData.data[idx + 3]; // حفظ آلفا
                                 } else {
                                     const get = (dx, dy, ch) => imgData.data[((y + dy) * outWidth + (x + dx)) * 4 + ch];
                                     const r = imgData.data[idx];
@@ -1235,8 +1269,8 @@
                                     outData.data[idx] = Math.min(255, Math.max(0, r + lapR * amt));
                                     outData.data[idx + 1] = Math.min(255, Math.max(0, g + lapG * amt));
                                     outData.data[idx + 2] = Math.min(255, Math.max(0, b + lapB * amt));
+                                    outData.data[idx + 3] = imgData.data[idx + 3]; // حفظ شفافیت اصلی به‌جای ۲۵۵
                                 }
-                                outData.data[idx + 3] = 255;
                             }
                         }
                         ctx.putImageData(outData, 0, 0);
@@ -1461,7 +1495,8 @@
                                 origW: width,
                                 origH: height,
                                 edgeScale: edge ? 0.5 : 0,
-                                originalName: 'imported_' + (storedImages.length + 1) + '.jpg'
+                                originalName: 'imported_' + (storedImages.length + 1) + '.jpg',
+                                isTransparent: false // ورودی CSV معمولاً شفافیت ندارد (JPEG)
                             });
                             successCount++;
                         } catch (rowErr) {}
@@ -1747,6 +1782,8 @@
             function updateKBSettings(value) {
                 const numValue = parseInt(value);
                 if (isNaN(numValue)) return;
+                if (numValue < 5) numValue = 5;
+                if (numValue > 800) numValue = 800;
                 targetKBRange.value = numValue;
                 targetMaxKB = numValue;
                 kbDisplay.textContent = numValue.toLocaleString('fa-IR') + ' KB';
@@ -1759,14 +1796,14 @@
             targetKBNumber.addEventListener('input', function() {
                 let val = parseInt(this.value);
                 if (isNaN(val)) return;
-                if (val < 80) val = 80;
+                if (val < 5) val = 5;
                 if (val > 800) val = 800;
                 updateKBSettings(val);
             });
             targetKBNumber.addEventListener('change', function() {
                 let val = parseInt(this.value);
                 if (isNaN(val)) { this.value = targetMaxKB; return; }
-                if (val < 80) val = 80;
+                if (val < 5) val = 5;
                 if (val > 800) val = 800;
                 updateKBSettings(val);
                 this.value = val;
