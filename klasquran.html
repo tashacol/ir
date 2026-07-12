@@ -265,6 +265,7 @@
 
 <script>
     // ================== CONFIGURATION ==================
+    // ⚠️ آدرس وب‌اپ گوگل اسکریپت خود را در خط زیر قرار دهید
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzECY0-Dpz4P1WNNRb9MRGaT0BoiZbboakD4shif7iD_k51oH5R5c2ede91cv7_bAt98w/exec"; 
     const ADMIN_PASSWORD = 'admin123';
     
@@ -340,7 +341,6 @@
 
     function formatDateStr(dateStr) {
         if (!dateStr) return '—';
-        // Remove T00:00:00.000Z and replace dashes with slashes
         return String(dateStr).split('T')[0].replace(/-/g, '/');
     }
 
@@ -351,7 +351,6 @@
 
     function calculateDaysPassed(startDateStr) {
         if(!startDateStr) return 0;
-        // Approximate calculation for Jalali string format YYYY/MM/DD
         const parts = formatDateStr(startDateStr).split('/');
         if(parts.length !== 3) return 0;
         
@@ -366,7 +365,6 @@
     }
 
     function getMonthPeriods(startDateStr, endDateStr) {
-        // Logic to generate monthly periods for payment
         const periods = [];
         if(!startDateStr) return periods;
         
@@ -385,12 +383,9 @@
         let diffDays = endDaysCalc - startDaysCalc;
         if(diffDays < 0) diffDays = 0;
         
-        // At least 1 month if class started
         let monthsPassed = Math.floor(diffDays / 30) + 1; 
         
-        // Generate period objects
         for(let i = 0; i < monthsPassed; i++) {
-            // Calculate pseudo start/end string for display
             let m = parseInt(sp[1]) + i;
             let y = parseInt(sp[0]);
             while(m > 12) { m -= 12; y += 1; }
@@ -493,8 +488,8 @@
         document.getElementById('dashboard-view').style.display = 'block';
         document.getElementById('welcome-text').innerHTML = `<i class="fas fa-user-circle"></i> خوش آمدید، ${sessionStorage.getItem('userName')}`;
         
-        fetchInternetDate(); // Start clock
-        setInterval(updateHeaderDate, 60000); // Update every minute
+        fetchInternetDate(); 
+        setInterval(updateHeaderDate, 60000);
 
         await loadDataFromServer();
         setupTabs();
@@ -889,7 +884,6 @@
     window.archiveClass = async (id, btn) => {
         const cls = appData.classes.find(c => c.id === id);
         
-        // بررسی بدهی
         const periods = getMonthPeriods(cls.startDate, cls.endDate);
         let hasDebt = false;
         if(cls.students) {
@@ -979,7 +973,7 @@
         }
 
         const html = `
-        <div class="modal-overlay">
+        <div class="modal-overlay show">
             <div class="modal-box" style="max-width:850px;">
                 <button class="modal-close-btn" onclick="closeModal()"><i class="fas fa-times"></i></button>
                 <h3 style="margin-bottom:15px; color:var(--primary); font-size:1.3rem;"><i class="fas fa-clipboard-list"></i> جزئیات کلاس: ${cls.title}</h3>
@@ -1003,13 +997,37 @@
                 </div>
             </div>
         </div>`;
-        showModal(html);
+        
+        // Use document.getElementById and manually set overlay click logic to prevent full close on inner clicks
+        document.getElementById('modal-container').innerHTML = html;
+        const overlay = document.querySelector('.modal-overlay');
+        overlay.addEventListener('click', e => { if(e.target === overlay) closeModal(); });
     };
 
     // --- Search & Add Student ---
     window.openAddStudentModal = (classId) => {
+        const cls = appData.classes.find(c => c.id === classId);
+        
+        // Find 10 latest trainees not already in this class
+        const availableTrainees = appData.trainees.filter(t => !cls.students?.some(s => s.traineeId === t.id));
+        const last10 = availableTrainees.slice(-10).reverse(); // Get latest 10
+        
+        let initialListHtml = '';
+        if(last10.length === 0) {
+            initialListHtml = '<p style="text-align:center; color:var(--text-light); font-size:0.9rem; margin-top:30px;">هیچ متربی جدیدی برای افزودن به کلاس وجود ندارد.</p>';
+        } else {
+            initialListHtml = '<h5 style="margin-top:10px; margin-bottom:10px; color:var(--text-light); font-size:0.85rem;">۱۰ متربی ثبت‌نام شده اخیر سیستم:</h5>' + last10.map(t => `
+            <div class="search-result-card">
+                <div>
+                    <strong><i class="fas fa-user"></i> ${t.firstName} ${t.lastName}</strong><br>
+                    <small style="color:var(--text-light);">کد ملی: ${t.nationalId}</small>
+                </div>
+                <button class="btn-sm btn-success" id="add_btn_${t.id}" onclick="addStudentToClass('${classId}', '${t.id}')">➕ افزودن</button>
+            </div>`).join('');
+        }
+
         const html = `
-        <div class="modal-overlay" style="z-index:1001;">
+        <div class="modal-overlay show" style="z-index:1001;" onclick="if(event.target===this) viewClassDetail('${classId}')">
             <div class="modal-box" style="max-width:500px;">
                 <button class="modal-close-btn" onclick="viewClassDetail('${classId}')" title="بازگشت"><i class="fas fa-arrow-right"></i></button>
                 <h3 style="margin-bottom:20px;"><i class="fas fa-search"></i> جستجوی متربی برای کلاس</h3>
@@ -1022,8 +1040,8 @@
                     </div>
                 </div>
                 
-                <div id="search-results-container" style="min-height:100px; margin-top:15px;">
-                    <p style="text-align:center; color:var(--text-light); font-size:0.9rem; margin-top:30px;">کد ملی را برای جستجو تایپ کنید...</p>
+                <div id="search-results-container" style="min-height:100px; margin-top:15px; max-height:350px; overflow-y:auto; padding-right:5px;">
+                    ${initialListHtml}
                 </div>
             </div>
         </div>`;
@@ -1035,6 +1053,12 @@
         const query = document.getElementById('search_national_id').value.trim();
         const container = document.getElementById('search-results-container');
         
+        // If empty, revert to the initial 10 list (this calls the function again without typing)
+        if(query.length === 0) {
+            openAddStudentModal(classId); 
+            return;
+        }
+
         if(query.length < 10) {
             container.innerHTML = '<p style="text-align:center; color:var(--text-light); font-size:0.9rem; margin-top:30px;">کد ملی را کامل (۱۰ رقم) وارد کنید...</p>';
             return;
@@ -1073,8 +1097,8 @@
         setButtonLoading(btn, true);
         try {
             await apiCall('saveClass', { payload: cls });
-            viewClassDetail(classId); // Return to class details
-            renderClasses(); // Update count in background
+            viewClassDetail(classId); 
+            renderClasses(); 
             showToast('✅ متربی با موفقیت به کلاس اضافه شد.');
         } catch(e) {} finally { setButtonLoading(btn, false); }
     };
@@ -1106,7 +1130,6 @@
         const cls = appData.classes.find(c => c.id === classId);
         const student = cls.students.find(s => s.traineeId === traineeId);
         
-        // Validation: Cannot pay month 2 if month 1 is unpaid
         if(periodIndex > 0) {
             for(let i=0; i < periodIndex; i++) {
                 if(!student.payments || !student.payments.some(p => p.periodIndex === i)) {
@@ -1127,7 +1150,7 @@
         for(let i=0; i<60; i++) minOpts += `<option value="${i}" ${i===currM?'selected':''}>${String(i).padStart(2,'0')}</option>`;
 
         const html = `
-        <div class="modal-overlay" style="z-index:1001;">
+        <div class="modal-overlay show" style="z-index:1001;" onclick="if(event.target===this) viewClassDetail('${classId}')">
             <div class="modal-box" style="max-width:450px;">
                 <button class="modal-close-btn" onclick="viewClassDetail('${classId}')" title="بازگشت"><i class="fas fa-arrow-right"></i></button>
                 <h3 style="margin-bottom:20px; color:var(--success);"><i class="fas fa-money-bill-wave"></i> ثبت شهریه: ${periodLabel}</h3>
@@ -1165,7 +1188,6 @@
         </div>`;
         document.getElementById('modal-container').innerHTML = html;
         
-        // Auto set current date
         const td = new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: 'numeric', day: 'numeric' }).format(now).replace(/[۰-۹]/g, w => '۰۱۲۳۴۵۶۷۸۹'.indexOf(w)).split('/');
         document.getElementById('pay_date_y').value = td[0];
         document.getElementById('pay_date_m').value = parseInt(td[1]);
@@ -1185,7 +1207,6 @@
         const student = cls.students.find(s => s.traineeId === traineeId);
         
         if(!student.payments) student.payments = [];
-        // Remove if exists (safety)
         student.payments = student.payments.filter(p => p.periodIndex !== periodIndex);
         
         student.payments.push({
@@ -1210,7 +1231,7 @@
         if(!payment) return;
 
         const html = `
-        <div class="modal-overlay" style="z-index:1001;">
+        <div class="modal-overlay show" style="z-index:1001;" onclick="if(event.target===this) viewClassDetail('${classId}')">
             <div class="modal-box" style="max-width:400px; text-align:center;">
                 <button class="modal-close-btn" onclick="viewClassDetail('${classId}')" title="بازگشت"><i class="fas fa-arrow-right"></i></button>
                 <div style="font-size:3rem; color:var(--success); margin-bottom:10px;"><i class="fas fa-check-circle"></i></div>
@@ -1248,7 +1269,6 @@
         } catch(e) {} finally { hideGlobalLoader(); }
     };
 
-    // Auto-init if logged in
     if(sessionStorage.getItem('isLoggedIn') === 'true') {
         initDashboard();
     }
