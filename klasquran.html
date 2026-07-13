@@ -216,14 +216,32 @@
     </header>
 
     <div class="tabs-container">
-        <button class="tab-btn active" data-tab="trainees"><i class="fas fa-user-graduate"></i> متربیان</button>
+        <button class="tab-btn active" data-tab="classes"><i class="fas fa-clipboard-list"></i> کلاس‌ها</button>
+        <button class="tab-btn" data-tab="trainees"><i class="fas fa-user-graduate"></i> متربیان</button>
         <button class="tab-btn" data-tab="trainers"><i class="fas fa-chalkboard-teacher"></i> مربیان</button>
-        <button class="tab-btn" data-tab="classes"><i class="fas fa-clipboard-list"></i> کلاس‌ها</button>
+        <button class="tab-btn" data-tab="staff"><i class="fas fa-user-tie"></i> کادر</button>
     </div>
 
     <main class="main-content">
+        
+        <!-- Classes Tab -->
+        <div class="tab-panel active" id="tab-classes">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-clipboard-list"></i> لیست کلاس‌ها</h2>
+                    <button class="btn-primary btn-sm" onclick="openClassForm()">➕ افزودن کلاس جدید</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead><tr><th>ردیف</th><th>عنوان کلاس</th><th>تاریخ شروع</th><th>👨‍🏫 مربی</th><th>وضعیت</th><th>تعداد متربی</th><th>عملیات</th></tr></thead>
+                        <tbody id="classes-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <!-- Trainees Tab -->
-        <div class="tab-panel active" id="tab-trainees">
+        <div class="tab-panel" id="tab-trainees">
             <div class="card">
                 <div class="card-header">
                     <h2><i class="fas fa-users"></i> لیست متربیان</h2>
@@ -261,21 +279,22 @@
             </div>
         </div>
 
-        <!-- Classes Tab -->
-        <div class="tab-panel" id="tab-classes">
+        <!-- Staff Tab -->
+        <div class="tab-panel" id="tab-staff">
             <div class="card">
                 <div class="card-header">
-                    <h2><i class="fas fa-clipboard-list"></i> لیست کلاس‌ها</h2>
-                    <button class="btn-primary btn-sm" onclick="openClassForm()">➕ افزودن کلاس جدید</button>
+                    <h2><i class="fas fa-user-tie"></i> لیست اعضای کادر</h2>
+                    <button class="btn-primary btn-sm" onclick="openStaffForm()">➕ افزودن عضو کادر جدید</button>
                 </div>
                 <div class="table-responsive">
                     <table class="data-table">
-                        <thead><tr><th>ردیف</th><th>عنوان کلاس</th><th>تاریخ شروع</th><th>👨‍🏫 مربی</th><th>وضعیت</th><th>تعداد متربی</th><th>عملیات</th></tr></thead>
-                        <tbody id="classes-tbody"></tbody>
+                        <thead><tr><th>ردیف</th><th>نام و نام خانوادگی</th><th>کد ملی</th><th>تاریخ شروع فعالیت</th><th>شماره تماس</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+                        <tbody id="staff-tbody"></tbody>
                     </table>
                 </div>
             </div>
         </div>
+
     </main>
 </div>
 
@@ -291,7 +310,7 @@
     const ADMIN_PASSWORD = 'admin123';
     
     // ================== STATE MANAGEMENT ==================
-    let appData = { trainees: [], trainers: [], classes: [] };
+    let appData = { trainees: [], trainers: [], classes: [], staff: [] };
     let internetDateObj = null;
     let traineeDisplayLimit = 30; // Limit for trainees pagination
     
@@ -522,10 +541,12 @@
         try {
             const res = await apiCall('getData');
             appData = res.data;
+            if(!appData.staff) appData.staff = []; // Ensure staff array exists
             traineeDisplayLimit = 30; // Reset limit on load
+            renderClasses();
             renderTrainees();
             renderTrainers();
-            renderClasses();
+            renderStaff();
         } catch(e) {}
         finally { hideGlobalLoader(); }
     }
@@ -809,6 +830,356 @@
             renderTrainers();
             showToast('مربی حذف شد');
         } catch(err) {} finally { setButtonLoading(btn, false); }
+    };
+
+    // ================== STAFF (کادر) ==================
+    function renderStaff() {
+        const tbody = document.getElementById('staff-tbody');
+        if (appData.staff.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><i class="fas fa-folder-open"></i><br>هیچ عضو کادری ثبت نشده است</td></tr>';
+            return;
+        }
+        
+        const listToDisplay = [...appData.staff].reverse();
+        
+        tbody.innerHTML = listToDisplay.map((s, i) => {
+            const st = s.status === 'active' ? '<span class="badge badge-active">🟢 در حال فعالیت</span>' : '<span class="badge badge-finished">🟡 پایان فعالیت</span>';
+            return `
+            <tr>
+                <td>${i+1}</td>
+                <td><a href="javascript:void(0)" onclick="viewStaffDetail('${s.id}')" style="color:var(--primary); font-weight:600; text-decoration:none;">${s.firstName} ${s.lastName}</a></td>
+                <td><code>${s.nationalId}</code></td>
+                <td>${formatDateStr(s.startDate)}</td>
+                <td><a href="tel:${s.phone}" style="color:var(--primary); font-weight:600; text-decoration:none;"><i class="fas fa-phone-alt"></i> ${s.phone}</a></td>
+                <td>${st}</td>
+                <td>
+                    <button class="btn-sm btn-primary" onclick="viewStaffDetail('${s.id}')"><i class="fas fa-eye"></i> جزئیات حقوق</button>
+                    ${s.status === 'active' ? `
+                        <button class="btn-sm btn-warning" onclick="openStaffForm('${s.id}')" title="ویرایش"><i class="fas fa-edit"></i></button>
+                        <button class="btn-sm btn-success" onclick="finishStaff('${s.id}', event.currentTarget)" title="اتمام فعالیت"><i class="fas fa-flag-checkered"></i></button>
+                        <button class="btn-sm btn-danger" onclick="deleteStaff('${s.id}', event.currentTarget)" title="حذف"><i class="fas fa-trash"></i></button>
+                    ` : ''}
+                    ${s.status === 'finished' ? `<button class="btn-sm btn-danger" onclick="deleteStaff('${s.id}', event.currentTarget)" title="حذف"><i class="fas fa-trash"></i></button>` : ''}
+                </td>
+            </tr>
+        `;
+        }).join('');
+    }
+
+    window.openStaffForm = (id = null) => {
+        const exist = id ? appData.staff.find(s => s.id === id) : null;
+        const title = exist ? 'ویرایش کادر' : 'افزودن عضو کادر جدید';
+        
+        const html = `
+        <div class="modal-overlay show" onclick="if(event.target===this) closeModal()">
+            <div class="modal-box">
+                <button class="modal-close-btn" onclick="closeModal()"><i class="fas fa-times"></i></button>
+                <h3 style="margin-bottom: 20px; font-size:1.2rem; color:var(--primary);"><i class="fas fa-user-tie"></i> ${title}</h3>
+                <form onsubmit="saveStaff(event, '${id || ''}')">
+                    <div class="form-row">
+                        <div class="form-group"><label>نام *</label><input type="text" id="st_fName" class="form-input" value="${exist?.firstName||''}" required></div>
+                        <div class="form-group"><label>نام خانوادگی *</label><input type="text" id="st_lName" class="form-input" value="${exist?.lastName||''}" required></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>کد ملی *</label><input type="text" id="st_nId" class="form-input" value="${exist?.nationalId||''}" required maxlength="10"></div>
+                        <div class="form-group"><label>شماره تماس *</label><input type="text" id="st_phone" class="form-input" value="${exist?.phone||''}" required></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>تاریخ شروع فعالیت *</label>${generateDateDropdownsHTML('st_start', exist?.startDate)}</div>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-outline btn-sm" onclick="closeModal()">انصراف</button>
+                        <button type="submit" class="btn-primary btn-sm">
+                            <span class="btn-icon"><i class="fas fa-save"></i></span>
+                            <span class="btn-text">ذخیره عضو کادر</span>
+                            <div class="btn-spinner"></div>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>`;
+        document.getElementById('modal-container').innerHTML = html;
+    };
+
+    window.saveStaff = async (e, id) => {
+        e.preventDefault();
+        const btn = e.submitter;
+        const sDate = getDropdownDateValue('st_start');
+        if(!sDate) { showToast('لطفا تاریخ شروع فعالیت را وارد کنید', 'error'); return; }
+        
+        const payload = {
+            id: id || generateId(),
+            firstName: document.getElementById('st_fName').value.trim(),
+            lastName: document.getElementById('st_lName').value.trim(),
+            nationalId: document.getElementById('st_nId').value.trim(),
+            phone: document.getElementById('st_phone').value.trim(),
+            startDate: sDate,
+            endDate: id ? (appData.staff.find(s=>s.id===id).endDate || '') : '',
+            status: id ? (appData.staff.find(s=>s.id===id).status || 'active') : 'active',
+            payments: id ? (appData.staff.find(s=>s.id===id).payments || []) : []
+        };
+
+        if(!validateNationalId(payload.nationalId)) { showToast('کد ملی وارد شده نامعتبر است', 'error'); return; }
+        const dup = appData.staff.find(x => x.nationalId === payload.nationalId && x.id !== id);
+        if(dup) { showToast('این کد ملی قبلاً برای یکی از اعضای کادر ثبت شده است', 'error'); return; }
+
+        setButtonLoading(btn, true);
+        try {
+            await apiCall('saveStaff', { payload });
+            if(id) {
+                const idx = appData.staff.findIndex(x => x.id === id);
+                appData.staff[idx] = payload;
+            } else {
+                appData.staff.push(payload);
+            }
+            closeModal();
+            renderStaff();
+            showToast('اطلاعات عضو کادر با موفقیت ذخیره شد');
+        } catch(err) {} finally { setButtonLoading(btn, false); }
+    };
+
+    window.finishStaff = async (id, btn) => {
+        if(!requestAdminPassword()) { showToast('⛔ رمز عبور مدیریت اشتباه است.', 'error'); return; }
+        if(!confirm('آیا از اتمام فعالیت این عضو کادر اطمینان دارید؟ با این کار لیست ماه‌های حقوقی بسته می‌شود.')) return;
+        
+        const staffMem = appData.staff.find(s => s.id === id);
+        staffMem.status = 'finished';
+        const d = getTodayObj();
+        staffMem.endDate = new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(d).replace(/[۰-۹]/g, w => '۰۱۲۳۴۵۶۷۸۹'.indexOf(w)).replace(/\//g, '-');
+
+        setButtonLoading(btn, true);
+        try {
+            await apiCall('saveStaff', { payload: staffMem });
+            renderStaff();
+            showToast('🏁 فعالیت عضو کادر با موفقیت پایان یافت.');
+        } catch(e) {} finally { setButtonLoading(btn, false); }
+    };
+
+    window.deleteStaff = async (id, btn) => {
+        if(!requestAdminPassword()) { showToast('⛔ رمز عبور اشتباه است.', 'error'); return; }
+        if(!confirm('آیا از حذف کامل این عضو کادر و اطلاعات مالی او مطمئن هستید؟ این عمل غیرقابل بازگشت است.')) return;
+
+        setButtonLoading(btn, true);
+        try {
+            await apiCall('deleteStaff', { id });
+            appData.staff = appData.staff.filter(x => x.id !== id);
+            renderStaff();
+            showToast('عضو کادر با موفقیت حذف شد');
+        } catch(err) {} finally { setButtonLoading(btn, false); }
+    };
+
+    // Staff Detail & Payments
+    window.viewStaffDetail = (staffId) => {
+        const staffMem = appData.staff.find(s => s.id === staffId);
+        if(!staffMem) return;
+        
+        const daysPassed = calculateDaysPassed(staffMem.startDate);
+        let timeLabel = `⏳ زمان فعالیت: ${daysPassed} روز`;
+        if(staffMem.status === 'finished') timeLabel = '🏁 فعالیت پایان یافته است';
+
+        const periods = getMonthPeriods(staffMem.startDate, staffMem.status === 'active' ? null : staffMem.endDate);
+
+        let paidCount = staffMem.payments ? staffMem.payments.length : 0;
+        let unpaidCount = periods.length - paidCount;
+        if(unpaidCount < 0) unpaidCount = 0;
+
+        let summaryText = '';
+        if(periods.length === 0) {
+            summaryText = '<span style="color:var(--text-light)">هنوز فعالیتی ثبت نشده</span>';
+        } else if(unpaidCount > 0) {
+            summaryText = `<span style="color:var(--danger)">${unpaidCount} پرداخت نشده</span>`;
+        } else {
+            summaryText = `<span style="color:var(--success)">✅ تسویه کامل</span>`;
+        }
+
+        let paymentsHtml = periods.map(p => {
+            const payRecord = staffMem.payments ? staffMem.payments.find(x => x.periodIndex === p.index) : null;
+            const isPaid = !!payRecord;
+            
+            const clickAction = isPaid ? `viewStaffPaymentDetail('${staffId}', ${p.index})` :
+                `openStaffPaymentForm('${staffId}', ${p.index}, '${p.label}', '${p.displayDate}')`;
+            
+            return `
+            <div class="payment-month-chip ${isPaid?'paid':'unpaid'}" onclick="${clickAction}">
+                <strong>${p.label}</strong><br>
+                <small>${p.displayDate}</small><br>
+                <small>${isPaid?'✅ پرداخت شده':'❌ تسویه نشده'}</small>
+            </div>`;
+        }).join('');
+        if(periods.length === 0) paymentsHtml = '<p style="color:var(--text-light); text-align:center; width:100%; margin:0;">هنوز یک ماه هم از فعالیت نگذشته است.</p>';
+
+        const html = `
+        <div class="modal-overlay show" onclick="if(event.target===this) closeModal()">
+            <div class="modal-box" style="max-width:800px;">
+                <button class="modal-close-btn" onclick="closeModal()"><i class="fas fa-times"></i></button>
+                <h3 style="margin-bottom:15px; color:var(--primary); font-size:1.3rem;"><i class="fas fa-user-tie"></i> جزئیات حقوق کادر: ${staffMem.firstName} ${staffMem.lastName}</h3>
+                
+                <div style="display:flex; gap:15px; flex-wrap:wrap; background:var(--primary-light); padding:15px; border-radius:var(--radius-md); margin-bottom:20px; font-size:0.95rem;">
+                    <span>📞 موبایل: <strong>${staffMem.phone}</strong></span> |
+                    <span>📅 شروع: <strong>${formatDateStr(staffMem.startDate)}</strong></span> |
+                    <span>وضعیت: <strong>${staffMem.status==='active'?'🟢 فعال':'🟡 پایان یافته'}</strong></span> |
+                    <span style="color:var(--primary-dark); font-weight:600;">${timeLabel}</span>
+                </div>
+                
+                <div style="margin-bottom:20px;">
+                    <div id="header_acc_staff_${staffId}" class="accordion-header trainer-acc" onclick="toggleAccordion('acc_staff_${staffId}')" style="border-radius: var(--radius-md) var(--radius-md) 0 0; border-bottom: none;">
+                        <span><strong><i class="fas fa-money-check-alt"></i> وضعیت حقوق و دستمزد:</strong> ${summaryText}</span>
+                        <i class="fas fa-chevron-up" id="icon_acc_staff_${staffId}" style="color:var(--info)"></i>
+                    </div>
+                    <div id="acc_staff_${staffId}" class="payment-months" style="display:flex; border-color:var(--info);">${paymentsHtml}</div>
+                </div>
+
+            </div>
+        </div>`;
+        
+        document.getElementById('modal-container').innerHTML = html;
+    };
+
+    window.openStaffPaymentForm = (staffId, periodIndex, periodLabel, periodDisplayDate) => {
+        const staffMem = appData.staff.find(s => s.id === staffId);
+        
+        if(periodIndex > 0) {
+            for(let i=0; i < periodIndex; i++) {
+                if(!staffMem.payments || !staffMem.payments.some(p => p.periodIndex === i)) {
+                    showToast('⚠️ ابتدا باید حقوق ماه‌های قبل تسویه شود.', 'warning');
+                    return;
+                }
+            }
+        }
+
+        const now = getTodayObj();
+        const currH = now.getHours();
+        const currM = now.getMinutes();
+
+        let hourOpts = '';
+        for(let i=0; i<24; i++) hourOpts += `<option value="${i}" ${i===currH?'selected':''}>${String(i).padStart(2,'0')}</option>`;
+        
+        let minOpts = '';
+        for(let i=0; i<60; i++) minOpts += `<option value="${i}" ${i===currM?'selected':''}>${String(i).padStart(2,'0')}</option>`;
+
+        const html = `
+        <div class="modal-overlay show" style="z-index:1001;" onclick="if(event.target===this) viewStaffDetail('${staffId}')">
+            <div class="modal-box" style="max-width:450px;">
+                <button class="modal-close-btn" onclick="viewStaffDetail('${staffId}')" title="بازگشت"><i class="fas fa-arrow-right"></i></button>
+                <h3 style="margin-bottom:20px; color:var(--info);"><i class="fas fa-money-check-alt"></i> ثبت حقوق کادر: ${periodLabel}</h3>
+                <p style="background:var(--bg-main); padding:10px; border-radius:8px; font-size:0.85rem; color:var(--text-light);">بابت بازه زمانی: ${periodDisplayDate}</p>
+                
+                <form onsubmit="saveStaffPayment(event, '${staffId}', ${periodIndex})">
+                    <div class="form-group" style="margin-top:15px;">
+                        <label>مبلغ پرداخت شده (تومان/ریال) *</label>
+                        <input type="number" id="spay_amount" class="form-input" required placeholder="مبلغ را وارد کنید...">
+                    </div>
+
+                    <div class="form-group">
+                        <label>تاریخ پرداخت *</label>
+                        ${generateDateDropdownsHTML('spay_date')}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>ساعت پرداخت *</label>
+                        <div class="time-dropdowns">
+                            <select id="spay_h" class="form-select" required>${hourOpts}</select>
+                            <span>:</span>
+                            <select id="spay_m" class="form-select" required>${minOpts}</select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>شماره پیگیری / سند *</label>
+                        <input type="text" id="spay_tracking" class="form-input" required placeholder="مثلا 123456" style="letter-spacing:2px; font-family:monospace;">
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="submit" class="btn-primary btn-sm" style="background-color: var(--info);">
+                            <span class="btn-icon"><i class="fas fa-check"></i></span>
+                            <span class="btn-text">ثبت نهایی حقوق</span>
+                            <div class="btn-spinner"></div>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>`;
+        document.getElementById('modal-container').innerHTML = html;
+        
+        const td = new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: 'numeric', day: 'numeric' }).format(now).replace(/[۰-۹]/g, w => '۰۱۲۳۴۵۶۷۸۹'.indexOf(w)).split('/');
+        document.getElementById('spay_date_y').value = td[0];
+        document.getElementById('spay_date_m').value = parseInt(td[1]);
+        document.getElementById('spay_date_d').value = parseInt(td[2]);
+    };
+
+    window.saveStaffPayment = async (e, staffId, periodIndex) => {
+        e.preventDefault();
+        const btn = e.submitter;
+        const pDate = getDropdownDateValue('spay_date');
+        if(!pDate) { showToast('تاریخ نامعتبر', 'error'); return; }
+
+        const amount = document.getElementById('spay_amount').value.trim();
+        const time = `${String(document.getElementById('spay_h').value).padStart(2,'0')}:${String(document.getElementById('spay_m').value).padStart(2,'0')}`;
+        const tracking = document.getElementById('spay_tracking').value.trim();
+
+        const staffMem = appData.staff.find(s => s.id === staffId);
+        
+        if(!staffMem.payments) staffMem.payments = [];
+        staffMem.payments = staffMem.payments.filter(p => p.periodIndex !== periodIndex);
+        
+        staffMem.payments.push({
+            periodIndex: periodIndex,
+            amount: amount,
+            date: pDate,
+            time: time,
+            tracking: tracking
+        });
+        
+        setButtonLoading(btn, true);
+        try {
+            await apiCall('saveStaff', { payload: staffMem });
+            viewStaffDetail(staffId);
+            showToast('✅ حقوق عضو کادر با موفقیت ثبت شد');
+        } catch(err) {} finally { setButtonLoading(btn, false); }
+    };
+
+    window.viewStaffPaymentDetail = (staffId, periodIndex) => {
+        const staffMem = appData.staff.find(s => s.id === staffId);
+        const payment = staffMem.payments.find(p => p.periodIndex === periodIndex);
+        if(!payment) return;
+
+        const html = `
+        <div class="modal-overlay show" style="z-index:1001;" onclick="if(event.target===this) viewStaffDetail('${staffId}')">
+            <div class="modal-box" style="max-width:400px; text-align:center;">
+                <button class="modal-close-btn" onclick="viewStaffDetail('${staffId}')" title="بازگشت"><i class="fas fa-arrow-right"></i></button>
+                <div style="font-size:3rem; color:var(--info); margin-bottom:10px;"><i class="fas fa-check-circle"></i></div>
+                <h3 style="margin-bottom:20px;">رسید پرداخت حقوق کادر</h3>
+                
+                <div style="background:var(--bg-main); padding:20px; border-radius:var(--radius-md); border:1px dashed var(--border-color); text-align:right; font-size:0.95rem; line-height:2;">
+                    <div><strong>مبلغ پرداختی:</strong> <span style="color:var(--success); font-weight:bold;">${Number(payment.amount).toLocaleString('fa-IR')}</span></div>
+                    <div><strong>تاریخ پرداخت:</strong> <span dir="ltr">${payment.date}</span></div>
+                    <div><strong>ساعت تراکنش:</strong> <span dir="ltr">${payment.time}</span></div>
+                    <div><strong>شماره پیگیری:</strong> <code style="font-size:1.1rem; color:var(--primary);">${payment.tracking}</code></div>
+                </div>
+
+                <div class="modal-actions" style="justify-content:center; margin-top:20px;">
+                    <button class="btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="cancelStaffPayment('${staffId}', ${periodIndex})">
+                        <i class="fas fa-trash"></i> لغو و حذف این پرداختی
+                    </button>
+                </div>
+            </div>
+        </div>`;
+        document.getElementById('modal-container').innerHTML = html;
+    };
+
+    window.cancelStaffPayment = async (staffId, periodIndex) => {
+        if(!requestAdminPassword()) { showToast('⛔ رمز عبور مدیریت اشتباه است.', 'error'); return; }
+        if(!confirm('آیا از ابطال و حذف این رسید پرداختی حقوق مطمئن هستید؟')) return;
+
+        const staffMem = appData.staff.find(s => s.id === staffId);
+        staffMem.payments = staffMem.payments.filter(p => p.periodIndex !== periodIndex);
+
+        showGlobalLoader();
+        try {
+            await apiCall('saveStaff', { payload: staffMem });
+            viewStaffDetail(staffId);
+            showToast('🗑️ رسید پرداخت حقوق با موفقیت لغو شد');
+        } catch(e) {} finally { hideGlobalLoader(); }
     };
 
     // ================== CLASSES & CLASS LIFECYCLE ==================
@@ -1572,4 +1943,4 @@
     }
 </script>
 </body>
-</html>
+</html>      
