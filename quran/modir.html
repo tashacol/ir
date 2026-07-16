@@ -1,0 +1,1946 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سامانه مدیریت کلاس‌ها و متربیان</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap');
+        
+        :root {
+            --primary: #28a745; --primary-light: #e9f5ec; --primary-dark: #218838;
+            --text-dark: #212529; --text-light: #6c757d; --text-on-dark: #ffffff;
+            --bg-main: #f0f2f5; --bg-card: #ffffff; --border-color: #dee2e6;
+            --success: #198754; --danger: #dc3545; --warning: #ffc107; --info: #0dcaf0;
+            --shadow: 0 4px 25px rgba(0,0,0,0.08); --radius-lg: 16px; --radius-md: 12px;
+            --transition: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        html.dark-mode {
+            --primary: #48c763; --primary-light: #184b23; --primary-dark: #218838;
+            --text-dark: #e0e0e0; --text-light: #a0a0a0;
+            --bg-main: #1a202c; --bg-card: #2d3748; --border-color: #4a5568;
+            --shadow: 0 4px 25px rgba(0,0,0,0.4);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Vazirmatn', Tahoma, sans-serif; background-color: var(--bg-main); color: var(--text-dark); transition: background-color var(--transition), color var(--transition); line-height: 1.7; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* Loading Overlays */
+        #global-loader { position: fixed; inset: 0; background: rgba(255,255,255,0.9); z-index: 99999; display: none; align-items: center; justify-content: center; flex-direction: column; }
+        html.dark-mode #global-loader { background: rgba(26, 32, 44, 0.9); }
+        .spinner-large { width: 50px; height: 50px; border: 4px solid var(--border-color); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px;}
+        
+        /* Login View */
+        #login-view { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; animation: fadeIn 0.5s; background: linear-gradient(135deg, #e9f5ec 0%, #f0f2f5 100%); }
+        html.dark-mode #login-view { background: linear-gradient(135deg, #184b23 0%, #1a202c 100%); }
+        .login-container { width: 100%; max-width: 420px; background: var(--bg-card); padding: 40px; border-radius: var(--radius-lg); box-shadow: var(--shadow); text-align: center; }
+        .login-container i.fa-user-graduate { font-size: 3rem; color: var(--primary); margin-bottom: 20px; }
+        .login-container h1 { font-size: 1.6rem; margin-bottom: 8px; color: var(--text-dark); }
+        .login-container p { color: var(--text-light); margin-bottom: 30px; font-size: 0.9rem;}
+        
+        /* Inputs & Buttons */
+        .input-wrapper { position: relative; margin-bottom: 25px; text-align: right; }
+        .input-icon { position: absolute; top: 14px; right: 15px; color: var(--text-light); transition: var(--transition); z-index: 2; }
+        .form-input, .form-select, textarea.form-input { width: 100%; padding: 12px 15px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 0.95rem; outline: none; transition: var(--transition); background-color: var(--bg-card); color: var(--text-dark); font-family: inherit;}
+        .input-wrapper .form-input { padding-right: 45px; }
+        .form-input:focus, .form-select:focus, textarea.form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1); }
+        
+        .btn-primary, .btn-success, .btn-warning, .btn-danger, .btn-outline { width: 100%; padding: 12px 20px; font-size: 1rem; font-weight: 600; border: none; border-radius: var(--radius-md); cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; justify-content: center; gap: 8px; position: relative;}
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover:not(:disabled) { background: var(--primary-dark); transform: translateY(-1px); }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-success:hover:not(:disabled) { opacity: 0.9; }
+        .btn-warning { background: var(--warning); color: #000; }
+        .btn-warning:hover:not(:disabled) { opacity: 0.9; }
+        .btn-danger { background: var(--danger); color: #fff; }
+        .btn-danger:hover:not(:disabled) { opacity: 0.9; }
+        .btn-outline { background: transparent; border: 1.5px solid var(--border-color); color: var(--text-dark); }
+        .btn-outline:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+        
+        .btn-primary:disabled, .btn-success:disabled, .btn-warning:disabled, .btn-danger:disabled { opacity: 0.7; cursor: not-allowed; }
+        .btn-sm { padding: 6px 12px; font-size: 0.85rem; border-radius: 8px; width: auto;}
+        
+        /* Button Spinner */
+        .btn-spinner { width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; display: none; position: absolute;}
+        .btn-sm .btn-spinner { width: 14px; height: 14px; border-width: 2px;}
+        .btn-outline .btn-spinner { border-top-color: var(--primary); border-color: rgba(0,0,0,0.1); }
+        button.loading .btn-text { opacity: 0; }
+        button.loading .btn-icon { opacity: 0; }
+        button.loading .btn-spinner { display: block; }
+
+        /* Dashboard Header */
+        #dashboard-view { display: none; }
+        .dashboard-header { background: var(--bg-card); padding: 0 24px; height: 70px; display: flex; align-items: center; justify-content: flex-end; box-shadow: var(--shadow); position: sticky; top: 0; z-index: 100;}
+        .header-controls { display: flex; align-items: center; gap: 15px; flex-direction: row; flex-wrap: nowrap; justify-content: flex-end; width: 100%; overflow-x: auto; scrollbar-width: none;}
+        .header-controls::-webkit-scrollbar { display: none; }
+        .date-display { font-size: 0.85rem; color: var(--text-light); background: var(--bg-main); padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border-color); white-space: nowrap;}
+        
+        #welcome-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px; font-weight: 700; font-size: 1.1rem; color: var(--primary-dark); }
+        
+        .icon-button { background: none; border: none; font-size: 1.2rem; color: var(--text-light); cursor: pointer; transition: var(--transition); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;}
+        .icon-button:hover { color: var(--primary); background-color: var(--primary-light); }
+
+        /* Tabs */
+        .tabs-container { display: flex; gap: 10px; padding: 20px 30px 0; max-width: 1400px; margin: 0 auto; flex-wrap: wrap;}
+        .tab-btn { padding: 12px 24px; border: none; background: transparent; cursor: pointer; font-size: 1rem; border-radius: var(--radius-md); transition: var(--transition); color: var(--text-light); font-weight: 600; font-family: inherit; display: flex; align-items: center; gap: 8px;}
+        .tab-btn.active { background: var(--primary); color: #fff; box-shadow: var(--shadow); }
+        .tab-btn:hover:not(.active) { background: var(--primary-light); color: var(--primary); }
+
+        .main-content { max-width: 1400px; margin: 20px auto; padding: 0 30px; animation: fadeIn 0.4s; }
+        .tab-panel { display: none; animation: fadeIn 0.3s ease; }
+        .tab-panel.active { display: block; }
+        
+        /* Cards & Tables */
+        .card { background: var(--bg-card); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: 25px; margin-bottom: 24px; border: 1px solid var(--border-color); }
+        .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 10px;}
+        .card-header h2 { font-size: 1.2rem; display: flex; align-items: center; gap: 10px;}
+        
+        .table-responsive { overflow-x: auto; }
+        .data-table { width: 100%; border-collapse: collapse; text-align: right; font-size: 0.9rem;}
+        .data-table th, .data-table td { padding: 14px 12px; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
+        .data-table th { font-weight: 700; color: var(--text-light); background: var(--bg-main); }
+        .data-table tbody tr:hover { background-color: var(--primary-light); }
+        
+        .badge { display: inline-block; padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+        .badge-active { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0;}
+        .badge-upcoming { background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe;}
+        .badge-finished { background: #fef3c7; color: #92400e; border: 1px solid #fde68a;}
+        .badge-archived { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;}
+
+        /* Form Layout */
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 15px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-weight: 500; margin-bottom: 8px; color: var(--text-light); font-size: 0.9rem;}
+        .date-dropdowns { display: flex; gap: 8px; direction: ltr; }
+        .date-dropdowns select { flex: 1; direction: rtl; }
+        .time-dropdowns { display: flex; gap: 8px; align-items: center;}
+        .time-dropdowns select { flex: 1; }
+
+        /* Modals */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 1000; animation: fadeIn 0.2s; }
+        .modal-overlay.show { display: flex; }
+        .modal-box { background: var(--bg-card); padding: 30px; border-radius: var(--radius-lg); width: 95%; max-width: 700px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow); position: relative; }
+        .modal-close-btn { position: absolute; top: 15px; left: 15px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-light); transition: 0.2s; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center;}
+        .modal-close-btn:hover { color: var(--danger); background: #fee2e2;}
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px; flex-wrap: wrap;}
+
+        /* Toast Notifications */
+        #toast-container { position: fixed; top: 20px; left: 20px; z-index: 10001; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background-color: var(--bg-card); color: var(--text-dark); padding: 15px 20px; border-radius: var(--radius-md); box-shadow: var(--shadow); border-right: 5px solid var(--primary); display: flex; align-items: center; gap: 15px; opacity: 0; transform: translateX(100%); animation: toast-in 0.4s forwards; min-width: 300px; }
+        @keyframes toast-in { to { opacity: 1; transform: translateX(0); } }
+        .toast.hide { animation: toast-out 0.4s forwards; }
+        @keyframes toast-out { to { opacity: 0; transform: translateX(120%); } }
+        .toast.error { border-right-color: var(--danger); }
+        .toast.warning { border-right-color: var(--warning); }
+        .toast.info { border-right-color: var(--info); }
+
+        /* Payment Chips & Class Details */
+        .payment-month-chip { padding: 10px; border-radius: var(--radius-md); font-size: 0.85rem; cursor: pointer; border: 1.5px solid var(--border-color); text-align: center; min-width: 90px; transition: var(--transition); background: var(--bg-card); flex: 1; min-width: 100px;}
+        .payment-month-chip.paid { background: #d1fae5; border-color: #34d399; color: #065f46; }
+        .payment-month-chip.unpaid { background: #fee2e2; border-color: #f87171; color: #991b1b; }
+        .payment-month-chip:hover { transform: translateY(-3px); box-shadow: 0 6px 12px rgba(0,0,0,0.08); }
+        .payment-months { display: flex; flex-wrap: wrap; gap: 10px; padding: 15px 10px; background: #f8fafc; border-radius:0 0 var(--radius-md) var(--radius-md); border-top: 1px solid var(--border-color);}
+
+        .search-result-card { border: 1.5px solid var(--border-color); padding: 15px; border-radius: var(--radius-md); margin-top: 10px; display: flex; justify-content: space-between; align-items: center; background: var(--bg-main);}
+
+        .empty-state { text-align: center; padding: 40px 20px; color: var(--text-light); }
+        .empty-state i { font-size: 3.5rem; margin-bottom: 15px; color: var(--border-color); }
+
+        /* Accordion Header */
+        .accordion-header { margin-top:10px; cursor:pointer; background:#fff; padding:12px 15px; border-radius:var(--radius-md); border:1.5px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; transition: var(--transition); }
+        .accordion-header:hover { border-color: var(--primary); }
+        .accordion-header.open { border-radius: var(--radius-md) var(--radius-md) 0 0; border-bottom: none; }
+        .accordion-header.trainer-acc { border-color: var(--info); background: #f0f9ff;}
+
+        /* Search Box */
+        .search-box { margin-bottom: 15px; position: relative; }
+        .search-box input { width: 100%; max-width: 350px; padding: 10px 40px 10px 15px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 0.9rem; outline: none;}
+        .search-box i { position: absolute; right: 15px; top: 12px; color: var(--text-light); }
+
+        @media (max-width: 768px) {
+            .tabs-container { padding: 15px 15px 0; }
+            .tab-btn { padding: 10px 15px; font-size: 0.9rem; flex: 1; justify-content: center;}
+            .main-content { padding: 0 15px; }
+            .card { padding: 15px; }
+            .header-controls { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; gap: 8px;}
+            .dashboard-header { height: 65px; padding: 0 10px;}
+            #welcome-text { max-width: 120px; font-size: 0.95rem; }
+            .date-display { font-size: 0.75rem; padding: 4px 8px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Loader Overlay for Full Page Data Loading -->
+<div id="global-loader">
+    <div class="spinner-large"></div>
+    <p style="font-weight: 600; color: var(--primary); font-size: 1.1rem;">در حال ارتباط با سرور، لطفاً شکیبا باشید...</p>
+</div>
+
+<!-- Login View -->
+<div id="login-view">
+    <div class="login-container">
+        <i class="fas fa-user-graduate"></i>
+        <h1>ورود به سامانه</h1>
+        <p>لطفاً برای دسترسی به امکانات، وارد شوید</p>
+        <form id="login-form">
+            <div class="input-wrapper">
+                <input type="text" id="login-username" class="form-input" placeholder="نام کاربری" required>
+                <i class="fas fa-user input-icon"></i>
+            </div>
+            <div class="input-wrapper">
+                <input type="password" id="login-password" class="form-input" placeholder="رمز عبور" required>
+                <i class="fas fa-lock input-icon"></i>
+            </div>
+            <button type="submit" class="btn-primary" id="login-btn">
+                <span class="btn-icon"><i class="fas fa-sign-in-alt"></i></span>
+                <span class="btn-text">ورود به پنل</span>
+                <div class="btn-spinner"></div>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Dashboard View -->
+<div id="dashboard-view">
+    <header class="dashboard-header">
+        <div class="header-controls">
+            <div class="date-display" id="headerDate">در حال دریافت تاریخ...</div>
+            <span id="welcome-text"></span>
+            <button id="theme-toggle-btn" class="icon-button" title="تغییر حالت نمایش"><i class="fas fa-moon"></i></button>
+            <button id="logout-btn" class="icon-button" title="خروج از حساب" style="color: var(--danger);"><i class="fas fa-power-off"></i></button>
+        </div>
+    </header>
+
+    <div class="tabs-container">
+        <button class="tab-btn active" data-tab="classes"><i class="fas fa-clipboard-list"></i> کلاس‌ها</button>
+        <button class="tab-btn" data-tab="trainees"><i class="fas fa-user-graduate"></i> متربیان</button>
+        <button class="tab-btn" data-tab="trainers"><i class="fas fa-chalkboard-teacher"></i> مربیان</button>
+        <button class="tab-btn" data-tab="staff"><i class="fas fa-user-tie"></i> کادر</button>
+    </div>
+
+    <main class="main-content">
+        
+        <!-- Classes Tab -->
+        <div class="tab-panel active" id="tab-classes">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-clipboard-list"></i> لیست کلاس‌ها</h2>
+                    <button class="btn-primary btn-sm" onclick="openClassForm()">➕ افزودن کلاس جدید</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead><tr><th>ردیف</th><th>عنوان کلاس</th><th>تاریخ شروع</th><th>👨‍🏫 مربی</th><th>وضعیت</th><th>تعداد متربی</th><th>عملیات</th></tr></thead>
+                        <tbody id="classes-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trainees Tab -->
+        <div class="tab-panel" id="tab-trainees">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-users"></i> لیست متربیان</h2>
+                    <button class="btn-primary btn-sm" onclick="openTraineeForm()">➕ افزودن متربی جدید</button>
+                </div>
+                <div class="search-box">
+                    <input type="text" id="trainee_search_input" placeholder="جستجوی متربی با کد ملی..." onkeyup="renderTrainees()">
+                    <i class="fas fa-search"></i>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead><tr><th>ردیف</th><th>نام و نام خانوادگی</th><th>کد ملی</th><th>نام پدر</th><th>تاریخ تولد</th><th>شماره تماس</th><th>عملیات</th></tr></thead>
+                        <tbody id="trainees-tbody"></tbody>
+                    </table>
+                </div>
+                <div id="load-more-trainees-container" style="text-align:center; margin-top:20px; display:none;">
+                    <button class="btn-outline btn-sm" onclick="loadMoreTrainees()">⬇️ نمایش ۳۰ متربی بعدی</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trainers Tab -->
+        <div class="tab-panel" id="tab-trainers">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-chalkboard-teacher"></i> لیست مربیان</h2>
+                    <button class="btn-primary btn-sm" onclick="openTrainerForm()">➕ افزودن مربی جدید</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead><tr><th>ردیف</th><th>نام و نام خانوادگی</th><th>کد ملی</th><th>تاریخ تولد</th><th>شماره تماس</th><th>عملیات</th></tr></thead>
+                        <tbody id="trainers-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Staff Tab -->
+        <div class="tab-panel" id="tab-staff">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-user-tie"></i> لیست اعضای کادر</h2>
+                    <button class="btn-primary btn-sm" onclick="openStaffForm()">➕ افزودن عضو کادر جدید</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead><tr><th>ردیف</th><th>نام و نام خانوادگی</th><th>کد ملی</th><th>تاریخ شروع فعالیت</th><th>شماره تماس</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+                        <tbody id="staff-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<!-- Dynamic Modals Container -->
+<div id="modal-container"></div>
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<script>
+    // ================== CONFIGURATION ==================
+    // ⚠️ آدرس وب‌اپ گوگل اسکریپت خود را در خط زیر قرار دهید
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzECY0-Dpz4P1WNNRb9MRGaT0BoiZbboakD4shif7iD_k51oH5R5c2ede91cv7_bAt98w/exec"; 
+    const ADMIN_PASSWORD = 'admin123';
+    
+    // ================== STATE MANAGEMENT ==================
+    let appData = { trainees: [], trainers: [], classes: [], staff: [] };
+    let internetDateObj = null;
+    let traineeDisplayLimit = 30; // Limit for trainees pagination
+    
+    // ================== UTILS & UI CONTROLS ==================
+    const showGlobalLoader = () => document.getElementById('global-loader').style.display = 'flex';
+    const hideGlobalLoader = () => document.getElementById('global-loader').style.display = 'none';
+    
+    const setButtonLoading = (btn, isLoading) => {
+        if(!btn) return;
+        if(isLoading) {
+            btn.classList.add('loading');
+            btn.disabled = true;
+        } else {
+            btn.classList.remove('loading');
+            btn.disabled = false;
+        }
+    };
+
+    const showToast = (msg, type = 'success') => {
+        const c = document.getElementById('toast-container');
+        const t = document.createElement('div');
+        t.className = `toast ${type}`;
+        const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-times-circle' : type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle';
+        t.innerHTML = `<i class="fas ${icon} toast-icon"></i><span>${msg}</span>`;
+        c.appendChild(t);
+        setTimeout(() => { t.classList.add('hide'); t.addEventListener('animationend', () => t.remove()); }, 4000);
+    };
+
+    const generateId = () => 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+
+    const validateNationalId = (code) => {
+        if (!code || code.length !== 10 || !/^\d{10}$/.test(code)) return false;
+        if (/^(\d)\1{9}$/.test(code)) return false;
+        const d = code.split('').map(Number);
+        const check = d[9];
+        let sum = 0;
+        for (let i = 0; i < 9; i++) sum += d[i] * (10 - i);
+        const rem = sum % 11;
+        return rem < 2 ? check === rem : check === 11 - rem;
+    };
+
+    const requestAdminPassword = () => {
+        const pass = prompt('برای انجام این عملیات حساس، رمز عبور مدیریت را وارد کنید:');
+        return pass === ADMIN_PASSWORD;
+    };
+
+    // ================== DATE HELPERS (JALALI) ==================
+    async function fetchInternetDate() {
+        try {
+            const resp = await fetch('https://worldtimeapi.org/api/timezone/Asia/Tehran', { signal: AbortSignal.timeout(5000) });
+            const data = await resp.json();
+            internetDateObj = new Date(data.datetime);
+        } catch (e) {
+            internetDateObj = new Date(); 
+        }
+        updateHeaderDate();
+    }
+
+    function getTodayObj() {
+        return internetDateObj ? new Date(internetDateObj) : new Date();
+    }
+
+    function updateHeaderDate() {
+        const d = getTodayObj();
+        const persianDate = new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+        const weekday = new Intl.DateTimeFormat('fa-IR', { weekday: 'long' }).format(d);
+        document.getElementById('headerDate').innerHTML = `<i class="fas fa-calendar-alt"></i> ${weekday} ${persianDate}`;
+    }
+
+    function formatDateStr(dateStr) {
+        if (!dateStr) return '—';
+        return String(dateStr).split('T')[0].replace(/-/g, '/');
+    }
+
+    function getCurrentPersianYear() {
+        const p = new Intl.DateTimeFormat('fa-IR', {year: 'numeric'}).format(getTodayObj());
+        return parseInt(p.replace(/[۰-۹]/g, w => '۰۱۲۳۴۵۶۷۸۹'.indexOf(w)));
+    }
+
+    function calculateDaysPassed(startDateStr) {
+        if(!startDateStr) return 0;
+        const parts = formatDateStr(startDateStr).split('/');
+        if(parts.length !== 3) return 0;
+        
+        const sy = parseInt(parts[0]), sm = parseInt(parts[1]), sd = parseInt(parts[2]);
+        const today = getTodayObj();
+        const tp = new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: 'numeric', day: 'numeric' }).format(today).replace(/[۰-۹]/g, w => '۰۱۲۳۴۵۶۷۸۹'.indexOf(w)).split('/');
+        const ty = parseInt(tp[0]), tm = parseInt(tp[1]), td = parseInt(tp[2]);
+
+        const startDays = sy * 365 + sm * 30 + sd;
+        const todayDays = ty * 365 + tm * 30 + td;
+        return todayDays - startDays;
+    }
+
+    function getMonthPeriods(startDateStr, endDateStr) {
+        const periods = [];
+        if(!startDateStr) return periods;
+        
+        let endDaysCalc;
+        if (endDateStr) {
+            const ep = formatDateStr(endDateStr).split('/');
+            endDaysCalc = parseInt(ep[0]) * 365 + parseInt(ep[1]) * 30 + parseInt(ep[2]);
+        } else {
+            const tp = new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: 'numeric', day: 'numeric' }).format(getTodayObj()).replace(/[۰-۹]/g, w => '۰۱۲۳۴۵۶۷۸۹'.indexOf(w)).split('/');
+            endDaysCalc = parseInt(tp[0]) * 365 + parseInt(tp[1]) * 30 + parseInt(tp[2]);
+        }
+
+        const sp = formatDateStr(startDateStr).split('/');
+        const startDaysCalc = parseInt(sp[0]) * 365 + parseInt(sp[1]) * 30 + parseInt(sp[2]);
+        
+        let diffDays = endDaysCalc - startDaysCalc;
+        if(diffDays < 0) diffDays = 0;
+        
+        let monthsPassed = Math.floor(diffDays / 30) + 1; 
+        
+        for(let i = 0; i < monthsPassed; i++) {
+            let m = parseInt(sp[1]) + i;
+            let y = parseInt(sp[0]);
+            while(m > 12) { m -= 12; y += 1; }
+            periods.push({
+                index: i,
+                label: `ماه ${i + 1}`,
+                displayDate: `${y}/${String(m).padStart(2,'0')}`
+            });
+        }
+        return periods;
+    }
+
+    function generateDateDropdownsHTML(prefix, selectedDate = '') {
+        const currentYear = getCurrentPersianYear();
+        let sY = '', sM = '', sD = '';
+        if (selectedDate) {
+            const parts = formatDateStr(selectedDate).split('/');
+            sY = parseInt(parts[0]); sM = parseInt(parts[1]); sD = parseInt(parts[2]);
+        }
+
+        let yOptions = '<option value="">سال</option>';
+        for (let y = currentYear + 5; y >= currentYear - 60; y--) {
+            yOptions += `<option value="${y}" ${y === sY ? 'selected' : ''}>${y}</option>`;
+        }
+        
+        let mOptions = '<option value="">ماه</option>';
+        const pMonths = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
+        for (let m = 1; m <= 12; m++) {
+            mOptions += `<option value="${m}" ${m === sM ? 'selected' : ''}>${pMonths[m-1]}</option>`;
+        }
+
+        let dOptions = '<option value="">روز</option>';
+        for (let d = 1; d <= 31; d++) {
+            dOptions += `<option value="${d}" ${d === sD ? 'selected' : ''}>${d}</option>`;
+        }
+
+        return `
+            <div class="date-dropdowns">
+                <select id="${prefix}_y" class="form-select" required>${yOptions}</select>
+                <select id="${prefix}_m" class="form-select" required>${mOptions}</select>
+                <select id="${prefix}_d" class="form-select" required>${dOptions}</select>
+            </div>
+        `;
+    }
+
+    function getDropdownDateValue(prefix) {
+        const y = document.getElementById(`${prefix}_y`).value;
+        const m = document.getElementById(`${prefix}_m`).value;
+        const d = document.getElementById(`${prefix}_d`).value;
+        if (!y || !m || !d) return null;
+        return `${y}/${m.padStart(2,'0')}/${d.padStart(2,'0')}`;
+    }
+
+    // ================== API COMMUNICATION ==================
+    async function apiCall(action, payload = {}) {
+        if (SCRIPT_URL === "YOUR_WEB_APP_URL_HERE") {
+            showToast("خطا: آدرس Web App در کد تنظیم نشده است!", "error");
+            throw new Error("Missing SCRIPT_URL");
+        }
+        try {
+            const response = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action, ...payload })
+            });
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message);
+            return result;
+        } catch (error) {
+            showToast(error.message || "خطا در ارتباط با سرور", "error");
+            throw error;
+        }
+    }
+
+    // ================== AUTH & INIT ==================
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('login-btn');
+        const u = document.getElementById('login-username').value;
+        const p = document.getElementById('login-password').value;
+        
+        setButtonLoading(btn, true);
+        try {
+            const res = await apiCall('login', {username: u, password: p});
+            localStorage.setItem('isLoggedIn', 'true');
+            localStorage.setItem('userName', res.name);
+            initDashboard();
+        } catch(e) { }
+        finally { setButtonLoading(btn, false); }
+    });
+
+    document.getElementById('logout-btn').addEventListener('click', () => {
+        localStorage.clear();
+        location.reload();
+    });
+
+    async function initDashboard() {
+        if (localStorage.getItem('isLoggedIn') !== 'true') return;
+        document.getElementById('login-view').style.display = 'none';
+        document.getElementById('dashboard-view').style.display = 'block';
+        document.getElementById('welcome-text').innerHTML = `<i class="fas fa-user-circle"></i> ${localStorage.getItem('userName')}`;
+        
+        fetchInternetDate(); 
+        setInterval(updateHeaderDate, 60000);
+
+        await loadDataFromServer();
+        setupTabs();
+    }
+
+    async function loadDataFromServer() {
+        showGlobalLoader();
+        try {
+            const res = await apiCall('getData');
+            appData = res.data;
+            if(!appData.staff) appData.staff = []; // Ensure staff array exists
+            traineeDisplayLimit = 30; // Reset limit on load
+            renderClasses();
+            renderTrainees();
+            renderTrainers();
+            renderStaff();
+        } catch(e) {}
+        finally { hideGlobalLoader(); }
+    }
+
+    // ================== TABS ==================
+    function setupTabs() {
+        const btns = document.querySelectorAll('.tab-btn');
+        btns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                btns.forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+            });
+        });
+    }
+
+    // ================== THEME ==================
+    const toggleTheme = () => {
+        document.documentElement.classList.toggle('dark-mode');
+        const isDark = document.documentElement.classList.contains('dark-mode');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        document.getElementById('theme-toggle-btn').innerHTML = isDark ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+    };
+    document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
+    if(localStorage.getItem('theme') === 'dark') toggleTheme();
+
+    // ================== MODAL SYSTEM ==================
+    function showModal(html) {
+        const container = document.getElementById('modal-container');
+        container.innerHTML = html;
+        const overlay = container.querySelector('.modal-overlay');
+        overlay.classList.add('show');
+        overlay.addEventListener('click', e => {
+            if(e.target === overlay) closeModal();
+        });
+    }
+    function closeModal() {
+        document.getElementById('modal-container').innerHTML = '';
+    }
+
+    // ================== TRAINEES ==================
+    function loadMoreTrainees() {
+        traineeDisplayLimit += 30;
+        renderTrainees();
+    }
+
+    function renderTrainees() {
+        const tbody = document.getElementById('trainees-tbody');
+        const btnContainer = document.getElementById('load-more-trainees-container');
+        const searchQuery = document.getElementById('trainee_search_input').value.trim();
+        
+        let filteredList = [...appData.trainees].reverse(); // Reverse for newest first
+        
+        // Filter locally by National ID
+        if(searchQuery.length > 0) {
+            filteredList = filteredList.filter(t => String(t.nationalId).includes(searchQuery));
+        }
+
+        if (filteredList.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><i class="fas fa-folder-open"></i><br>متربی یافت نشد</td></tr>';
+            btnContainer.style.display = 'none';
+            return;
+        }
+
+        const listToDisplay = filteredList.slice(0, traineeDisplayLimit);
+        
+        if(filteredList.length > traineeDisplayLimit) {
+            btnContainer.style.display = 'block';
+        } else {
+            btnContainer.style.display = 'none';
+        }
+
+        tbody.innerHTML = listToDisplay.map((t, i) => `
+            <tr>
+                <td>${i+1}</td>
+                <td><strong>${t.firstName} ${t.lastName}</strong></td>
+                <td><code>${t.nationalId}</code></td>
+                <td>${t.fatherName}</td>
+                <td>${formatDateStr(t.birthDate)}</td>
+                <td><a href="tel:${t.phone}" style="color:var(--primary); font-weight:600; text-decoration:none;"><i class="fas fa-phone-alt"></i> ${t.phone}</a></td>
+                <td>
+                    <button class="btn-sm btn-warning" onclick="openTraineeForm('${t.id}')"><i class="fas fa-edit"></i> ویرایش</button>
+                    <button class="btn-sm btn-danger" onclick="deleteTrainee('${t.id}', event.currentTarget)"><i class="fas fa-trash"></i> حذف</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    window.openTraineeForm = (id = null) => {
+        const exist = id ? appData.trainees.find(t => t.id === id) : null;
+        const title = exist ? 'ویرایش متربی' : 'افزودن متربی جدید';
+        
+        const html = `
+        <div class="modal-overlay show" onclick="if(event.target===this) closeModal()">
+            <div class="modal-box">
+                <button class="modal-close-btn" onclick="closeModal()"><i class="fas fa-times"></i></button>
+                <h3 style="margin-bottom: 20px; font-size:1.2rem; color:var(--primary);"><i class="fas fa-user-graduate"></i> ${title}</h3>
+                <form onsubmit="saveTrainee(event, '${id || ''}')">
+                    <div class="form-row">
+                        <div class="form-group"><label>نام *</label><input type="text" id="t_fName" class="form-input" value="${exist?.firstName||''}" required></div>
+                        <div class="form-group"><label>نام خانوادگی *</label><input type="text" id="t_lName" class="form-input" value="${exist?.lastName||''}" required></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>کد ملی * (۱۰ رقمی)</label><input type="text" id="t_nId" class="form-input" value="${exist?.nationalId||''}" required maxlength="10"></div>
+                        <div class="form-group"><label>نام پدر *</label><input type="text" id="t_father" class="form-input" value="${exist?.fatherName||''}" required></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>تاریخ تولد *</label>${generateDateDropdownsHTML('t_birth', exist?.birthDate)}</div>
+                        <div class="form-group"><label>شماره تماس *</label><input type="text" id="t_phone" class="form-input" value="${exist?.phone||''}" required></div>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-outline btn-sm" onclick="closeModal()">انصراف</button>
+                        <button type="submit" class="btn-primary btn-sm">
+                            <span class="btn-icon"><i class="fas fa-save"></i></span>
+                            <span class="btn-text">ذخیره</span>
+                            <div class="btn-spinner"></div>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>`;
+        document.getElementById('modal-container').innerHTML = html;
+    };
+
+    window.saveTrainee = async (e, id) => {
+        e.preventDefault();
+        const btn = e.submitter;
+        const bDate = getDropdownDateValue('t_birth');
+        if(!bDate) { showToast('لطفا تاریخ تولد را کامل انتخاب کنید', 'error'); return; }
+        
+        const payload = {
+            id: id || generateId(),
+            firstName: document.getElementById('t_fName').value.trim(),
+            lastName: document.getElementById('t_lName').value.trim(),
+            nationalId: document.getElementById('t_nId').value.trim(),
+            fatherName: document.getElementById('t_father').value.trim(),
+            birthDate: bDate,
+            phone: document.getElementById('t_phone').value.trim()
+        };
+
+        if(!validateNationalId(payload.nationalId)) { showToast('کد ملی وارد شده نامعتبر است', 'error'); return; }
+        const dup = appData.trainees.find(x => x.nationalId === payload.nationalId && x.id !== id);
+        if(dup) { showToast('این کد ملی قبلا ثبت شده است', 'error'); return; }
+
+        setButtonLoading(btn, true);
+        try {
+            await apiCall('saveTrainee', { payload });
+            if(id) {
+                const idx = appData.trainees.findIndex(x => x.id === id);
+                appData.trainees[idx] = payload;
+            } else {
+                appData.trainees.push(payload);
+            }
+            closeModal();
+            renderTrainees();
+            showToast('اطلاعات متربی با موفقیت ذخیره شد');
+        } catch(err) {} finally { setButtonLoading(btn, false); }
+    };
+
+    window.deleteTrainee = async (id, btn) => {
+        if(!confirm('آیا از حذف کامل این متربی اطمینان دارید؟')) return;
+        const enrolled = appData.classes.some(c => c.students?.some(s => s.traineeId === id));
+        if(enrolled) { showToast('⚠️ این متربی در کلاس ثبت‌نام شده است و قابل حذف نیست.', 'error'); return; }
+
+        setButtonLoading(btn, true);
+        try {
+            await apiCall('deleteTrainee', { id });
+            appData.trainees = appData.trainees.filter(x => x.id !== id);
+            renderTrainees();
+            showToast('متربی با موفقیت حذف شد');
+        } catch(err) {} finally { setButtonLoading(btn, false); }
+    };
+
+    // ================== TRAINERS ==================
+    function renderTrainers() {
+        const tbody = document.getElementById('trainers-tbody');
+        if (appData.trainers.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><i class="fas fa-folder-open"></i><br>هیچ مربی‌ای ثبت نشده است</td></tr>';
+            return;
+        }
+        
+        // حداکثر ۱۰ نفر آخر
+        const listToDisplay = [...appData.trainers].reverse().slice(0, 10);
+        
+        tbody.innerHTML = listToDisplay.map((t, i) => `
+            <tr>
+                <td>${i+1}</td>
+                <td><strong>${t.firstName} ${t.lastName}</strong></td>
+                <td><code>${t.nationalId}</code></td>
+                <td>${formatDateStr(t.birthDate)}</td>
+                <td><a href="tel:${t.phone}" style="color:var(--primary); font-weight:600; text-decoration:none;"><i class="fas fa-phone-alt"></i> ${t.phone}</a></td>
+                <td>
+                    <button class="btn-sm btn-warning" onclick="openTrainerForm('${t.id}')"><i class="fas fa-edit"></i> ویرایش</button>
+                    <button class="btn-sm btn-danger" onclick="deleteTrainer('${t.id}', event.currentTarget)"><i class="fas fa-trash"></i> حذف</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    window.openTrainerForm = (id = null) => {
+        const exist = id ? appData.trainers.find(t => t.id === id) : null;
+        const title = exist ? 'ویرایش مربی' : 'افزودن مربی جدید';
+        
+        const html = `
+        <div class="modal-overlay show" onclick="if(event.target===this) closeModal()">
+            <div class="modal-box">
+                <button class="modal-close-btn" onclick="closeModal()"><i class="fas fa-times"></i></button>
+                <h3 style="margin-bottom: 20px; font-size:1.2rem; color:var(--primary);"><i class="fas fa-chalkboard-teacher"></i> ${title}</h3>
+                <form onsubmit="saveTrainer(event, '${id || ''}')">
+                    <div class="form-row">
+                        <div class="form-group"><label>نام *</label><input type="text" id="tr_fName" class="form-input" value="${exist?.firstName||''}" required></div>
+                        <div class="form-group"><label>نام خانوادگی *</label><input type="text" id="tr_lName" class="form-input" value="${exist?.lastName||''}" required></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>کد ملی *</label><input type="text" id="tr_nId" class="form-input" value="${exist?.nationalId||''}" required maxlength="10"></div>
+                        <div class="form-group"><label>نام پدر</label><input type="text" id="tr_father" class="form-input" value="${exist?.fatherName||''}"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>تاریخ تولد *</label>${generateDateDropdownsHTML('tr_birth', exist?.birthDate)}</div>
+                        <div class="form-group"><label>شماره تماس *</label><input type="text" id="tr_phone" class="form-input" value="${exist?.phone||''}" required></div>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-outline btn-sm" onclick="closeModal()">انصراف</button>
+                        <button type="submit" class="btn-primary btn-sm">
+                            <span class="btn-icon"><i class="fas fa-save"></i></span>
+                            <span class="btn-text">ذخیره</span>
+                            <div class="btn-spinner"></div>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>`;
+        document.getElementById('modal-container').innerHTML = html;
+    };
+
+    window.saveTrainer = async (e, id) => {
+        e.preventDefault();
+        const btn = e.submitter;
+        const bDate = getDropdownDateValue('tr_birth');
+        if(!bDate) { showToast('لطفا تاریخ تولد را کامل انتخاب کنید', 'error'); return; }
+        
+        const payload = {
+            id: id || generateId(),
+            firstName: document.getElementById('tr_fName').value.trim(),
+            lastName: document.getElementById('tr_lName').value.trim(),
+            nationalId: document.getElementById('tr_nId').value.trim(),
+            fatherName: document.getElementById('tr_father').value.trim(),
+            birthDate: bDate,
+            phone: document.getElementById('tr_phone').value.trim()
+        };
+
+        if(!validateNationalId(payload.nationalId)) { showToast('کد ملی وارد شده نامعتبر است', 'error'); return; }
+        const dup = appData.trainers.find(x => x.nationalId === payload.nationalId && x.id !== id);
+        if(dup) { showToast('این کد ملی قبلا ثبت شده است', 'error'); return; }
+
+        setButtonLoading(btn, true);
+        try {
+            await apiCall('saveTrainer', { payload });
+            if(id) {
+                const idx = appData.trainers.findIndex(x => x.id === id);
+                appData.trainers[idx] = payload;
+            } else {
+                appData.trainers.push(payload);
+            }
+            closeModal();
+            renderTrainers();
+            showToast('اطلاعات مربی با موفقیت ذخیره شد');
+        } catch(err) {} finally { setButtonLoading(btn, false); }
+    };
+
+    window.deleteTrainer = async (id, btn) => {
+        if(!confirm('آیا از حذف این مربی اطمینان دارید؟')) return;
+        const assigned = appData.classes.some(c => c.trainerId === id);
+        if(assigned) { showToast('⚠️ این مربی کلاسی بر عهده دارد و قابل حذف نیست.', 'error'); return; }
+
+        setButtonLoading(btn, true);
+        try {
+            await apiCall('deleteTrainer', { id });
+            appData.trainers = appData.trainers.filter(x => x.id !== id);
+            renderTrainers();
+            showToast('مربی حذف شد');
+        } catch(err) {} finally { setButtonLoading(btn, false); }
+    };
+
+    // ================== STAFF (کادر) ==================
+    function renderStaff() {
+        const tbody = document.getElementById('staff-tbody');
+        if (appData.staff.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><i class="fas fa-folder-open"></i><br>هیچ عضو کادری ثبت نشده است</td></tr>';
+            return;
+        }
+        
+        const listToDisplay = [...appData.staff].reverse();
+        
+        tbody.innerHTML = listToDisplay.map((s, i) => {
+            const st = s.status === 'active' ? '<span class="badge badge-active">🟢 در حال فعالیت</span>' : '<span class="badge badge-finished">🟡 پایان فعالیت</span>';
+            return `
+            <tr>
+                <td>${i+1}</td>
+                <td><a href="javascript:void(0)" onclick="viewStaffDetail('${s.id}')" style="color:var(--primary); font-weight:600; text-decoration:none;">${s.firstName} ${s.lastName}</a></td>
+                <td><code>${s.nationalId}</code></td>
+                <td>${formatDateStr(s.startDate)}</td>
+                <td><a href="tel:${s.phone}" style="color:var(--primary); font-weight:600; text-decoration:none;"><i class="fas fa-phone-alt"></i> ${s.phone}</a></td>
+                <td>${st}</td>
+                <td>
+                    <button class="btn-sm btn-primary" onclick="viewStaffDetail('${s.id}')"><i class="fas fa-eye"></i> جزئیات حقوق</button>
+                    ${s.status === 'active' ? `
+                        <button class="btn-sm btn-warning" onclick="openStaffForm('${s.id}')" title="ویرایش"><i class="fas fa-edit"></i></button>
+                        <button class="btn-sm btn-success" onclick="finishStaff('${s.id}', event.currentTarget)" title="اتمام فعالیت"><i class="fas fa-flag-checkered"></i></button>
+                        <button class="btn-sm btn-danger" onclick="deleteStaff('${s.id}', event.currentTarget)" title="حذف"><i class="fas fa-trash"></i></button>
+                    ` : ''}
+                    ${s.status === 'finished' ? `<button class="btn-sm btn-danger" onclick="deleteStaff('${s.id}', event.currentTarget)" title="حذف"><i class="fas fa-trash"></i></button>` : ''}
+                </td>
+            </tr>
+        `;
+        }).join('');
+    }
+
+    window.openStaffForm = (id = null) => {
+        const exist = id ? appData.staff.find(s => s.id === id) : null;
+        const title = exist ? 'ویرایش کادر' : 'افزودن عضو کادر جدید';
+        
+        const html = `
+        <div class="modal-overlay show" onclick="if(event.target===this) closeModal()">
+            <div class="modal-box">
+                <button class="modal-close-btn" onclick="closeModal()"><i class="fas fa-times"></i></button>
+                <h3 style="margin-bottom: 20px; font-size:1.2rem; color:var(--primary);"><i class="fas fa-user-tie"></i> ${title}</h3>
+                <form onsubmit="saveStaff(event, '${id || ''}')">
+                    <div class="form-row">
+                        <div class="form-group"><label>نام *</label><input type="text" id="st_fName" class="form-input" value="${exist?.firstName||''}" required></div>
+                        <div class="form-group"><label>نام خانوادگی *</label><input type="text" id="st_lName" class="form-input" value="${exist?.lastName||''}" required></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>کد ملی *</label><input type="text" id="st_nId" class="form-input" value="${exist?.nationalId||''}" required maxlength="10"></div>
+                        <div class="form-group"><label>شماره تماس *</label><input type="text" id="st_phone" class="form-input" value="${exist?.phone||''}" required></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>تاریخ شروع فعالیت *</label>${generateDateDropdownsHTML('st_start', exist?.startDate)}</div>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-outline btn-sm" onclick="closeModal()">انصراف</button>
+                        <button type="submit" class="btn-primary btn-sm">
+                            <span class="btn-icon"><i class="fas fa-save"></i></span>
+                            <span class="btn-text">ذخیره عضو کادر</span>
+                            <div class="btn-spinner"></div>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>`;
+        document.getElementById('modal-container').innerHTML = html;
+    };
+
+    window.saveStaff = async (e, id) => {
+        e.preventDefault();
+        const btn = e.submitter;
+        const sDate = getDropdownDateValue('st_start');
+        if(!sDate) { showToast('لطفا تاریخ شروع فعالیت را وارد کنید', 'error'); return; }
+        
+        const payload = {
+            id: id || generateId(),
+            firstName: document.getElementById('st_fName').value.trim(),
+            lastName: document.getElementById('st_lName').value.trim(),
+            nationalId: document.getElementById('st_nId').value.trim(),
+            phone: document.getElementById('st_phone').value.trim(),
+            startDate: sDate,
+            endDate: id ? (appData.staff.find(s=>s.id===id).endDate || '') : '',
+            status: id ? (appData.staff.find(s=>s.id===id).status || 'active') : 'active',
+            payments: id ? (appData.staff.find(s=>s.id===id).payments || []) : []
+        };
+
+        if(!validateNationalId(payload.nationalId)) { showToast('کد ملی وارد شده نامعتبر است', 'error'); return; }
+        const dup = appData.staff.find(x => x.nationalId === payload.nationalId && x.id !== id);
+        if(dup) { showToast('این کد ملی قبلاً برای یکی از اعضای کادر ثبت شده است', 'error'); return; }
+
+        setButtonLoading(btn, true);
+        try {
+            await apiCall('saveStaff', { payload });
+            if(id) {
+                const idx = appData.staff.findIndex(x => x.id === id);
+                appData.staff[idx] = payload;
+            } else {
+                appData.staff.push(payload);
+            }
+            closeModal();
+            renderStaff();
+            showToast('اطلاعات عضو کادر با موفقیت ذخیره شد');
+        } catch(err) {} finally { setButtonLoading(btn, false); }
+    };
+
+    window.finishStaff = async (id, btn) => {
+        if(!requestAdminPassword()) { showToast('⛔ رمز عبور مدیریت اشتباه است.', 'error'); return; }
+        if(!confirm('آیا از اتمام فعالیت این عضو کادر اطمینان دارید؟ با این کار لیست ماه‌های حقوقی بسته می‌شود.')) return;
+        
+        const staffMem = appData.staff.find(s => s.id === id);
+        staffMem.status = 'finished';
+        const d = getTodayObj();
+        staffMem.endDate = new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(d).replace(/[۰-۹]/g, w => '۰۱۲۳۴۵۶۷۸۹'.indexOf(w)).replace(/\//g, '-');
+
+        setButtonLoading(btn, true);
+        try {
+            await apiCall('saveStaff', { payload: staffMem });
+            renderStaff();
+            showToast('🏁 فعالیت عضو کادر با موفقیت پایان یافت.');
+        } catch(e) {} finally { setButtonLoading(btn, false); }
+    };
+
+    window.deleteStaff = async (id, btn) => {
+        if(!requestAdminPassword()) { showToast('⛔ رمز عبور اشتباه است.', 'error'); return; }
+        if(!confirm('آیا از حذف کامل این عضو کادر و اطلاعات مالی او مطمئن هستید؟ این عمل غیرقابل بازگشت است.')) return;
+
+        setButtonLoading(btn, true);
+        try {
+            await apiCall('deleteStaff', { id });
+            appData.staff = appData.staff.filter(x => x.id !== id);
+            renderStaff();
+            showToast('عضو کادر با موفقیت حذف شد');
+        } catch(err) {} finally { setButtonLoading(btn, false); }
+    };
+
+    // Staff Detail & Payments
+    window.viewStaffDetail = (staffId) => {
+        const staffMem = appData.staff.find(s => s.id === staffId);
+        if(!staffMem) return;
+        
+        const daysPassed = calculateDaysPassed(staffMem.startDate);
+        let timeLabel = `⏳ زمان فعالیت: ${daysPassed} روز`;
+        if(staffMem.status === 'finished') timeLabel = '🏁 فعالیت پایان یافته است';
+
+        const periods = getMonthPeriods(staffMem.startDate, staffMem.status === 'active' ? null : staffMem.endDate);
+
+        let paidCount = staffMem.payments ? staffMem.payments.length : 0;
+        let unpaidCount = periods.length - paidCount;
+        if(unpaidCount < 0) unpaidCount = 0;
+
+        let summaryText = '';
+        if(periods.length === 0) {
+            summaryText = '<span style="color:var(--text-light)">هنوز فعالیتی ثبت نشده</span>';
+        } else if(unpaidCount > 0) {
+            summaryText = `<span style="color:var(--danger)">${unpaidCount} پرداخت نشده</span>`;
+        } else {
+            summaryText = `<span style="color:var(--success)">✅ تسویه کامل</span>`;
+        }
+
+        let paymentsHtml = periods.map(p => {
+            const payRecord = staffMem.payments ? staffMem.payments.find(x => x.periodIndex === p.index) : null;
+            const isPaid = !!payRecord;
+            
+            const clickAction = isPaid ? `viewStaffPaymentDetail('${staffId}', ${p.index})` :
+                `openStaffPaymentForm('${staffId}', ${p.index}, '${p.label}', '${p.displayDate}')`;
+            
+            return `
+            <div class="payment-month-chip ${isPaid?'paid':'unpaid'}" onclick="${clickAction}">
+                <strong>${p.label}</strong><br>
+                <small>${p.displayDate}</small><br>
+                <small>${isPaid?'✅ پرداخت شده':'❌ تسویه نشده'}</small>
+            </div>`;
+        }).join('');
+        if(periods.length === 0) paymentsHtml = '<p style="color:var(--text-light); text-align:center; width:100%; margin:0;">هنوز یک ماه هم از فعالیت نگذشته است.</p>';
+
+        const html = `
+        <div class="modal-overlay show" onclick="if(event.target===this) closeModal()">
+            <div class="modal-box" style="max-width:800px;">
+                <button class="modal-close-btn" onclick="closeModal()"><i class="fas fa-times"></i></button>
+                <h3 style="margin-bottom:15px; color:var(--primary); font-size:1.3rem;"><i class="fas fa-user-tie"></i> جزئیات حقوق کادر: ${staffMem.firstName} ${staffMem.lastName}</h3>
+                
+                <div style="display:flex; gap:15px; flex-wrap:wrap; background:var(--primary-light); padding:15px; border-radius:var(--radius-md); margin-bottom:20px; font-size:0.95rem;">
+                    <span>📞 موبایل: <strong>${staffMem.phone}</strong></span> |
+                    <span>📅 شروع: <strong>${formatDateStr(staffMem.startDate)}</strong></span> |
+                    <span>وضعیت: <strong>${staffMem.status==='active'?'🟢 فعال':'🟡 پایان یافته'}</strong></span> |
+                    <span style="color:var(--primary-dark); font-weight:600;">${timeLabel}</span>
+                </div>
+                
+                <div style="margin-bottom:20px;">
+                    <div id="header_acc_staff_${staffId}" class="accordion-header trainer-acc" onclick="toggleAccordion('acc_staff_${staffId}')" style="border-radius: var(--radius-md) var(--radius-md) 0 0; border-bottom: none;">
+                        <span><strong><i class="fas fa-money-check-alt"></i> وضعیت حقوق و دستمزد:</strong> ${summaryText}</span>
+                        <i class="fas fa-chevron-up" id="icon_acc_staff_${staffId}" style="color:var(--info)"></i>
+                    </div>
+                    <div id="acc_staff_${staffId}" class="payment-months" style="display:flex; border-color:var(--info);">${paymentsHtml}</div>
+                </div>
+
+            </div>
+        </div>`;
+        
+        document.getElementById('modal-container').innerHTML = html;
+    };
+
+    window.openStaffPaymentForm = (staffId, periodIndex, periodLabel, periodDisplayDate) => {
+        const staffMem = appData.staff.find(s => s.id === staffId);
+        
+        if(periodIndex > 0) {
+            for(let i=0; i < periodIndex; i++) {
+                if(!staffMem.payments || !staffMem.payments.some(p => p.periodIndex === i)) {
+                    showToast('⚠️ ابتدا باید حقوق ماه‌های قبل تسویه شود.', 'warning');
+                    return;
+                }
+            }
+        }
+
+        const now = getTodayObj();
+        const currH = now.getHours();
+        const currM = now.getMinutes();
+
+        let hourOpts = '';
+        for(let i=0; i<24; i++) hourOpts += `<option value="${i}" ${i===currH?'selected':''}>${String(i).padStart(2,'0')}</option>`;
+        
+        let minOpts = '';
+        for(let i=0; i<60; i++) minOpts += `<option value="${i}" ${i===currM?'selected':''}>${String(i).padStart(2,'0')}</option>`;
+
+        const html = `
+        <div class="modal-overlay show" style="z-index:1001;" onclick="if(event.target===this) viewStaffDetail('${staffId}')">
+            <div class="modal-box" style="max-width:450px;">
+                <button class="modal-close-btn" onclick="viewStaffDetail('${staffId}')" title="بازگشت"><i class="fas fa-arrow-right"></i></button>
+                <h3 style="margin-bottom:20px; color:var(--info);"><i class="fas fa-money-check-alt"></i> ثبت حقوق کادر: ${periodLabel}</h3>
+                <p style="background:var(--bg-main); padding:10px; border-radius:8px; font-size:0.85rem; color:var(--text-light);">بابت بازه زمانی: ${periodDisplayDate}</p>
+                
+                <form onsubmit="saveStaffPayment(event, '${staffId}', ${periodIndex})">
+                    <div class="form-group" style="margin-top:15px;">
+                        <label>مبلغ پرداخت شده (تومان/ریال) *</label>
+                        <input type="number" id="spay_amount" class="form-input" required placeholder="مبلغ را وارد کنید...">
+                    </div>
+
+                    <div class="form-group">
+                        <label>تاریخ پرداخت *</label>
+                        ${generateDateDropdownsHTML('spay_date')}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>ساعت پرداخت *</label>
+                        <div class="time-dropdowns">
+                            <select id="spay_h" class="form-select" required>${hourOpts}</select>
+                            <span>:</span>
+                            <select id="spay_m" class="form-select" required>${minOpts}</select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>شماره پیگیری / سند *</label>
+                        <input type="text" id="spay_tracking" class="form-input" required placeholder="مثلا 123456" style="letter-spacing:2px; font-family:monospace;">
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="submit" class="btn-primary btn-sm" style="background-color: var(--info);">
+                            <span class="btn-icon"><i class="fas fa-check"></i></span>
+                            <span class="btn-text">ثبت نهایی حقوق</span>
+                            <div class="btn-spinner"></div>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>`;
+        document.getElementById('modal-container').innerHTML = html;
+        
+        const td = new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: 'numeric', day: 'numeric' }).format(now).replace(/[۰-۹]/g, w => '۰۱۲۳۴۵۶۷۸۹'.indexOf(w)).split('/');
+        document.getElementById('spay_date_y').value = td[0];
+        document.getElementById('spay_date_m').value = parseInt(td[1]);
+        document.getElementById('spay_date_d').value = parseInt(td[2]);
+    };
+
+    window.saveStaffPayment = async (e, staffId, periodIndex) => {
+        e.preventDefault();
+        const btn = e.submitter;
+        const pDate = getDropdownDateValue('spay_date');
+        if(!pDate) { showToast('تاریخ نامعتبر', 'error'); return; }
+
+        const amount = document.getElementById('spay_amount').value.trim();
+        const time = `${String(document.getElementById('spay_h').value).padStart(2,'0')}:${String(document.getElementById('spay_m').value).padStart(2,'0')}`;
+        const tracking = document.getElementById('spay_tracking').value.trim();
+
+        const staffMem = appData.staff.find(s => s.id === staffId);
+        
+        if(!staffMem.payments) staffMem.payments = [];
+        staffMem.payments = staffMem.payments.filter(p => p.periodIndex !== periodIndex);
+        
+        staffMem.payments.push({
+            periodIndex: periodIndex,
+            amount: amount,
+            date: pDate,
+            time: time,
+            tracking: tracking
+        });
+        
+        setButtonLoading(btn, true);
+        try {
+            await apiCall('saveStaff', { payload: staffMem });
+            viewStaffDetail(staffId);
+            showToast('✅ حقوق عضو کادر با موفقیت ثبت شد');
+        } catch(err) {} finally { setButtonLoading(btn, false); }
+    };
+
+    window.viewStaffPaymentDetail = (staffId, periodIndex) => {
+        const staffMem = appData.staff.find(s => s.id === staffId);
+        const payment = staffMem.payments.find(p => p.periodIndex === periodIndex);
+        if(!payment) return;
+
+        const html = `
+        <div class="modal-overlay show" style="z-index:1001;" onclick="if(event.target===this) viewStaffDetail('${staffId}')">
+            <div class="modal-box" style="max-width:400px; text-align:center;">
+                <button class="modal-close-btn" onclick="viewStaffDetail('${staffId}')" title="بازگشت"><i class="fas fa-arrow-right"></i></button>
+                <div style="font-size:3rem; color:var(--info); margin-bottom:10px;"><i class="fas fa-check-circle"></i></div>
+                <h3 style="margin-bottom:20px;">رسید پرداخت حقوق کادر</h3>
+                
+                <div style="background:var(--bg-main); padding:20px; border-radius:var(--radius-md); border:1px dashed var(--border-color); text-align:right; font-size:0.95rem; line-height:2;">
+                    <div><strong>مبلغ پرداختی:</strong> <span style="color:var(--success); font-weight:bold;">${Number(payment.amount).toLocaleString('fa-IR')}</span></div>
+                    <div><strong>تاریخ پرداخت:</strong> <span dir="ltr">${payment.date}</span></div>
+                    <div><strong>ساعت تراکنش:</strong> <span dir="ltr">${payment.time}</span></div>
+                    <div><strong>شماره پیگیری:</strong> <code style="font-size:1.1rem; color:var(--primary);">${payment.tracking}</code></div>
+                </div>
+
+                <div class="modal-actions" style="justify-content:center; margin-top:20px;">
+                    <button class="btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="cancelStaffPayment('${staffId}', ${periodIndex})">
+                        <i class="fas fa-trash"></i> لغو و حذف این پرداختی
+                    </button>
+                </div>
+            </div>
+        </div>`;
+        document.getElementById('modal-container').innerHTML = html;
+    };
+
+    window.cancelStaffPayment = async (staffId, periodIndex) => {
+        if(!requestAdminPassword()) { showToast('⛔ رمز عبور مدیریت اشتباه است.', 'error'); return; }
+        if(!confirm('آیا از ابطال و حذف این رسید پرداختی حقوق مطمئن هستید؟')) return;
+
+        const staffMem = appData.staff.find(s => s.id === staffId);
+        staffMem.payments = staffMem.payments.filter(p => p.periodIndex !== periodIndex);
+
+        showGlobalLoader();
+        try {
+            await apiCall('saveStaff', { payload: staffMem });
+            viewStaffDetail(staffId);
+            showToast('🗑️ رسید پرداخت حقوق با موفقیت لغو شد');
+        } catch(e) {} finally { hideGlobalLoader(); }
+    };
+
+    // ================== CLASSES & CLASS LIFECYCLE ==================
+    function renderClasses() {
+        const tbody = document.getElementById('classes-tbody');
+        if (appData.classes.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><i class="fas fa-folder-open"></i><br>هیچ کلاسی ثبت نشده است</td></tr>';
+            return;
+        }
+
+        // نمایش حداکثر ۵ کلاس آخر
+        const listToDisplay = [...appData.classes].reverse().slice(0, 5);
+
+        tbody.innerHTML = listToDisplay.map((c, i) => {
+            const st = c.status === 'active' ? '<span class="badge badge-active">🟢 جاری</span>' :
+                       c.status === 'finished' ? '<span class="badge badge-finished">🟡 پایان یافته</span>' :
+                       '<span class="badge badge-archived">🔵 بایگانی</span>';
+            const count = c.students ? c.students.length : 0;
+            const trainer = appData.trainers.find(t => t.id === c.trainerId);
+            const trainerName = trainer ? `${trainer.firstName} ${trainer.lastName}` : 'نامشخص';
+
+            return `
+            <tr>
+                <td>${i+1}</td>
+                <td><a href="javascript:void(0)" onclick="viewClassDetail('${c.id}')" style="color:var(--primary); font-weight:600; text-decoration:none;">${c.title}</a></td>
+                <td>${formatDateStr(c.startDate)}</td>
+                <td>${trainerName}</td>
+                <td>${st}</td>
+                <td>${count} نفر</td>
+                <td>
+                    <button class="btn-sm btn-primary" onclick="viewClassDetail('${c.id}')"><i class="fas fa-eye"></i> جزئیات</button>
+                    ${c.status==='active'?`
+                        <button class="btn-sm btn-warning" onclick="openClassForm('${c.id}')" title="ویرایش"><i class="fas fa-edit"></i></button>
+                        <button class="btn-sm btn-success" onclick="finishClass('${c.id}', event.currentTarget)" title="اتمام کلاس"><i class="fas fa-flag-checkered"></i></button>
+                        <button class="btn-sm btn-danger" onclick="deleteClass('${c.id}', event.currentTarget)" title="حذف کامل"><i class="fas fa-trash"></i></button>
+                    `:''}
+                    ${c.status==='finished'?`<button class="btn-sm btn-info" style="background:var(--info); color:#fff; border:none;" onclick="archiveClass('${c.id}', event.currentTarget)"><i class="fas fa-archive"></i> بایگانی</button>`:''}
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    window.openClassForm = (id = null) => {
+        const exist = id ? appData.classes.find(c => c.id === id) : null;
+        const title = exist ? 'ویرایش کلاس' : 'افزودن کلاس جدید';
+        
+        const trOpts = appData.trainers.map(t => `<option value="${t.id}" ${exist?.trainerId===t.id?'selected':''}>${t.firstName} ${t.lastName}</option>`).join('');
+
+        const html = `
+        <div class="modal-overlay show" onclick="if(event.target===this) closeModal()">
+            <div class="modal-box">
+                <button class="modal-close-btn" onclick="closeModal()"><i class="fas fa-times"></i></button>
+                <h3 style="margin-bottom: 20px; font-size:1.2rem; color:var(--primary);"><i class="fas fa-clipboard-list"></i> ${title}</h3>
+                <form onsubmit="saveClass(event, '${id || ''}')">
+                    <div class="form-group"><label>عنوان کلاس *</label><input type="text" id="c_title" class="form-input" value="${exist?.title||''}" required></div>
+                    <div class="form-row">
+                        <div class="form-group"><label>تاریخ شروع *</label>${generateDateDropdownsHTML('c_start', exist?.startDate)}</div>
+                        <div class="form-group"><label>مربی کلاس *</label>
+                            <select id="c_trainer" class="form-select" required>
+                                <option value="">-- انتخاب مربی --</option>
+                                ${trOpts}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group"><label>توضیحات کلاس</label><textarea id="c_desc" class="form-input" rows="3">${exist?.description||''}</textarea></div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-outline btn-sm" onclick="closeModal()">انصراف</button>
+                        <button type="submit" class="btn-primary btn-sm">
+                            <span class="btn-icon"><i class="fas fa-save"></i></span>
+                            <span class="btn-text">ذخیره کلاس</span>
+                            <div class="btn-spinner"></div>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>`;
+        document.getElementById('modal-container').innerHTML = html;
+    };
+
+    window.saveClass = async (e, id) => {
+        e.preventDefault();
+        const btn = e.submitter;
+        const sDate = getDropdownDateValue('c_start');
+        if(!sDate) { showToast('لطفا تاریخ شروع را وارد کنید', 'error'); return; }
+        
+        const payload = {
+            id: id || generateId(),
+            title: document.getElementById('c_title').value.trim(),
+            startDate: sDate,
+            trainerId: document.getElementById('c_trainer').value,
+            description: document.getElementById('c_desc').value.trim(),
+            endDate: id ? (appData.classes.find(c=>c.id===id).endDate || '') : '',
+            status: id ? (appData.classes.find(c=>c.id===id).status || 'active') : 'active',
+            students: id ? (appData.classes.find(c=>c.id===id).students || []) : [],
+            trainerPayments: id ? (appData.classes.find(c=>c.id===id).trainerPayments || []) : []
+        };
+
+        setButtonLoading(btn, true);
+        try {
+            await apiCall('saveClass', { payload });
+            if(id) {
+                const idx = appData.classes.findIndex(x => x.id === id);
+                appData.classes[idx] = payload;
+            } else {
+                appData.classes.push(payload);
+            }
+            closeModal();
+            renderClasses();
+            showToast('کلاس با موفقیت ذخیره شد');
+        } catch(err) {} finally { setButtonLoading(btn, false); }
+    };
+
+    window.finishClass = async (id, btn) => {
+        if(!requestAdminPassword()) { showToast('⛔ رمز عبور اشتباه است.', 'error'); return; }
+        if(!confirm('آیا از اتمام این کلاس اطمینان دارید؟ با این کار دیگر نمی‌توانید کلاسی را ویرایش کنید.')) return;
+        
+        const cls = appData.classes.find(c => c.id === id);
+        cls.status = 'finished';
+        const d = getTodayObj();
+        cls.endDate = new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(d).replace(/[۰-۹]/g, w => '۰۱۲۳۴۵۶۷۸۹'.indexOf(w)).replace(/\//g, '-');
+
+        setButtonLoading(btn, true);
+        try {
+            await apiCall('saveClass', { payload: cls });
+            renderClasses();
+            showToast('🏁 کلاس با موفقیت پایان یافت.');
+        } catch(e) {} finally { setButtonLoading(btn, false); }
+    };
+
+    window.archiveClass = async (id, btn) => {
+        const cls = appData.classes.find(c => c.id === id);
+        
+        const periods = getMonthPeriods(cls.startDate, cls.endDate);
+        let hasDebt = false;
+        if(cls.students) {
+            for(const s of cls.students) {
+                if(!s.payments) s.payments = [];
+                if(s.payments.length < periods.length) { hasDebt = true; break; }
+            }
+        }
+
+        if(hasDebt) {
+            if(!confirm('⚠️ اخطار: هنوز تمام شهریه‌های متربیان تسویه نشده است. آیا مطمئنید می‌خواهید بایگانی کنید؟')) return;
+        } else {
+            if(!confirm('آیا کلاس بایگانی شود؟')) return;
+        }
+
+        cls.status = 'archived';
+        setButtonLoading(btn, true);
+        try {
+            await apiCall('saveClass', { payload: cls });
+            renderClasses();
+            showToast('📦 کلاس به بخش بایگانی منتقل شد.');
+        } catch(e) {} finally { setButtonLoading(btn, false); }
+    };
+
+    window.deleteClass = async (id, btn) => {
+        if(!requestAdminPassword()) { showToast('⛔ رمز عبور اشتباه است.', 'error'); return; }
+        if(!confirm('آیا از حذف کامل کلاس و تمام اطلاعات پرداخت‌های آن مطمئن هستید؟ این عمل غیرقابل بازگشت است.')) return;
+        
+        setButtonLoading(btn, true);
+        try {
+            await apiCall('deleteClass', { id });
+            appData.classes = appData.classes.filter(x => x.id !== id);
+            renderClasses();
+            showToast('کلاس حذف شد');
+        } catch(err) {} finally { setButtonLoading(btn, false); }
+    };
+
+    // ================== CLASS DETAILS & ACCORDIONS ==================
+    window.toggleAccordion = (accId) => {
+        const el = document.getElementById(accId);
+        const icon = document.getElementById('icon_' + accId);
+        const header = document.getElementById('header_' + accId);
+        if(el.style.display === 'none') {
+            el.style.display = 'flex';
+            icon.classList.replace('fa-chevron-down', 'fa-chevron-up');
+            header.classList.add('open');
+        } else {
+            el.style.display = 'none';
+            icon.classList.replace('fa-chevron-up', 'fa-chevron-down');
+            header.classList.remove('open');
+        }
+    };
+
+    window.viewClassDetail = (classId) => {
+        const cls = appData.classes.find(c => c.id === classId);
+        if(!cls) return;
+        const trainer = appData.trainers.find(t => t.id === cls.trainerId);
+        const tName = trainer ? `${trainer.firstName} ${trainer.lastName}` : 'نامشخص';
+        
+        const daysPassed = calculateDaysPassed(cls.startDate);
+        let timeLabel = daysPassed < 0 ? `⏳ مانده تا شروع: ${Math.abs(daysPassed)} روز` : `⏳ زمان سپری شده: ${daysPassed} روز`;
+        if(cls.status === 'archived' || cls.status === 'finished') timeLabel = '🏁 دوره به پایان رسیده است';
+
+        const periods = getMonthPeriods(cls.startDate, cls.status === 'active' ? null : cls.endDate);
+
+        // ================= TRAINER SALARY SECTION =================
+        let tPaidCount = cls.trainerPayments ? cls.trainerPayments.length : 0;
+        let tUnpaidCount = periods.length - tPaidCount;
+        if(tUnpaidCount < 0) tUnpaidCount = 0;
+
+        let tSummaryText = '';
+        if(periods.length === 0) {
+            tSummaryText = '<span style="color:var(--text-light)">شروع نشده</span>';
+        } else if(tUnpaidCount > 0) {
+            tSummaryText = `<span style="color:var(--danger)">${tUnpaidCount} پرداخت نشده</span>`;
+        } else {
+            tSummaryText = `<span style="color:var(--success)">✅ تسویه کامل</span>`;
+        }
+
+        let trainerPaymentsHtml = periods.map(p => {
+            const payRecord = cls.trainerPayments ? cls.trainerPayments.find(x => x.periodIndex === p.index) : null;
+            const isPaid = !!payRecord;
+            
+            const clickAction = isPaid ? `viewTrainerPaymentDetail('${classId}', ${p.index})` :
+                (cls.status === 'active' || cls.status === 'finished' ? `openTrainerPaymentForm('${classId}', ${p.index}, '${p.label}', '${p.displayDate}')` : `alert('کلاس بایگانی شده است.')`);
+            
+            return `
+            <div class="payment-month-chip ${isPaid?'paid':'unpaid'}" onclick="${clickAction}">
+                <strong>${p.label}</strong><br>
+                <small>${p.displayDate}</small><br>
+                <small>${isPaid?'✅ پرداخت شده':'❌ تسویه نشده'}</small>
+            </div>`;
+        }).join('');
+        if(periods.length === 0) trainerPaymentsHtml = '<p style="color:var(--text-light); text-align:center; width:100%; margin:0;">هنوز یک ماه هم از کلاس نگذشته است.</p>';
+
+        const trainerSectionHtml = `
+            <div style="margin-bottom:20px;">
+                <div id="header_acc_trainer" class="accordion-header trainer-acc" onclick="toggleAccordion('acc_trainer')">
+                    <span><strong><i class="fas fa-money-check-alt"></i> وضعیت حقوق مربی (${tName}):</strong> ${tSummaryText}</span>
+                    <i class="fas fa-chevron-down" id="icon_acc_trainer" style="color:var(--info)"></i>
+                </div>
+                <div id="acc_trainer" class="payment-months" style="display:none; border-color:var(--info);">${trainerPaymentsHtml}</div>
+            </div>
+        `;
+
+        // ================= STUDENTS SECTION =================
+        let studentsHtml = '';
+        if(cls.students && cls.students.length > 0) {
+            studentsHtml = cls.students.map(s => {
+                const trainee = appData.trainees.find(t => t.id === s.traineeId);
+                if(!trainee) return '';
+                
+                let paidCount = s.payments ? s.payments.length : 0;
+                let unpaidCount = periods.length - paidCount;
+                if(unpaidCount < 0) unpaidCount = 0;
+                
+                let summaryText = '';
+                if(periods.length === 0) {
+                    summaryText = '<span style="color:var(--text-light)">کلاس تازه شروع شده</span>';
+                } else if(unpaidCount > 0) {
+                    summaryText = `<span style="color:var(--danger)">${unpaidCount} پرداخت نشده</span>`;
+                } else {
+                    summaryText = `<span style="color:var(--success)">✅ تسویه کامل</span>`;
+                }
+
+                let paymentsHtml = periods.map(p => {
+                    const payRecord = s.payments ? s.payments.find(x => x.periodIndex === p.index) : null;
+                    const isPaid = !!payRecord;
+                    
+                    const clickAction = isPaid ? `viewPaymentDetail('${classId}', '${s.traineeId}', ${p.index})` :
+                        (cls.status === 'active' || cls.status === 'finished' ? `openPaymentForm('${classId}', '${s.traineeId}', ${p.index}, '${p.label}', '${p.displayDate}')` : `alert('کلاس بایگانی شده است.')`);
+                    
+                    return `
+                    <div class="payment-month-chip ${isPaid?'paid':'unpaid'}" onclick="${clickAction}">
+                        <strong>${p.label}</strong><br>
+                        <small>${p.displayDate}</small><br>
+                        <small>${isPaid?'✅ پرداختی':'❌ تسویه نشده'}</small>
+                    </div>`;
+                }).join('');
+
+                if(periods.length === 0) paymentsHtml = '<p style="color:var(--text-light); text-align:center; width:100%; margin:0;">هنوز یک ماه هم از کلاس نگذشته است.</p>';
+
+                return `
+                <div style="border:1.5px solid var(--border-color); padding:16px; border-radius:var(--radius-md); margin-bottom:12px; background:var(--bg-main);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                        <div style="display:flex; align-items:center; flex-wrap:wrap; gap:10px;">
+                            <strong style="font-size:1.05rem;"><i class="fas fa-user-circle"></i> ${trainee.firstName} ${trainee.lastName}</strong>
+                            <span class="badge badge-upcoming">کدملی: ${trainee.nationalId}</span>
+                            <a href="tel:${trainee.phone}" style="color:var(--primary); font-size:0.85rem; font-weight:600; text-decoration:none; background:var(--bg-card); padding:2px 8px; border-radius:12px; border:1px solid var(--border-color);"><i class="fas fa-phone-alt"></i> ${trainee.phone}</a>
+                        </div>
+                        ${cls.status==='active'?`<button class="btn-sm btn-outline" style="color:var(--danger); border-color:var(--danger);" onclick="removeStudent('${classId}','${s.traineeId}')"><i class="fas fa-user-minus"></i> حذف از کلاس</button>`:''}
+                    </div>
+                    
+                    <div id="header_acc_${s.traineeId}" class="accordion-header" onclick="toggleAccordion('acc_${s.traineeId}')">
+                        <span style="font-size:0.9rem; font-weight:600;">وضعیت شهریه: ${summaryText}</span>
+                        <i class="fas fa-chevron-down" id="icon_acc_${s.traineeId}" style="color:var(--text-light)"></i>
+                    </div>
+                    <div id="acc_${s.traineeId}" class="payment-months" style="display:none;">${paymentsHtml}</div>
+                </div>`;
+            }).join('');
+        } else {
+            studentsHtml = '<div class="empty-state"><i class="fas fa-users-slash"></i><br>هیچ متربی در این کلاس ثبت‌نام نشده است.</div>';
+        }
+
+        const html = `
+        <div class="modal-overlay show" onclick="if(event.target===this) closeModal()">
+            <div class="modal-box" style="max-width:850px;">
+                <button class="modal-close-btn" onclick="closeModal()"><i class="fas fa-times"></i></button>
+                <h3 style="margin-bottom:15px; color:var(--primary); font-size:1.3rem;"><i class="fas fa-clipboard-list"></i> جزئیات کلاس: ${cls.title}</h3>
+                
+                <div style="display:flex; gap:15px; flex-wrap:wrap; background:var(--primary-light); padding:15px; border-radius:var(--radius-md); margin-bottom:20px; font-size:0.95rem;">
+                    <span>👨‍🏫 مربی: <strong>${tName}</strong></span> |
+                    <span>📅 شروع: <strong>${formatDateStr(cls.startDate)}</strong></span> |
+                    <span>وضعیت: <strong>${cls.status==='active'?'🟢 جاری':cls.status==='finished'?'🟡 پایان یافته':'🔵 بایگانی'}</strong></span> |
+                    <span style="color:var(--primary-dark); font-weight:600;">${timeLabel}</span>
+                </div>
+                
+                ${cls.description ? `<div style="background:#f8fafc; padding:12px; border-radius:8px; margin-bottom:20px; border:1px solid #e2e8f0; font-size:0.9rem;">📝 <strong>توضیحات:</strong> ${cls.description}</div>` : ''}
+
+                ${trainerSectionHtml}
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 20px 0;">
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                    <h4 style="margin:0;"><i class="fas fa-users"></i> لیست متربیان (${cls.students?cls.students.length:0} نفر)</h4>
+                    ${cls.status==='active'?`<button class="btn-sm btn-primary" onclick="openAddStudentModal('${classId}')">➕ افزودن متربی (جستجو)</button>`:''}
+                </div>
+                
+                <div style="max-height:450px; overflow-y:auto; padding-right:5px;">
+                    ${studentsHtml}
+                </div>
+            </div>
+        </div>`;
+        
+        document.getElementById('modal-container').innerHTML = html;
+    };
+
+    // --- Search & Add Student ---
+    window.openAddStudentModal = (classId) => {
+        const cls = appData.classes.find(c => c.id === classId);
+        const availableTrainees = appData.trainees.filter(t => !cls.students?.some(s => s.traineeId === t.id));
+        const last10 = availableTrainees.slice(-10).reverse(); 
+        
+        let initialListHtml = '';
+        if(last10.length === 0) {
+            initialListHtml = '<p style="text-align:center; color:var(--text-light); font-size:0.9rem; margin-top:30px;">هیچ متربی جدیدی برای افزودن به کلاس وجود ندارد.</p>';
+        } else {
+            initialListHtml = '<h5 style="margin-top:10px; margin-bottom:10px; color:var(--text-light); font-size:0.85rem;">۱۰ متربی ثبت‌نام شده اخیر (پیشنهادی):</h5>' + last10.map(t => `
+            <div class="search-result-card">
+                <div>
+                    <strong><i class="fas fa-user"></i> ${t.firstName} ${t.lastName}</strong><br>
+                    <small style="color:var(--text-light);">کد ملی: ${t.nationalId}</small>
+                </div>
+                <button class="btn-sm btn-success" id="add_btn_${t.id}" onclick="addStudentToClass('${classId}', '${t.id}')">
+                    <span class="btn-text">➕ افزودن</span>
+                    <div class="btn-spinner"></div>
+                </button>
+            </div>`).join('');
+        }
+
+        const html = `
+        <div class="modal-overlay show" style="z-index:1001;" onclick="if(event.target===this) viewClassDetail('${classId}')">
+            <div class="modal-box" style="max-width:500px;">
+                <button class="modal-close-btn" onclick="viewClassDetail('${classId}')" title="بازگشت"><i class="fas fa-arrow-right"></i></button>
+                <h3 style="margin-bottom:20px;"><i class="fas fa-search"></i> جستجو و افزودن متربی</h3>
+                
+                <div class="form-group">
+                    <label>جستجو در دیتابیس با کد ملی (۱۰ رقم):</label>
+                    <div class="input-wrapper" style="margin-bottom:0; display:flex; gap:10px;">
+                        <input type="text" id="search_national_id" class="form-input" placeholder="مثلا 1234567890" maxlength="10" style="flex:1;">
+                        <button class="btn-primary" style="width:auto;" onclick="searchTraineeBackend('${classId}')" id="btn_backend_search">
+                            <span class="btn-icon"><i class="fas fa-search"></i></span>
+                            <span class="btn-text">جستجو در سرور</span>
+                            <div class="btn-spinner"></div>
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="search-results-container" style="min-height:100px; margin-top:15px; max-height:350px; overflow-y:auto; padding-right:5px;">
+                    ${initialListHtml}
+                </div>
+            </div>
+        </div>`;
+        document.getElementById('modal-container').innerHTML = html;
+        setTimeout(() => document.getElementById('search_national_id').focus(), 100);
+    };
+
+    window.searchTraineeBackend = async (classId) => {
+        const query = document.getElementById('search_national_id').value.trim();
+        const container = document.getElementById('search-results-container');
+        const btn = document.getElementById('btn_backend_search');
+        
+        if(query.length === 0) {
+            openAddStudentModal(classId); 
+            return;
+        }
+
+        if(query.length < 10) {
+            container.innerHTML = '<p style="text-align:center; color:var(--text-light); font-size:0.9rem; margin-top:30px;">کد ملی را کامل (۱۰ رقم) وارد کنید...</p>';
+            return;
+        }
+
+        setButtonLoading(btn, true);
+        try {
+            const response = await apiCall('searchTrainees', { query });
+            const results = response.data;
+            const cls = appData.classes.find(c => c.id === classId);
+
+            if(results.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:var(--danger); font-size:0.9rem; margin-top:30px;">❌ متربی با این کد ملی در دیتابیس یافت نشد.</p>';
+                return;
+            }
+
+            container.innerHTML = '<h5 style="margin-top:10px; margin-bottom:10px; color:var(--success); font-size:0.85rem;">نتایج جستجو:</h5>' + results.map(t => {
+                const isEnrolled = cls.students?.some(s => s.traineeId === t.id);
+                return `
+                <div class="search-result-card">
+                    <div>
+                        <strong><i class="fas fa-user"></i> ${t.firstName} ${t.lastName}</strong><br>
+                        <small style="color:var(--text-light);">کد ملی: ${t.nationalId}</small>
+                    </div>
+                    ${isEnrolled 
+                        ? '<span class="badge badge-active"><i class="fas fa-check"></i> حاضر در کلاس</span>' 
+                        : `<button class="btn-sm btn-success" id="add_btn_${t.id}" onclick="addStudentToClass('${classId}', '${t.id}')">
+                            <span class="btn-text">➕ افزودن</span>
+                            <div class="btn-spinner"></div>
+                           </button>`
+                    }
+                </div>`;
+            }).join('');
+        } catch(e) {
+            container.innerHTML = '<p style="text-align:center; color:var(--danger); margin-top:30px;">خطا در ارتباط با سرور رخ داد.</p>';
+        } finally {
+            setButtonLoading(btn, false);
+        }
+    };
+
+    window.addStudentToClass = async (classId, traineeId) => {
+        const btn = document.getElementById(`add_btn_${traineeId}`);
+        const cls = appData.classes.find(c => c.id === classId);
+        if(!cls.students) cls.students = [];
+        cls.students.push({ traineeId: traineeId, payments: [] });
+        
+        setButtonLoading(btn, true);
+        try {
+            await apiCall('saveClass', { payload: cls });
+            viewClassDetail(classId); 
+            renderClasses(); 
+            showToast('✅ متربی با موفقیت به کلاس اضافه شد.');
+        } catch(e) {} finally { setButtonLoading(btn, false); }
+    };
+
+    window.removeStudent = async (classId, traineeId) => {
+        const cls = appData.classes.find(c => c.id === classId);
+        const student = cls.students.find(s => s.traineeId === traineeId);
+        
+        if(student.payments && student.payments.length > 0) {
+            showToast('❌ این متربی سابقه پرداخت شهریه دارد و قابل حذف نیست.', 'error');
+            return;
+        }
+
+        if(!confirm('آیا از حذف این متربی از کلاس اطمینان دارید؟')) return;
+        
+        cls.students = cls.students.filter(s => s.traineeId !== traineeId);
+        
+        showGlobalLoader();
+        try {
+            await apiCall('saveClass', { payload: cls });
+            viewClassDetail(classId);
+            renderClasses();
+            showToast('🗑️ متربی از کلاس حذف شد.');
+        } catch(e) {} finally { hideGlobalLoader(); }
+    };
+
+    // --- Student Payments ---
+    window.openPaymentForm = (classId, traineeId, periodIndex, periodLabel, periodDisplayDate) => {
+        const cls = appData.classes.find(c => c.id === classId);
+        const student = cls.students.find(s => s.traineeId === traineeId);
+        
+        if(periodIndex > 0) {
+            for(let i=0; i < periodIndex; i++) {
+                if(!student.payments || !student.payments.some(p => p.periodIndex === i)) {
+                    showToast('⚠️ ابتدا باید شهریه ماه‌های قبل تسویه شود.', 'warning');
+                    return;
+                }
+            }
+        }
+
+        const now = getTodayObj();
+        const currH = now.getHours();
+        const currM = now.getMinutes();
+
+        let hourOpts = '';
+        for(let i=0; i<24; i++) hourOpts += `<option value="${i}" ${i===currH?'selected':''}>${String(i).padStart(2,'0')}</option>`;
+        
+        let minOpts = '';
+        for(let i=0; i<60; i++) minOpts += `<option value="${i}" ${i===currM?'selected':''}>${String(i).padStart(2,'0')}</option>`;
+
+        const html = `
+        <div class="modal-overlay show" style="z-index:1001;" onclick="if(event.target===this) viewClassDetail('${classId}')">
+            <div class="modal-box" style="max-width:450px;">
+                <button class="modal-close-btn" onclick="viewClassDetail('${classId}')" title="بازگشت"><i class="fas fa-arrow-right"></i></button>
+                <h3 style="margin-bottom:20px; color:var(--success);"><i class="fas fa-money-bill-wave"></i> ثبت شهریه متربی: ${periodLabel}</h3>
+                <p style="background:var(--bg-main); padding:10px; border-radius:8px; font-size:0.85rem; color:var(--text-light);">بابت بازه زمانی: ${periodDisplayDate}</p>
+                
+                <form onsubmit="savePayment(event, '${classId}', '${traineeId}', ${periodIndex})">
+                    <div class="form-group" style="margin-top:15px;">
+                        <label>تاریخ پرداخت *</label>
+                        ${generateDateDropdownsHTML('pay_date')}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>ساعت پرداخت *</label>
+                        <div class="time-dropdowns">
+                            <select id="pay_h" class="form-select" required>${hourOpts}</select>
+                            <span>:</span>
+                            <select id="pay_m" class="form-select" required>${minOpts}</select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>شماره پیگیری / کد رهگیری *</label>
+                        <input type="text" id="pay_tracking" class="form-input" required placeholder="مثلا 123456" style="letter-spacing:2px; font-family:monospace;">
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="submit" class="btn-success btn-sm">
+                            <span class="btn-icon"><i class="fas fa-check"></i></span>
+                            <span class="btn-text">ثبت نهایی پرداخت</span>
+                            <div class="btn-spinner"></div>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>`;
+        document.getElementById('modal-container').innerHTML = html;
+        
+        const td = new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: 'numeric', day: 'numeric' }).format(now).replace(/[۰-۹]/g, w => '۰۱۲۳۴۵۶۷۸۹'.indexOf(w)).split('/');
+        document.getElementById('pay_date_y').value = td[0];
+        document.getElementById('pay_date_m').value = parseInt(td[1]);
+        document.getElementById('pay_date_d').value = parseInt(td[2]);
+    };
+
+    window.savePayment = async (e, classId, traineeId, periodIndex) => {
+        e.preventDefault();
+        const btn = e.submitter;
+        const pDate = getDropdownDateValue('pay_date');
+        if(!pDate) { showToast('تاریخ نامعتبر', 'error'); return; }
+
+        const time = `${String(document.getElementById('pay_h').value).padStart(2,'0')}:${String(document.getElementById('pay_m').value).padStart(2,'0')}`;
+        const tracking = document.getElementById('pay_tracking').value.trim();
+
+        const cls = appData.classes.find(c => c.id === classId);
+        const student = cls.students.find(s => s.traineeId === traineeId);
+        
+        if(!student.payments) student.payments = [];
+        student.payments = student.payments.filter(p => p.periodIndex !== periodIndex);
+        
+        student.payments.push({
+            periodIndex: periodIndex,
+            date: pDate,
+            time: time,
+            tracking: tracking
+        });
+        
+        setButtonLoading(btn, true);
+        try {
+            await apiCall('saveClass', { payload: cls });
+            viewClassDetail(classId);
+            showToast('✅ پرداخت با موفقیت ثبت شد');
+        } catch(err) {} finally { setButtonLoading(btn, false); }
+    };
+
+    window.viewPaymentDetail = (classId, traineeId, periodIndex) => {
+        const cls = appData.classes.find(c => c.id === classId);
+        const student = cls.students.find(s => s.traineeId === traineeId);
+        const payment = student.payments.find(p => p.periodIndex === periodIndex);
+        if(!payment) return;
+
+        const html = `
+        <div class="modal-overlay show" style="z-index:1001;" onclick="if(event.target===this) viewClassDetail('${classId}')">
+            <div class="modal-box" style="max-width:400px; text-align:center;">
+                <button class="modal-close-btn" onclick="viewClassDetail('${classId}')" title="بازگشت"><i class="fas fa-arrow-right"></i></button>
+                <div style="font-size:3rem; color:var(--success); margin-bottom:10px;"><i class="fas fa-check-circle"></i></div>
+                <h3 style="margin-bottom:20px;">رسید پرداخت شهریه</h3>
+                
+                <div style="background:var(--bg-main); padding:20px; border-radius:var(--radius-md); border:1px dashed var(--border-color); text-align:right; font-size:0.95rem; line-height:2;">
+                    <div><strong>تاریخ پرداخت:</strong> <span dir="ltr">${payment.date}</span></div>
+                    <div><strong>ساعت تراکنش:</strong> <span dir="ltr">${payment.time}</span></div>
+                    <div><strong>شماره پیگیری:</strong> <code style="font-size:1.1rem; color:var(--primary);">${payment.tracking}</code></div>
+                </div>
+
+                <div class="modal-actions" style="justify-content:center; margin-top:20px;">
+                    <button class="btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="cancelPayment('${classId}', '${traineeId}', ${periodIndex})">
+                        <i class="fas fa-trash"></i> لغو و حذف این پرداخت
+                    </button>
+                </div>
+            </div>
+        </div>`;
+        document.getElementById('modal-container').innerHTML = html;
+    };
+
+    window.cancelPayment = async (classId, traineeId, periodIndex) => {
+        if(!requestAdminPassword()) { showToast('⛔ رمز عبور مدیریت اشتباه است.', 'error'); return; }
+        if(!confirm('آیا از ابطال و حذف این رسید پرداخت مطمئن هستید؟')) return;
+
+        const cls = appData.classes.find(c => c.id === classId);
+        const student = cls.students.find(s => s.traineeId === traineeId);
+        student.payments = student.payments.filter(p => p.periodIndex !== periodIndex);
+
+        showGlobalLoader();
+        try {
+            await apiCall('saveClass', { payload: cls });
+            viewClassDetail(classId);
+            showToast('🗑️ رسید پرداخت با موفقیت لغو شد');
+        } catch(e) {} finally { hideGlobalLoader(); }
+    };
+
+    // --- Trainer Payments ---
+    window.openTrainerPaymentForm = (classId, periodIndex, periodLabel, periodDisplayDate) => {
+        const cls = appData.classes.find(c => c.id === classId);
+        
+        if(periodIndex > 0) {
+            for(let i=0; i < periodIndex; i++) {
+                if(!cls.trainerPayments || !cls.trainerPayments.some(p => p.periodIndex === i)) {
+                    showToast('⚠️ ابتدا باید حقوق ماه‌های قبل تسویه شود.', 'warning');
+                    return;
+                }
+            }
+        }
+
+        const now = getTodayObj();
+        const currH = now.getHours();
+        const currM = now.getMinutes();
+
+        let hourOpts = '';
+        for(let i=0; i<24; i++) hourOpts += `<option value="${i}" ${i===currH?'selected':''}>${String(i).padStart(2,'0')}</option>`;
+        
+        let minOpts = '';
+        for(let i=0; i<60; i++) minOpts += `<option value="${i}" ${i===currM?'selected':''}>${String(i).padStart(2,'0')}</option>`;
+
+        const html = `
+        <div class="modal-overlay show" style="z-index:1001;" onclick="if(event.target===this) viewClassDetail('${classId}')">
+            <div class="modal-box" style="max-width:450px;">
+                <button class="modal-close-btn" onclick="viewClassDetail('${classId}')" title="بازگشت"><i class="fas fa-arrow-right"></i></button>
+                <h3 style="margin-bottom:20px; color:var(--info);"><i class="fas fa-money-check-alt"></i> ثبت حقوق مربی: ${periodLabel}</h3>
+                <p style="background:var(--bg-main); padding:10px; border-radius:8px; font-size:0.85rem; color:var(--text-light);">بابت بازه زمانی: ${periodDisplayDate}</p>
+                
+                <form onsubmit="saveTrainerPayment(event, '${classId}', ${periodIndex})">
+                    <div class="form-group" style="margin-top:15px;">
+                        <label>مبلغ پرداخت شده (تومان/ریال) *</label>
+                        <input type="number" id="pay_amount" class="form-input" required placeholder="مبلغ را وارد کنید...">
+                    </div>
+
+                    <div class="form-group">
+                        <label>تاریخ پرداخت *</label>
+                        ${generateDateDropdownsHTML('pay_tdate')}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>ساعت پرداخت *</label>
+                        <div class="time-dropdowns">
+                            <select id="pay_th" class="form-select" required>${hourOpts}</select>
+                            <span>:</span>
+                            <select id="pay_tm" class="form-select" required>${minOpts}</select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>شماره پیگیری / سند *</label>
+                        <input type="text" id="pay_ttracking" class="form-input" required placeholder="مثلا 123456" style="letter-spacing:2px; font-family:monospace;">
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="submit" class="btn-primary btn-sm" style="background-color: var(--info);">
+                            <span class="btn-icon"><i class="fas fa-check"></i></span>
+                            <span class="btn-text">ثبت نهایی حقوق</span>
+                            <div class="btn-spinner"></div>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>`;
+        document.getElementById('modal-container').innerHTML = html;
+        
+        const td = new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: 'numeric', day: 'numeric' }).format(now).replace(/[۰-۹]/g, w => '۰۱۲۳۴۵۶۷۸۹'.indexOf(w)).split('/');
+        document.getElementById('pay_tdate_y').value = td[0];
+        document.getElementById('pay_tdate_m').value = parseInt(td[1]);
+        document.getElementById('pay_tdate_d').value = parseInt(td[2]);
+    };
+
+    window.saveTrainerPayment = async (e, classId, periodIndex) => {
+        e.preventDefault();
+        const btn = e.submitter;
+        const pDate = getDropdownDateValue('pay_tdate');
+        if(!pDate) { showToast('تاریخ نامعتبر', 'error'); return; }
+
+        const amount = document.getElementById('pay_amount').value.trim();
+        const time = `${String(document.getElementById('pay_th').value).padStart(2,'0')}:${String(document.getElementById('pay_tm').value).padStart(2,'0')}`;
+        const tracking = document.getElementById('pay_ttracking').value.trim();
+
+        const cls = appData.classes.find(c => c.id === classId);
+        
+        if(!cls.trainerPayments) cls.trainerPayments = [];
+        cls.trainerPayments = cls.trainerPayments.filter(p => p.periodIndex !== periodIndex);
+        
+        cls.trainerPayments.push({
+            periodIndex: periodIndex,
+            amount: amount,
+            date: pDate,
+            time: time,
+            tracking: tracking
+        });
+        
+        setButtonLoading(btn, true);
+        try {
+            await apiCall('saveClass', { payload: cls });
+            viewClassDetail(classId);
+            showToast('✅ حقوق مربی با موفقیت ثبت شد');
+        } catch(err) {} finally { setButtonLoading(btn, false); }
+    };
+
+    window.viewTrainerPaymentDetail = (classId, periodIndex) => {
+        const cls = appData.classes.find(c => c.id === classId);
+        const payment = cls.trainerPayments.find(p => p.periodIndex === periodIndex);
+        if(!payment) return;
+
+        const html = `
+        <div class="modal-overlay show" style="z-index:1001;" onclick="if(event.target===this) viewClassDetail('${classId}')">
+            <div class="modal-box" style="max-width:400px; text-align:center;">
+                <button class="modal-close-btn" onclick="viewClassDetail('${classId}')" title="بازگشت"><i class="fas fa-arrow-right"></i></button>
+                <div style="font-size:3rem; color:var(--info); margin-bottom:10px;"><i class="fas fa-check-circle"></i></div>
+                <h3 style="margin-bottom:20px;">رسید پرداخت حقوق مربی</h3>
+                
+                <div style="background:var(--bg-main); padding:20px; border-radius:var(--radius-md); border:1px dashed var(--border-color); text-align:right; font-size:0.95rem; line-height:2;">
+                    <div><strong>مبلغ پرداختی:</strong> <span style="color:var(--success); font-weight:bold;">${Number(payment.amount).toLocaleString('fa-IR')}</span></div>
+                    <div><strong>تاریخ پرداخت:</strong> <span dir="ltr">${payment.date}</span></div>
+                    <div><strong>ساعت تراکنش:</strong> <span dir="ltr">${payment.time}</span></div>
+                    <div><strong>شماره پیگیری:</strong> <code style="font-size:1.1rem; color:var(--primary);">${payment.tracking}</code></div>
+                </div>
+
+                <div class="modal-actions" style="justify-content:center; margin-top:20px;">
+                    <button class="btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="cancelTrainerPayment('${classId}', ${periodIndex})">
+                        <i class="fas fa-trash"></i> لغو و حذف این پرداختی
+                    </button>
+                </div>
+            </div>
+        </div>`;
+        document.getElementById('modal-container').innerHTML = html;
+    };
+
+    window.cancelTrainerPayment = async (classId, periodIndex) => {
+        if(!requestAdminPassword()) { showToast('⛔ رمز عبور مدیریت اشتباه است.', 'error'); return; }
+        if(!confirm('آیا از ابطال و حذف این رسید پرداختی حقوق مطمئن هستید؟')) return;
+
+        const cls = appData.classes.find(c => c.id === classId);
+        cls.trainerPayments = cls.trainerPayments.filter(p => p.periodIndex !== periodIndex);
+
+        showGlobalLoader();
+        try {
+            await apiCall('saveClass', { payload: cls });
+            viewClassDetail(classId);
+            showToast('🗑️ رسید پرداخت حقوق با موفقیت لغو شد');
+        } catch(e) {} finally { hideGlobalLoader(); }
+    };
+
+    if(localStorage.getItem('isLoggedIn') === 'true') {
+        initDashboard();
+    }
+</script>
+</body>
+</html>      
