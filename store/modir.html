@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>پنل مدیریت | ارگانیک تعالی</title>
+    <style>
+        body { font-family: Tahoma, sans-serif; background: #f4f4f9; padding: 20px; }
+        .box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 10px; border: 1px solid #ddd; text-align: right; }
+        th { background: #16a34a; color: white; }
+        button { padding: 8px 15px; background: #16a34a; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        input { padding: 8px; border: 1px solid #ccc; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+    <div class="box" id="login-box">
+        <h2>ورود به پنل مدیریت</h2>
+        <input type="password" id="admin_pwd" placeholder="رمز عبور را وارد کنید">
+        <button onclick="login()">ورود</button>
+    </div>
+
+    <div id="dashboard" style="display:none;">
+        <div class="box">
+            <h2>مدیریت سفارشات</h2>
+            <button onclick="fetchData()">بروزرسانی داده‌ها</button>
+            <table>
+                <thead>
+                    <tr>
+                        <th>شماره سفارش</th>
+                        <th>مشتری</th>
+                        <th>شماره تماس</th>
+                        <th>وضعیت مالی</th>
+                        <th>وضعیت ارسال</th>
+                        <th>کد رهگیری</th>
+                    </tr>
+                </thead>
+                <tbody id="orders-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const GAS_URL = "آدرس_وب_اپلیکیشن_گوگل_شما_را_اینجا_بگذارید"; 
+        let adminToken = "";
+
+        function login() {
+            adminToken = document.getElementById('admin_pwd').value;
+            fetchData();
+        }
+
+        async function fetchData() {
+            document.getElementById('login-box').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            document.getElementById('orders-tbody').innerHTML = '<tr><td colspan="6">در حال بارگذاری...</td></tr>';
+            
+            try {
+                let res = await fetch(GAS_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'getAdminData', adminToken: adminToken })
+                });
+                let data = await res.json();
+                
+                if(data.status === 'success') {
+                    renderOrders(data.orders);
+                } else {
+                    alert('خطا: ' + data.message);
+                    document.getElementById('login-box').style.display = 'block';
+                    document.getElementById('dashboard').style.display = 'none';
+                }
+            } catch(e) {
+                alert('خطا در ارتباط با سرور!');
+            }
+        }
+
+        function renderOrders(orders) {
+            const tbody = document.getElementById('orders-tbody');
+            tbody.innerHTML = '';
+            orders.forEach(o => {
+                tbody.innerHTML += `
+                <tr>
+                    <td>${o.orderId}<br><small style="color:gray">${o.date || ''}</small></td>
+                    <td>${o.customerName}</td>
+                    <td>${o.phone}</td>
+                    <td style="color:${o.paymentStatus === 'Success' ? 'green' : 'red'}; font-weight:bold;">${o.paymentStatus}</td>
+                    <td>${o.orderStatus}</td>
+                    <td>${o.trackingCode || '-'}</td>
+                </tr>`;
+            });
+            // راهنمایی: برای ویرایش و اضافه کردن کد رهگیری باید یک تابع جداگانه بنویسید که آپدیت را به سرور پست کند. (طراحی پایه آماده است).
+        }
+    </script>
+</body>
+</html>
