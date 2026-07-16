@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>محصولات ارگانیک تعالی</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap');
+        :root { --primary: #16a34a; --primary-dark: #15803d; --bg-main: #f8fafc; --card-bg: #ffffff; --text-main: #334155; --text-light: #64748b; --danger: #ef4444; --shadow: 0 4px 20px rgba(0,0,0,0.06); }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Vazirmatn', sans-serif; }
+        body { background-color: var(--bg-main); color: var(--text-main); }
+        
+        /* استایل‌های پایه مشابه قبل، فشرده شده برای تمرکز روی لاجیک */
+        header { background: var(--card-bg); padding: 15px 20px; box-shadow: var(--shadow); position: sticky; top:0; z-index:100; display:flex; justify-content:space-between; align-items:center; }
+        .logo { font-size: 1.5rem; font-weight: 800; color: var(--primary); }
+        .nav-actions { display: flex; gap: 15px; }
+        .btn-icon { background: none; border: none; font-size: 1.5rem; color: var(--text-main); cursor: pointer; position: relative;}
+        .badge { position: absolute; top: -8px; right: -8px; background: var(--danger); color: white; font-size: 0.75rem; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight:bold;}
+        
+        .search-box { max-width: 600px; margin: 30px auto; display: flex; padding: 0 20px; }
+        .search-box input { flex-grow: 1; padding: 15px; border: 2px solid #e2e8f0; border-radius: 0 10px 10px 0; font-size: 1rem; outline:none;}
+        .search-box button { padding: 15px 25px; background: var(--primary); color: white; border: none; border-radius: 10px 0 0 10px; cursor: pointer; font-size: 1.1rem; }
+        
+        .grid { max-width: 1200px; margin: 0 auto; padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+        .card { background: white; border-radius: 15px; padding: 20px; box-shadow: var(--shadow); text-align: center; position: relative; }
+        .discount { position: absolute; top: 10px; right: 10px; background: var(--danger); color: white; padding: 4px 10px; border-radius: 15px; font-size: 0.8rem; }
+        .card i.prod-img { font-size: 4rem; color: var(--primary); margin: 20px 0; }
+        .card h3 { margin-bottom: 10px; }
+        .price-box { margin: 15px 0; }
+        .price { font-size: 1.2rem; font-weight: bold; color: var(--primary-dark); }
+        .old-price { text-decoration: line-through; color: #94a3b8; font-size: 0.9rem; margin-right: 10px; }
+        .btn-add { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-add:disabled { background: #cbd5e1; cursor: not-allowed; }
+        
+        /* Modals (Cart, Checkout, Track) */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { background: white; width: 90%; max-width: 500px; padding: 30px; border-radius: 15px; max-height: 90vh; overflow-y: auto; }
+        .form-control { width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; font-family: inherit;}
+        
+        /* Loader */
+        #loader { position: fixed; inset:0; background: rgba(255,255,255,0.9); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; color: var(--primary); }
+    </style>
+</head>
+<body>
+
+    <!-- صفحه لودینگ اصلی سراسری -->
+    <div id="loader">
+        <i class="fas fa-circle-notch fa-spin fa-3x" style="margin-bottom: 15px;"></i>
+        <p id="loader-text">در حال برقراری ارتباط با سرور...</p>
+    </div>
+
+    <header>
+        <div class="logo"><i class="fab fa-envira"></i> ارگانیک تعالی</div>
+        <div class="nav-actions">
+            <button class="btn-icon" onclick="openModal('track-modal')" title="پیگیری سفارش"><i class="fas fa-truck-fast"></i></button>
+            <button class="btn-icon" onclick="openModal('cart-modal')">
+                <i class="fas fa-shopping-basket"></i>
+                <span class="badge" id="cart-count">0</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="search-box">
+        <input type="text" id="searchInput" placeholder="جستجو در محصولات (عسل، روغن)...">
+        <button onclick="searchServer()"><i class="fas fa-search"></i></button>
+    </div>
+
+    <div class="grid" id="products-grid"></div>
+
+    <!-- Modal: سبد خرید -->
+    <div class="modal-overlay" id="cart-modal">
+        <div class="modal-content">
+            <div style="display:flex; justify-content:space-between; margin-bottom: 20px;">
+                <h3>سبد خرید</h3>
+                <button onclick="closeModal('cart-modal')" style="background:none;border:none;font-size:1.5rem;color:red;cursor:pointer;"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="cart-items" style="margin-bottom: 20px;"></div>
+            <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:1.2rem; border-top:1px solid #eee; padding-top:15px; margin-bottom:20px;">
+                <span>جمع مبلغ:</span><span id="cart-total">0 تومان</span>
+            </div>
+            <button class="btn-add" onclick="proceedToCheckout()" id="btn-checkout">ادامه جهت ثبت اطلاعات</button>
+        </div>
+    </div>
+
+    <!-- Modal: تسویه حساب -->
+    <div class="modal-overlay" id="checkout-modal">
+        <div class="modal-content">
+            <h3>اطلاعات ارسال</h3>
+            <form id="checkoutForm" onsubmit="submitCheckout(event)">
+                <label>نام و نام خانوادگی:</label>
+                <input type="text" id="c_name" class="form-control" required>
+                
+                <label>شماره تماس (با صفر وارد کنید):</label>
+                <input type="text" id="c_phone" class="form-control" required placeholder="0913...">
+                
+                <label>شیوه ارسال:</label>
+                <select id="c_shipping" class="form-control" required>
+                    <option value="post">پست پیشتاز</option>
+                    <option value="tipax">تیپاکس (پس‌کرایه)</option>
+                    <option value="in_person">تحویل حضوری</option>
+                </select>
+                
+                <label>آدرس دقیق پستی:</label>
+                <textarea id="c_address" class="form-control" rows="3" required></textarea>
+                
+                <button type="submit" class="btn-add"><i class="fas fa-credit-card"></i> پرداخت با زرین‌پال</button>
+                <button type="button" class="btn-add" style="background:#64748b; margin-top:10px;" onclick="closeModal('checkout-modal'); openModal('cart-modal')">بازگشت به سبد</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: پیگیری سفارش -->
+    <div class="modal-overlay" id="track-modal">
+        <div class="modal-content">
+            <h3><i class="fas fa-search-location"></i> پیگیری سفارش</h3>
+            <p style="font-size:0.9rem; color:#666; margin-bottom:15px;">شماره موبایلی که هنگام خرید ثبت کرده‌اید را وارد کنید.</p>
+            <input type="text" id="t_phone" class="form-control" placeholder="0913...">
+            <button class="btn-add" onclick="trackOrder()">جستجو</button>
+            <div id="track-result" style="margin-top:20px;"></div>
+            <button class="btn-add" style="background:#ef4444; margin-top:10px;" onclick="closeModal('track-modal')">بستن</button>
+        </div>
+    </div>
+
+    <script>
+        // ============== تنظیمات مهم ==============
+        const GAS_URL = "آدرس_وب_اپلیکیشن_گوگل_شما_را_اینجا_بگذارید"; 
+        
+        let products = [];
+        let cart = JSON.parse(localStorage.getItem('organic_cart')) || [];
+
+        // 1. بررسی وضعیت بازگشت از بانک در هنگام لود سایت
+        window.onload = async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const authority = urlParams.get('Authority');
+            const status = urlParams.get('Status');
+
+            if (authority && status) {
+                document.getElementById('loader').style.display = 'flex';
+                document.getElementById('loader-text').innerText = 'در حال تایید نهایی پرداخت از بانک...';
+                
+                if (status === 'OK') {
+                    // ارسال درخواست وریفای به سرور
+                    try {
+                        let res = await fetch(GAS_URL, {
+                            method: 'POST', body: JSON.stringify({ action: 'verify', authority: authority })
+                        });
+                        let data = await res.json();
+                        if (data.status === 'success') {
+                            alert('پرداخت شما با موفقیت انجام شد! کد پیگیری زرین‌پال: ' + data.ref_id);
+                            cart = []; // خالی کردن سبد خرید
+                            saveCart();
+                        } else {
+                            alert('خطا در تایید تراکنش: ' + data.message);
+                        }
+                    } catch(e) { alert('خطای ارتباط با سرور!'); }
+                } else {
+                    alert('پرداخت توسط شما لغو شد یا ناموفق بود.');
+                }
+                // پاک کردن پارامترهای آدرس از مرورگر
+                window.history.replaceState({}, document.title, window.location.pathname);
+                document.getElementById('loader').style.display = 'none';
+            }
+
+            // لود اولیه محصولات
+            fetchProducts();
+            updateCartUI();
+        };
+
+        async function fetchProducts() {
+            document.getElementById('loader').style.display = 'flex';
+            document.getElementById('loader-text').innerText = 'در حال دریافت محصولات از انبار...';
+            try {
+                let res = await fetch(GAS_URL + "?action=getProducts");
+                let data = await res.json();
+                products = data.data;
+                renderProducts(products);
+            } catch(e) { alert("خطا در دریافت اطلاعات."); }
+            document.getElementById('loader').style.display = 'none';
+        }
+
+        async function searchServer() {
+            const query = document.getElementById('searchInput').value;
+            if(!query) return fetchProducts();
+            
+            document.getElementById('loader').style.display = 'flex';
+            try {
+                let res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'search', query: query }) });
+                let data = await res.json();
+                renderProducts(data.data);
+            } catch(e) { alert("خطا در جستجو."); }
+            document.getElementById('loader').style.display = 'none';
+        }
+
+        function renderProducts(list) {
+            const grid = document.getElementById('products-grid');
+            grid.innerHTML = '';
+            if(list.length === 0) grid.innerHTML = '<p style="grid-column:1/-1; text-align:center;">محصولی یافت نشد.</p>';
+            
+            list.forEach(p => {
+                const price = Number(p.price);
+                const discount = Number(p.discountPrice);
+                const finalPrice = (discount > 0 && discount < price) ? discount : price;
+                const outOfStock = Number(p.stock) <= 0;
+                
+                // image is used as FontAwesome icon class here
+                grid.innerHTML += `
+                <div class="card">
+                    ${discount > 0 && discount < price ? '<div class="discount">تخفیف</div>' : ''}
+                    <i class="fas ${p.image || 'fa-box'} prod-img"></i>
+                    <h3>${p.name}</h3>
+                    <p style="font-size:0.8rem; color:#64748b;">${p.description}</p>
+                    <div class="price-box">
+                        <span class="price">${finalPrice.toLocaleString('fa-IR')} تومان</span>
+                        ${discount > 0 && discount < price ? `<br><span class="old-price">${price.toLocaleString('fa-IR')}</span>` : ''}
+                    </div>
+                    <button class="btn-add" onclick="addToCart('${p.id}')" ${outOfStock ? 'disabled' : ''}>
+                        ${outOfStock ? 'ناموجود' : 'افزودن به سبد'}
+                    </button>
+                </div>`;
+            });
+        }
+
+        function addToCart(id) {
+            const prod = products.find(p => p.id == id);
+            const price = (prod.discountPrice > 0 && prod.discountPrice < prod.price) ? prod.discountPrice : prod.price;
+            
+            const existing = cart.find(i => i.id == id);
+            if(existing) {
+                if(existing.qty < prod.stock) existing.qty++;
+                else alert('موجودی کافی نیست.');
+            } else {
+                cart.push({ id: prod.id, name: prod.name, price: price, qty: 1, stock: prod.stock });
+            }
+            saveCart();
+            openModal('cart-modal');
+        }
+
+        function changeQty(id, delta) {
+            let item = cart.find(i => i.id == id);
+            if(!item) return;
+            item.qty += delta;
+            if(item.qty <= 0) cart = cart.filter(i => i.id != id);
+            else if(item.qty > item.stock) item.qty = item.stock;
+            saveCart();
+        }
+
+        function saveCart() {
+            localStorage.setItem('organic_cart', JSON.stringify(cart));
+            updateCartUI();
+        }
+
+        function updateCartUI() {
+            document.getElementById('cart-count').innerText = cart.reduce((sum, i) => sum + i.qty, 0);
+            const container = document.getElementById('cart-items');
+            container.innerHTML = '';
+            let total = 0;
+            
+            if(cart.length === 0) {
+                container.innerHTML = '<p>سبد خرید خالی است.</p>';
+                document.getElementById('btn-checkout').disabled = true;
+            } else {
+                document.getElementById('btn-checkout').disabled = false;
+                cart.forEach(i => {
+                    total += (i.price * i.qty);
+                    container.innerHTML += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px dashed #ccc; padding-bottom:10px;">
+                        <div>
+                            <div style="font-weight:bold;">${i.name}</div>
+                            <div style="color:var(--primary);">${i.price.toLocaleString('fa-IR')} تومان</div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <button onclick="changeQty('${i.id}', 1)" style="padding:5px 10px;">+</button>
+                            <span>${i.qty}</span>
+                            <button onclick="changeQty('${i.id}', -1)" style="padding:5px 10px;">-</button>
+                        </div>
+                    </div>`;
+                });
+            }
+            document.getElementById('cart-total').innerText = total.toLocaleString('fa-IR') + ' تومان (بدون هزینه ارسال)';
+        }
+
+        function proceedToCheckout() {
+            closeModal('cart-modal');
+            openModal('checkout-modal');
+        }
+
+        async function submitCheckout(e) {
+            e.preventDefault();
+            const payload = {
+                action: 'checkout',
+                customerName: document.getElementById('c_name').value,
+                phone: document.getElementById('c_phone').value, // ارسال شماره خام با صفر
+                address: document.getElementById('c_address').value,
+                shippingMethod: document.getElementById('c_shipping').value,
+                cart: cart.map(i => ({ id: i.id, qty: i.qty })) // فقط شناسه و تعداد به سرور می‌رود
+            };
+
+            closeModal('checkout-modal');
+            document.getElementById('loader').style.display = 'flex';
+            document.getElementById('loader-text').innerText = 'در حال صدور فاکتور امن و انتقال به بانک...';
+
+            try {
+                let res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
+                let data = await res.json();
+                if(data.status === 'success') {
+                    window.location.href = data.url; // انتقال به زرین‌پال
+                } else {
+                    alert('خطا: ' + data.message);
+                    document.getElementById('loader').style.display = 'none';
+                }
+            } catch(error) {
+                alert('خطای ارتباط با سرور.');
+                document.getElementById('loader').style.display = 'none';
+            }
+        }
+
+        async function trackOrder() {
+            const phone = document.getElementById('t_phone').value;
+            if(phone.length < 10) return alert('شماره موبایل معتبر نیست.');
+            
+            const resDiv = document.getElementById('track-result');
+            resDiv.innerHTML = 'در حال جستجو...';
+            
+            try {
+                let res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'trackOrder', phone: phone }) });
+                let data = await res.json();
+                
+                if(data.status === 'success' && data.data.length > 0) {
+                    resDiv.innerHTML = data.data.map(o => `
+                        <div style="background:#f1f5f9; padding:10px; border-radius:8px; margin-bottom:10px; font-size:0.9rem;">
+                            <strong>سفارش:</strong> ${o.orderId}<br>
+                            <strong>مبلغ پرداختی:</strong> ${Number(o.totalAmount).toLocaleString('fa-IR')} تومان<br>
+                            <strong>وضعیت پرداخت:</strong> ${o.paymentStatus === 'Success' ? '<span style="color:green">موفق</span>' : '<span style="color:red">ناموفق/در انتظار</span>'}<br>
+                            <strong>وضعیت مرسوله:</strong> ${o.orderStatus === 'Shipped' ? 'ارسال شده' : (o.orderStatus === 'Delivered' ? 'تحویل شده' : 'در حال آماده‌سازی')}<br>
+                            ${o.trackingCode ? `<strong>کد رهگیری پستی:</strong> ${o.trackingCode}` : ''}
+                        </div>
+                    `).join('');
+                } else {
+                    resDiv.innerHTML = '<p style="color:red;">سفارشی با این شماره یافت نشد.</p>';
+                }
+            } catch(e) {
+                resDiv.innerHTML = 'خطا در برقراری ارتباط.';
+            }
+        }
+
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    </script>
+</body>
+</html>
