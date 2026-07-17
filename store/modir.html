@@ -82,11 +82,18 @@
         .search-group select { width: 30%; }
         .search-group input { width: 70%; }
 
-        /* Print Area */
+        /* Print Area - ایزوله کردن کامل فضای چاپ برای حل مشکل فاکتور ساز */
         @media print {
-            body * { visibility: hidden; }
-            #print-area, #print-area * { visibility: visible; }
-            #print-area { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; }
+            body > *:not(#print-area) { display: none !important; }
+            #print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; padding: 20px; background: white; z-index: 99999; }
+            #print-area * { display: block; visibility: visible; }
+            #print-area div { display: block; }
+            #print-area ul { display: block; padding-right: 20px; }
+            #print-area li { display: list-item; margin-bottom: 5px; }
+            #print-area span { display: inline-block; }
+            #print-area strong, #print-area b { display: inline; font-weight: bold; }
+            #print-area h2 { display: block; text-align: center; font-size: 1.5rem; }
+            #print-area p { display: block; }
             .no-print { display: none !important; }
         }
     </style>
@@ -114,10 +121,10 @@
     <div class="container" id="main-dashboard" style="display: none;">
         
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h2><i class="fas fa-store"></i> سیستم مدیریت ارگانیک تعالی</h2>
-            <div>
-                <button onclick="logout()" class="btn-danger"><i class="fas fa-sign-out-alt"></i> خروج از سیستم</button>
-                <button onclick="initApp()"><i class="fas fa-sync-alt"></i> بروزرسانی زنده</button>
+            <h2><i class="fas fa-store"></i> طبیعتی</h2>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="logout()" class="btn-danger" title="خروج از سیستم"><i class="fas fa-sign-out-alt"></i></button>
+                <button onclick="initApp()" title="بروزرسانی زنده"><i class="fas fa-sync-alt"></i></button>
             </div>
         </div>
 
@@ -340,10 +347,10 @@
 
     </div>
 
-    <!-- دیو پنهان برای چاپ فاکتور (قابلیت جدید 2) -->
+    <!-- دیو پنهان برای چاپ فاکتور (اصلاح شده و صد در صد کارآمد) -->
     <div id="print-area" style="display: none; background: white; color: black; font-family: Tahoma, sans-serif; direction: rtl;">
         <div style="border: 2px solid black; padding: 20px; border-radius: 10px; max-width: 600px; margin: 0 auto;">
-            <h2 style="text-align: center; border-bottom: 2px solid black; padding-bottom: 10px;">رسید سفارش - محصولات ارگانیک تعالی</h2>
+            <h2 style="text-align: center; border-bottom: 2px solid black; padding-bottom: 10px; margin-bottom: 20px;">رسید سفارش - محصولات ارگانیک تعالی</h2>
             <div id="print-content" style="margin-top: 20px; line-height: 2;"></div>
             <p style="text-align: center; margin-top: 30px; border-top: 1px dashed black; padding-top: 10px; font-size: 12px;">کرمان، جیرفت، کهوروئیه - مدیریت: دادگستر (09136395562)</p>
         </div>
@@ -676,6 +683,25 @@
                     cartHtml = items.map(i => `• ${i.name} <b>(${i.qty} عدد)</b>`).join('<br>');
                 } catch(e) { cartHtml = 'اطلاعات سبد نامشخص'; }
 
+                // سیستم استخراج هوشمند آدرس و توضیحات (قابلیت جدید درخواستی شما)
+                let addressHtml = '';
+                try {
+                    // در اینجا کد تلاش میکند اطلاعات را به عنوان یک ساختار JSON باز کند
+                    // فرمت صحیح سمت فروشگاه باید اینگونه باشد: 
+                    // {"province":"تهران","city":"تهران","address":"میدان آزادی...","postalCode":"1111","note":"لطفا عصر بفرستید"}
+                    let addrObj = JSON.parse(o.address);
+                    addressHtml = `
+                        <div style="margin-bottom:3px;"><b>استان:</b> ${addrObj.province || '-'}</div>
+                        <div style="margin-bottom:3px;"><b>شهر:</b> ${addrObj.city || '-'}</div>
+                        <div style="margin-bottom:3px;"><b>آدرس دقیق:</b> ${addrObj.address || '-'}</div>
+                        <div style="margin-bottom:3px;"><b>کد پستی:</b> ${addrObj.postalCode || '-'}</div>
+                        <div style="margin-top:5px; padding-top:5px; border-top:1px dashed #cbd5e1; color: var(--danger);"><b>توضیحات خریدار:</b> ${addrObj.note || 'ندارد'}</div>
+                    `;
+                } catch(e) {
+                    // اگر اطلاعات JSON نبود و متن ساده بود، سیستم خطا نمیدهد و همان متن قبلی را چاپ میکند
+                    addressHtml = `<b>آدرس / توضیحات:</b> ${o.address}`;
+                }
+
                 tbody.innerHTML += `
                 <tr>
                     <td>
@@ -685,8 +711,10 @@
                     <td>
                         <div style="font-weight:bold; margin-bottom:5px;"><i class="fas fa-user"></i> ${o.customerName}</div>
                         <div style="margin-bottom:5px;"><i class="fas fa-phone fa-flip-horizontal"></i> <a href="tel:${o.phone}" style="text-decoration:none; color:#2563eb; font-weight:bold;">${o.phone}</a></div>
-                        <div style="font-size:0.85rem; background:#f8fafc; padding:8px; border-radius:6px; border:1px solid #e2e8f0; max-width:250px; line-height:1.5;">
-                            <i class="fas fa-map-marker-alt" style="color:var(--danger)"></i> ${o.address}
+                        
+                        <div style="font-size:0.85rem; background:#f8fafc; padding:8px; border-radius:6px; border:1px solid #e2e8f0; max-width:250px; line-height:1.6;">
+                            <i class="fas fa-map-marker-alt" style="color:var(--danger); margin-bottom:5px;"></i> <b>اطلاعات ارسال:</b><br>
+                            ${addressHtml}
                         </div>
                     </td>
                     <td>
@@ -821,10 +849,13 @@
             hideLoader();
         }
 
-        // --- سیستم چاپ رسید و فاکتور ---
+        // --- سیستم چاپ رسید و فاکتور (اصلاح شده و حل باگ چاپ) ---
         function printInvoice(orderId) {
             const order = globalOrders.find(o => o.orderId === orderId);
-            if(!order) return;
+            if(!order) {
+                alert('خطا: اطلاعات سفارش برای چاپ یافت نشد.');
+                return;
+            }
 
             let cartHtml = '';
             try {
@@ -835,28 +866,49 @@
             let matchedShipping = globalShippingMethods.find(s => s.id === order.shippingMethod);
             let shipFa = matchedShipping ? `${matchedShipping.name} (هزینه پایه: ${formatNumber(matchedShipping.cost)} تومان)` : order.shippingMethod;
 
+            // تفکیک آدرس برای نمایش زیبا در فاکتور چاپی
+            let addressPrint = '';
+            let notePrint = '';
+            try {
+                let addrObj = JSON.parse(order.address);
+                addressPrint = `استان: ${addrObj.province || '-'} | شهر: ${addrObj.city || '-'} | آدرس دقیق: ${addrObj.address || '-'} | کد پستی: ${addrObj.postalCode || '-'}`;
+                if(addrObj.note) {
+                    notePrint = `<div style="margin-bottom:15px; color: red;"><strong>توضیحات خریدار:</strong> ${addrObj.note}</div>`;
+                }
+            } catch(e) {
+                addressPrint = order.address;
+            }
+
             const content = `
-                <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px;">
                     <div><strong>شماره سفارش:</strong> ${order.orderId}</div>
                     <div><strong>تاریخ:</strong> ${order.date}</div>
                 </div>
-                <div style="margin-bottom:15px;"><strong>گیرنده:</strong> ${order.customerName}</div>
-                <div style="margin-bottom:15px;"><strong>موبایل گیرنده:</strong> <span style="direction:ltr; display:inline-block;">${order.phone}</span></div>
-                <div style="margin-bottom:15px;"><strong>آدرس گیرنده:</strong> ${order.address}</div>
+                <div style="margin-bottom:10px;"><strong>گیرنده:</strong> ${order.customerName}</div>
+                <div style="margin-bottom:10px;"><strong>موبایل گیرنده:</strong> <span style="direction:ltr; display:inline-block;">${order.phone}</span></div>
+                <div style="margin-bottom:10px;"><strong>آدرس گیرنده:</strong> ${addressPrint}</div>
+                ${notePrint}
                 <div style="margin-bottom:15px;"><strong>شیوه ارسال:</strong> ${shipFa}</div>
                 <div style="margin-bottom:15px; border-top:1px solid #ccc; padding-top:10px;">
                     <strong>اقلام بسته:</strong>
-                    <ul>${cartHtml}</ul>
+                    <ul style="margin-top:10px; line-height:1.8;">${cartHtml}</ul>
                 </div>
-                <div style="text-align:left; font-size:1.2rem; font-weight:bold; margin-top:20px;">
+                <div style="text-align:left; font-size:1.2rem; font-weight:bold; margin-top:20px; background:#f8fafc; padding:10px; border-radius:5px;">
                     مبلغ پرداختی کل: ${formatNumber(order.totalAmount)} تومان
                 </div>
             `;
 
             document.getElementById('print-content').innerHTML = content;
-            document.getElementById('print-area').style.display = 'block';
-            window.print();
-            document.getElementById('print-area').style.display = 'none';
+            
+            // تکنیک ایزوله سازی چاپ برای حل باگ صفحه سفید
+            let printArea = document.getElementById('print-area');
+            printArea.style.display = 'block';
+            
+            // تاخیر کوتاه برای رندر شدن CSS در مرورگر و سپس فراخوانی چاپ
+            setTimeout(() => {
+                window.print();
+                printArea.style.display = 'none';
+            }, 200);
         }
     </script>
 </body>
