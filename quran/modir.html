@@ -28,9 +28,9 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
         
-        /* Loading Overlays */
-        #global-loader { position: fixed; inset: 0; background: rgba(255,255,255,0.9); z-index: 99999; display: none; align-items: center; justify-content: center; flex-direction: column; }
-        html.dark-mode #global-loader { background: rgba(26, 32, 44, 0.9); }
+        /* Loading Overlays - Edited for Content Area Only */
+        #global-loader { position: absolute; inset: 0; background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); z-index: 999; display: none; align-items: center; justify-content: center; flex-direction: column; border-radius: var(--radius-lg); }
+        html.dark-mode #global-loader { background: rgba(26, 32, 44, 0.85); }
         .spinner-large { width: 50px; height: 50px; border: 4px solid var(--border-color); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px;}
         
         /* Login View */
@@ -89,7 +89,8 @@
         .tab-btn.active { background: var(--primary); color: #fff; box-shadow: var(--shadow); }
         .tab-btn:hover:not(.active) { background: var(--primary-light); color: var(--primary); }
 
-        .main-content { max-width: 1400px; margin: 20px auto; padding: 0 30px; animation: fadeIn 0.4s; }
+        /* Edited Main Content for Loader Context */
+        .main-content { max-width: 1400px; margin: 20px auto; padding: 0 30px; animation: fadeIn 0.4s; position: relative; min-height: 60vh; }
         .tab-panel { display: none; animation: fadeIn 0.3s ease; }
         .tab-panel.active { display: block; }
         
@@ -174,12 +175,6 @@
 </head>
 <body>
 
-<!-- Loader Overlay for Full Page Data Loading -->
-<div id="global-loader">
-    <div class="spinner-large"></div>
-    <p style="font-weight: 600; color: var(--primary); font-size: 1.1rem;">در حال ارتباط با سرور، لطفاً شکیبا باشید...</p>
-</div>
-
 <!-- Login View -->
 <div id="login-view">
     <div class="login-container">
@@ -222,8 +217,15 @@
         <button class="tab-btn" data-tab="staff"><i class="fas fa-user-tie"></i> کادر</button>
     </div>
 
+    <!-- Main Content Area where the local Loader resides -->
     <main class="main-content">
         
+        <!-- Loader Overlay specifically for Main Content Area -->
+        <div id="global-loader">
+            <div class="spinner-large"></div>
+            <p style="font-weight: 600; color: var(--primary); font-size: 1.1rem;">در حال ارتباط با سرور، لطفاً شکیبا باشید...</p>
+        </div>
+
         <!-- Classes Tab -->
         <div class="tab-panel active" id="tab-classes">
             <div class="card">
@@ -689,8 +691,10 @@
         };
 
         if(!validateNationalId(payload.nationalId)) { showToast('کد ملی وارد شده نامعتبر است', 'error'); return; }
-        const dup = appData.trainees.find(x => x.nationalId === payload.nationalId && x.id !== id);
-        if(dup) { showToast('این کد ملی قبلا ثبت شده است', 'error'); return; }
+        
+        // برطرف کردن مشکل ثبت تکراری با اطمینان صد درصدی از String بودن و حذف فاصله‌ها
+        const dup = appData.trainees.find(x => String(x.nationalId).trim() === String(payload.nationalId).trim() && x.id !== id);
+        if(dup) { showToast('این کد ملی موجود است', 'error'); return; }
 
         setButtonLoading(btn, true);
         try {
@@ -769,6 +773,10 @@
                         <div class="form-group"><label>تاریخ تولد *</label>${generateDateDropdownsHTML('tr_birth', exist?.birthDate)}</div>
                         <div class="form-group"><label>شماره تماس *</label><input type="text" id="tr_phone" class="form-input" value="${exist?.phone||''}" required></div>
                     </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>شماره کارت جهت واریز (اختیاری)</label><input type="text" id="tr_cardNumber" class="form-input" value="${exist?.cardNumber||''}" maxlength="16" placeholder="مثلا 6037123456789012"></div>
+                        <div class="form-group"></div>
+                    </div>
                     <div class="modal-actions">
                         <button type="button" class="btn-outline btn-sm" onclick="closeModal()">انصراف</button>
                         <button type="submit" class="btn-primary btn-sm">
@@ -796,12 +804,13 @@
             nationalId: document.getElementById('tr_nId').value.trim(),
             fatherName: document.getElementById('tr_father').value.trim(),
             birthDate: bDate,
-            phone: document.getElementById('tr_phone').value.trim()
+            phone: document.getElementById('tr_phone').value.trim(),
+            cardNumber: document.getElementById('tr_cardNumber').value.trim()
         };
 
         if(!validateNationalId(payload.nationalId)) { showToast('کد ملی وارد شده نامعتبر است', 'error'); return; }
-        const dup = appData.trainers.find(x => x.nationalId === payload.nationalId && x.id !== id);
-        if(dup) { showToast('این کد ملی قبلا ثبت شده است', 'error'); return; }
+        const dup = appData.trainers.find(x => String(x.nationalId).trim() === String(payload.nationalId).trim() && x.id !== id);
+        if(dup) { showToast('این کد ملی موجود است', 'error'); return; }
 
         setButtonLoading(btn, true);
         try {
@@ -886,6 +895,7 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group"><label>تاریخ شروع فعالیت *</label>${generateDateDropdownsHTML('st_start', exist?.startDate)}</div>
+                        <div class="form-group"><label>شماره کارت جهت واریز (اختیاری)</label><input type="text" id="st_cardNumber" class="form-input" value="${exist?.cardNumber||''}" maxlength="16" placeholder="مثلا 6037123456789012"></div>
                     </div>
                     <div class="modal-actions">
                         <button type="button" class="btn-outline btn-sm" onclick="closeModal()">انصراف</button>
@@ -914,14 +924,15 @@
             nationalId: document.getElementById('st_nId').value.trim(),
             phone: document.getElementById('st_phone').value.trim(),
             startDate: sDate,
+            cardNumber: document.getElementById('st_cardNumber').value.trim(),
             endDate: id ? (appData.staff.find(s=>s.id===id).endDate || '') : '',
             status: id ? (appData.staff.find(s=>s.id===id).status || 'active') : 'active',
             payments: id ? (appData.staff.find(s=>s.id===id).payments || []) : []
         };
 
         if(!validateNationalId(payload.nationalId)) { showToast('کد ملی وارد شده نامعتبر است', 'error'); return; }
-        const dup = appData.staff.find(x => x.nationalId === payload.nationalId && x.id !== id);
-        if(dup) { showToast('این کد ملی قبلاً برای یکی از اعضای کادر ثبت شده است', 'error'); return; }
+        const dup = appData.staff.find(x => String(x.nationalId).trim() === String(payload.nationalId).trim() && x.id !== id);
+        if(dup) { showToast('این کد ملی موجود است', 'error'); return; }
 
         setButtonLoading(btn, true);
         try {
@@ -1062,6 +1073,12 @@
             <div class="modal-box" style="max-width:450px;">
                 <button class="modal-close-btn" onclick="viewStaffDetail('${staffId}')" title="بازگشت"><i class="fas fa-arrow-right"></i></button>
                 <h3 style="margin-bottom:20px; color:var(--info);"><i class="fas fa-money-check-alt"></i> ثبت حقوق کادر: ${periodLabel}</h3>
+                
+                <div style="background:var(--primary-light); padding:10px; border-radius:8px; font-size:0.9rem; color:var(--text-dark); margin-bottom: 15px; border: 1px solid var(--primary); text-align: center;">
+                    <strong>💳 شماره کارت جهت واریز:</strong><br>
+                    <span style="font-size: 1.2rem; font-weight: bold; letter-spacing: 2px;">${staffMem?.cardNumber || 'ثبت نشده'}</span>
+                </div>
+
                 <p style="background:var(--bg-main); padding:10px; border-radius:8px; font-size:0.85rem; color:var(--text-light);">بابت بازه زمانی: ${periodDisplayDate}</p>
                 
                 <form onsubmit="saveStaffPayment(event, '${staffId}', ${periodIndex})">
@@ -1793,6 +1810,7 @@
     // --- Trainer Payments ---
     window.openTrainerPaymentForm = (classId, periodIndex, periodLabel, periodDisplayDate) => {
         const cls = appData.classes.find(c => c.id === classId);
+        const trainer = appData.trainers.find(t => t.id === cls.trainerId);
         
         if(periodIndex > 0) {
             for(let i=0; i < periodIndex; i++) {
@@ -1818,6 +1836,12 @@
             <div class="modal-box" style="max-width:450px;">
                 <button class="modal-close-btn" onclick="viewClassDetail('${classId}')" title="بازگشت"><i class="fas fa-arrow-right"></i></button>
                 <h3 style="margin-bottom:20px; color:var(--info);"><i class="fas fa-money-check-alt"></i> ثبت حقوق مربی: ${periodLabel}</h3>
+                
+                <div style="background:var(--primary-light); padding:10px; border-radius:8px; font-size:0.9rem; color:var(--text-dark); margin-bottom: 15px; border: 1px solid var(--primary); text-align: center;">
+                    <strong>💳 شماره کارت جهت واریز:</strong><br>
+                    <span style="font-size: 1.2rem; font-weight: bold; letter-spacing: 2px;">${trainer?.cardNumber || 'ثبت نشده'}</span>
+                </div>
+
                 <p style="background:var(--bg-main); padding:10px; border-radius:8px; font-size:0.85rem; color:var(--text-light);">بابت بازه زمانی: ${periodDisplayDate}</p>
                 
                 <form onsubmit="saveTrainerPayment(event, '${classId}', ${periodIndex})">
@@ -1943,4 +1967,4 @@
     }
 </script>
 </body>
-</html>      
+</html>
