@@ -46,7 +46,7 @@
         .stat-content .value { font-size: 1.5rem; font-weight: 800; color: var(--text-main); }
 
         /* Tabs */
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; flex-wrap: wrap;}
         .tab-btn { background: transparent; color: var(--text-light); padding: 10px 20px; border-radius: 8px; font-size: 1rem; }
         .tab-btn.active { background: var(--primary); color: white; }
         .tab-content { display: none; animation: fadeIn 0.3s ease; }
@@ -75,6 +75,13 @@
         .loader-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.9); display: none; align-items: center; justify-content: center; z-index: 9999; flex-direction: column; }
         .loader-overlay i { font-size: 4rem; color: var(--primary); margin-bottom: 15px; }
 
+        /* Pagination & Layout fixes */
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px; padding: 15px;}
+        .pagination span { font-weight: bold; color: var(--primary-dark); }
+        .search-group { display: flex; gap: 10px; }
+        .search-group select { width: 30%; }
+        .search-group input { width: 70%; }
+
         /* Print Area */
         @media print {
             body * { visibility: hidden; }
@@ -84,7 +91,7 @@
         }
     </style>
 </head>
-<body>
+<body onload="checkSession()">
 
     <div class="loader-overlay" id="loader">
         <i class="fas fa-circle-notch fa-spin"></i>
@@ -97,7 +104,8 @@
             <i class="fas fa-user-shield" style="font-size: 4rem; color: var(--primary); margin-bottom: 20px;"></i>
             <h2>ورود به پنل مدیریت کل</h2>
             <p style="color:var(--text-light); margin-bottom:20px;">ارگانیک تعالی</p>
-            <input type="password" id="admin_password" placeholder="رمز عبور سیستم (Mm123456#$@) را وارد کنید">
+            <input type="text" id="admin_username" placeholder="نام کاربری سیستم را وارد کنید" style="text-align: left; direction: ltr;">
+            <input type="password" id="admin_password" placeholder="رمز عبور را وارد کنید" style="text-align: left; direction: ltr;">
             <button onclick="login()" style="width: 100%; justify-content: center;">ورود به سیستم</button>
         </div>
     </div>
@@ -107,7 +115,10 @@
         
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h2><i class="fas fa-store"></i> سیستم مدیریت ارگانیک تعالی</h2>
-            <button onclick="fetchData()"><i class="fas fa-sync-alt"></i> بروزرسانی زنده</button>
+            <div>
+                <button onclick="logout()" class="btn-danger"><i class="fas fa-sign-out-alt"></i> خروج از سیستم</button>
+                <button onclick="initApp()"><i class="fas fa-sync-alt"></i> بروزرسانی زنده</button>
+            </div>
         </div>
 
         <!-- آمارهای کلیدی (قابلیت جدید 1) -->
@@ -140,42 +151,52 @@
             <button class="tab-btn active" onclick="switchTab('tab-orders')"><i class="fas fa-shopping-cart"></i> مدیریت سفارشات و ارسال</button>
             <button class="tab-btn" onclick="switchTab('tab-products')"><i class="fas fa-boxes"></i> مدیریت انبار و محصولات</button>
             <button class="tab-btn" onclick="switchTab('tab-add-product')"><i class="fas fa-plus-circle"></i> افزودن محصول جدید</button>
+            <button class="tab-btn" onclick="switchTab('tab-shipping')"><i class="fas fa-truck"></i> مدیریت روش‌های ارسال</button>
         </div>
 
         <!-- تب: سفارشات -->
         <div id="tab-orders" class="tab-content active">
             <div class="box">
-                <h3><i class="fas fa-filter"></i> فیلتر و جستجوی پیشرفته سفارشات</h3>
+                <h3><i class="fas fa-filter"></i> فیلتر و جستجوی پیشرفته سفارشات سمت سرور</h3>
                 <div class="form-grid">
-                    <div>
-                        <label>جستجو در نام، موبایل یا سفارش:</label>
-                        <input type="text" id="filter_search" placeholder="مثلا: 0913..." onkeyup="renderOrders()">
+                    <div style="grid-column: span 2;">
+                        <label>جستجو در سفارشات:</label>
+                        <div class="search-group">
+                            <select id="filter_search_type">
+                                <option value="name">نام خریدار</option>
+                                <option value="phone">شماره موبایل</option>
+                                <option value="orderId">شماره سفارش</option>
+                            </select>
+                            <input type="text" id="filter_search_value" placeholder="متن جستجو را وارد کنید...">
+                        </div>
                     </div>
                     <div>
                         <label>وضعیت پرداخت:</label>
-                        <select id="filter_payment" onchange="renderOrders()">
+                        <select id="filter_payment">
                             <option value="all">همه وضعیت‌ها</option>
                             <option value="Success">فقط پرداخت‌های موفق</option>
-                            <option value="Pending">در انتظار پرداخت</option>
+                            <option value="Pending">در انتظار پرداخت / ناموفق</option>
                         </select>
                     </div>
                     <div>
                         <label>وضعیت ارسال (کالا):</label>
-                        <select id="filter_status" onchange="renderOrders()">
+                        <select id="filter_status">
                             <option value="all">همه بسته‌ها</option>
+                            <option value="Failed">ناموفق / لغو شده</option>
+                            <option value="Pending">در حال بررسی</option>
                             <option value="Processing">در حال آماده‌سازی (ارسال نشده)</option>
-                            <option value="Shipped">ارسال شده (در راه)</option>
-                            <option value="Delivered">تحویل شده</option>
+                            <option value="Delivered">ارسال و تحویل شده</option>
+                            <option value="Archived">بایگانی</option>
                         </select>
                     </div>
                     <div>
                         <label>شیوه ارسال (طبقه بندی لجستیک):</label>
-                        <select id="filter_shipping" onchange="renderOrders()">
+                        <select id="filter_shipping">
                             <option value="all">همه شیوه‌ها</option>
-                            <option value="post">فقط پستی</option>
-                            <option value="tipax">فقط تیپاکس</option>
-                            <option value="in_person">فقط حضوری</option>
                         </select>
+                    </div>
+                    <div style="display: flex; align-items: flex-end;">
+                        <button onclick="currentOrderPage = 1; fetchOrders()" style="width: 100%; justify-content: center;"><i class="fas fa-search"></i> جستجو و فیلتر</button>
                     </div>
                 </div>
             </div>
@@ -193,18 +214,32 @@
                     </thead>
                     <tbody id="orders-tbody"></tbody>
                 </table>
+                <div class="pagination">
+                    <button class="btn-small" onclick="prevOrderPage()"><i class="fas fa-chevron-right"></i> صفحه قبل</button>
+                    <span id="order-page-indicator">صفحه 1 از 1</span>
+                    <button class="btn-small" onclick="nextOrderPage()">صفحه بعد <i class="fas fa-chevron-left"></i></button>
+                </div>
             </div>
         </div>
 
         <!-- تب: لیست محصولات انبار -->
         <div id="tab-products" class="tab-content">
+            <div class="box form-grid">
+                <div style="grid-column: span 2;">
+                    <label>جستجو سمت سرور در محصولات (بر اساس نام):</label>
+                    <div class="search-group">
+                        <input type="text" id="search_product" placeholder="نام محصول را وارد کنید...">
+                        <button onclick="currentProductPage = 1; fetchProducts()"><i class="fas fa-search"></i> جستجو</button>
+                    </div>
+                </div>
+            </div>
             <div class="table-wrapper box">
                 <table>
                     <thead>
                         <tr>
                             <th>تصویر/کد</th>
                             <th>نام محصول</th>
-                            <th>قیمت فروش / با تخفیف</th>
+                            <th>قیمت فروش / با تخفیف (تومان)</th>
                             <th>موجودی انبار</th>
                             <th>وضعیت نمایش</th>
                             <th>عملیات و ذخیره</th>
@@ -212,10 +247,15 @@
                     </thead>
                     <tbody id="products-tbody"></tbody>
                 </table>
+                <div class="pagination">
+                    <button class="btn-small" onclick="prevProductPage()"><i class="fas fa-chevron-right"></i> صفحه قبل</button>
+                    <span id="product-page-indicator">صفحه 1 از 1</span>
+                    <button class="btn-small" onclick="nextProductPage()">صفحه بعد <i class="fas fa-chevron-left"></i></button>
+                </div>
             </div>
         </div>
 
-        <!-- تب: افزودن محصول جدید (قابلیت جدید) -->
+        <!-- تب: افزودن محصول جدید -->
         <div id="tab-add-product" class="tab-content">
             <div class="box" style="max-width: 800px; margin: 0 auto;">
                 <h3><i class="fas fa-plus-circle"></i> تعریف محصول جدید در فروشگاه</h3>
@@ -227,18 +267,18 @@
                         </div>
                         
                         <div>
-                            <label>قیمت اصلی (تومان):</label>
-                            <input type="number" id="new_price" required placeholder="مثال: 150000" oninput="calculateDiscount()">
+                            <label>قیمت اصلی (تومان - فقط ارقام انگلیسی):</label>
+                            <input type="text" id="new_price" required placeholder="مثال: 150,000" oninput="handlePriceInput(event); calculateDiscount()">
                         </div>
                         
                         <div>
                             <label>درصد تخفیف (0 تا 100):</label>
-                            <input type="number" id="new_discount_percent" value="0" min="0" max="100" oninput="calculateDiscount()">
+                            <input type="text" id="new_discount_percent" value="0" oninput="calculateDiscount()">
                         </div>
 
                         <div>
                             <label>قیمت نهایی پس از تخفیف (خودکار):</label>
-                            <input type="number" id="new_discount_price" readonly style="background:#f1f5f9; color:#0f766e; font-weight:bold;">
+                            <input type="text" id="new_discount_price" readonly style="background:#f1f5f9; color:#0f766e; font-weight:bold; direction: ltr; text-align: right;">
                         </div>
 
                         <div>
@@ -264,6 +304,40 @@
             </div>
         </div>
 
+        <!-- تب: مدیریت روش های ارسال (قابلیت جدید) -->
+        <div id="tab-shipping" class="tab-content">
+            <div class="box" style="max-width: 800px; margin: 0 auto 20px auto;">
+                <h3><i class="fas fa-plus"></i> ایجاد شیوه ارسال جدید</h3>
+                <div class="form-grid">
+                    <div>
+                        <label>نام شیوه ارسال (مثلاً پیک موتوری):</label>
+                        <input type="text" id="ship_new_name" placeholder="مثال: پست پیشتاز">
+                    </div>
+                    <div>
+                        <label>هزینه ارسال (تومان):</label>
+                        <input type="text" id="ship_new_cost" value="0" oninput="handlePriceInput(event)">
+                    </div>
+                    <div style="display: flex; align-items: flex-end;">
+                        <button onclick="addShippingMethod()" style="width: 100%; justify-content: center;"><i class="fas fa-save"></i> ذخیره روش ارسال</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-wrapper box" style="max-width: 800px; margin: 0 auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>شناسه سیستمی</th>
+                            <th>نام روش ارسال</th>
+                            <th>هزینه پایه (تومان)</th>
+                            <th>عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="shipping-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
     </div>
 
     <!-- دیو پنهان برای چاپ فاکتور (قابلیت جدید 2) -->
@@ -277,12 +351,37 @@
 
     <script>
         // ============== تنظیمات مهم ==============
-        // آدرس اسکریپت جدید (مختص ادمین) را دقیقاً در خط زیر قرار دهید:
         const ADMIN_GAS_URL = "https://script.google.com/macros/s/AKfycbzX-P-JiyUYgUWhwljM0N6q8rfqjbRXuLyX5TYgt4BefD8yFU28VGBIdNXIB2n-advy/exec"; 
         
+        let adminUser = "";
         let adminToken = "";
-        let globalOrders = [];
-        let globalProducts = [];
+        
+        // متغیرهای نشست و صفحه‌بندی
+        let currentOrderPage = 1;
+        let totalOrderPages = 1;
+        let currentProductPage = 1;
+        let totalProductPages = 1;
+
+        let globalShippingMethods = [];
+        let globalOrders = []; // برای چاپ رسید نگه میداریم
+
+        // --- توابع کمکی قالب‌بندی قیمت‌ها (ارقام انگلیسی و جداکننده هزارگان) ---
+        function formatNumber(num) {
+            if (num === null || num === undefined || num === '') return '0';
+            return Number(num).toLocaleString('en-US');
+        }
+
+        function unformatNumber(str) {
+            if (!str) return 0;
+            return Number(str.toString().replace(/,/g, ''));
+        }
+
+        function handlePriceInput(e) {
+            let val = e.target.value.replace(/,/g, '');
+            if(!isNaN(val) && val.trim() !== '') {
+                e.target.value = Number(val).toLocaleString('en-US');
+            }
+        }
 
         function showLoader(text = 'در حال ارتباط با سرور امن...') {
             document.getElementById('loader-text').innerText = text;
@@ -297,35 +396,64 @@
             event.currentTarget.classList.add('active');
         }
 
-        function login() {
-            adminToken = document.getElementById('admin_password').value;
-            if(!adminToken) return alert('لطفاً رمز عبور را وارد نمایید.');
-            fetchData();
+        // --- احراز هویت و ذخیره نشست (Session) ---
+        function checkSession() {
+            const savedUser = localStorage.getItem('ot_admin_user');
+            const savedToken = localStorage.getItem('ot_admin_token');
+            if(savedUser && savedToken) {
+                adminUser = savedUser;
+                adminToken = savedToken;
+                initApp();
+            }
         }
 
-        async function fetchData() {
-            showLoader('دریافت اطلاعات دیتابیس...');
+        function login() {
+            adminUser = document.getElementById('admin_username').value;
+            adminToken = document.getElementById('admin_password').value;
+            if(!adminUser || !adminToken) return alert('لطفاً نام کاربری و رمز عبور را وارد نمایید.');
+            initApp();
+        }
+
+        function logout() {
+            localStorage.removeItem('ot_admin_user');
+            localStorage.removeItem('ot_admin_token');
+            window.location.reload();
+        }
+
+        // --- مقداردهی اولیه سیستم ---
+        async function initApp() {
+            showLoader('دریافت اطلاعات داشبورد...');
             try {
                 let res = await fetch(ADMIN_GAS_URL, {
                     method: 'POST',
-                    body: JSON.stringify({ action: 'getDashboardData', adminToken: adminToken })
+                    body: JSON.stringify({ action: 'initData', adminUser: adminUser, adminToken: adminToken })
                 });
                 let data = await res.json();
                 
                 if (data.status === 'success') {
+                    // ذخیره موفق نشست
+                    localStorage.setItem('ot_admin_user', adminUser);
+                    localStorage.setItem('ot_admin_token', adminToken);
+
                     document.getElementById('login-section').style.display = 'none';
                     document.getElementById('main-dashboard').style.display = 'block';
                     
-                    globalOrders = data.orders;
-                    globalProducts = data.products;
-                    
-                    updateDashboardStats();
-                    renderOrders();
-                    renderProducts();
+                    // بروزرسانی آمار کلیدی
+                    document.getElementById('stat-sales').innerHTML = formatNumber(data.stats.totalSales) + ' <span style="font-size:1rem; color:#64748b">تومان</span>';
+                    document.getElementById('stat-pending-orders').innerText = formatNumber(data.stats.pendingCount);
+                    document.getElementById('stat-low-stock').innerText = formatNumber(data.stats.lowStockCount);
+
+                    // بارگذاری شیوه‌های ارسال
+                    globalShippingMethods = data.shippingMethods;
+                    updateShippingDropdowns();
+                    renderShippingTable();
+
+                    // بارگذاری جداول
+                    fetchOrders();
+                    fetchProducts();
                 } else {
                     alert('خطای امنیتی: ' + data.message);
-                    document.getElementById('login-section').style.display = 'block';
-                    document.getElementById('main-dashboard').style.display = 'none';
+                    logout();
                 }
             } catch (e) {
                 alert('خطا در برقراری ارتباط با سرور مرکزی.');
@@ -333,30 +461,10 @@
             hideLoader();
         }
 
-        // --- پردازش آمارهای داشبورد ---
-        function updateDashboardStats() {
-            let totalSales = 0;
-            let pendingOrders = 0;
-            let lowStockCount = 0;
-
-            globalOrders.forEach(o => {
-                if(o.paymentStatus === 'Success') totalSales += Number(o.totalAmount);
-                if(o.paymentStatus === 'Success' && o.orderStatus === 'Processing') pendingOrders++;
-            });
-
-            globalProducts.forEach(p => {
-                if(Number(p.stock) <= 2) lowStockCount++;
-            });
-
-            document.getElementById('stat-sales').innerHTML = totalSales.toLocaleString('fa-IR') + ' <span style="font-size:1rem; color:#64748b">تومان</span>';
-            document.getElementById('stat-pending-orders').innerText = pendingOrders;
-            document.getElementById('stat-low-stock').innerText = lowStockCount;
-        }
-
         // --- پردازش هوشمند درصد تخفیف ---
         function calculateDiscount() {
-            const price = Number(document.getElementById('new_price').value) || 0;
-            let percent = Number(document.getElementById('new_discount_percent').value) || 0;
+            const price = unformatNumber(document.getElementById('new_price').value) || 0;
+            let percent = unformatNumber(document.getElementById('new_discount_percent').value) || 0;
             if (percent < 0) percent = 0;
             if (percent > 100) percent = 100;
             
@@ -365,7 +473,7 @@
             } else {
                 const discountAmount = price * (percent / 100);
                 const finalPrice = price - discountAmount;
-                document.getElementById('new_discount_price').value = Math.floor(finalPrice);
+                document.getElementById('new_discount_price').value = formatNumber(Math.floor(finalPrice));
             }
         }
 
@@ -374,8 +482,8 @@
             e.preventDefault();
             const productData = {
                 name: document.getElementById('new_name').value,
-                price: Number(document.getElementById('new_price').value),
-                discountPrice: Number(document.getElementById('new_discount_price').value),
+                price: unformatNumber(document.getElementById('new_price').value),
+                discountPrice: unformatNumber(document.getElementById('new_discount_price').value),
                 stock: Number(document.getElementById('new_stock').value),
                 image: document.getElementById('new_image').value || 'fa-box',
                 description: document.getElementById('new_desc').value,
@@ -386,13 +494,14 @@
             try {
                 let res = await fetch(ADMIN_GAS_URL, {
                     method: 'POST',
-                    body: JSON.stringify({ action: 'addProduct', adminToken: adminToken, product: productData })
+                    body: JSON.stringify({ action: 'addProduct', adminUser, adminToken, product: productData })
                 });
                 let data = await res.json();
                 if(data.status === 'success') {
                     alert('محصول با موفقیت ذخیره شد.');
                     document.getElementById('addProductForm').reset();
-                    fetchData(); // بارگیری مجدد داده‌ها
+                    document.getElementById('new_discount_price').value = '';
+                    fetchProducts(); 
                     switchTab('tab-products');
                 } else {
                     alert('خطا: ' + data.message);
@@ -401,12 +510,42 @@
             hideLoader();
         }
 
-        // --- رندر لیست انبار (مدیریت محصولات) ---
-        function renderProducts() {
+        // --- توابع جستجو و صفحه‌بندی محصولات (سمت سرور) ---
+        async function fetchProducts() {
+            showLoader('دریافت لیست محصولات از سرور...');
+            const searchValue = document.getElementById('search_product').value.trim();
+            
+            try {
+                let res = await fetch(ADMIN_GAS_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ 
+                        action: 'getProducts', adminUser, adminToken, 
+                        page: currentProductPage, searchValue: searchValue 
+                    })
+                });
+                let data = await res.json();
+                if (data.status === 'success') {
+                    totalProductPages = data.totalPages || 1;
+                    document.getElementById('product-page-indicator').innerText = `صفحه ${currentProductPage} از ${totalProductPages}`;
+                    renderProductsTable(data.products);
+                }
+            } catch(e) { alert('خطا در ارتباط با سرور.'); }
+            hideLoader();
+        }
+
+        function prevProductPage() { if(currentProductPage > 1) { currentProductPage--; fetchProducts(); } }
+        function nextProductPage() { if(currentProductPage < totalProductPages) { currentProductPage++; fetchProducts(); } }
+
+        function renderProductsTable(productsList) {
             const tbody = document.getElementById('products-tbody');
             tbody.innerHTML = '';
             
-            globalProducts.forEach(p => {
+            if(!productsList || productsList.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">محصولی یافت نشد.</td></tr>';
+                return;
+            }
+
+            productsList.forEach(p => {
                 let isImage = p.image.startsWith('http');
                 let imgTag = isImage ? `<img src="${p.image}" width="40" height="40" style="border-radius:5px;">` : `<i class="fas ${p.image} fa-2x" style="color:var(--primary)"></i>`;
                 
@@ -419,44 +558,46 @@
                     </td>
                     <td>
                         <label style="font-size:0.7rem;">قیمت اصلی:</label>
-                        <input type="number" id="p_price_${p.id}" value="${p.price}" style="margin-bottom:5px;">
-                        <label style="font-size:0.7rem;">قیمت با تخفیف (0=بدون تخفیف):</label>
-                        <input type="number" id="p_discount_${p.id}" value="${p.discountPrice || 0}">
+                        <input type="text" id="p_price_${p.id}" value="${formatNumber(p.price)}" oninput="handlePriceInput(event)" style="margin-bottom:5px; direction:ltr;">
+                        <label style="font-size:0.7rem;">قیمت نهایی با تخفیف (0=بدون تخفیف):</label>
+                        <input type="text" id="p_discount_${p.id}" value="${formatNumber(p.discountPrice || 0)}" oninput="handlePriceInput(event)" style="direction:ltr;">
                     </td>
                     <td>
-                        <input type="number" id="p_stock_${p.id}" value="${p.stock}" style="text-align:center; font-weight:bold; width:80px;">
+                        <label style="font-size:0.7rem;">موجودی:</label>
+                        <input type="number" id="p_stock_${p.id}" value="${p.stock}" style="text-align:center; font-weight:bold; width:80px; margin-bottom:5px;">
                     </td>
                     <td>
+                        <label style="font-size:0.7rem;">آدرس تصویر یا آیکون:</label>
+                        <input type="text" id="p_image_${p.id}" value="${p.image}" style="font-size:0.8rem; margin-bottom:5px; direction:ltr;">
                         <select id="p_status_${p.id}">
                             <option value="active" ${p.status==='active'?'selected':''}>فعال در سایت</option>
                             <option value="inactive" ${p.status==='inactive'?'selected':''}>غیرفعال (مخفی)</option>
                         </select>
                     </td>
                     <td>
-                        <button class="btn-small" onclick="saveProductEdit('${p.id}', '${p.image}')"><i class="fas fa-save"></i> ثبت تغییرات</button>
+                        <button class="btn-small" onclick="saveProductEdit('${p.id}')"><i class="fas fa-save"></i> ثبت تغییرات</button>
                         <button class="btn-small btn-danger" style="margin-top:5px;" onclick="archiveProduct('${p.id}')" title="حذف کالا"><i class="fas fa-trash"></i></button>
                     </td>
                 </tr>`;
             });
         }
 
-        // --- ذخیره ویرایش‌های یک محصول ---
-        async function saveProductEdit(id, image) {
+        async function saveProductEdit(id) {
             const updatedProduct = {
                 id: id,
                 name: document.getElementById(`p_name_${id}`).value,
-                price: Number(document.getElementById(`p_price_${id}`).value),
-                discountPrice: Number(document.getElementById(`p_discount_${id}`).value),
+                price: unformatNumber(document.getElementById(`p_price_${id}`).value),
+                discountPrice: unformatNumber(document.getElementById(`p_discount_${id}`).value),
                 stock: Number(document.getElementById(`p_stock_${id}`).value),
                 description: document.getElementById(`p_desc_${id}`).value,
                 status: document.getElementById(`p_status_${id}`).value,
-                image: image // حفظ عکس قبلی
+                image: document.getElementById(`p_image_${id}`).value 
             };
 
             showLoader('ذخیره تغییرات انبار...');
             try {
                 let res = await fetch(ADMIN_GAS_URL, {
-                    method: 'POST', body: JSON.stringify({ action: 'updateProduct', adminToken: adminToken, product: updatedProduct })
+                    method: 'POST', body: JSON.stringify({ action: 'updateProduct', adminUser, adminToken, product: updatedProduct })
                 });
                 let data = await res.json();
                 if(data.status === 'success') alert('تغییرات کالا در دیتابیس ثبت شد.');
@@ -465,53 +606,68 @@
             hideLoader();
         }
 
-        // --- حذف نرم محصول (قابلیت جدید) ---
         async function archiveProduct(id) {
             if(!confirm('آیا مطمئن هستید که می‌خواهید این محصول را برای همیشه از سیستم حذف کنید؟')) return;
-            
             showLoader('در حال حذف محصول...');
             try {
                 let res = await fetch(ADMIN_GAS_URL, {
-                    method: 'POST', body: JSON.stringify({ action: 'deleteProduct', adminToken: adminToken, productId: id })
+                    method: 'POST', body: JSON.stringify({ action: 'deleteProduct', adminUser, adminToken, productId: id })
                 });
                 let data = await res.json();
                 if(data.status === 'success') {
                     alert('محصول با موفقیت حذف شد.');
-                    fetchData(); // ریلود
+                    fetchProducts(); 
                 } else alert('خطا: ' + data.message);
             } catch(e) { alert('خطا در ارتباط.'); }
             hideLoader();
         }
 
-        // --- فیلتر و رندر هوشمند لیست سفارشات ---
-        function renderOrders() {
+        // --- توابع جستجو و صفحه‌بندی سفارشات (سمت سرور) ---
+        async function fetchOrders() {
+            showLoader('دریافت فیلتر شده سفارشات...');
+            
+            const payload = {
+                action: 'getOrders', adminUser, adminToken,
+                page: currentOrderPage,
+                searchType: document.getElementById('filter_search_type').value,
+                searchValue: document.getElementById('filter_search_value').value.trim(),
+                payFilter: document.getElementById('filter_payment').value,
+                statusFilter: document.getElementById('filter_status').value,
+                shipFilter: document.getElementById('filter_shipping').value
+            };
+
+            try {
+                let res = await fetch(ADMIN_GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
+                let data = await res.json();
+                if (data.status === 'success') {
+                    totalOrderPages = data.totalPages || 1;
+                    document.getElementById('order-page-indicator').innerText = `صفحه ${currentOrderPage} از ${totalOrderPages}`;
+                    globalOrders = data.orders; // آپدیت رفرنس کلاینت برای پرینت
+                    renderOrdersTable(data.orders);
+                }
+            } catch(e) { alert('خطا در ارتباط با سرور.'); }
+            hideLoader();
+        }
+
+        function prevOrderPage() { if(currentOrderPage > 1) { currentOrderPage--; fetchOrders(); } }
+        function nextOrderPage() { if(currentOrderPage < totalOrderPages) { currentOrderPage++; fetchOrders(); } }
+
+        function renderOrdersTable(ordersList) {
             const tbody = document.getElementById('orders-tbody');
             tbody.innerHTML = '';
 
-            const search = document.getElementById('filter_search').value.trim().toLowerCase();
-            const payFilter = document.getElementById('filter_payment').value;
-            const statusFilter = document.getElementById('filter_status').value;
-            const shipFilter = document.getElementById('filter_shipping').value;
-
-            let filtered = globalOrders.filter(o => {
-                let matchSearch = o.customerName.toLowerCase().includes(search) || o.phone.includes(search) || o.orderId.toLowerCase().includes(search);
-                let matchPay = payFilter === 'all' || o.paymentStatus === payFilter;
-                let matchStatus = statusFilter === 'all' || o.orderStatus === statusFilter;
-                let matchShip = shipFilter === 'all' || o.shippingMethod === shipFilter;
-                return matchSearch && matchPay && matchStatus && matchShip;
-            });
-
-            if (filtered.length === 0) {
+            if (!ordersList || ordersList.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px;">سفارشی با این مشخصات یافت نشد.</td></tr>';
                 return;
             }
 
-            filtered.forEach(o => {
+            ordersList.forEach(o => {
                 let payBadge = o.paymentStatus === 'Success' ? '<span class="badge bg-green">موفق</span>' : '<span class="badge bg-red">ناموفق / لغو</span>';
                 
-                // ترجمه نحوه ارسال
-                let shipFa = o.shippingMethod === 'post' ? 'پست پیشتاز' : (o.shippingMethod === 'tipax' ? 'تیپاکس' : 'حضوری/سایر');
-                let shipBadgeClass = o.shippingMethod === 'post' ? 'bg-yellow' : (o.shippingMethod === 'tipax' ? 'bg-blue' : 'bg-gray');
+                // پیدا کردن نام و هزینه شیوه ارسال از لیست دینامیک
+                let matchedShipping = globalShippingMethods.find(s => s.id === o.shippingMethod);
+                let shipFa = matchedShipping ? matchedShipping.name : o.shippingMethod;
+                let shipBadgeClass = 'bg-gray'; // استایل پیشفرض
 
                 // اقلام سبد خرید
                 let cartHtml = '';
@@ -538,19 +694,21 @@
                         <div style="border-top:1px dashed #cbd5e1; padding-top:8px;">
                             وضعیت تراکنش: ${payBadge}<br>
                             شیوه دریافت: <span class="badge ${shipBadgeClass}" style="margin-top:5px;">${shipFa}</span><br>
-                            مبلغ فاکتور: <strong style="color:var(--primary-dark); font-size:1.1rem;">${Number(o.totalAmount).toLocaleString('fa-IR')} تومان</strong>
+                            مبلغ فاکتور: <strong style="color:var(--primary-dark); font-size:1.1rem;">${formatNumber(o.totalAmount)} تومان</strong>
                         </div>
                     </td>
                     <td style="background:#f8fafc; border-radius:8px;">
-                        <label>تغییر وضعیت فیزیکی بسته:</label>
+                        <label>تغییر وضعیت فیزیکی و سیستمی:</label>
                         <select id="o_status_${o.orderId}">
+                            <option value="Failed" ${o.orderStatus==='Failed'?'selected':''}>ناموفق / لغو شده</option>
+                            <option value="Pending" ${o.orderStatus==='Pending'?'selected':''}>در حال بررسی</option>
                             <option value="Processing" ${o.orderStatus==='Processing'?'selected':''}>در حال آماده‌سازی (بسته‌بندی)</option>
-                            <option value="Shipped" ${o.orderStatus==='Shipped'?'selected':''}>ارسال شده (تحویل پیک/پست)</option>
-                            <option value="Delivered" ${o.orderStatus==='Delivered'?'selected':''}>تحویل مشتری گردید</option>
+                            <option value="Delivered" ${o.orderStatus==='Delivered'?'selected':''}>ارسال و تحویل مشتری گردید</option>
+                            <option value="Archived" ${o.orderStatus==='Archived'?'selected':''}>بایگانی</option>
                         </select>
                         
                         <label>کد رهگیری پستی (جهت نمایش به مشتری):</label>
-                        <input type="text" id="o_track_${o.orderId}" value="${o.trackingCode || ''}" placeholder="24 رقمی پست یا کد تیپاکس">
+                        <input type="text" id="o_track_${o.orderId}" value="${o.trackingCode || ''}" placeholder="24 رقمی پست یا کد رهگیری">
                         
                         <button class="btn-small" style="width:100%; justify-content:center;" onclick="saveOrderTracking('${o.orderId}')"><i class="fas fa-save"></i> ذخیره وضعیت و رهگیری</button>
                     </td>
@@ -561,7 +719,6 @@
             });
         }
 
-        // --- ذخیره کد رهگیری و وضعیت در دیتابیس ---
         async function saveOrderTracking(orderId) {
             const status = document.getElementById(`o_status_${orderId}`).value;
             const track = document.getElementById(`o_track_${orderId}`).value;
@@ -571,25 +728,100 @@
                 let res = await fetch(ADMIN_GAS_URL, {
                     method: 'POST',
                     body: JSON.stringify({ 
-                        action: 'updateOrder', adminToken: adminToken,
+                        action: 'updateOrder', adminUser, adminToken,
                         order: { orderId: orderId, orderStatus: status, trackingCode: track }
                     })
                 });
                 let data = await res.json();
                 if(data.status === 'success') {
                     alert('وضعیت تغییر کرد و پیام سیستم: ' + data.message);
-                    // آپدیت آرایه لوکال برای رفرش نشدن کل صفحه
-                    let idx = globalOrders.findIndex(x => x.orderId === orderId);
-                    if(idx > -1) {
-                        globalOrders[idx].orderStatus = status;
-                        globalOrders[idx].trackingCode = track;
-                    }
+                    fetchOrders(); // بروزرسانی زنده جدول
                 } else alert('خطا: ' + data.message);
             } catch(e) { alert('خطا در ارتباط.'); }
             hideLoader();
         }
 
-        // --- سیستم چاپ رسید و فاکتور (قابلیت جدید) ---
+        // --- سیستم مدیریت شیوه‌های ارسال (قابلیت کاملا جدید) ---
+        function updateShippingDropdowns() {
+            let select = document.getElementById('filter_shipping');
+            select.innerHTML = '<option value="all">همه شیوه‌ها</option>';
+            globalShippingMethods.forEach(s => {
+                select.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+            });
+        }
+
+        function renderShippingTable() {
+            const tbody = document.getElementById('shipping-tbody');
+            tbody.innerHTML = '';
+            globalShippingMethods.forEach(s => {
+                tbody.innerHTML += `
+                <tr>
+                    <td><small style="color:#64748b">${s.id}</small></td>
+                    <td>
+                        <input type="text" id="ship_name_${s.id}" value="${s.name}">
+                    </td>
+                    <td>
+                        <input type="text" id="ship_cost_${s.id}" value="${formatNumber(s.cost)}" oninput="handlePriceInput(event)">
+                    </td>
+                    <td>
+                        <button class="btn-small" onclick="updateShipping('${s.id}')"><i class="fas fa-save"></i> بروزرسانی</button>
+                        <button class="btn-small btn-danger" onclick="deleteShipping('${s.id}')"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>`;
+            });
+        }
+
+        async function addShippingMethod() {
+            let name = document.getElementById('ship_new_name').value;
+            let cost = unformatNumber(document.getElementById('ship_new_cost').value);
+            if(!name) return alert('وارد کردن نام شیوه ارسال الزامی است.');
+
+            showLoader('افزودن شیوه ارسال...');
+            try {
+                let res = await fetch(ADMIN_GAS_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'addShipping', adminUser, adminToken, name, cost })
+                });
+                let data = await res.json();
+                if(data.status === 'success') {
+                    document.getElementById('ship_new_name').value = '';
+                    document.getElementById('ship_new_cost').value = '0';
+                    initApp(); // رفرش کل دیتا برای آپدیت منوها
+                }
+            } catch(e) { alert('خطا در سرور'); }
+            hideLoader();
+        }
+
+        async function updateShipping(id) {
+            let name = document.getElementById(`ship_name_${id}`).value;
+            let cost = unformatNumber(document.getElementById(`ship_cost_${id}`).value);
+            showLoader('بروزرسانی شیوه...');
+            try {
+                let res = await fetch(ADMIN_GAS_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'updateShipping', adminUser, adminToken, id, name, cost })
+                });
+                let data = await res.json();
+                if(data.status === 'success') initApp();
+            } catch(e) { alert('خطا در سرور'); }
+            hideLoader();
+        }
+
+        async function deleteShipping(id) {
+            if(!confirm('حذف شیوه ارسال؟')) return;
+            showLoader('حذف شیوه...');
+            try {
+                let res = await fetch(ADMIN_GAS_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'deleteShipping', adminUser, adminToken, id })
+                });
+                let data = await res.json();
+                if(data.status === 'success') initApp();
+            } catch(e) { alert('خطا در سرور'); }
+            hideLoader();
+        }
+
+        // --- سیستم چاپ رسید و فاکتور ---
         function printInvoice(orderId) {
             const order = globalOrders.find(o => o.orderId === orderId);
             if(!order) return;
@@ -597,10 +829,11 @@
             let cartHtml = '';
             try {
                 let items = JSON.parse(order.cartData);
-                cartHtml = items.map(i => `<li>${i.name} - تعداد: ${i.qty} - فی: ${Number(i.price).toLocaleString('fa-IR')} تومان</li>`).join('');
+                cartHtml = items.map(i => `<li>${i.name} - تعداد: ${i.qty} - فی: ${formatNumber(i.price)} تومان</li>`).join('');
             } catch(e) {}
 
-            let shipFa = order.shippingMethod === 'post' ? 'پست پیشتاز' : (order.shippingMethod === 'tipax' ? 'تیپاکس (پس کرایه)' : 'تحویل حضوری');
+            let matchedShipping = globalShippingMethods.find(s => s.id === order.shippingMethod);
+            let shipFa = matchedShipping ? `${matchedShipping.name} (هزینه پایه: ${formatNumber(matchedShipping.cost)} تومان)` : order.shippingMethod;
 
             const content = `
                 <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
@@ -608,7 +841,7 @@
                     <div><strong>تاریخ:</strong> ${order.date}</div>
                 </div>
                 <div style="margin-bottom:15px;"><strong>گیرنده:</strong> ${order.customerName}</div>
-                <div style="margin-bottom:15px;"><strong>موبایل گیرنده:</strong> ${order.phone}</div>
+                <div style="margin-bottom:15px;"><strong>موبایل گیرنده:</strong> <span style="direction:ltr; display:inline-block;">${order.phone}</span></div>
                 <div style="margin-bottom:15px;"><strong>آدرس گیرنده:</strong> ${order.address}</div>
                 <div style="margin-bottom:15px;"><strong>شیوه ارسال:</strong> ${shipFa}</div>
                 <div style="margin-bottom:15px; border-top:1px solid #ccc; padding-top:10px;">
@@ -616,7 +849,7 @@
                     <ul>${cartHtml}</ul>
                 </div>
                 <div style="text-align:left; font-size:1.2rem; font-weight:bold; margin-top:20px;">
-                    مبلغ پرداختی: ${Number(order.totalAmount).toLocaleString('fa-IR')} تومان
+                    مبلغ پرداختی کل: ${formatNumber(order.totalAmount)} تومان
                 </div>
             `;
 
