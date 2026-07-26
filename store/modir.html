@@ -83,6 +83,20 @@
         .search-group select { width: 30%; }
         .search-group input { width: 70%; }
 
+        /* استایل‌های مربوط به مودال امضا */
+        .sig-modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; 
+            align-items: center; justify-content: center; z-index: 99999; backdrop-filter: blur(4px);
+        }
+        .sig-modal-box {
+            background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 500px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); text-align: center;
+        }
+        #sig-canvas {
+            border: 2px dashed #cbd5e1; border-radius: 8px; background: #f8fafc;
+            cursor: crosshair; touch-action: none; margin: 15px 0; width: 100%; max-width: 400px; height: 200px;
+        }
+
         /* Print Area */
         @media print {
             body > *:not(#print-area) { display: none !important; }
@@ -364,6 +378,22 @@
             </div>
         </div>
 
+    </div>
+
+    <!-- مودال اخذ امضا پیش از چاپ فاکتور -->
+    <div class="sig-modal-overlay" id="signature-modal">
+        <div class="sig-modal-box">
+            <h3 style="color:var(--primary-dark); margin-bottom: 10px;"><i class="fas fa-pen-nib"></i> امضای تاییدیه مدیر</h3>
+            <p style="font-size:0.9rem; color:var(--text-light); margin-bottom:15px;">پیش از چاپ فاکتور، لطفاً در کادر زیر امضا کنید.</p>
+            
+            <canvas id="sig-canvas" width="400" height="200"></canvas>
+            
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
+                <button class="btn-small" style="background:#64748b;" onclick="clearSignature()"><i class="fas fa-eraser"></i> پاک کردن</button>
+                <button class="btn-small btn-danger" onclick="closeSignatureModal()"><i class="fas fa-times"></i> لغو چاپ</button>
+                <button class="btn-small" style="background:var(--success);" onclick="confirmSignature()"><i class="fas fa-print"></i> تایید و چاپ فاکتور</button>
+            </div>
+        </div>
     </div>
 
     <!-- دیو پنهان برای چاپ فاکتور -->
@@ -808,7 +838,7 @@
                         <button class="btn-small" style="width:100%; justify-content:center; margin-top:15px;" onclick="saveOrderTracking('${o.orderId}', this)"><i class="fas fa-save"></i> ذخیره اطلاعات</button>
                     </td>
                     <td>
-                        <button class="btn-small btn-warning" onclick="printInvoice('${o.orderId}')" title="چاپ فاکتور و رسید روی جعبه"><i class="fas fa-print"></i></button>
+                        <button class="btn-small btn-warning" onclick="openSignatureModal('${o.orderId}')" title="امضا و چاپ فاکتور"><i class="fas fa-print"></i></button>
                     </td>
                 </tr>`;
             });
@@ -929,8 +959,113 @@
             setBtnLoading(btnElement, false);
         }
 
-        // --- سیستم چاپ رسید و فاکتور (بازنویسی شده بر اساس استانداردهای رسمی ایران) ---
-        function printInvoice(orderId) {
+        // ================= توابع مربوط به بوم نقاشی و امضا (قابلیت کاملاً جدید) =================
+        let canvas, ctx, drawing = false;
+        let currentPrintOrderId = null;
+
+        function initSignaturePad() {
+            canvas = document.getElementById('sig-canvas');
+            if(!canvas) return;
+            ctx = canvas.getContext('2d');
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = '#115e59'; // رنگ امضا (سبز تیره رسمی)
+
+            // رویدادهای موس (کامپیوتر)
+            canvas.addEventListener('mousedown', startPos);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopPos);
+            canvas.addEventListener('mouseout', stopPos);
+
+            // رویدادهای لمسی (موبایل و تبلت)
+            canvas.addEventListener('touchstart', handleTouchStart, {passive: false});
+            canvas.addEventListener('touchmove', handleTouchMove, {passive: false});
+            canvas.addEventListener('touchend', stopPos);
+        }
+
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+
+        function getTouchPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: e.touches[0].clientX - rect.left,
+                y: e.touches[0].clientY - rect.top
+            };
+        }
+
+        function startPos(e) {
+            drawing = true;
+            draw(e);
+        }
+
+        function handleTouchStart(e) {
+            e.preventDefault(); // جلوگیری از اسکرول صفحه موقع امضا
+            drawing = true;
+            const pos = getTouchPos(e);
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            draw(e);
+        }
+
+        function stopPos() {
+            drawing = false;
+            ctx.beginPath();
+        }
+
+        function draw(e) {
+            if (!drawing) return;
+            let pos;
+            if(e.type.includes('touch')) {
+                e.preventDefault();
+                pos = getTouchPos(e);
+            } else {
+                pos = getMousePos(e);
+            }
+            
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+        }
+
+        function clearSignature() {
+            if(ctx && canvas) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        function openSignatureModal(orderId) {
+            currentPrintOrderId = orderId;
+            document.getElementById('signature-modal').style.display = 'flex';
+            if(!ctx) {
+                initSignaturePad();
+            } else {
+                clearSignature(); // پاک کردن امضای قبلی
+            }
+        }
+
+        function closeSignatureModal() {
+            document.getElementById('signature-modal').style.display = 'none';
+            currentPrintOrderId = null;
+        }
+
+        function confirmSignature() {
+            // تبدیل نقاشی به عکس Base64
+            const signatureImage = canvas.toDataURL("image/png");
+            closeSignatureModal();
+            // ارسال دستور نهایی پرینت همراه با عکس امضا
+            executePrintInvoice(currentPrintOrderId, signatureImage);
+        }
+
+        // --- سیستم چاپ رسید و فاکتور (بازنویسی شده بر اساس استانداردهای رسمی ایران + امضا) ---
+        function executePrintInvoice(orderId, signatureDataUrl) {
             const order = globalOrders.find(o => o.orderId === orderId);
             if(!order) {
                 alert('خطا: اطلاعات سفارش برای چاپ یافت نشد.');
@@ -969,7 +1104,7 @@
                 addressPrint = order.address;
             }
 
-            // بازنویسی متغیر content با معماری کاملاً جدید و استایل‌های دقیق برای چاپ رسمی
+            // بازنویسی متغیر content با معماری کاملاً جدید و استایل‌های دقیق برای چاپ رسمی به همراه عکس امضا
             const content = `
                 <!-- قسمت اول: فاکتور رسمی (بالای صفحه) -->
                 <div style="text-align:center; margin-bottom:15px;">
@@ -994,11 +1129,11 @@
                 </div>
 
                 <!-- جدول منظم و خط کشی شده فاکتور -->
-                <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:13px; text-align:center;">
+                <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:13px; text-align:center; direction: rtl;">
                     <thead>
                         <tr style="background-color:#f2f2f2; font-weight:bold;">
                             <th style="border:1px solid #000; padding:8px; width:5%; text-align:center;">ردیف</th>
-                            <th style="border:1px solid #000; padding:8px; text-align:right;">شرح کالا / خدمات</th>
+                            <th style="border:1px solid #000; padding:8px; width:45%; text-align:right;">شرح کالا / خدمات</th>
                             <th style="border:1px solid #000; padding:8px; width:10%; text-align:center;">تعداد</th>
                             <th style="border:1px solid #000; padding:8px; width:20%; text-align:center;">مبلغ واحد (تومان)</th>
                             <th style="border:1px solid #000; padding:8px; width:20%; text-align:center;">مبلغ کل (تومان)</th>
@@ -1016,12 +1151,13 @@
                 </table>
 
                 <!-- امضاء در انتهای فاکتور -->
-                <div style="display:flex; justify-content:space-between; margin-top:30px; padding:0 20px; margin-bottom: 40px;">
+                <div style="display:flex; justify-content:space-between; margin-top:30px; padding:0 20px; margin-bottom: 40px; align-items:flex-end;">
                     <div style="text-align:center;">
                         <strong>امضاء و تایید خریدار</strong>
                     </div>
-                    <div style="text-align:center; width:200px; height:80px; border:1px solid #000; border-radius:8px; padding:10px; position:relative;">
+                    <div style="text-align:center; width:200px; height:auto; min-height:80px; border:1px solid #000; border-radius:8px; padding:10px; position:relative; display:flex; align-items:center; justify-content:center;">
                         <strong style="position:absolute; top:-12px; right:20px; background:#fff; padding:0 5px;">مهر و امضاء فروشگاه</strong>
+                        <img src="${signatureDataUrl}" style="max-width: 100%; max-height: 80px; object-fit: contain;">
                     </div>
                 </div>
 
