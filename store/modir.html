@@ -33,6 +33,8 @@
         .btn-danger { background: var(--danger); }
         .btn-danger:hover:not(:disabled) { background: #dc2626; }
         .btn-warning { background: var(--warning); color: #fff;}
+        .btn-success { background: var(--success); }
+        .btn-success:hover:not(:disabled) { background: #059669; }
         .btn-small { padding: 6px 12px; font-size: 0.85rem; }
         .btn-icon { padding: 8px; border-radius: 6px; }
 
@@ -83,18 +85,19 @@
         .search-group select { width: 30%; }
         .search-group input { width: 70%; }
 
-        /* استایل‌های مربوط به مودال امضا */
-        .sig-modal-overlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; 
-            align-items: center; justify-content: center; z-index: 99999; backdrop-filter: blur(4px);
+        /* Modal امضای مدیر */
+        #signature-modal {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+            z-index: 10000; align-items: center; justify-content: center;
         }
-        .sig-modal-box {
-            background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 500px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2); text-align: center;
+        .signature-box {
+            background: white; padding: 25px; border-radius: 12px;
+            width: 90%; max-width: 500px; text-align: center;
         }
-        #sig-canvas {
-            border: 2px dashed #cbd5e1; border-radius: 8px; background: #f8fafc;
-            cursor: crosshair; touch-action: none; margin: 15px 0; width: 100%; max-width: 400px; height: 200px;
+        #signature-pad {
+            border: 2px dashed #cbd5e1; border-radius: 8px; cursor: crosshair;
+            background: #f8fafc; touch-action: none; margin-top: 15px;
+            width: 100%; max-width: 450px; height: 200px;
         }
 
         /* Print Area */
@@ -118,6 +121,20 @@
     <div class="loader-overlay" id="loader">
         <i class="fas fa-circle-notch fa-spin"></i>
         <h3 id="loader-text">در حال ارتباط با سرور امن...</h3>
+    </div>
+
+    <!-- مودال امضای فاکتور -->
+    <div id="signature-modal">
+        <div class="signature-box">
+            <h3 style="color: var(--primary-dark);"><i class="fas fa-pen-nib"></i> امضای الکترونیک فاکتور</h3>
+            <p style="color: var(--text-light); font-size: 0.9rem;">لطفاً پیش از چاپ، در کادر زیر امضا کنید. این امضا به عنوان مهر و تایید فروشگاه در فاکتور ثبت می‌شود.</p>
+            <canvas id="signature-pad" width="450" height="200"></canvas>
+            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button onclick="proceedToPrint()" class="btn-success"><i class="fas fa-print"></i> ثبت امضا و چاپ</button>
+                <button onclick="clearSignature()" class="btn-warning" style="color:white;"><i class="fas fa-eraser"></i> پاک کردن کادر</button>
+                <button onclick="closeSignatureModal()" class="btn-danger"><i class="fas fa-times"></i> انصراف</button>
+            </div>
+        </div>
     </div>
 
     <!-- بخش ورود -->
@@ -380,22 +397,6 @@
 
     </div>
 
-    <!-- مودال اخذ امضا پیش از چاپ فاکتور -->
-    <div class="sig-modal-overlay" id="signature-modal">
-        <div class="sig-modal-box">
-            <h3 style="color:var(--primary-dark); margin-bottom: 10px;"><i class="fas fa-pen-nib"></i> امضای تاییدیه مدیر</h3>
-            <p style="font-size:0.9rem; color:var(--text-light); margin-bottom:15px;">پیش از چاپ فاکتور، لطفاً در کادر زیر امضا کنید.</p>
-            
-            <canvas id="sig-canvas" width="400" height="200"></canvas>
-            
-            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
-                <button class="btn-small" style="background:#64748b;" onclick="clearSignature()"><i class="fas fa-eraser"></i> پاک کردن</button>
-                <button class="btn-small btn-danger" onclick="closeSignatureModal()"><i class="fas fa-times"></i> لغو چاپ</button>
-                <button class="btn-small" style="background:var(--success);" onclick="confirmSignature()"><i class="fas fa-print"></i> تایید و چاپ فاکتور</button>
-            </div>
-        </div>
-    </div>
-
     <!-- دیو پنهان برای چاپ فاکتور -->
     <div id="print-area" style="display: none; background: white; color: black; font-family: Tahoma, sans-serif; direction: rtl;">
         <div style="padding: 20px; max-width: 800px; margin: 0 auto;">
@@ -418,6 +419,12 @@
 
         let globalShippingMethods = [];
         let globalOrders = []; // برای چاپ رسید نگه میداریم
+
+        // متغیرهای مربوط به امضای مدیر
+        let currentPrintOrderId = null;
+        let isDrawing = false;
+        let sigCanvas = null;
+        let sigCtx = null;
 
         // --- سیستم جدید لودینگ دکمه‌ای ---
         function setBtnLoading(btn, isLoading, text) {
@@ -463,8 +470,77 @@
             event.currentTarget.classList.add('active');
         }
 
+        // --- مقداردهی امضای دیجیتال ---
+        function initSignaturePad() {
+            sigCanvas = document.getElementById('signature-pad');
+            if(!sigCanvas) return;
+            sigCtx = sigCanvas.getContext('2d');
+            sigCtx.lineWidth = 3;
+            sigCtx.lineCap = 'round';
+            sigCtx.lineJoin = 'round';
+            sigCtx.strokeStyle = '#0f766e'; // رنگ خودکار امضا
+
+            // رویدادهای ماوس
+            sigCanvas.addEventListener('mousedown', startDrawing);
+            sigCanvas.addEventListener('mousemove', draw);
+            sigCanvas.addEventListener('mouseup', stopDrawing);
+            sigCanvas.addEventListener('mouseout', stopDrawing);
+
+            // رویدادهای تاچ (موبایل)
+            sigCanvas.addEventListener('touchstart', handleTouchStart, {passive: false});
+            sigCanvas.addEventListener('touchmove', handleTouchMove, {passive: false});
+            sigCanvas.addEventListener('touchend', stopDrawing);
+        }
+
+        function getMousePos(e) {
+            const rect = sigCanvas.getBoundingClientRect();
+            // محاسبه مقیاس برای جلوگیری از خطای کشیدگی بوم در صفحات کوچک
+            const scaleX = sigCanvas.width / rect.width;
+            const scaleY = sigCanvas.height / rect.height;
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY
+            };
+        }
+        function getTouchPos(e) {
+            const rect = sigCanvas.getBoundingClientRect();
+            const scaleX = sigCanvas.width / rect.width;
+            const scaleY = sigCanvas.height / rect.height;
+            return {
+                x: (e.touches[0].clientX - rect.left) * scaleX,
+                y: (e.touches[0].clientY - rect.top) * scaleY
+            };
+        }
+
+        function startDrawing(e) {
+            isDrawing = true;
+            sigCtx.beginPath();
+            const pos = getMousePos(e);
+            sigCtx.moveTo(pos.x, pos.y);
+        }
+        function draw(e) {
+            if (!isDrawing) return;
+            e.preventDefault();
+            const pos = getMousePos(e);
+            sigCtx.lineTo(pos.x, pos.y);
+            sigCtx.stroke();
+        }
+        function stopDrawing() {
+            isDrawing = false;
+        }
+        function handleTouchStart(e) {
+            if(e.touches.length === 1) { e.preventDefault(); isDrawing = true; sigCtx.beginPath(); const pos = getTouchPos(e); sigCtx.moveTo(pos.x, pos.y); }
+        }
+        function handleTouchMove(e) {
+            if(e.touches.length === 1) { e.preventDefault(); if(!isDrawing) return; const pos = getTouchPos(e); sigCtx.lineTo(pos.x, pos.y); sigCtx.stroke(); }
+        }
+        function clearSignature() {
+            sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+        }
+
         // --- احراز هویت و ذخیره نشست (Session) ---
         function checkSession() {
+            initSignaturePad(); // مقداردهی اولیه بوم امضا هنگام لود سایت
             const savedUser = localStorage.getItem('ot_admin_user');
             const savedToken = localStorage.getItem('ot_admin_token');
             if(savedUser && savedToken) {
@@ -838,7 +914,7 @@
                         <button class="btn-small" style="width:100%; justify-content:center; margin-top:15px;" onclick="saveOrderTracking('${o.orderId}', this)"><i class="fas fa-save"></i> ذخیره اطلاعات</button>
                     </td>
                     <td>
-                        <button class="btn-small btn-warning" onclick="openSignatureModal('${o.orderId}')" title="امضا و چاپ فاکتور"><i class="fas fa-print"></i></button>
+                        <button class="btn-small btn-warning" onclick="openSignatureForPrint('${o.orderId}')" title="چاپ فاکتور و رسید روی جعبه"><i class="fas fa-print"></i></button>
                     </td>
                 </tr>`;
             });
@@ -959,96 +1035,11 @@
             setBtnLoading(btnElement, false);
         }
 
-        // ================= توابع مربوط به بوم نقاشی و امضا (قابلیت کاملاً جدید) =================
-        let canvas, ctx, drawing = false;
-        let currentPrintOrderId = null;
-
-        function initSignaturePad() {
-            canvas = document.getElementById('sig-canvas');
-            if(!canvas) return;
-            ctx = canvas.getContext('2d');
-            ctx.lineWidth = 3;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.strokeStyle = '#115e59'; // رنگ امضا (سبز تیره رسمی)
-
-            // رویدادهای موس (کامپیوتر)
-            canvas.addEventListener('mousedown', startPos);
-            canvas.addEventListener('mousemove', draw);
-            canvas.addEventListener('mouseup', stopPos);
-            canvas.addEventListener('mouseout', stopPos);
-
-            // رویدادهای لمسی (موبایل و تبلت)
-            canvas.addEventListener('touchstart', handleTouchStart, {passive: false});
-            canvas.addEventListener('touchmove', handleTouchMove, {passive: false});
-            canvas.addEventListener('touchend', stopPos);
-        }
-
-        function getMousePos(e) {
-            const rect = canvas.getBoundingClientRect();
-            return {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top
-            };
-        }
-
-        function getTouchPos(e) {
-            const rect = canvas.getBoundingClientRect();
-            return {
-                x: e.touches[0].clientX - rect.left,
-                y: e.touches[0].clientY - rect.top
-            };
-        }
-
-        function startPos(e) {
-            drawing = true;
-            draw(e);
-        }
-
-        function handleTouchStart(e) {
-            e.preventDefault(); // جلوگیری از اسکرول صفحه موقع امضا
-            drawing = true;
-            const pos = getTouchPos(e);
-            ctx.beginPath();
-            ctx.moveTo(pos.x, pos.y);
-            draw(e);
-        }
-
-        function stopPos() {
-            drawing = false;
-            ctx.beginPath();
-        }
-
-        function draw(e) {
-            if (!drawing) return;
-            let pos;
-            if(e.type.includes('touch')) {
-                e.preventDefault();
-                pos = getTouchPos(e);
-            } else {
-                pos = getMousePos(e);
-            }
-            
-            ctx.lineTo(pos.x, pos.y);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(pos.x, pos.y);
-        }
-
-        function clearSignature() {
-            if(ctx && canvas) {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-            }
-        }
-
-        function openSignatureModal(orderId) {
+        // ================= توابع مربوط به مودال امضا =================
+        function openSignatureForPrint(orderId) {
             currentPrintOrderId = orderId;
+            clearSignature();
             document.getElementById('signature-modal').style.display = 'flex';
-            if(!ctx) {
-                initSignaturePad();
-            } else {
-                clearSignature(); // پاک کردن امضای قبلی
-            }
         }
 
         function closeSignatureModal() {
@@ -1056,33 +1047,34 @@
             currentPrintOrderId = null;
         }
 
-        function confirmSignature() {
-            // تبدیل نقاشی به عکس Base64
-            const signatureImage = canvas.toDataURL("image/png");
+        function proceedToPrint() {
+            // استخراج امضای مدیر از روی بوم نقاشی به شکل عکس بیس 64
+            const signatureImage = sigCanvas.toDataURL("image/png");
             closeSignatureModal();
-            // ارسال دستور نهایی پرینت همراه با عکس امضا
-            executePrintInvoice(currentPrintOrderId, signatureImage);
+            // فراخوانی تابع اصلی چاپ و ارسال تصویر امضا به آن
+            generateAndPrintInvoice(currentPrintOrderId, signatureImage);
         }
 
-        // --- سیستم چاپ رسید و فاکتور (بازنویسی شده بر اساس استانداردهای رسمی ایران + امضا) ---
-        function executePrintInvoice(orderId, signatureDataUrl) {
+        // --- سیستم بازطراحی شده و کاملا رسمی چاپ فاکتور ---
+        function generateAndPrintInvoice(orderId, signatureImageBase64) {
             const order = globalOrders.find(o => o.orderId === orderId);
             if(!order) {
                 alert('خطا: اطلاعات سفارش برای چاپ یافت نشد.');
                 return;
             }
 
+            // ساختن ردیف‌های جدول فاکتور (رسمی و دقیق)
             let cartHtml = '';
             try {
                 let items = JSON.parse(order.cartData);
                 items.forEach((i, index) => {
                     cartHtml += `
-                    <tr style="border-bottom: 1px solid #ccc;">
-                        <td style="border:1px solid #000; padding:8px; text-align:center;">${index + 1}</td>
-                        <td style="border:1px solid #000; padding:8px; text-align:right;">${i.name}</td>
-                        <td style="border:1px solid #000; padding:8px; text-align:center;">${i.qty}</td>
-                        <td style="border:1px solid #000; padding:8px; text-align:center;">${formatNumber(i.price)} تومان</td>
-                        <td style="border:1px solid #000; padding:8px; text-align:center;">${formatNumber(i.price * i.qty)} تومان</td>
+                    <tr>
+                        <td style="border: 1px solid black; padding: 8px; text-align: center;">${index + 1}</td>
+                        <td style="border: 1px solid black; padding: 8px; text-align: right;">${i.name}</td>
+                        <td style="border: 1px solid black; padding: 8px; text-align: center;">${i.qty}</td>
+                        <td style="border: 1px solid black; padding: 8px; text-align: center;">${formatNumber(i.price)} تومان</td>
+                        <td style="border: 1px solid black; padding: 8px; text-align: center;">${formatNumber(i.price * i.qty)} تومان</td>
                     </tr>`;
                 });
             } catch(e) {}
@@ -1104,7 +1096,7 @@
                 addressPrint = order.address;
             }
 
-            // بازنویسی متغیر content با معماری کاملاً جدید و استایل‌های دقیق برای چاپ رسمی به همراه عکس امضا
+            // بازنویسی متغیر content با معماری کاملاً جدید و استایل‌های دقیق برای چاپ رسمی
             const content = `
                 <!-- قسمت اول: فاکتور رسمی (بالای صفحه) -->
                 <div style="text-align:center; margin-bottom:15px;">
@@ -1112,31 +1104,31 @@
                     <p style="font-size:14px; color:#555;">محصولات ارگانیک تعالی (طبیعتی)</p>
                 </div>
                 
-                <div style="display:flex; justify-content:space-between; margin-bottom:15px; font-size:14px;">
-                    <div><strong>شماره فاکتور/سفارش:</strong> ${order.orderId}</div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px; font-size:14px; padding: 0 10px;">
+                    <div><strong>شماره فاکتور:</strong> ${order.orderId}</div>
                     <div><strong>تاریخ فاکتور:</strong> ${order.date}</div>
                 </div>
 
-                <div style="border:1px solid #000; border-radius:8px; padding:10px; margin-bottom:15px; font-size:13px; line-height:1.8; text-align:right;">
-                    <div style="border-bottom:1px solid #ccc; padding-bottom:5px; margin-bottom:5px;">
+                <div style="border: 2px solid black; border-radius: 8px; padding: 10px; margin-bottom: 20px; font-size: 13px; line-height: 1.8; text-align: right;">
+                    <div style="border-bottom: 1px dashed black; padding-bottom: 5px; margin-bottom: 5px;">
                         <strong>فروشنده:</strong> فروشگاه ارگانیک تعالی (طبیعتی) &nbsp;&nbsp;|&nbsp;&nbsp; <strong>تلفن:</strong> 09136395562
                     </div>
                     <div>
                         <strong>خریدار:</strong> ${order.customerName} &nbsp;&nbsp;|&nbsp;&nbsp; <strong>موبایل:</strong> <span style="direction:ltr; display:inline-block;">${order.phone}</span> &nbsp;&nbsp;|&nbsp;&nbsp; <strong>کد پستی:</strong> ${postalCodePrint} <br>
-                        <strong>آدرس:</strong> ${addressPrint}
+                        <strong>آدرس دقیق:</strong> ${addressPrint}
                         ${notePrint}
                     </div>
                 </div>
 
-                <!-- جدول منظم و خط کشی شده فاکتور -->
-                <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:13px; text-align:center; direction: rtl;">
+                <!-- جدول منظم و خط کشی شده فاکتور با استایل رسمی دارایی -->
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px;">
                     <thead>
-                        <tr style="background-color:#f2f2f2; font-weight:bold;">
-                            <th style="border:1px solid #000; padding:8px; width:5%; text-align:center;">ردیف</th>
-                            <th style="border:1px solid #000; padding:8px; width:45%; text-align:right;">شرح کالا / خدمات</th>
-                            <th style="border:1px solid #000; padding:8px; width:10%; text-align:center;">تعداد</th>
-                            <th style="border:1px solid #000; padding:8px; width:20%; text-align:center;">مبلغ واحد (تومان)</th>
-                            <th style="border:1px solid #000; padding:8px; width:20%; text-align:center;">مبلغ کل (تومان)</th>
+                        <tr style="background-color: #e5e7eb; font-weight: bold;">
+                            <th style="border: 1px solid black; padding: 10px; width: 8%; text-align: center;">ردیف</th>
+                            <th style="border: 1px solid black; padding: 10px; text-align: right;">شرح کالا / خدمات</th>
+                            <th style="border: 1px solid black; padding: 10px; width: 10%; text-align: center;">تعداد</th>
+                            <th style="border: 1px solid black; padding: 10px; width: 22%; text-align: center;">مبلغ واحد (تومان)</th>
+                            <th style="border: 1px solid black; padding: 10px; width: 22%; text-align: center;">مبلغ کل (تومان)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1144,26 +1136,27 @@
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="4" style="border:1px solid #000; padding:10px; text-align:left; font-weight:bold; font-size:15px;">مبلغ کل فاکتور (به همراه هزینه ارسال در صورت وجود):</td>
-                            <td style="border:1px solid #000; padding:10px; text-align:center; font-weight:bold; font-size:15px; background:#f9f9f9;">${formatNumber(order.totalAmount)}</td>
+                            <td colspan="4" style="border: 1px solid black; padding: 10px; text-align: left; font-weight: bold; font-size: 15px;">مبلغ کل فاکتور (به همراه هزینه ارسال در صورت وجود):</td>
+                            <td style="border: 1px solid black; padding: 10px; text-align: center; font-weight: bold; font-size: 15px; background: #f8fafc;">${formatNumber(order.totalAmount)}</td>
                         </tr>
                     </tfoot>
                 </table>
 
                 <!-- امضاء در انتهای فاکتور -->
-                <div style="display:flex; justify-content:space-between; margin-top:30px; padding:0 20px; margin-bottom: 40px; align-items:flex-end;">
+                <div style="display:flex; justify-content:space-between; align-items: flex-end; margin-top:30px; padding:0 30px; margin-bottom: 40px;">
                     <div style="text-align:center;">
-                        <strong>امضاء و تایید خریدار</strong>
+                        <strong>مهر و تایید خریدار</strong>
                     </div>
-                    <div style="text-align:center; width:200px; height:auto; min-height:80px; border:1px solid #000; border-radius:8px; padding:10px; position:relative; display:flex; align-items:center; justify-content:center;">
-                        <strong style="position:absolute; top:-12px; right:20px; background:#fff; padding:0 5px;">مهر و امضاء فروشگاه</strong>
-                        <img src="${signatureDataUrl}" style="max-width: 100%; max-height: 80px; object-fit: contain;">
+                    <div style="text-align:center; width:220px; height:120px; border:1px solid #000; border-radius:8px; position:relative; display: flex; align-items: center; justify-content: center;">
+                        <strong style="position:absolute; top:-12px; right:35px; background:#fff; padding:0 5px;">امضای تایید فروشگاه</strong>
+                        <!-- درج عکس امضای اخذ شده از مدیر -->
+                        <img src="${signatureImageBase64}" style="max-width: 95%; max-height: 95%; object-fit: contain;">
                     </div>
                 </div>
 
                 <!-- خط چین برش -->
                 <div style="text-align:center; margin:50px 0; border-top:2px dashed #000; position:relative;">
-                    <span style="position:absolute; top:-15px; right:30px; background:#fff; padding:0 15px; font-size:18px; color:#555;">✂️ محل برش با قیچی</span>
+                    <span style="position:absolute; top:-15px; right:30px; background:#fff; padding:0 15px; font-size:18px; color:#555;">✂️ محل برش با قیچی برای چسباندن روی کارتن</span>
                 </div>
 
                 <!-- قسمت دوم: اطلاعات پستی (پایین صفحه) -->
@@ -1171,7 +1164,7 @@
                     <!-- اطلاعات فرستنده -->
                     <div style="width:48%; border:2px solid #000; padding:15px; border-radius:8px; font-size:14px; line-height:2;">
                         <h3 style="margin-bottom:10px; border-bottom:1px solid #000; padding-bottom:5px; text-align:center; font-weight:800;">فرستنده</h3>
-                        <p><strong>نام:</strong> محصولات طبیعتی ارگانیک</p>
+                        <p><strong>نام فرستنده:</strong> محصولات طبیعتی ارگانیک</p>
                         <p><strong>تلفن:</strong> 09136395562</p>
                         <p><strong>آدرس:</strong> کرمان، جیرفت، کهوروئیه، خ انقلاب</p>
                         <p><strong>کد پستی:</strong> 7865116483</p>
@@ -1180,7 +1173,7 @@
                     <!-- اطلاعات گیرنده -->
                     <div style="width:48%; border:2px solid #000; padding:15px; border-radius:8px; font-size:14px; line-height:2;">
                         <h3 style="margin-bottom:10px; border-bottom:1px solid #000; padding-bottom:5px; text-align:center; font-weight:800;">گیرنده</h3>
-                        <p><strong>نام:</strong> ${order.customerName}</p>
+                        <p><strong>نام گیرنده:</strong> ${order.customerName}</p>
                         <p><strong>موبایل:</strong> <span style="direction:ltr; display:inline-block;">${order.phone}</span></p>
                         <p><strong>آدرس:</strong> ${addressPrint}</p>
                         <p><strong>کد پستی:</strong> ${postalCodePrint}</p>
