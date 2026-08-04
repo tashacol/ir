@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>پنل مدیریت اختصاصی و پیشرفته | ارگانیک تعالی</title>
+    <title>پنل مدیریت اختصاصی و پیشرفته | طبیعتی | محصولات سالم و ارگانیک</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap');
@@ -105,13 +105,14 @@
             width: 100%; max-width: 450px; height: 200px;
         }
 
-        /* Print Area */
+        /* Print Area Fixes - Ensure proper A4 fitting and strict no overflow */
         @media print {
             body > *:not(#print-area) { display: none !important; }
-            #print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; padding: 0; background: white; z-index: 99999; }
+            body, html { margin: 0; padding: 0; background: white; }
+            #print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; padding: 0 !important; margin: 0 !important; background: white; z-index: 99999; }
             #print-area * { visibility: visible; }
             .no-print { display: none !important; }
-            @page { size: A4; margin: 5mm; }
+            @page { size: A4 portrait; margin: 5mm; }
         }
     </style>
 </head>
@@ -141,7 +142,7 @@
         <div class="box">
             <i class="fas fa-user-shield" style="font-size: 4rem; color: var(--primary); margin-bottom: 20px;"></i>
             <h2>ورود به پنل مدیریت کل</h2>
-            <p style="color:var(--text-light); margin-bottom:20px;">ارگانیک تعالی</p>
+            <p style="color:var(--text-light); margin-bottom:20px;">طبیعتی | محصولات سالم و ارگانیک</p>
             <input type="text" id="admin_username" placeholder="نام کاربری سیستم را وارد کنید" style="text-align: left; direction: ltr;">
             <input type="password" id="admin_password" placeholder="رمز عبور را وارد کنید" style="text-align: left; direction: ltr;">
             <button onclick="login(this)" style="width: 100%; justify-content: center;">ورود به سیستم</button>
@@ -935,7 +936,27 @@
         function prevOrderPage() { if(currentOrderPage > 1) { currentOrderPage--; fetchOrders(); } }
         function nextOrderPage() { if(currentOrderPage < totalOrderPages) { currentOrderPage++; fetchOrders(); } }
 
-        // ایجاد آکاردئون‌ها (حالت کشویی) بر اساس دسته‌بندی سفارش
+        // تابع حذف دائمی سفارش
+        async function deleteSpecificOrder(orderId, btnElement) {
+            if(!confirm('آیا از حذف دائمی و فیزیکی این سفارش از دیتابیس اطمینان دارید؟ این عمل غیرقابل بازگشت است.')) return;
+            setBtnLoading(btnElement, true, 'حذف...');
+            try {
+                let res = await fetch(ADMIN_GAS_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    redirect: 'follow',
+                    body: JSON.stringify({ action: 'deleteOrderRow', adminUser, adminToken, orderId: orderId })
+                });
+                let data = JSON.parse(await res.text());
+                if(data.status === 'success') {
+                    alert('سفارش با موفقیت و برای همیشه حذف شد.');
+                    fetchOrders(); // بروزرسانی مجدد جدول پس از حذف
+                } else alert('خطا: ' + data.message);
+            } catch(e) { alert('خطا در ارتباط.'); }
+            setBtnLoading(btnElement, false);
+        }
+
+        // ایجاد آکاردئون‌ها (حالت کشویی) بر اساس دسته‌بندی سفارش و اعمال مرتب‌سازی هوشمند
         function renderOrdersTable(ordersList) {
             const container = document.getElementById('orders-container');
             container.innerHTML = '';
@@ -962,6 +983,18 @@
                     groups['Pending'].orders.push(o); // احتیاط در صورت وضعیت ناشناخته
                 }
             });
+
+            // اعمال سورت فرانت‌اند برای تضمین صددرصدی اجرای دستور شما 
+            // در همه بخش‌ها (قدیمی به جدید) بجز بخش بایگانی (جدید به قدیم)
+            for (const key in groups) {
+                if (key === 'Archived') {
+                    // جدید به قدیم (نزولی)
+                    groups[key].orders.sort((a, b) => b.orderId.localeCompare(a.orderId));
+                } else {
+                    // قدیمی به جدید (صعودی)
+                    groups[key].orders.sort((a, b) => a.orderId.localeCompare(b.orderId));
+                }
+            }
 
             // ساخت کدهای HTML برای هر دسته به صورت کشویی
             for (const key in groups) {
@@ -997,6 +1030,12 @@
                         `;
 
                         let displayTracking = (o.orderStatus === 'Delivered') ? 'block' : 'none';
+
+                        // اضافه کردن دکمه حذف فیزیکی فقط برای سفارشات بایگانی یا ناموفق
+                        let deleteBtnHtml = '';
+                        if (o.orderStatus === 'Archived' || o.orderStatus === 'Failed') {
+                            deleteBtnHtml = `<button class="btn-small btn-danger" style="width:100%; justify-content:center; margin-top:5px;" onclick="deleteSpecificOrder('${o.orderId}', this)" title="حذف کامل این سفارش از دیتابیس"><i class="fas fa-trash"></i> حذف دائمی سفارش</button>`;
+                        }
 
                         tableRows += `
                         <tr>
@@ -1035,7 +1074,8 @@
                                 <button class="btn-small" style="width:100%; justify-content:center; margin-top:15px;" onclick="saveOrderTracking('${o.orderId}', this)"><i class="fas fa-save"></i> ذخیره اطلاعات</button>
                             </td>
                             <td>
-                                <button class="btn-small btn-warning" onclick="openSignatureForPrint('${o.orderId}')" title="چاپ فاکتور و رسید روی جعبه"><i class="fas fa-print"></i></button>
+                                <button class="btn-small btn-warning" style="width:100%; justify-content:center;" onclick="openSignatureForPrint('${o.orderId}')" title="چاپ فاکتور و رسید روی جعبه"><i class="fas fa-print"></i> چاپ فاکتور</button>
+                                ${deleteBtnHtml}
                             </td>
                         </tr>`;
                     });
@@ -1057,7 +1097,7 @@
                                         <th>اطلاعات دقیق خریدار (قابلیت ویرایش)</th>
                                         <th>جزئیات سبد خرید و مالی</th>
                                         <th>عملیات ارسال و کدرهگیری</th>
-                                        <th>چاپ</th>
+                                        <th>چاپ / عملیات</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1264,16 +1304,17 @@
             }
 
             const content = `
-                <div style="width: 210mm; margin: 0 auto; padding: 15px; box-sizing: border-box; font-family: Tahoma, Vazirmatn, sans-serif; color: #333;">
+                <div style="width: 100%; max-width: 190mm; margin: 0 auto; padding: 10mm 5mm; box-sizing: border-box; font-family: Tahoma, Vazirmatn, sans-serif; color: #333;">
                     
                     <!-- 1. هدر فاکتور -->
-                    <table style="width: 100%; border: none; margin-bottom: 10px;">
+                    <table style="width: 100%; border: none; margin-bottom: 10px; box-sizing: border-box;">
                         <tr>
                             <td style="width: 33%; text-align: right; vertical-align: top; font-size: 13px; line-height: 2;">
                                 <div>تاریخ ثبت: <strong>${order.date}</strong></div>
                                 <div>شماره: <strong>${order.orderId}</strong></div>
-                                <div style="margin-top: 10px; font-family: monospace; font-size: 22px; font-weight: bold; letter-spacing: 2px;">
-                                    ||||||||||| | ||||| | ||
+                                <!-- افزوده شدن QR Code به جای بارکد خطی شکسته -->
+                                <div style="margin-top: 10px;">
+                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${order.orderId}&margin=0" alt="QR Code" style="border-radius: 4px;">
                                 </div>
                             </td>
                             
@@ -1282,7 +1323,7 @@
                                     <i class="fas fa-leaf"></i>
                                 </div>
                                 <h1 style="font-size: 18px; margin: 0 0 5px 0; font-weight: 800;">فاکتور فروش</h1>
-                                <div style="font-size: 14px; color: #555;">محصولات ارگانیک تعالی (طبیعتی)</div>
+                                <div style="font-size: 14px; color: #555;">طبیعتی | محصولات سالم و ارگانیک</div>
                             </td>
                             
                             <td style="width: 33%;"></td>
@@ -1291,7 +1332,7 @@
 
                     <div style="height: 4px; background-color: #f97316; margin-bottom: 20px; border-radius: 2px;"></div>
 
-                    <div style="background-color: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 12px 20px; margin-bottom: 25px; font-size: 13px;">
+                    <div style="background-color: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 12px 20px; margin-bottom: 25px; font-size: 13px; box-sizing: border-box;">
                         <table style="width: 100%; border: none;">
                             <tr>
                                 <td style="text-align: right; width: 40%;"><strong>خریدار:</strong> ${order.customerName}</td>
@@ -1304,7 +1345,7 @@
                         </table>
                     </div>
 
-                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 13px;">
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 13px; box-sizing: border-box;">
                         <thead>
                             <tr style="background-color: #f9fafb; border: 1px solid #e5e7eb;">
                                 <th style="border: 1px solid #e5e7eb; padding: 12px 10px; width: 5%; text-align: center;">ردیف</th>
@@ -1321,7 +1362,7 @@
                         </tbody>
                     </table>
 
-                    <table style="width: 100%; border: none; margin-bottom: 40px; font-size: 13px;">
+                    <table style="width: 100%; border: none; margin-bottom: 40px; font-size: 13px; box-sizing: border-box;">
                         <tr>
                             <td style="width: 50%; vertical-align: top; text-align: right; padding-right: 10px;">
                                 <div style="margin-bottom: 15px; color: #666;">مکان قرارگیری امضاء و مهر فروشگاه:</div>
@@ -1357,22 +1398,26 @@
                         <span style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #fff; padding: 0 15px; font-size: 14px; color: #64748b;">✂️ محل برش جهت چسباندن روی جعبه پستی</span>
                     </div>
 
-                    <table style="width: 100%; border-collapse: separate; border-spacing: 15px 0; margin-top: 20px; font-size: 14px;">
+                    <!-- اصلاح جابجایی گیرنده و فرستنده طبق درخواست -->
+                    <table style="width: 100%; border-collapse: separate; border-spacing: 15px 0; margin-top: 20px; font-size: 14px; box-sizing: border-box;">
                         <tr>
-                            <td style="width: 50%; vertical-align: top; border: 2px solid #334155; padding: 15px; border-radius: 8px; line-height: 2;">
+                            <!-- فرستنده (در ساختار RTL اولین ستون سمت راست می‌افتد) -->
+                            <td style="width: 50%; vertical-align: top; border: 2px solid #334155; padding: 15px; border-radius: 8px; line-height: 2; box-sizing: border-box;">
+                                <div style="text-align: center; font-weight: 800; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px; margin-bottom: 10px; font-size: 16px;">فرستنده</div>
+                                <div><strong>نام فرستنده:</strong> طبیعتی | محصولات سالم و ارگانیک</div>
+                                <div><strong>تلفن:</strong> 09136395562</div>
+                                <div><strong>کد پستی:</strong> 7865116483</div>
+                                <div><strong>آدرس:</strong> کرمان، جیرفت، کهوروئیه، خیابان انقلاب</div>
+                                <div><strong>وب‌سایت:</strong> Tabiati.ir</div>
+                            </td>
+                            <!-- گیرنده -->
+                            <td style="width: 50%; vertical-align: top; border: 2px solid #334155; padding: 15px; border-radius: 8px; line-height: 2; box-sizing: border-box;">
                                 <div style="text-align: center; font-weight: 800; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px; margin-bottom: 10px; font-size: 16px;">گیرنده</div>
                                 <div><strong>نام گیرنده:</strong> ${order.customerName}</div>
                                 <div><strong>موبایل:</strong> <span style="direction: ltr; display: inline-block;">${order.phone}</span></div>
                                 <div><strong>کد پستی:</strong> ${postalCodePrint}</div>
                                 <div><strong>آدرس:</strong> ${addressPrint}</div>
                                 <div style="margin-top: 10px; color: #0284c7; font-weight: bold;">شیوه ارسال: ${shipFa}</div>
-                            </td>
-                            <td style="width: 50%; vertical-align: top; border: 2px solid #334155; padding: 15px; border-radius: 8px; line-height: 2;">
-                                <div style="text-align: center; font-weight: 800; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px; margin-bottom: 10px; font-size: 16px;">فرستنده</div>
-                                <div><strong>نام فرستنده:</strong> محصولات ارگانیک تعالی</div>
-                                <div><strong>تلفن:</strong> 09136395562</div>
-                                <div><strong>کد پستی:</strong> 7865116483</div>
-                                <div><strong>آدرس:</strong> کرمان، جیرفت، کهوروئیه، خیابان انقلاب</div>
                             </td>
                         </tr>
                     </table>
