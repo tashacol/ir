@@ -63,6 +63,11 @@
         th { background: #f8fafc; font-weight: 700; color: var(--text-main); white-space: nowrap; }
         tr:hover { background: #f1f5f9; }
         
+        /* Accordion specific overrides */
+        details > summary { transition: background-color 0.2s; }
+        details > summary:hover { filter: brightness(0.95); }
+        details[open] > summary { border-bottom: 1px solid #e2e8f0; margin-bottom: 10px; }
+
         /* Badges */
         .badge { padding: 5px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; display: inline-block; }
         .bg-green { background: #dcfce7; color: #166534; }
@@ -234,24 +239,15 @@
                 </div>
             </div>
 
-            <div class="table-wrapper box">
-                <table id="orders-table">
-                    <thead>
-                        <tr>
-                            <th>تاریخ و سفارش</th>
-                            <th>اطلاعات دقیق خریدار (قابلیت ویرایش)</th>
-                            <th>جزئیات سبد خرید و مالی</th>
-                            <th>عملیات ارسال و کدرهگیری</th>
-                            <th>چاپ</th>
-                        </tr>
-                    </thead>
-                    <tbody id="orders-tbody"></tbody>
-                </table>
-                <div class="pagination">
-                    <button class="btn-small" onclick="prevOrderPage()"><i class="fas fa-chevron-right"></i> صفحه قبل</button>
-                    <span id="order-page-indicator">صفحه 1 از 1</span>
-                    <button class="btn-small" onclick="nextOrderPage()">صفحه بعد <i class="fas fa-chevron-left"></i></button>
-                </div>
+            <!-- تغییر یافته به کانتینر برای سیستم کشویی -->
+            <div id="orders-container" class="box" style="padding: 10px; background: transparent; box-shadow: none;">
+                <!-- سیستم آکاردئون از طریق جاوا اسکریپت در اینجا رندر می‌شود -->
+            </div>
+            
+            <div class="pagination">
+                <button class="btn-small" onclick="prevOrderPage()"><i class="fas fa-chevron-right"></i> صفحه قبل</button>
+                <span id="order-page-indicator">صفحه 1 از 1</span>
+                <button class="btn-small" onclick="nextOrderPage()">صفحه بعد <i class="fas fa-chevron-left"></i></button>
             </div>
         </div>
 
@@ -265,11 +261,25 @@
                         <button onclick="currentProductPage = 1; fetchProducts()"><i class="fas fa-search"></i> جستجو</button>
                     </div>
                 </div>
+                <!-- بخش جدید فیلتر نمایش سه گانه انبار -->
+                <div style="grid-column: span 2;">
+                    <label><i class="fas fa-boxes"></i> وضعیت نمایش انبار:</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <select id="product_view_filter" onchange="currentProductPage = 1; fetchProducts()" style="margin-bottom:0;">
+                            <option value="all">۱. تمام محصولات فعال</option>
+                            <option value="low_stock">۲. محصولاتی که موجودی آن‌ها رو به اتمام است (۲ و کمتر)</option>
+                            <option value="inactive">۳. محصولاتی که غیر فعال هستند</option>
+                        </select>
+                        <button id="btn-enable-sort" onclick="toggleSortMode()" class="btn-warning"><i class="fas fa-sort-numeric-down"></i> ویرایش ترتیب</button>
+                        <button id="btn-save-sort" onclick="saveSortOrder()" class="btn-success" style="display: none;"><i class="fas fa-save"></i> ذخیره ترتیب کلی</button>
+                    </div>
+                </div>
             </div>
             <div class="table-wrapper box">
                 <table>
                     <thead>
                         <tr>
+                            <th class="sort-column" style="display: none; width: 80px;">شماره ترتیب</th>
                             <th>تصویر/کد</th>
                             <th>نام محصول و دسته‌بندی</th>
                             <th>قیمت فروش / با تخفیف (تومان)</th>
@@ -408,6 +418,7 @@
         let totalOrderPages = 1;
         let currentProductPage = 1;
         let totalProductPages = 1;
+        let isSortModeEnabled = false;
 
         let globalShippingMethods = [];
         let globalOrders = []; // برای چاپ رسید نگه میداریم
@@ -561,8 +572,11 @@
             else showLoader('دریافت اطلاعات داشبورد...');
             
             try {
+                // رفع کامل مشکلات اتصال سرور با افزودن هدر صحیح و ریدایرکت فالو
                 let res = await fetch(ADMIN_GAS_URL, {
                     method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    redirect: 'follow',
                     body: JSON.stringify({ action: 'initData', adminUser: adminUser, adminToken: adminToken })
                 });
                 
@@ -571,7 +585,7 @@
                 try {
                     data = JSON.parse(textResponse);
                 } catch(e) {
-                    throw new Error('پاسخ نامعتبر از سرور (لطفا دسترسی گوگل اسکریپت را بررسی کنید)');
+                    throw new Error('پاسخ نامعتبر از سرور (احتمالاً دسترسی گوگل اسکریپت یا مشکل CORS).');
                 }
                 
                 if (data.status === 'success') {
@@ -642,6 +656,8 @@
             try {
                 let res = await fetch(ADMIN_GAS_URL, {
                     method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    redirect: 'follow',
                     body: JSON.stringify({ action: 'addProduct', adminUser, adminToken, product: productData })
                 });
                 
@@ -663,17 +679,20 @@
             setBtnLoading(btn, false);
         }
 
-        // --- توابع جستجو و صفحه‌بندی محصولات (سمت سرور) ---
+        // --- توابع جستجو، فیلتر سه گانه انبار و صفحه‌بندی محصولات ---
         async function fetchProducts() {
             showLoader('دریافت لیست محصولات از سرور...');
             const searchValue = document.getElementById('search_product').value.trim();
+            const filterView = document.getElementById('product_view_filter').value;
             
             try {
                 let res = await fetch(ADMIN_GAS_URL, {
                     method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    redirect: 'follow',
                     body: JSON.stringify({ 
                         action: 'getProducts', adminUser, adminToken, 
-                        page: currentProductPage, searchValue: searchValue 
+                        page: currentProductPage, searchValue: searchValue, filterView: filterView
                     })
                 });
                 let textResponse = await res.text();
@@ -690,22 +709,102 @@
         function prevProductPage() { if(currentProductPage > 1) { currentProductPage--; fetchProducts(); } }
         function nextProductPage() { if(currentProductPage < totalProductPages) { currentProductPage++; fetchProducts(); } }
 
+        // توابع مربوط به ویرایش ترتیب محصولات
+        function toggleSortMode() {
+            isSortModeEnabled = !isSortModeEnabled;
+            const sortCols = document.querySelectorAll('.sort-column');
+            const saveBtn = document.getElementById('btn-save-sort');
+            const enableBtn = document.getElementById('btn-enable-sort');
+            
+            if (isSortModeEnabled) {
+                sortCols.forEach(col => col.style.display = 'table-cell');
+                saveBtn.style.display = 'inline-flex';
+                enableBtn.innerHTML = '<i class="fas fa-times"></i> لغو ویرایش ترتیب';
+                enableBtn.classList.replace('btn-warning', 'btn-danger');
+            } else {
+                sortCols.forEach(col => col.style.display = 'none');
+                saveBtn.style.display = 'none';
+                enableBtn.innerHTML = '<i class="fas fa-sort-numeric-down"></i> ویرایش ترتیب';
+                enableBtn.classList.replace('btn-danger', 'btn-warning');
+                // پاک کردن اعداد تایپ شده
+                document.querySelectorAll('.sort-input').forEach(inp => inp.value = '');
+            }
+        }
+
+        async function saveSortOrder() {
+            let inputs = document.querySelectorAll('.sort-input');
+            let orderList = [];
+            let usedNumbers = new Set();
+            let hasDuplicate = false;
+
+            inputs.forEach(inp => {
+                let val = inp.value.trim();
+                if(val !== '') {
+                    if(usedNumbers.has(val)) hasDuplicate = true;
+                    usedNumbers.add(val);
+                    orderList.push({ id: inp.dataset.id, sortIndex: val });
+                }
+            });
+
+            if (hasDuplicate) {
+                alert('خطا: شما برای چند محصول شماره یکسان (تکراری) وارد کرده‌اید. لطفا از اعداد یکتا استفاده کنید تا از تداخل جلوگیری شود.');
+                return;
+            }
+            if (orderList.length === 0) {
+                alert('هیچ شماره‌ای جهت تغییر ترتیب وارد نشده است. حالت ویرایش بسته شد.');
+                toggleSortMode();
+                return;
+            }
+
+            const btn = document.getElementById('btn-save-sort');
+            setBtnLoading(btn, true, 'در حال پردازش و انتقال در شیت...');
+            
+            try {
+                let res = await fetch(ADMIN_GAS_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    redirect: 'follow',
+                    body: JSON.stringify({ action: 'updateProductsOrder', adminUser, adminToken, orderList })
+                });
+                let textResponse = await res.text();
+                let data = JSON.parse(textResponse);
+                
+                if (data.status === 'success') {
+                    alert('ترتیب تمام محصولات به صورت یکپارچه در دیتابیس بروزرسانی شد.');
+                    toggleSortMode();
+                    fetchProducts();
+                } else alert('خطا: ' + data.message);
+            } catch (e) {
+                alert('خطا در ارتباط با سرور.');
+            }
+            setBtnLoading(btn, false);
+        }
+
         function renderProductsTable(productsList) {
             const tbody = document.getElementById('products-tbody');
             tbody.innerHTML = '';
             
             if(!productsList || productsList.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">محصولی یافت نشد.</td></tr>';
+                // توجه به colspan به خاطر اضافه شدن ستون جدید در حالت ترتیب
+                let colspan = isSortModeEnabled ? "7" : "6";
+                tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center;">محصولی یافت نشد.</td></tr>`;
                 return;
             }
 
             productsList.forEach(p => {
                 let imgStr = p.image || '';
-                let isImage = imgStr.startsWith('http');
-                let imgTag = isImage ? `<img src="${imgStr}" width="40" height="40" style="border-radius:5px;">` : `<i class="fas ${imgStr || 'fa-box'} fa-2x" style="color:var(--primary)"></i>`;
+                // حل مشکل نمایش تصاویر با رجکس قوی‌تر و افزودن onerror برای عکس‌های شکسته
+                let isImage = /^(http|\/|\.)/i.test(imgStr) || imgStr.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+                let imgTag = isImage ? `<img src="${imgStr}" width="40" height="40" style="border-radius:5px; object-fit:cover;" onerror="this.outerHTML='<i class=\\'fas fa-box fa-2x\\' style=\\'color:var(--primary)\\'></i>'">` : `<i class="fas ${imgStr || 'fa-box'} fa-2x" style="color:var(--primary)"></i>`;
                 
+                // مدیریت نمایش ستون مرتب‌سازی
+                let sortColDisplay = isSortModeEnabled ? 'table-cell' : 'none';
+
                 tbody.innerHTML += `
                 <tr>
+                    <td class="sort-column" style="display: ${sortColDisplay}; vertical-align: middle;">
+                        <input type="number" class="sort-input" data-id="${p.id}" min="1" placeholder="مثلاً 1" style="width: 80px; text-align: center; margin: 0 auto; display: block;">
+                    </td>
                     <td>${imgTag}<br><small style="color:#64748b">${p.id}</small></td>
                     <td>
                         <input type="text" id="p_name_${p.id}" value="${p.name}" style="margin-bottom:5px;">
@@ -767,7 +866,10 @@
             setBtnLoading(btnElement, true, 'ثبت...');
             try {
                 let res = await fetch(ADMIN_GAS_URL, {
-                    method: 'POST', body: JSON.stringify({ action: 'updateProduct', adminUser, adminToken, product: updatedProduct })
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    redirect: 'follow',
+                    body: JSON.stringify({ action: 'updateProduct', adminUser, adminToken, product: updatedProduct })
                 });
                 let textResponse = await res.text();
                 let data = JSON.parse(textResponse);
@@ -782,7 +884,10 @@
             setBtnLoading(btnElement, true, 'حذف...');
             try {
                 let res = await fetch(ADMIN_GAS_URL, {
-                    method: 'POST', body: JSON.stringify({ action: 'deleteProduct', adminUser, adminToken, productId: id })
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    redirect: 'follow',
+                    body: JSON.stringify({ action: 'deleteProduct', adminUser, adminToken, productId: id })
                 });
                 let textResponse = await res.text();
                 let data = JSON.parse(textResponse);
@@ -794,7 +899,7 @@
             setBtnLoading(btnElement, false);
         }
 
-        // --- توابع جستجو و صفحه‌بندی سفارشات (سمت سرور) ---
+        // --- توابع جستجو، صفحه‌بندی و ایجاد سیستم کشویی (Accordion) سفارشات ---
         async function fetchOrders() {
             showLoader('دریافت فیلتر شده سفارشات...');
             
@@ -809,7 +914,12 @@
             };
 
             try {
-                let res = await fetch(ADMIN_GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
+                let res = await fetch(ADMIN_GAS_URL, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    redirect: 'follow',
+                    body: JSON.stringify(payload) 
+                });
                 let textResponse = await res.text();
                 let data = JSON.parse(textResponse);
                 if (data.status === 'success') {
@@ -825,91 +935,141 @@
         function prevOrderPage() { if(currentOrderPage > 1) { currentOrderPage--; fetchOrders(); } }
         function nextOrderPage() { if(currentOrderPage < totalOrderPages) { currentOrderPage++; fetchOrders(); } }
 
+        // ایجاد آکاردئون‌ها (حالت کشویی) بر اساس دسته‌بندی سفارش
         function renderOrdersTable(ordersList) {
-            const tbody = document.getElementById('orders-tbody');
-            tbody.innerHTML = '';
+            const container = document.getElementById('orders-container');
+            container.innerHTML = '';
 
             if (!ordersList || ordersList.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px;">سفارشی با این مشخصات یافت نشد.</td></tr>';
+                container.innerHTML = '<div style="text-align:center; padding:30px; background:white; border-radius:12px; border:1px solid #e2e8f0;">سفارشی با این مشخصات یافت نشد.</div>';
                 return;
             }
 
+            // ساختاربندی دسته‌های سفارشات
+            const groups = {
+                'Pending': { title: 'در انتظار بررسی / جدید', icon: 'fa-hourglass-half', color: '#f59e0b', orders: [] },
+                'Processing': { title: 'در حال آماده‌سازی و بسته‌بندی', icon: 'fa-box-open', color: '#3b82f6', orders: [] },
+                'Delivered': { title: 'ارسال و تحویل شده', icon: 'fa-check-circle', color: '#10b981', orders: [] },
+                'Failed': { title: 'ناموفق / لغو شده', icon: 'fa-times-circle', color: '#ef4444', orders: [] },
+                'Archived': { title: 'بایگانی سیستم', icon: 'fa-archive', color: '#64748b', orders: [] }
+            };
+
+            // تخصیص هر سفارش به گروه مربوطه
             ordersList.forEach(o => {
-                let payBadge = o.paymentStatus === 'Success' ? '<span class="badge bg-green">موفق</span>' : '<span class="badge bg-red">ناموفق / لغو</span>';
-                
-                let matchedShipping = globalShippingMethods.find(s => s.id === o.shippingMethod);
-                let shipFa = matchedShipping ? matchedShipping.name : o.shippingMethod;
-                let shipBadgeClass = 'bg-gray';
-
-                let cartHtml = '';
-                try {
-                    let items = JSON.parse(o.cartData);
-                    cartHtml = items.map(i => `• ${i.name} <b>(${i.qty} عدد)</b>`).join('<br>');
-                } catch(e) { cartHtml = 'اطلاعات سبد نامشخص'; }
-
-                // سیستم استخراج هوشمند آدرس با قابلیت ویرایش مستقیم
-                let addrObj = {};
-                try {
-                    addrObj = JSON.parse(o.address) || {};
-                } catch(e) {
-                    addrObj = { address: o.address };
+                if (groups[o.orderStatus]) {
+                    groups[o.orderStatus].orders.push(o);
+                } else {
+                    groups['Pending'].orders.push(o); // احتیاط در صورت وضعیت ناشناخته
                 }
-                
-                let addressHtml = `
-                    <div style="font-size:0.85rem; background:#f8fafc; padding:8px; border-radius:6px; border:1px solid #e2e8f0; max-width:250px;">
-                        <i class="fas fa-edit" style="color:var(--primary); margin-bottom:5px;"></i> <b>ویرایش اطلاعات ارسال:</b><br>
-                        <input type="text" id="o_prov_${o.orderId}" value="${addrObj.province || ''}" placeholder="استان" style="padding:4px; font-size:0.8rem; margin-bottom:3px;">
-                        <input type="text" id="o_city_${o.orderId}" value="${addrObj.city || ''}" placeholder="شهر" style="padding:4px; font-size:0.8rem; margin-bottom:3px;">
-                        <textarea id="o_addr_${o.orderId}" placeholder="آدرس دقیق" rows="2" style="padding:4px; font-size:0.8rem; margin-bottom:3px;">${addrObj.address || ''}</textarea>
-                        <input type="tel" inputmode="numeric" id="o_post_${o.orderId}" value="${addrObj.postalCode || ''}" placeholder="کد پستی" style="padding:4px; font-size:0.8rem; margin-bottom:3px;">
-                        <textarea id="o_note_${o.orderId}" placeholder="توضیحات خریدار" rows="2" style="padding:4px; font-size:0.8rem; margin-top:5px; border-top:1px dashed #cbd5e1;">${addrObj.note || ''}</textarea>
-                    </div>
-                `;
-
-                // شرط نمایش فیلد کدرهگیری فقط در صورتی که وضعیت تحویل شده باشد
-                let displayTracking = (o.orderStatus === 'Delivered') ? 'block' : 'none';
-
-                tbody.innerHTML += `
-                <tr>
-                    <td>
-                        <strong style="color:var(--primary); font-size:1.1rem;">${o.orderId}</strong><br>
-                        <span style="font-size:0.8rem; color:var(--text-light);"><i class="far fa-clock"></i> ${o.date}</span>
-                    </td>
-                    <td>
-                        <div style="font-weight:bold; margin-bottom:5px;"><i class="fas fa-user"></i> ${o.customerName}</div>
-                        <div style="margin-bottom:5px;"><i class="fas fa-phone fa-flip-horizontal"></i> <a href="tel:${o.phone}" style="text-decoration:none; color:#2563eb; font-weight:bold;">${o.phone}</a></div>
-                        ${addressHtml}
-                    </td>
-                    <td>
-                        <div style="margin-bottom:10px; font-size:0.9rem; line-height:1.6;">${cartHtml}</div>
-                        <div style="border-top:1px dashed #cbd5e1; padding-top:8px;">
-                            وضعیت تراکنش: ${payBadge}<br>
-                            شیوه دریافت: <span class="badge ${shipBadgeClass}" style="margin-top:5px;">${shipFa}</span><br>
-                            مبلغ فاکتور: <strong style="color:var(--primary-dark); font-size:1.1rem;">${formatNumber(o.totalAmount)} تومان</strong>
-                        </div>
-                    </td>
-                    <td style="background:#f8fafc; border-radius:8px;">
-                        <label>تغییر وضعیت فیزیکی و سیستمی:</label>
-                        <select id="o_status_${o.orderId}" onchange="document.getElementById('track_div_${o.orderId}').style.display = (this.value === 'Delivered') ? 'block' : 'none';">
-                            <option value="Failed" ${o.orderStatus==='Failed'?'selected':''}>ناموفق / لغو شده</option>
-                            <option value="Pending" ${o.orderStatus==='Pending'?'selected':''}>در حال بررسی</option>
-                            <option value="Processing" ${o.orderStatus==='Processing'?'selected':''}>در حال آماده‌سازی (بسته‌بندی)</option>
-                            <option value="Delivered" ${o.orderStatus==='Delivered'?'selected':''}>ارسال و تحویل مشتری گردید</option>
-                            <option value="Archived" ${o.orderStatus==='Archived'?'selected':''}>بایگانی</option>
-                        </select>
-                        
-                        <div id="track_div_${o.orderId}" style="display: ${displayTracking}; margin-top:10px; background:#e0f2fe; padding:8px; border-radius:5px; border:1px solid #bae6fd;">
-                            <label style="color:#0369a1;"><i class="fas fa-truck-fast"></i> کد رهگیری پستی:</label>
-                            <input type="text" id="o_track_${o.orderId}" value="${o.trackingCode || ''}" placeholder="24 رقمی پست یا کد رهگیری" style="margin-bottom:0;">
-                        </div>
-                        
-                        <button class="btn-small" style="width:100%; justify-content:center; margin-top:15px;" onclick="saveOrderTracking('${o.orderId}', this)"><i class="fas fa-save"></i> ذخیره اطلاعات</button>
-                    </td>
-                    <td>
-                        <button class="btn-small btn-warning" onclick="openSignatureForPrint('${o.orderId}')" title="چاپ فاکتور و رسید روی جعبه"><i class="fas fa-print"></i></button>
-                    </td>
-                </tr>`;
             });
+
+            // ساخت کدهای HTML برای هر دسته به صورت کشویی
+            for (const key in groups) {
+                const group = groups[key];
+                if (group.orders.length > 0) {
+                    
+                    let tableRows = '';
+                    group.orders.forEach(o => {
+                        let payBadge = o.paymentStatus === 'Success' ? '<span class="badge bg-green">موفق</span>' : '<span class="badge bg-red">ناموفق / لغو</span>';
+                        let matchedShipping = globalShippingMethods.find(s => s.id === o.shippingMethod);
+                        let shipFa = matchedShipping ? matchedShipping.name : o.shippingMethod;
+                        let shipBadgeClass = 'bg-gray';
+
+                        let cartHtml = '';
+                        try {
+                            let items = JSON.parse(o.cartData);
+                            cartHtml = items.map(i => `• ${i.name} <b>(${i.qty} عدد)</b>`).join('<br>');
+                        } catch(e) { cartHtml = 'اطلاعات سبد نامشخص'; }
+
+                        let addrObj = {};
+                        try { addrObj = JSON.parse(o.address) || {}; } 
+                        catch(e) { addrObj = { address: o.address }; }
+                        
+                        let addressHtml = `
+                            <div style="font-size:0.85rem; background:#f8fafc; padding:8px; border-radius:6px; border:1px solid #e2e8f0; max-width:250px;">
+                                <i class="fas fa-edit" style="color:var(--primary); margin-bottom:5px;"></i> <b>ویرایش اطلاعات ارسال:</b><br>
+                                <input type="text" id="o_prov_${o.orderId}" value="${addrObj.province || ''}" placeholder="استان" style="padding:4px; font-size:0.8rem; margin-bottom:3px;">
+                                <input type="text" id="o_city_${o.orderId}" value="${addrObj.city || ''}" placeholder="شهر" style="padding:4px; font-size:0.8rem; margin-bottom:3px;">
+                                <textarea id="o_addr_${o.orderId}" placeholder="آدرس دقیق" rows="2" style="padding:4px; font-size:0.8rem; margin-bottom:3px;">${addrObj.address || ''}</textarea>
+                                <input type="tel" inputmode="numeric" id="o_post_${o.orderId}" value="${addrObj.postalCode || ''}" placeholder="کد پستی" style="padding:4px; font-size:0.8rem; margin-bottom:3px;">
+                                <textarea id="o_note_${o.orderId}" placeholder="توضیحات خریدار" rows="2" style="padding:4px; font-size:0.8rem; margin-top:5px; border-top:1px dashed #cbd5e1;">${addrObj.note || ''}</textarea>
+                            </div>
+                        `;
+
+                        let displayTracking = (o.orderStatus === 'Delivered') ? 'block' : 'none';
+
+                        tableRows += `
+                        <tr>
+                            <td>
+                                <strong style="color:var(--primary); font-size:1.1rem;">${o.orderId}</strong><br>
+                                <span style="font-size:0.8rem; color:var(--text-light);"><i class="far fa-clock"></i> ${o.date}</span>
+                            </td>
+                            <td>
+                                <div style="font-weight:bold; margin-bottom:5px;"><i class="fas fa-user"></i> ${o.customerName}</div>
+                                <div style="margin-bottom:5px;"><i class="fas fa-phone fa-flip-horizontal"></i> <a href="tel:${o.phone}" style="text-decoration:none; color:#2563eb; font-weight:bold;">${o.phone}</a></div>
+                                ${addressHtml}
+                            </td>
+                            <td>
+                                <div style="margin-bottom:10px; font-size:0.9rem; line-height:1.6;">${cartHtml}</div>
+                                <div style="border-top:1px dashed #cbd5e1; padding-top:8px;">
+                                    وضعیت تراکنش: ${payBadge}<br>
+                                    شیوه دریافت: <span class="badge ${shipBadgeClass}" style="margin-top:5px;">${shipFa}</span><br>
+                                    مبلغ فاکتور: <strong style="color:var(--primary-dark); font-size:1.1rem;">${formatNumber(o.totalAmount)} تومان</strong>
+                                </div>
+                            </td>
+                            <td style="background:#f8fafc; border-radius:8px;">
+                                <label>تغییر وضعیت فیزیکی و سیستمی:</label>
+                                <select id="o_status_${o.orderId}" onchange="document.getElementById('track_div_${o.orderId}').style.display = (this.value === 'Delivered') ? 'block' : 'none';">
+                                    <option value="Failed" ${o.orderStatus==='Failed'?'selected':''}>ناموفق / لغو شده</option>
+                                    <option value="Pending" ${o.orderStatus==='Pending'?'selected':''}>در حال بررسی</option>
+                                    <option value="Processing" ${o.orderStatus==='Processing'?'selected':''}>در حال آماده‌سازی (بسته‌بندی)</option>
+                                    <option value="Delivered" ${o.orderStatus==='Delivered'?'selected':''}>ارسال و تحویل مشتری گردید</option>
+                                    <option value="Archived" ${o.orderStatus==='Archived'?'selected':''}>بایگانی</option>
+                                </select>
+                                
+                                <div id="track_div_${o.orderId}" style="display: ${displayTracking}; margin-top:10px; background:#e0f2fe; padding:8px; border-radius:5px; border:1px solid #bae6fd;">
+                                    <label style="color:#0369a1;"><i class="fas fa-truck-fast"></i> کد رهگیری پستی:</label>
+                                    <input type="text" id="o_track_${o.orderId}" value="${o.trackingCode || ''}" placeholder="24 رقمی پست یا کد رهگیری" style="margin-bottom:0;">
+                                </div>
+                                
+                                <button class="btn-small" style="width:100%; justify-content:center; margin-top:15px;" onclick="saveOrderTracking('${o.orderId}', this)"><i class="fas fa-save"></i> ذخیره اطلاعات</button>
+                            </td>
+                            <td>
+                                <button class="btn-small btn-warning" onclick="openSignatureForPrint('${o.orderId}')" title="چاپ فاکتور و رسید روی جعبه"><i class="fas fa-print"></i></button>
+                            </td>
+                        </tr>`;
+                    });
+
+                    // قالب‌بندی کشویی با تگ details
+                    let detailsHtml = `
+                    <details open style="margin-bottom: 20px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+                        <summary style="padding: 15px 20px; background: ${group.color}15; font-size: 1.1rem; font-weight: bold; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 10px; color: var(--text-main); border-bottom: 1px solid #e2e8f0;">
+                            <i class="fas ${group.icon}" style="color: ${group.color}; font-size: 1.3rem;"></i> 
+                            ${group.title} 
+                            <span class="badge" style="background: ${group.color}; color: white; margin-right: auto;">${group.orders.length} سفارش</span>
+                            <i class="fas fa-chevron-down" style="color: var(--text-light); font-size: 0.9rem;"></i>
+                        </summary>
+                        <div class="table-wrapper" style="border: none; border-radius: 0;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>تاریخ و سفارش</th>
+                                        <th>اطلاعات دقیق خریدار (قابلیت ویرایش)</th>
+                                        <th>جزئیات سبد خرید و مالی</th>
+                                        <th>عملیات ارسال و کدرهگیری</th>
+                                        <th>چاپ</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${tableRows}
+                                </tbody>
+                            </table>
+                        </div>
+                    </details>`;
+                    
+                    container.innerHTML += detailsHtml;
+                }
+            }
         }
 
         async function saveOrderTracking(orderId, btnElement) {
@@ -929,6 +1089,8 @@
             try {
                 let res = await fetch(ADMIN_GAS_URL, {
                     method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    redirect: 'follow',
                     body: JSON.stringify({ 
                         action: 'updateOrder', adminUser, adminToken,
                         order: { orderId: orderId, orderStatus: status, trackingCode: track, address: JSON.stringify(updatedAddress) }
@@ -938,7 +1100,6 @@
                 let data = JSON.parse(textResponse);
                 if(data.status === 'success') {
                     alert('اطلاعات سفارش با موفقیت بروزرسانی شد.');
-                    // اگر نیاز باشد رفرش جدول را صدا بزنیم (در اینجا دیتا محلی کاربر در اینپوت ها ذخیره شده پس مشکلی ندارد)
                 } else alert('خطا: ' + data.message);
             } catch(e) { alert('خطا در ارتباط.'); }
             setBtnLoading(btnElement, false);
@@ -983,6 +1144,8 @@
             try {
                 let res = await fetch(ADMIN_GAS_URL, {
                     method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    redirect: 'follow',
                     body: JSON.stringify({ action: 'addShipping', adminUser, adminToken, name, cost })
                 });
                 let textResponse = await res.text();
@@ -1003,6 +1166,8 @@
             try {
                 let res = await fetch(ADMIN_GAS_URL, {
                     method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    redirect: 'follow',
                     body: JSON.stringify({ action: 'updateShipping', adminUser, adminToken, id, name, cost })
                 });
                 let textResponse = await res.text();
@@ -1018,6 +1183,8 @@
             try {
                 let res = await fetch(ADMIN_GAS_URL, {
                     method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    redirect: 'follow',
                     body: JSON.stringify({ action: 'deleteShipping', adminUser, adminToken, id })
                 });
                 let textResponse = await res.text();
@@ -1046,7 +1213,7 @@
             generateAndPrintInvoice(orderIdToPrint, signatureImage);
         }
 
-        // --- سیستم جدید چاپ فاکتور (طراحی شده دقیقاً مشابه عکس درخواستی، مناسب A4 و کاملاً ضد-تداخل) ---
+        // --- سیستم جدید چاپ فاکتور ---
         function generateAndPrintInvoice(orderId, signatureImageBase64) {
             const order = globalOrders.find(o => String(o.orderId) === String(orderId));
             if(!order) {
@@ -1054,7 +1221,6 @@
                 return;
             }
 
-            // آماده سازی ردیف‌های جدول دقیقاً مشابه عکس (۷ ستون)
             let cartHtml = '';
             let totalBeforeDiscountSum = 0;
             
@@ -1083,7 +1249,6 @@
             let shippingCost = matchedShipping ? matchedShipping.cost : 0;
             let shipFa = matchedShipping ? matchedShipping.name : order.shippingMethod;
 
-            // پردازش آدرس
             let addressPrint = '';
             let notePrint = '';
             let postalCodePrint = '';
@@ -1098,24 +1263,20 @@
                 addressPrint = order.address;
             }
 
-            // ساختار کاملاً جدید HTML برای چاپ تضمینی و منظم در A4
             const content = `
                 <div style="width: 210mm; margin: 0 auto; padding: 15px; box-sizing: border-box; font-family: Tahoma, Vazirmatn, sans-serif; color: #333;">
                     
                     <!-- 1. هدر فاکتور -->
                     <table style="width: 100%; border: none; margin-bottom: 10px;">
                         <tr>
-                            <!-- سمت راست: تاریخ و شماره -->
                             <td style="width: 33%; text-align: right; vertical-align: top; font-size: 13px; line-height: 2;">
                                 <div>تاریخ ثبت: <strong>${order.date}</strong></div>
                                 <div>شماره: <strong>${order.orderId}</strong></div>
-                                <!-- شبیه ساز بارکد -->
                                 <div style="margin-top: 10px; font-family: monospace; font-size: 22px; font-weight: bold; letter-spacing: 2px;">
                                     ||||||||||| | ||||| | ||
                                 </div>
                             </td>
                             
-                            <!-- وسط: لوگو و نام -->
                             <td style="width: 34%; text-align: center; vertical-align: top;">
                                 <div style="display: inline-flex; align-items: center; justify-content: center; width: 60px; height: 60px; background: #e0f2fe; color: #0284c7; border-radius: 12px; font-size: 24px; margin-bottom: 8px;">
                                     <i class="fas fa-leaf"></i>
@@ -1124,15 +1285,12 @@
                                 <div style="font-size: 14px; color: #555;">محصولات ارگانیک تعالی (طبیعتی)</div>
                             </td>
                             
-                            <!-- سمت چپ: خالی برای تعادل -->
                             <td style="width: 33%;"></td>
                         </tr>
                     </table>
 
-                    <!-- 2. خط نارنجی جداکننده -->
                     <div style="height: 4px; background-color: #f97316; margin-bottom: 20px; border-radius: 2px;"></div>
 
-                    <!-- 3. نوار خاکستری اطلاعات خریدار -->
                     <div style="background-color: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 12px 20px; margin-bottom: 25px; font-size: 13px;">
                         <table style="width: 100%; border: none;">
                             <tr>
@@ -1146,7 +1304,6 @@
                         </table>
                     </div>
 
-                    <!-- 4. جدول اصلی کالاها (طراحی دقیق طبق عکس) -->
                     <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 13px;">
                         <thead>
                             <tr style="background-color: #f9fafb; border: 1px solid #e5e7eb;">
@@ -1164,10 +1321,8 @@
                         </tbody>
                     </table>
 
-                    <!-- 5. بخش جمع‌بندی مالی (سمت چپ) و مکان متن (سمت راست) -->
                     <table style="width: 100%; border: none; margin-bottom: 40px; font-size: 13px;">
                         <tr>
-                            <!-- مکان قرارگیری متن / امضا (راست) -->
                             <td style="width: 50%; vertical-align: top; text-align: right; padding-right: 10px;">
                                 <div style="margin-bottom: 15px; color: #666;">مکان قرارگیری امضاء و مهر فروشگاه:</div>
                                 <div style="width: 200px; height: 100px; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center;">
@@ -1175,7 +1330,6 @@
                                 </div>
                             </td>
                             
-                            <!-- جدول مالی (چپ) -->
                             <td style="width: 50%; vertical-align: top;">
                                 <table style="width: 100%; border-collapse: collapse; float: left;">
                                     <tr>
@@ -1199,14 +1353,12 @@
                         </tr>
                     </table>
 
-                    <!-- 6. بخش مخصوص برش روی کارتن پستی (حفظ شده از نسخه قبل جهت کاربرد شما) -->
                     <div style="text-align: center; margin: 30px 0; border-top: 2px dashed #94a3b8; position: relative;">
                         <span style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #fff; padding: 0 15px; font-size: 14px; color: #64748b;">✂️ محل برش جهت چسباندن روی جعبه پستی</span>
                     </div>
 
                     <table style="width: 100%; border-collapse: separate; border-spacing: 15px 0; margin-top: 20px; font-size: 14px;">
                         <tr>
-                            <!-- گیرنده -->
                             <td style="width: 50%; vertical-align: top; border: 2px solid #334155; padding: 15px; border-radius: 8px; line-height: 2;">
                                 <div style="text-align: center; font-weight: 800; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px; margin-bottom: 10px; font-size: 16px;">گیرنده</div>
                                 <div><strong>نام گیرنده:</strong> ${order.customerName}</div>
@@ -1215,7 +1367,6 @@
                                 <div><strong>آدرس:</strong> ${addressPrint}</div>
                                 <div style="margin-top: 10px; color: #0284c7; font-weight: bold;">شیوه ارسال: ${shipFa}</div>
                             </td>
-                            <!-- فرستنده -->
                             <td style="width: 50%; vertical-align: top; border: 2px solid #334155; padding: 15px; border-radius: 8px; line-height: 2;">
                                 <div style="text-align: center; font-weight: 800; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px; margin-bottom: 10px; font-size: 16px;">فرستنده</div>
                                 <div><strong>نام فرستنده:</strong> محصولات ارگانیک تعالی</div>
@@ -1225,7 +1376,6 @@
                             </td>
                         </tr>
                     </table>
-
                 </div>
             `;
 
