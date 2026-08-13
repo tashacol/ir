@@ -63,7 +63,6 @@
         th { background: #f8fafc; font-weight: 700; color: var(--text-main); white-space: nowrap; }
         tr:hover { background: #f1f5f9; }
         
-        /* Accordion specific overrides */
         details > summary { transition: background-color 0.2s; }
         details > summary:hover { filter: brightness(0.95); }
         details[open] > summary { border-bottom: 1px solid #e2e8f0; margin-bottom: 10px; }
@@ -83,19 +82,18 @@
         .loader-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.9); display: none; align-items: center; justify-content: center; z-index: 9999; flex-direction: column; }
         .loader-overlay i { font-size: 4rem; color: var(--primary); margin-bottom: 15px; }
 
-        /* Pagination & Layout fixes */
         .pagination { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px; padding: 15px;}
         .pagination span { font-weight: bold; color: var(--primary-dark); }
         .search-group { display: flex; gap: 10px; }
         .search-group select { width: 30%; }
         .search-group input { width: 70%; }
 
-        /* Modal امضای مدیر */
-        #signature-modal {
+        /* Modals */
+        #signature-modal, #reset-password-modal {
             display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8);
             z-index: 10000; align-items: center; justify-content: center;
         }
-        .signature-box {
+        .signature-box, .modal-inner-box {
             background: white; padding: 25px; border-radius: 12px;
             width: 90%; max-width: 500px; text-align: center;
         }
@@ -105,7 +103,6 @@
             width: 100%; max-width: 450px; height: 200px;
         }
 
-        /* Print Area Fixes - Ensure proper A4 fitting and strict no overflow */
         @media print {
             body > *:not(#print-area) { display: none !important; }
             body, html { margin: 0; padding: 0; background: white; }
@@ -133,6 +130,26 @@
                 <button onclick="proceedToPrint()" class="btn-success"><i class="fas fa-print"></i> ثبت امضا و چاپ</button>
                 <button onclick="clearSignature()" class="btn-warning" style="color:white;"><i class="fas fa-eraser"></i> پاک کردن کادر</button>
                 <button onclick="closeSignatureModal()" class="btn-danger"><i class="fas fa-times"></i> انصراف</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- مودال بازنشانی رمز عبور کاربر -->
+    <div id="reset-password-modal">
+        <div class="modal-inner-box">
+            <h3 style="color: var(--primary-dark);"><i class="fas fa-key"></i> بازنشانی رمز عبور کاربر</h3>
+            <p id="reset-modal-user-info" style="color: var(--text-light); font-size: 0.9rem; margin-bottom: 15px;"></p>
+            
+            <label style="text-align: right;">رمز عبور جدید (پیشنهاد خودکار):</label>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <input type="text" id="gen_password" style="margin-bottom: 0; font-weight: bold; font-size: 1.2rem; text-align: center; letter-spacing: 2px; direction: ltr;">
+                <button onclick="generateRandomPassword()" class="btn-warning" style="white-space: nowrap;"><i class="fas fa-sync"></i> جدید</button>
+            </div>
+
+            <div style="margin-bottom: 20px; display: flex; gap: 10px; justify-content: center;">
+                <button onclick="copyGeneratedPassword()" class="btn-success"><i class="fas fa-copy"></i> کپی رمز عبور</button>
+                <button onclick="submitResetPassword(this)" class="btn-primary"><i class="fas fa-save"></i> ثبت رمز جدید</button>
+                <button onclick="closeResetPasswordModal()" class="btn-danger"><i class="fas fa-times"></i> انصراف</button>
             </div>
         </div>
     </div>
@@ -190,6 +207,8 @@
             <button class="tab-btn active" onclick="switchTab('tab-orders')"><i class="fas fa-shopping-cart"></i> مدیریت سفارشات و ارسال</button>
             <button class="tab-btn" onclick="switchTab('tab-products')"><i class="fas fa-boxes"></i> مدیریت انبار و محصولات</button>
             <button class="tab-btn" onclick="switchTab('tab-add-product')"><i class="fas fa-plus-circle"></i> افزودن محصول جدید</button>
+            <button class="tab-btn" onclick="switchTab('tab-users')"><i class="fas fa-users"></i> مدیریت کاربران</button>
+            <button class="tab-btn" onclick="switchTab('tab-comments')"><i class="fas fa-comments"></i> مدیریت نظرات خریداران</button>
             <button class="tab-btn" onclick="switchTab('tab-shipping')"><i class="fas fa-truck"></i> مدیریت روش‌های ارسال</button>
         </div>
 
@@ -240,10 +259,7 @@
                 </div>
             </div>
 
-            <!-- تغییر یافته به کانتینر برای سیستم کشویی -->
-            <div id="orders-container" class="box" style="padding: 10px; background: transparent; box-shadow: none;">
-                <!-- سیستم آکاردئون از طریق جاوا اسکریپت در اینجا رندر می‌شود -->
-            </div>
+            <div id="orders-container" class="box" style="padding: 10px; background: transparent; box-shadow: none;"></div>
             
             <div class="pagination">
                 <button class="btn-small" onclick="prevOrderPage()"><i class="fas fa-chevron-right"></i> صفحه قبل</button>
@@ -262,7 +278,6 @@
                         <button onclick="currentProductPage = 1; fetchProducts()"><i class="fas fa-search"></i> جستجو</button>
                     </div>
                 </div>
-                <!-- بخش جدید فیلتر نمایش سه گانه انبار -->
                 <div style="grid-column: span 2;">
                     <label><i class="fas fa-boxes"></i> وضعیت نمایش انبار:</label>
                     <div style="display: flex; gap: 10px; align-items: center;">
@@ -285,7 +300,7 @@
                             <th>نام محصول و دسته‌بندی</th>
                             <th>قیمت فروش / با تخفیف (تومان)</th>
                             <th>موجودی انبار</th>
-                            <th>وضعیت نمایش</th>
+                            <th>تصاویر گالری / ویدیو / وضعیت</th>
                             <th>عملیات و ذخیره</th>
                         </tr>
                     </thead>
@@ -349,8 +364,13 @@
                         </div>
 
                         <div style="grid-column: span 2;">
-                            <label>آدرس عکس (لینک) یا کد آیکون (مانند fa-leaf):</label>
-                            <input type="text" id="new_image" placeholder="https://... یا fa-box">
+                            <label>آدرس عکس‌ها (گالری ۳ تا ۶ عکس، جداشده با کاما ,):</label>
+                            <textarea id="new_image" rows="2" placeholder="https://site.com/img1.jpg, https://site.com/img2.jpg"></textarea>
+                        </div>
+
+                        <div style="grid-column: span 2;">
+                            <label>لینک یا کد ویدیوی آپارات (اختیاری):</label>
+                            <input type="text" id="new_video_url" placeholder="مثال: https://www.aparat.com/video/video/embed/videohash/...">
                         </div>
 
                         <div style="grid-column: span 2;">
@@ -363,6 +383,68 @@
                         </div>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <!-- تب: مدیریت کاربران -->
+        <div id="tab-users" class="tab-content">
+            <div class="box form-grid">
+                <div style="grid-column: span 2;">
+                    <label>جستجو در کاربران (نام یا شماره موبایل):</label>
+                    <div class="search-group">
+                        <input type="text" id="search_user_input" placeholder="نام یا شماره موبایل را وارد کنید...">
+                        <button onclick="fetchUsers()"><i class="fas fa-search"></i> جستجو</button>
+                    </div>
+                </div>
+            </div>
+            <div class="table-wrapper box">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>شماره موبایل</th>
+                            <th>نام و نام خانوادگی</th>
+                            <th>آدرس ذخیره‌شده پیش‌فرض</th>
+                            <th>تاریخ عضویت</th>
+                            <th>تعداد خریدهای موفق</th>
+                            <th>عملیات مدیریت</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- تب: مدیریت نظرات خریداران -->
+        <div id="tab-comments" class="tab-content">
+            <div class="box form-grid">
+                <div>
+                    <label>فیلتر وضعیت نظرات:</label>
+                    <select id="comment_status_filter" onchange="fetchComments()">
+                        <option value="Pending">در انتظار بررسی (جدید)</option>
+                        <option value="Approved">تاییدشده و فعال در سایت</option>
+                        <option value="Deleted">حذف‌شده</option>
+                        <option value="all">همه نظرات</option>
+                    </select>
+                </div>
+                <div style="display: flex; align-items: flex-end;">
+                    <button onclick="fetchComments()" style="width:100%; justify-content:center;"><i class="fas fa-sync"></i> بروزرسانی نظرات</button>
+                </div>
+            </div>
+            <div class="table-wrapper box">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>شناسه نظر</th>
+                            <th>نام محصول</th>
+                            <th>مشخصات ثبت‌کننده</th>
+                            <th>متن نظر</th>
+                            <th>تاریخ ثبت</th>
+                            <th>وضعیت فعلی</th>
+                            <th>عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="comments-tbody"></tbody>
+                </table>
             </div>
         </div>
 
@@ -408,13 +490,11 @@
     </div>
 
     <script>
-        // ============== تنظیمات مهم ==============
         const ADMIN_GAS_URL = "https://script.google.com/macros/s/AKfycbzX-P-JiyUYgUWhwljM0N6q8rfqjbRXuLyX5TYgt4BefD8yFU28VGBIdNXIB2n-advy/exec"; 
         
         let adminUser = "";
         let adminToken = "";
         
-        // متغیرهای نشست و صفحه‌بندی
         let currentOrderPage = 1;
         let totalOrderPages = 1;
         let currentProductPage = 1;
@@ -422,15 +502,15 @@
         let isSortModeEnabled = false;
 
         let globalShippingMethods = [];
-        let globalOrders = []; // برای چاپ رسید نگه میداریم
+        let globalOrders = [];
 
-        // متغیرهای مربوط به امضای مدیر
         let currentPrintOrderId = null;
         let isDrawing = false;
         let sigCanvas = null;
         let sigCtx = null;
 
-        // --- سیستم جدید لودینگ دکمه‌ای ---
+        let selectedUserPhoneForReset = null;
+
         function setBtnLoading(btn, isLoading, text) {
             if (!btn) return;
             if (isLoading) {
@@ -443,7 +523,6 @@
             }
         }
 
-        // --- توابع کمکی قالب‌بندی قیمت‌ها (ارقام انگلیسی و جداکننده هزارگان) ---
         function formatNumber(num) {
             if (num === null || num === undefined || num === '') return '0';
             return Number(num).toLocaleString('en-US');
@@ -471,10 +550,14 @@
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
-            event.currentTarget.classList.add('active');
+            if (event && event.currentTarget) {
+                event.currentTarget.classList.add('active');
+            }
+
+            if (tabId === 'tab-users') fetchUsers();
+            if (tabId === 'tab-comments') fetchComments();
         }
 
-        // --- مقداردهی امضای دیجیتال ---
         function initSignaturePad() {
             sigCanvas = document.getElementById('signature-pad');
             if(!sigCanvas) return;
@@ -482,15 +565,13 @@
             sigCtx.lineWidth = 3;
             sigCtx.lineCap = 'round';
             sigCtx.lineJoin = 'round';
-            sigCtx.strokeStyle = '#0f766e'; // رنگ خودکار امضا
+            sigCtx.strokeStyle = '#0f766e';
 
-            // رویدادهای ماوس
             sigCanvas.addEventListener('mousedown', startDrawing);
             sigCanvas.addEventListener('mousemove', draw);
             sigCanvas.addEventListener('mouseup', stopDrawing);
             sigCanvas.addEventListener('mouseout', stopDrawing);
 
-            // رویدادهای تاچ (موبایل)
             sigCanvas.addEventListener('touchstart', handleTouchStart, {passive: false});
             sigCanvas.addEventListener('touchmove', handleTouchMove, {passive: false});
             sigCanvas.addEventListener('touchend', stopDrawing);
@@ -498,7 +579,6 @@
 
         function getMousePos(e) {
             const rect = sigCanvas.getBoundingClientRect();
-            // محاسبه مقیاس برای جلوگیری از خطای کشیدگی بوم در صفحات کوچک
             const scaleX = sigCanvas.width / rect.width;
             const scaleY = sigCanvas.height / rect.height;
             return {
@@ -529,9 +609,7 @@
             sigCtx.lineTo(pos.x, pos.y);
             sigCtx.stroke();
         }
-        function stopDrawing() {
-            isDrawing = false;
-        }
+        function stopDrawing() { isDrawing = false; }
         function handleTouchStart(e) {
             if(e.touches.length === 1) { e.preventDefault(); isDrawing = true; sigCtx.beginPath(); const pos = getTouchPos(e); sigCtx.moveTo(pos.x, pos.y); }
         }
@@ -542,9 +620,8 @@
             sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
         }
 
-        // --- احراز هویت و ذخیره نشست (Session) ---
         function checkSession() {
-            initSignaturePad(); // مقداردهی اولیه بوم امضا هنگام لود سایت
+            initSignaturePad();
             const savedUser = localStorage.getItem('ot_admin_user');
             const savedToken = localStorage.getItem('ot_admin_token');
             if(savedUser && savedToken) {
@@ -567,13 +644,11 @@
             window.location.reload();
         }
 
-        // --- مقداردهی اولیه سیستم ---
         async function initApp(btnElement) {
             if(btnElement) setBtnLoading(btnElement, true, 'ورود...');
             else showLoader('دریافت اطلاعات داشبورد...');
             
             try {
-                // رفع کامل مشکلات اتصال سرور با افزودن هدر صحیح و ریدایرکت فالو
                 let res = await fetch(ADMIN_GAS_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -586,28 +661,24 @@
                 try {
                     data = JSON.parse(textResponse);
                 } catch(e) {
-                    throw new Error('پاسخ نامعتبر از سرور (احتمالاً دسترسی گوگل اسکریپت یا مشکل CORS).');
+                    throw new Error('پاسخ نامعتبر از سرور.');
                 }
                 
                 if (data.status === 'success') {
-                    // ذخیره موفق نشست
                     localStorage.setItem('ot_admin_user', adminUser);
                     localStorage.setItem('ot_admin_token', adminToken);
 
                     document.getElementById('login-section').style.display = 'none';
                     document.getElementById('main-dashboard').style.display = 'block';
                     
-                    // بروزرسانی آمار کلیدی
                     document.getElementById('stat-sales').innerHTML = formatNumber(data.stats.totalSales) + ' <span style="font-size:1rem; color:#64748b">تومان</span>';
                     document.getElementById('stat-pending-orders').innerText = formatNumber(data.stats.pendingCount);
                     document.getElementById('stat-low-stock').innerText = formatNumber(data.stats.lowStockCount);
 
-                    // بارگذاری شیوه‌های ارسال
                     globalShippingMethods = data.shippingMethods;
                     updateShippingDropdowns();
                     renderShippingTable();
 
-                    // بارگذاری جداول
                     fetchOrders();
                     fetchProducts();
                 } else {
@@ -621,7 +692,6 @@
             hideLoader();
         }
 
-        // --- پردازش هوشمند درصد تخفیف ---
         function calculateDiscount() {
             const price = unformatNumber(document.getElementById('new_price').value) || 0;
             let percent = unformatNumber(document.getElementById('new_discount_percent').value) || 0;
@@ -637,7 +707,6 @@
             }
         }
 
-        // --- ثبت محصول جدید در دیتابیس ---
         async function submitNewProduct(e) {
             e.preventDefault();
             const btn = e.submitter || document.querySelector('#addProductForm button[type="submit"]');
@@ -649,6 +718,7 @@
                 discountPrice: unformatNumber(document.getElementById('new_discount_price').value),
                 stock: Number(document.getElementById('new_stock').value),
                 image: document.getElementById('new_image').value || 'fa-box',
+                videoUrl: document.getElementById('new_video_url').value || '',
                 description: document.getElementById('new_desc').value,
                 status: 'active'
             };
@@ -680,7 +750,6 @@
             setBtnLoading(btn, false);
         }
 
-        // --- توابع جستجو، فیلتر سه گانه انبار و صفحه‌بندی محصولات ---
         async function fetchProducts() {
             showLoader('دریافت لیست محصولات از سرور...');
             const searchValue = document.getElementById('search_product').value.trim();
@@ -710,7 +779,6 @@
         function prevProductPage() { if(currentProductPage > 1) { currentProductPage--; fetchProducts(); } }
         function nextProductPage() { if(currentProductPage < totalProductPages) { currentProductPage++; fetchProducts(); } }
 
-        // توابع مربوط به ویرایش ترتیب محصولات
         function toggleSortMode() {
             isSortModeEnabled = !isSortModeEnabled;
             const sortCols = document.querySelectorAll('.sort-column');
@@ -727,7 +795,6 @@
                 saveBtn.style.display = 'none';
                 enableBtn.innerHTML = '<i class="fas fa-sort-numeric-down"></i> ویرایش ترتیب';
                 enableBtn.classList.replace('btn-danger', 'btn-warning');
-                // پاک کردن اعداد تایپ شده
                 document.querySelectorAll('.sort-input').forEach(inp => inp.value = '');
             }
         }
@@ -748,17 +815,17 @@
             });
 
             if (hasDuplicate) {
-                alert('خطا: شما برای چند محصول شماره یکسان (تکراری) وارد کرده‌اید. لطفا از اعداد یکتا استفاده کنید تا از تداخل جلوگیری شود.');
+                alert('خطا: شماره تکراری وارد شده است.');
                 return;
             }
             if (orderList.length === 0) {
-                alert('هیچ شماره‌ای جهت تغییر ترتیب وارد نشده است. حالت ویرایش بسته شد.');
+                alert('هیچ شماره‌ای جهت تغییر ترتیب وارد نشده است.');
                 toggleSortMode();
                 return;
             }
 
             const btn = document.getElementById('btn-save-sort');
-            setBtnLoading(btn, true, 'در حال پردازش و انتقال در شیت...');
+            setBtnLoading(btn, true, 'در حال پردازش...');
             
             try {
                 let res = await fetch(ADMIN_GAS_URL, {
@@ -771,7 +838,7 @@
                 let data = JSON.parse(textResponse);
                 
                 if (data.status === 'success') {
-                    alert('ترتیب تمام محصولات به صورت یکپارچه در دیتابیس بروزرسانی شد.');
+                    alert('ترتیب محصولات بروزرسانی شد.');
                     toggleSortMode();
                     fetchProducts();
                 } else alert('خطا: ' + data.message);
@@ -786,20 +853,19 @@
             tbody.innerHTML = '';
             
             if(!productsList || productsList.length === 0) {
-                // توجه به colspan به خاطر اضافه شدن ستون جدید در حالت ترتیب
                 let colspan = isSortModeEnabled ? "7" : "6";
                 tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center;">محصولی یافت نشد.</td></tr>`;
                 return;
             }
 
             productsList.forEach(p => {
-                let imgStr = p.image || '';
-                // حل مشکل نمایش تصاویر با رجکس قوی‌تر و افزودن onerror برای عکس‌های شکسته
-                let isImage = /^(http|\/|\.)/i.test(imgStr) || imgStr.match(/\.(jpeg|jpg|gif|png|webp)$/i);
-                let imgTag = isImage ? `<img src="${imgStr}" width="40" height="40" style="border-radius:5px; object-fit:cover;" onerror="this.outerHTML='<i class=\\'fas fa-box fa-2x\\' style=\\'color:var(--primary)\\'></i>'">` : `<i class="fas ${imgStr || 'fa-box'} fa-2x" style="color:var(--primary)"></i>`;
+                let imgRaw = p.image || '';
+                let firstImg = imgRaw.includes(',') ? imgRaw.split(',')[0].trim() : imgRaw.trim();
+                let isImage = /^(http|\/|\.)/i.test(firstImg) || firstImg.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+                let imgTag = isImage ? `<img src="${firstImg}" width="40" height="40" style="border-radius:5px; object-fit:cover;" onerror="this.outerHTML='<i class=\\'fas fa-box fa-2x\\' style=\\'color:var(--primary)\\'></i>'">` : `<i class="fas ${firstImg || 'fa-box'} fa-2x" style="color:var(--primary)"></i>`;
                 
-                // مدیریت نمایش ستون مرتب‌سازی
                 let sortColDisplay = isSortModeEnabled ? 'table-cell' : 'none';
+                let hasVideoBadge = p.videoUrl ? `<span class="badge bg-blue" style="margin-top:4px;"><i class="fas fa-video"></i> دارد</span>` : `<span class="badge bg-gray" style="margin-top:4px;">بدون ویدیو</span>`;
 
                 tbody.innerHTML += `
                 <tr>
@@ -828,7 +894,7 @@
                     <td>
                         <label style="font-size:0.7rem;">قیمت اصلی:</label>
                         <input type="tel" inputmode="numeric" id="p_price_${p.id}" value="${formatNumber(p.price)}" oninput="handlePriceInput(event)" style="margin-bottom:5px; direction:ltr;">
-                        <label style="font-size:0.7rem;">قیمت نهایی با تخفیف (0=بدون تخفیف):</label>
+                        <label style="font-size:0.7rem;">قیمت با تخفیف:</label>
                         <input type="tel" inputmode="numeric" id="p_discount_${p.id}" value="${formatNumber(p.discountPrice || 0)}" oninput="handlePriceInput(event)" style="direction:ltr;">
                     </td>
                     <td>
@@ -836,12 +902,15 @@
                         <input type="tel" inputmode="numeric" id="p_stock_${p.id}" value="${p.stock}" style="text-align:center; font-weight:bold; width:80px; margin-bottom:5px;">
                     </td>
                     <td>
-                        <label style="font-size:0.7rem;">آدرس تصویر یا آیکون:</label>
-                        <input type="text" id="p_image_${p.id}" value="${p.image}" style="font-size:0.8rem; margin-bottom:5px; direction:ltr;">
+                        <label style="font-size:0.7rem;">آدرس عکس‌ها (کاما ,):</label>
+                        <textarea id="p_image_${p.id}" rows="2" style="font-size:0.8rem; margin-bottom:5px; direction:ltr;">${p.image}</textarea>
+                        <label style="font-size:0.7rem;">لینک ویدیوی آپارات:</label>
+                        <input type="text" id="p_video_${p.id}" value="${p.videoUrl || ''}" placeholder="لینک ویدیو..." style="font-size:0.8rem; margin-bottom:5px; direction:ltr;">
                         <select id="p_status_${p.id}">
                             <option value="active" ${p.status==='active'?'selected':''}>فعال در سایت</option>
                             <option value="inactive" ${p.status==='inactive'?'selected':''}>غیرفعال (مخفی)</option>
                         </select>
+                        ${hasVideoBadge}
                     </td>
                     <td>
                         <button class="btn-small" onclick="saveProductEdit('${p.id}', this)"><i class="fas fa-save"></i> ثبت تغییرات</button>
@@ -861,7 +930,8 @@
                 stock: Number(document.getElementById(`p_stock_${id}`).value),
                 description: document.getElementById(`p_desc_${id}`).value,
                 status: document.getElementById(`p_status_${id}`).value,
-                image: document.getElementById(`p_image_${id}`).value 
+                image: document.getElementById(`p_image_${id}`).value,
+                videoUrl: document.getElementById(`p_video_${id}`).value
             };
 
             setBtnLoading(btnElement, true, 'ثبت...');
@@ -900,7 +970,6 @@
             setBtnLoading(btnElement, false);
         }
 
-        // --- توابع جستجو، صفحه‌بندی و ایجاد سیستم کشویی (Accordion) سفارشات ---
         async function fetchOrders() {
             showLoader('دریافت فیلتر شده سفارشات...');
             
@@ -926,7 +995,7 @@
                 if (data.status === 'success') {
                     totalOrderPages = data.totalPages || 1;
                     document.getElementById('order-page-indicator').innerText = `صفحه ${currentOrderPage} از ${totalOrderPages}`;
-                    globalOrders = data.orders; // آپدیت رفرنس کلاینت برای پرینت
+                    globalOrders = data.orders;
                     renderOrdersTable(data.orders);
                 }
             } catch(e) { alert('خطا در ارتباط با سرور.'); }
@@ -936,9 +1005,8 @@
         function prevOrderPage() { if(currentOrderPage > 1) { currentOrderPage--; fetchOrders(); } }
         function nextOrderPage() { if(currentOrderPage < totalOrderPages) { currentOrderPage++; fetchOrders(); } }
 
-        // تابع حذف دائمی سفارش
         async function deleteSpecificOrder(orderId, btnElement) {
-            if(!confirm('آیا از حذف دائمی و فیزیکی این سفارش از دیتابیس اطمینان دارید؟ این عمل غیرقابل بازگشت است.')) return;
+            if(!confirm('آیا از حذف دائمی و فیزیکی این سفارش از دیتابیس اطمینان دارید؟')) return;
             setBtnLoading(btnElement, true, 'حذف...');
             try {
                 let res = await fetch(ADMIN_GAS_URL, {
@@ -949,14 +1017,13 @@
                 });
                 let data = JSON.parse(await res.text());
                 if(data.status === 'success') {
-                    alert('سفارش با موفقیت و برای همیشه حذف شد.');
-                    fetchOrders(); // بروزرسانی مجدد جدول پس از حذف
+                    alert('سفارش با موفقیت حذف شد.');
+                    fetchOrders();
                 } else alert('خطا: ' + data.message);
             } catch(e) { alert('خطا در ارتباط.'); }
             setBtnLoading(btnElement, false);
         }
 
-        // ایجاد آکاردئون‌ها (حالت کشویی) بر اساس دسته‌بندی سفارش و اعمال مرتب‌سازی هوشمند
         function renderOrdersTable(ordersList) {
             const container = document.getElementById('orders-container');
             container.innerHTML = '';
@@ -966,7 +1033,6 @@
                 return;
             }
 
-            // ساختاربندی دسته‌های سفارشات
             const groups = {
                 'Pending': { title: 'در انتظار بررسی / جدید', icon: 'fa-hourglass-half', color: '#f59e0b', orders: [] },
                 'Processing': { title: 'در حال آماده‌سازی و بسته‌بندی', icon: 'fa-box-open', color: '#3b82f6', orders: [] },
@@ -975,28 +1041,22 @@
                 'Archived': { title: 'بایگانی سیستم', icon: 'fa-archive', color: '#64748b', orders: [] }
             };
 
-            // تخصیص هر سفارش به گروه مربوطه
             ordersList.forEach(o => {
                 if (groups[o.orderStatus]) {
                     groups[o.orderStatus].orders.push(o);
                 } else {
-                    groups['Pending'].orders.push(o); // احتیاط در صورت وضعیت ناشناخته
+                    groups['Pending'].orders.push(o);
                 }
             });
 
-            // اعمال سورت فرانت‌اند برای تضمین صددرصدی اجرای دستور شما 
-            // در همه بخش‌ها (قدیمی به جدید) بجز بخش بایگانی (جدید به قدیم)
             for (const key in groups) {
                 if (key === 'Archived') {
-                    // جدید به قدیم (نزولی)
                     groups[key].orders.sort((a, b) => b.orderId.localeCompare(a.orderId));
                 } else {
-                    // قدیمی به جدید (صعودی)
                     groups[key].orders.sort((a, b) => a.orderId.localeCompare(b.orderId));
                 }
             }
 
-            // ساخت کدهای HTML برای هر دسته به صورت کشویی
             for (const key in groups) {
                 const group = groups[key];
                 if (group.orders.length > 0) {
@@ -1031,7 +1091,6 @@
 
                         let displayTracking = (o.orderStatus === 'Delivered') ? 'block' : 'none';
 
-                        // اضافه کردن دکمه حذف فیزیکی فقط برای سفارشات بایگانی یا ناموفق
                         let deleteBtnHtml = '';
                         if (o.orderStatus === 'Archived' || o.orderStatus === 'Failed') {
                             deleteBtnHtml = `<button class="btn-small btn-danger" style="width:100%; justify-content:center; margin-top:5px;" onclick="deleteSpecificOrder('${o.orderId}', this)" title="حذف کامل این سفارش از دیتابیس"><i class="fas fa-trash"></i> حذف دائمی سفارش</button>`;
@@ -1080,7 +1139,6 @@
                         </tr>`;
                     });
 
-                    // قالب‌بندی کشویی با تگ details
                     let detailsHtml = `
                     <details open style="margin-bottom: 20px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
                         <summary style="padding: 15px 20px; background: ${group.color}15; font-size: 1.1rem; font-weight: bold; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 10px; color: var(--text-main); border-bottom: 1px solid #e2e8f0;">
@@ -1116,7 +1174,6 @@
             const status = document.getElementById(`o_status_${orderId}`).value;
             const track = document.getElementById(`o_track_${orderId}`).value;
             
-            // استخراج اطلاعات جدید ویرایش شده مشتری
             let updatedAddress = {
                 province: document.getElementById(`o_prov_${orderId}`).value,
                 city: document.getElementById(`o_city_${orderId}`).value,
@@ -1145,7 +1202,179 @@
             setBtnLoading(btnElement, false);
         }
 
-        // --- سیستم مدیریت شیوه‌های ارسال ---
+        /* --- توابع جدید مدیریت کاربران --- */
+        async function fetchUsers() {
+            showLoader('دریافت لیست کاربران از سرور...');
+            const searchValue = document.getElementById('search_user_input').value.trim();
+
+            try {
+                let res = await fetch(ADMIN_GAS_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    redirect: 'follow',
+                    body: JSON.stringify({ action: 'getUsersList', adminUser, adminToken, searchValue: searchValue })
+                });
+                let textResponse = await res.text();
+                let data = JSON.parse(textResponse);
+                if (data.status === 'success') {
+                    renderUsersTable(data.users);
+                }
+            } catch(e) { alert('خطا در دریافت کاربران.'); }
+            hideLoader();
+        }
+
+        function renderUsersTable(usersList) {
+            const tbody = document.getElementById('users-tbody');
+            tbody.innerHTML = '';
+
+            if (!usersList || usersList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">کاربری یافت نشد.</td></tr>`;
+                return;
+            }
+
+            usersList.forEach(u => {
+                let addrStr = 'ثبت نشده';
+                if (u.savedAddress) {
+                    try {
+                        let a = JSON.parse(u.savedAddress);
+                        addrStr = `${a.province || ''} ${a.city || ''} ${a.address || ''}`;
+                    } catch(e) { addrStr = u.savedAddress; }
+                }
+
+                tbody.innerHTML += `
+                <tr>
+                    <td><strong style="color:var(--primary);">${u.phone}</strong></td>
+                    <td><b>${u.name}</b></td>
+                    <td style="font-size:0.85rem; max-width:250px;">${addrStr}</td>
+                    <td><small style="color:var(--text-light);">${u.joinDate || '-'}</small></td>
+                    <td><span class="badge bg-green">${u.orderCount} خرید موفق</span></td>
+                    <td>
+                        <button class="btn-small btn-warning" onclick="openResetPasswordModal('${u.phone}', '${u.name}')"><i class="fas fa-key"></i> بازنشانی رمز عبور</button>
+                    </td>
+                </tr>`;
+            });
+        }
+
+        function openResetPasswordModal(phone, name) {
+            selectedUserPhoneForReset = phone;
+            document.getElementById('reset-modal-user-info').innerText = `کاربر: ${name} (${phone})`;
+            generateRandomPassword();
+            document.getElementById('reset-password-modal').style.display = 'flex';
+        }
+
+        function closeResetPasswordModal() {
+            document.getElementById('reset-password-modal').style.display = 'none';
+            selectedUserPhoneForReset = null;
+        }
+
+        function generateRandomPassword() {
+            let randPass = Math.floor(100000 + Math.random() * 900000).toString();
+            document.getElementById('gen_password').value = randPass;
+        }
+
+        function copyGeneratedPassword() {
+            let passInput = document.getElementById('gen_password');
+            passInput.select();
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(passInput.value).then(() => {
+                    alert('رمز عبور جدید با موفقیت کپی شد: ' + passInput.value);
+                });
+            } else {
+                alert('رمز عبور: ' + passInput.value);
+            }
+        }
+
+        async function submitResetPassword(btnElement) {
+            if (!selectedUserPhoneForReset) return;
+            const newPass = document.getElementById('gen_password').value.trim();
+            if (!newPass) return alert('رمز عبور را وارد کنید.');
+
+            setBtnLoading(btnElement, true, 'ثبت رمز...');
+            try {
+                let res = await fetch(ADMIN_GAS_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    redirect: 'follow',
+                    body: JSON.stringify({ action: 'resetUserPassword', adminUser, adminToken, phone: selectedUserPhoneForReset, newPassword: newPass })
+                });
+                let data = JSON.parse(await res.text());
+                if (data.status === 'success') {
+                    alert('رمز عبور جدید کاربر با موفقیت در دیتابیس ثبت گردید.');
+                    closeResetPasswordModal();
+                } else alert('خطا: ' + data.message);
+            } catch(e) { alert('خطا در ارتباط با سرور.'); }
+            setBtnLoading(btnElement, false);
+        }
+
+        /* --- توابع جدید مدیریت نظرات خریداران --- */
+        async function fetchComments() {
+            showLoader('دریافت نظرات از سرور...');
+            const statusFilter = document.getElementById('comment_status_filter').value;
+
+            try {
+                let res = await fetch(ADMIN_GAS_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    redirect: 'follow',
+                    body: JSON.stringify({ action: 'getComments', adminUser, adminToken, statusFilter: statusFilter })
+                });
+                let textResponse = await res.text();
+                let data = JSON.parse(textResponse);
+                if (data.status === 'success') {
+                    renderCommentsTable(data.comments);
+                }
+            } catch(e) { alert('خطا در دریافت نظرات.'); }
+            hideLoader();
+        }
+
+        function renderCommentsTable(commentsList) {
+            const tbody = document.getElementById('comments-tbody');
+            tbody.innerHTML = '';
+
+            if (!commentsList || commentsList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">نظری یافت نشد.</td></tr>`;
+                return;
+            }
+
+            commentsList.forEach(c => {
+                let statusBadge = '<span class="badge bg-yellow">در انتظار بررسی</span>';
+                if (c.status === 'Approved') statusBadge = '<span class="badge bg-green">تایید شده</span>';
+                if (c.status === 'Deleted') statusBadge = '<span class="badge bg-red">حذف شده</span>';
+
+                tbody.innerHTML += `
+                <tr>
+                    <td><small style="color:#64748b;">${c.commentId}</small></td>
+                    <td><b>${c.productName}</b><br><small style="color:#64748b;">کد: ${c.productId}</small></td>
+                    <td><b>${c.name}</b><br><small style="color:#2563eb;">${c.phone}</small></td>
+                    <td style="max-width:300px; font-size:0.9rem; line-height:1.6;">${c.text}</td>
+                    <td><small style="color:#64748b;">${c.date}</small></td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <button class="btn-small btn-success" onclick="updateCommentStatus('${c.commentId}', 'Approved', this)" style="margin-bottom:4px;"><i class="fas fa-check"></i> تایید و انتشار</button>
+                        <button class="btn-small btn-danger" onclick="updateCommentStatus('${c.commentId}', 'Deleted', this)"><i class="fas fa-trash"></i> حذف نظر</button>
+                    </td>
+                </tr>`;
+            });
+        }
+
+        async function updateCommentStatus(commentId, newStatus, btnElement) {
+            setBtnLoading(btnElement, true, 'ثبت...');
+            try {
+                let res = await fetch(ADMIN_GAS_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    redirect: 'follow',
+                    body: JSON.stringify({ action: 'updateCommentStatus', adminUser, adminToken, commentId: commentId, status: newStatus })
+                });
+                let data = JSON.parse(await res.text());
+                if (data.status === 'success') {
+                    fetchComments();
+                } else alert('خطا: ' + data.message);
+            } catch(e) { alert('خطا در تغییر وضعیت نظر.'); }
+            setBtnLoading(btnElement, false);
+        }
+
+        /* --- توابع شیوه‌های ارسال --- */
         function updateShippingDropdowns() {
             let select = document.getElementById('filter_shipping');
             select.innerHTML = '<option value="all">همه شیوه‌ها</option>';
@@ -1234,7 +1463,7 @@
             setBtnLoading(btnElement, false);
         }
 
-        // ================= توابع مربوط به مودال امضا =================
+        /* --- توابع چاپ فاکتور --- */
         function openSignatureForPrint(orderId) {
             currentPrintOrderId = orderId;
             clearSignature();
@@ -1253,7 +1482,6 @@
             generateAndPrintInvoice(orderIdToPrint, signatureImage);
         }
 
-        // --- سیستم جدید چاپ فاکتور ---
         function generateAndPrintInvoice(orderId, signatureImageBase64) {
             const order = globalOrders.find(o => String(o.orderId) === String(orderId));
             if(!order) {
@@ -1306,13 +1534,11 @@
             const content = `
                 <div style="width: 100%; max-width: 190mm; margin: 0 auto; padding: 10mm 5mm; box-sizing: border-box; font-family: Tahoma, Vazirmatn, sans-serif; color: #333;">
                     
-                    <!-- 1. هدر فاکتور -->
                     <table style="width: 100%; border: none; margin-bottom: 10px; box-sizing: border-box;">
                         <tr>
                             <td style="width: 33%; text-align: right; vertical-align: top; font-size: 13px; line-height: 2;">
                                 <div>تاریخ ثبت: <strong>${order.date}</strong></div>
                                 <div>شماره: <strong>${order.orderId}</strong></div>
-                                <!-- افزوده شدن QR Code به جای بارکد خطی شکسته -->
                                 <div style="margin-top: 10px;">
                                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${order.orderId}&margin=0" alt="QR Code" style="border-radius: 4px;">
                                 </div>
@@ -1398,10 +1624,8 @@
                         <span style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #fff; padding: 0 15px; font-size: 14px; color: #64748b;">✂️ محل برش جهت چسباندن روی جعبه پستی</span>
                     </div>
 
-                    <!-- اصلاح جابجایی گیرنده و فرستنده طبق درخواست -->
                     <table style="width: 100%; border-collapse: separate; border-spacing: 15px 0; margin-top: 20px; font-size: 14px; box-sizing: border-box;">
                         <tr>
-                            <!-- فرستنده (در ساختار RTL اولین ستون سمت راست می‌افتد) -->
                             <td style="width: 50%; vertical-align: top; border: 2px solid #334155; padding: 15px; border-radius: 8px; line-height: 2; box-sizing: border-box;">
                                 <div style="text-align: center; font-weight: 800; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px; margin-bottom: 10px; font-size: 16px;">فرستنده</div>
                                 <div><strong>نام فرستنده:</strong> طبیعتی | محصولات سالم و ارگانیک</div>
@@ -1410,7 +1634,6 @@
                                 <div><strong>آدرس:</strong> کرمان، جیرفت، کهوروئیه، خیابان انقلاب</div>
                                 <div><strong>وب‌سایت:</strong> Tabiati.ir</div>
                             </td>
-                            <!-- گیرنده -->
                             <td style="width: 50%; vertical-align: top; border: 2px solid #334155; padding: 15px; border-radius: 8px; line-height: 2; box-sizing: border-box;">
                                 <div style="text-align: center; font-weight: 800; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px; margin-bottom: 10px; font-size: 16px;">گیرنده</div>
                                 <div><strong>نام گیرنده:</strong> ${order.customerName}</div>
