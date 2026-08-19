@@ -42,32 +42,45 @@
         .spinner { width: 22px; height: 22px; border: 3px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; display: none; }
         
         .footer-info { background: var(--primary-light); padding: 20px; text-align: center; font-size: 0.95rem; border-top: 1px dashed var(--border); }
-        .rubika-link { display: inline-flex; align-items: center; gap: 8px; background: #ffffff; color: #f26622; font-weight: bold; padding: 10px 20px; border-radius: 20px; text-decoration: none; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #f26622; margin-top: 15px; transition: transform 0.2s; }
-        .rubika-link:hover { transform: translateY(-3px); }
+        .support-text { font-weight: bold; color: var(--text-main); margin-bottom: 10px;}
         
-        .alert { padding: 12px 15px; border-radius: 8px; margin-bottom: 20px; font-size: 0.9rem; font-weight: 500; display: none; text-align: center; }
-        .alert-error { background: #f8d7da; color: #842029; border: 1px solid #f5c2c7; display: block; }
-        .alert-success { background: #d1e7dd; color: #0f5132; border: 1px solid #badbcc; display: block; }
-
-        #success-view { display: none; text-align: center; padding: 40px 20px; }
-        #success-view i { font-size: 4rem; color: var(--primary); margin-bottom: 15px; }
-        #success-view h2 { color: var(--primary); margin-bottom: 10px; }
+        /* طراحی باکس نتیجه در وسط صفحه */
+        #result-view { display: none; align-items: center; justify-content: center; min-height: 60vh; animation: fadeIn 0.5s; padding: 20px; width: 100%;}
+        .result-box { background: white; padding: 40px 30px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); text-align: center; max-width: 450px; width: 100%; border: 3px solid transparent; animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .result-box.success { border-color: #198754; }
+        .result-box.error { border-color: #dc3545; }
+        .success-icon { font-size: 6rem; color: #198754; margin-bottom: 20px; }
+        .error-icon { font-size: 6rem; color: #dc3545; margin-bottom: 20px; }
+        .success-text { color: #198754; margin-bottom: 15px; font-size: 1.6rem; font-weight: 800; }
+        .error-text { color: #dc3545; margin-bottom: 15px; font-size: 1.6rem; font-weight: 800; }
+        .result-message { font-size: 1.05rem; color: var(--text-muted); line-height: 1.8; margin-bottom: 25px;}
+        
+        .rubika-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #f26622; color: white; text-decoration: none; padding: 14px 20px; border-radius: 12px; font-weight: bold; width: 100%; font-size: 1.1rem; transition: 0.3s; box-shadow: 0 4px 15px rgba(242, 102, 34, 0.3); }
+        .rubika-btn:hover { background: #d9561a; transform: translateY(-3px); box-shadow: 0 6px 20px rgba(242, 102, 34, 0.4); color: white;}
+        
+        .btn-retry { background: #6c757d; color: white; border: none; padding: 14px 20px; border-radius: 12px; font-weight: bold; width: 100%; font-size: 1.1rem; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3); }
+        .btn-retry:hover { background: #5a6268; transform: translateY(-3px); }
 
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes popIn { 0% { opacity: 0; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1); } }
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <!-- Success State -->
-        <div id="success-view">
-            <i class="fas fa-check-circle"></i>
-            <h2>ثبت‌نام موفق</h2>
-            <p>اطلاعات شما با موفقیت در سامانه ثبت گردید.</p>
+    <!-- صفحه نمایش نتیجه (تیک و ضربدر) -->
+    <div id="result-view">
+        <div class="result-box" id="result-box">
+            <i id="result-icon"></i>
+            <h2 id="result-title"></h2>
+            <p id="result-message" class="result-message"></p>
+            <div id="result-actions"></div>
         </div>
+    </div>
 
-        <!-- Form State -->
+    <!-- صفحه فرم ثبت‌نام -->
+    <div class="container" id="form-container">
         <div id="form-view">
             <div class="header">
                 <h1>فرم ثبت نام قرآن‌آموزان</h1>
@@ -75,8 +88,6 @@
             </div>
             
             <div class="form-body">
-                <div id="msg-box"></div>
-
                 <form id="registrationForm">
                     
                     <div class="form-group">
@@ -86,30 +97,30 @@
 
                     <div class="form-group">
                         <label class="form-label">کد ملی / کد اتباع *</label>
-                        <!-- inputmode="numeric" باعث باز شدن کیبورد عددی در گوشی می‌شود -->
+                        <!-- کیبورد عددی در گوشی -->
                         <input type="text" id="nationalId" class="form-control" inputmode="numeric" pattern="[0-9]*" placeholder="کد ۱۰ رقمی را وارد کنید" required>
                     </div>
 
-                    <div class="form-group" style="display: flex; gap:15px;">
-                        <div style="flex: 1;">
+                    <div class="form-group" style="display: flex; gap:15px; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 120px;">
                             <label class="form-label">نام *</label>
                             <input type="text" id="firstName" class="form-control" required>
                         </div>
-                        <div style="flex: 1;">
+                        <div style="flex: 1; min-width: 120px;">
                             <label class="form-label">نام خانوادگی *</label>
                             <input type="text" id="lastName" class="form-control" required>
                         </div>
                     </div>
 
-                    <div class="form-group" style="display: flex; gap:15px;">
-                        <div style="flex: 1;">
+                    <div class="form-group" style="display: flex; gap:15px; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 120px;">
                             <label class="form-label">جنسیت *</label>
                             <select id="gender" class="form-select" required>
                                 <option value="مرد">مرد</option>
                                 <option value="زن">زن</option>
                             </select>
                         </div>
-                        <div style="flex: 1;">
+                        <div style="flex: 1; min-width: 120px;">
                             <label class="form-label">نام پدر *</label>
                             <input type="text" id="fatherName" class="form-control" required>
                         </div>
@@ -121,8 +132,8 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">شماره همراه * (الزاماً با 0 شروع شود)</label>
-                        <!-- کیبورد عددی و ولیدیشن سمت مرورگر -->
+                        <label class="form-label">شماره همراه * (الزاماً با 0 شروع شود و ۱۱ رقم باشد)</label>
+                        <!-- کیبورد عددی -->
                         <input type="tel" id="phone" class="form-control" inputmode="numeric" placeholder="مثال: 09123456789" maxlength="11" required>
                     </div>
 
@@ -152,25 +163,21 @@
                     </div>
 
                     <button type="submit" class="btn-submit" id="submitBtn">
-                        <span id="btnText"><i class="fas fa-paper-plane"></i> ثبت اطلاعات</span>
+                        <span id="btnText"><i class="fas fa-paper-plane"></i> ثبت نهایی اطلاعات</span>
                         <div class="spinner" id="btnSpinner"></div>
                     </button>
                 </form>
             </div>
-        </div>
-
-        <div class="footer-info">
-            <p><i class="fas fa-headset"></i> پشتیبانی: <strong>09136395562</strong></p>
-            <p style="margin-top: 10px; color: var(--text-muted); font-size:0.85rem;">برای اطلاع از اخبار و دوره‌ها در کانال روبیکا عضو شوید:</p>
-            <a href="https://rubika.ir/irnasimvahy" target="_blank" class="rubika-link">
-                <i class="fas fa-link"></i> عضویت در کانال @irnasimvahy
-            </a>
+            <div class="footer-info">
+                <p class="support-text"><i class="fas fa-headset"></i> پشتیبانی: 09136395562</p>
+                <p style="color: var(--text-muted); font-size:0.85rem;">در صورت بروز مشکل با شماره بالا تماس بگیرید.</p>
+            </div>
         </div>
     </div>
 
     <script>
         // ================== CONFIGURATION ==================
-        // ⚠️ لینک وب‌اپ گوگل اسکریپت جدید که ساختید را در این قسمت جایگذاری کنید
+        // ⚠️ لینک وب‌اپ گوگل اسکریپت (مربوط به بخش ثبت‌نام) را در این قسمت جایگذاری کنید
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx6rUJ6C_8W59TDdyaskWOk9lQu69yuUQGlptsrnXNv7Y3bZyXGlNDgvL1yA289MjHn/exec";
         
         // ================== DATA LISTS ==================
@@ -204,20 +211,12 @@
             `;
         }
 
-        // مقداردهی اولیه‌ی دراپ‌داون‌ها
         populateSelect('nationality', NATIONALITIES, "-- انتخاب ملیت --", 0); // ایران پیشفرض
         populateSelect('province', PROVINCES, "-- انتخاب استان --", -1);
         populateSelect('education', EDUCATIONS, "-- انتخاب سطح تحصیلات --", -1);
         buildDateDropdowns();
 
         // ================== VALIDATION & HELPERS ==================
-        const showMessage = (msg, isError = true) => {
-            const box = document.getElementById('msg-box');
-            box.className = isError ? 'alert alert-error' : 'alert alert-success';
-            box.innerHTML = `<i class="fas ${isError ? 'fa-exclamation-triangle' : 'fa-check-circle'}"></i> ${msg}`;
-        };
-        const hideMessage = () => document.getElementById('msg-box').style.display = 'none';
-
         const validateNationalId = (code) => {
             if (!code) return false;
             code = String(code).trim().padStart(10, '0');
@@ -242,27 +241,83 @@
             return phone.length === 11 && phone.startsWith('0') && /^\d+$/.test(phone);
         };
 
+        // ================== RESULT VIEW LOGIC ==================
+        function showResult(isSuccess, title, message) {
+            document.getElementById('form-container').style.display = 'none';
+            const resultView = document.getElementById('result-view');
+            const resultBox = document.getElementById('result-box');
+            const icon = document.getElementById('result-icon');
+            const titleEl = document.getElementById('result-title');
+            const msgEl = document.getElementById('result-message');
+            const actionsEl = document.getElementById('result-actions');
+
+            resultView.style.display = 'flex';
+
+            if(isSuccess) {
+                resultBox.className = 'result-box success';
+                icon.className = 'fas fa-check-circle success-icon';
+                titleEl.innerHTML = title;
+                titleEl.className = 'success-text';
+                msgEl.innerHTML = message;
+                actionsEl.innerHTML = `
+                    <p style="margin-bottom:15px; font-size:0.95rem; font-weight:bold; color:#495057;">برای اطلاع از اخبار و شروع دوره‌ها حتماً عضو کانال روبیکا شوید:</p>
+                    <a href="https://rubika.ir/irnasimvahy" target="_blank" class="rubika-btn">
+                        <i class="fas fa-paper-plane"></i> عضویت در کانال روبیکا (@irnasimvahy)
+                    </a>
+                    <div style="margin-top: 25px; padding-top: 20px; border-top: 1px dashed #dee2e6; font-size: 0.95rem; color: #6c757d;">
+                        <i class="fas fa-headset"></i> شماره تماس پشتیبانی: <strong>09136395562</strong>
+                    </div>
+                `;
+            } else {
+                resultBox.className = 'result-box error';
+                icon.className = 'fas fa-times-circle error-icon';
+                titleEl.innerHTML = title;
+                titleEl.className = 'error-text';
+                msgEl.innerHTML = message;
+                actionsEl.innerHTML = `
+                    <button type="button" onclick="hideResult()" class="btn-retry">
+                        <i class="fas fa-undo"></i> بازگشت و اصلاح اطلاعات
+                    </button>
+                    <div style="margin-top: 25px; padding-top: 20px; border-top: 1px dashed #dee2e6; font-size: 0.95rem; color: #6c757d;">
+                        در صورت نیاز به راهنمایی تماس بگیرید:<br>
+                        <strong style="color:var(--text-main);">09136395562</strong>
+                    </div>
+                `;
+            }
+        }
+
+        function hideResult() {
+            document.getElementById('result-view').style.display = 'none';
+            document.getElementById('form-container').style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
         // ================== FORM SUBMIT ==================
         document.getElementById('registrationForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            hideMessage();
 
             const nId = document.getElementById('nationalId').value.trim();
             const phone = document.getElementById('phone').value.trim();
             
             // اعتبارسنجی
             if(!validateNationalId(nId)) {
-                showMessage('کد ملی وارد شده نامعتبر است.');
+                showResult(false, "کد ملی نامعتبر", "کد ملی یا کد اتباع وارد شده از نظر ساختاری اشتباه است. لطفاً با دقت بررسی کرده و مجدداً وارد کنید.");
                 return;
             }
             if(!validatePhone(phone)) {
-                showMessage('شماره همراه باید ۱۱ رقم باشد و با صفر (09) شروع شود.');
+                showResult(false, "شماره تماس نامعتبر", "شماره موبایل وارد شده صحیح نیست. حتماً باید ۱۱ رقم باشد و با 0 شروع شود. (مثال: 09123456789)");
                 return;
             }
 
             const y = document.getElementById('birth_y').value;
             const m = document.getElementById('birth_m').value.padStart(2, '0');
             const d = document.getElementById('birth_d').value.padStart(2, '0');
+            
+            if(!y || !document.getElementById('birth_m').value || !document.getElementById('birth_d').value) {
+                showResult(false, "نقص اطلاعات", "لطفاً تاریخ تولد خود را به صورت کامل (سال، ماه و روز) انتخاب کنید.");
+                return;
+            }
+
             const birthDate = `${y}/${m}/${d}`;
 
             const payload = {
@@ -281,7 +336,7 @@
                 studyField: document.getElementById('studyField').value.trim()
             };
 
-            // تغییر وضعیت دکمه
+            // تغییر وضعیت دکمه به حالت در حال بارگذاری
             const btn = document.getElementById('submitBtn');
             const btnText = document.getElementById('btnText');
             const spinner = document.getElementById('btnSpinner');
@@ -300,14 +355,13 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    document.getElementById('form-view').style.display = 'none';
-                    document.getElementById('success-view').style.display = 'block';
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    showResult(true, "ثبت‌نام شما تأیید شد!", "اطلاعات شما با موفقیت در سامانه قرآن‌آموزان ثبت گردید.");
+                    document.getElementById('registrationForm').reset();
                 } else {
-                    showMessage(result.message);
+                    showResult(false, "خطا در ثبت‌نام", result.message);
                 }
             } catch (error) {
-                showMessage('برقراری ارتباط با سرور با خطا مواجه شد. لطفاً دوباره تلاش کنید.');
+                showResult(false, "خطای ارتباطی", "متأسفانه ارتباط با سرور برقرار نشد. لطفاً از اتصال اینترنت خود مطمئن شوید و دوباره تلاش کنید.");
             } finally {
                 btn.disabled = false;
                 btnText.style.display = 'block';
