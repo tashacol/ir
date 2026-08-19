@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>سامانه مدیریت کلاس‌ها و متربیان</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <!-- SheetJS Library for Excel Import/Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap');
         
@@ -28,7 +30,7 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
         
-        /* Loading Overlays - Edited for Content Area Only */
+        /* Loading Overlays */
         #global-loader { position: absolute; inset: 0; background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); z-index: 999; display: none; align-items: center; justify-content: center; flex-direction: column; border-radius: var(--radius-lg); }
         html.dark-mode #global-loader { background: rgba(26, 32, 44, 0.85); }
         .spinner-large { width: 50px; height: 50px; border: 4px solid var(--border-color); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px;}
@@ -48,7 +50,7 @@
         .input-wrapper .form-input { padding-right: 45px; }
         .form-input:focus, .form-select:focus, textarea.form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1); }
         
-        .btn-primary, .btn-success, .btn-warning, .btn-danger, .btn-outline { width: 100%; padding: 12px 20px; font-size: 1rem; font-weight: 600; border: none; border-radius: var(--radius-md); cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; justify-content: center; gap: 8px; position: relative;}
+        .btn-primary, .btn-success, .btn-warning, .btn-danger, .btn-outline, .btn-info { width: 100%; padding: 12px 20px; font-size: 1rem; font-weight: 600; border: none; border-radius: var(--radius-md); cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; justify-content: center; gap: 8px; position: relative;}
         .btn-primary { background: var(--primary); color: #fff; }
         .btn-primary:hover:not(:disabled) { background: var(--primary-dark); transform: translateY(-1px); }
         .btn-success { background: var(--success); color: #fff; }
@@ -57,10 +59,12 @@
         .btn-warning:hover:not(:disabled) { opacity: 0.9; }
         .btn-danger { background: var(--danger); color: #fff; }
         .btn-danger:hover:not(:disabled) { opacity: 0.9; }
+        .btn-info { background: var(--info); color: #fff; }
+        .btn-info:hover:not(:disabled) { opacity: 0.9; }
         .btn-outline { background: transparent; border: 1.5px solid var(--border-color); color: var(--text-dark); }
         .btn-outline:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
         
-        .btn-primary:disabled, .btn-success:disabled, .btn-warning:disabled, .btn-danger:disabled { opacity: 0.7; cursor: not-allowed; }
+        .btn-primary:disabled, .btn-success:disabled, .btn-warning:disabled, .btn-danger:disabled, .btn-info:disabled { opacity: 0.7; cursor: not-allowed; }
         .btn-sm { padding: 6px 12px; font-size: 0.85rem; border-radius: 8px; width: auto;}
         
         /* Button Spinner */
@@ -89,7 +93,7 @@
         .tab-btn.active { background: var(--primary); color: #fff; box-shadow: var(--shadow); }
         .tab-btn:hover:not(.active) { background: var(--primary-light); color: var(--primary); }
 
-        /* Edited Main Content for Loader Context */
+        /* Main Content */
         .main-content { max-width: 1400px; margin: 20px auto; padding: 0 30px; animation: fadeIn 0.4s; position: relative; min-height: 60vh; }
         .tab-panel { display: none; animation: fadeIn 0.3s ease; }
         .tab-panel.active { display: block; }
@@ -123,7 +127,7 @@
         /* Modals */
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 1000; animation: fadeIn 0.2s; }
         .modal-overlay.show { display: flex; }
-        .modal-box { background: var(--bg-card); padding: 30px; border-radius: var(--radius-lg); width: 95%; max-width: 700px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow); position: relative; }
+        .modal-box { background: var(--bg-card); padding: 30px; border-radius: var(--radius-lg); width: 95%; max-width: 900px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow); position: relative; }
         .modal-close-btn { position: absolute; top: 15px; left: 15px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-light); transition: 0.2s; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center;}
         .modal-close-btn:hover { color: var(--danger); background: #fee2e2;}
         .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px; flex-wrap: wrap;}
@@ -175,6 +179,9 @@
 </head>
 <body>
 
+<!-- Hidden File Input for Excel Import -->
+<input type="file" id="excel_upload" accept=".xlsx, .xls" style="display:none;" onchange="handleExcelFile(event)" />
+
 <!-- Login View -->
 <div id="login-view">
     <div class="login-container">
@@ -223,7 +230,7 @@
         <!-- Loader Overlay specifically for Main Content Area -->
         <div id="global-loader">
             <div class="spinner-large"></div>
-            <p style="font-weight: 600; color: var(--primary); font-size: 1.1rem;">در حال ارتباط با سرور، لطفاً شکیبا باشید...</p>
+            <p style="font-weight: 600; color: var(--primary); font-size: 1.1rem;" id="loader-msg">در حال ارتباط با سرور، لطفاً شکیبا باشید...</p>
         </div>
 
         <!-- Classes Tab -->
@@ -247,7 +254,10 @@
             <div class="card">
                 <div class="card-header">
                     <h2><i class="fas fa-users"></i> لیست متربیان</h2>
-                    <button class="btn-primary btn-sm" onclick="openTraineeForm()">➕ افزودن متربی جدید</button>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <button class="btn-info btn-sm" onclick="triggerExcelUpload(null)"><i class="fas fa-file-excel"></i> ورود اطلاعات با اکسل</button>
+                        <button class="btn-primary btn-sm" onclick="openTraineeForm()">➕ افزودن متربی جدید</button>
+                    </div>
                 </div>
                 <div class="search-box">
                     <input type="text" id="trainee_search_input" placeholder="جستجوی متربی با کد ملی..." onkeyup="renderTrainees()">
@@ -307,17 +317,26 @@
 
 <script>
     // ================== CONFIGURATION ==================
-    // ⚠️ آدرس وب‌اپ گوگل اسکریپت خود را در خط زیر قرار دهید
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzECY0-Dpz4P1WNNRb9MRGaT0BoiZbboakD4shif7iD_k51oH5R5c2ede91cv7_bAt98w/exec"; 
+    // ⚠️ آدرس وب‌اپ گوگل اسکریپت جدید
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxeHiuYy2kcbYDHKr7AmXGzBjc3BNDUryVCRxBHlrC3Er3rV8viSTRFP6AgFH7ERY8ReQ/exec"; 
     const ADMIN_PASSWORD = 'admin123';
     
+    // ================== LISTS FOR DROPDOWNS ==================
+    const NATIONALITIES = ["Iran جمهوری اسلامی ایران","Andorra","United Arab Emirates","Afghanistan","Antigua and Barbuda","Anguilla","Albania","Armenia","Netherlands Antilles","Angola","Antarctica","Argentina","American Samoa","Austria","Australia","Aruba","Azerbaijan","Bosnia and Herzegovina","Barbados","Bangladesh","Belgium","Burkina Faso","Bulgaria","Bahrain","Burundi","Benin","Bermuda","Brunei","Bolivia","Brazil","Bahamas","Bhutan","Bouvet Island","Botswana","Belarus","Belize","Canada","Cocos [Keeling] Islands","Congo [DRC]","Central African Republic","Congo [Republic]","Switzerland","CÃ´te d'Ivoire","Cook Islands","Chile","Cameroon","China","Colombia","Costa Rica","Cuba","Cape Verde","Christmas Island","Cyprus","Czech Republic","Germany","Djibouti","Denmark","Dominica","Dominican Republic","Algeria","Ecuador","Estonia","Egypt","Western Sahara","Eritrea","Spain","Ethiopia","Finland","Fiji","Falkland Islands [Islas Malvinas]","Micronesia","Faroe Islands","France","Gabon","United Kingdom","Grenada","Georgia","French Guiana","Guernsey","Ghana","Gibraltar","Greenland","Gambia","Guinea","Guadeloupe","Equatorial Guinea","Greece","South Georgia and the South Sandwich Islands","Guatemala","Guam","Guinea-Bissau","Guyana","Gaza Strip","Hong Kong","Heard Island and McDonald Islands","Honduras","Croatia","Haiti","Hungary","Indonesia","Ireland","Israel","Isle of Man","India","British Indian Ocean Territory","Iraq","Iceland","Italy","Jersey","Jamaica","Jordan","Japan","Kenya","Kyrgyzstan","Cambodia","Kiribati","Comoros","Saint Kitts and Nevis","North Korea","South Korea","Kuwait","Cayman Islands","Kazakhstan","Laos","Lebanon","Saint Lucia","Liechtenstein","Sri Lanka","Liberia","Lesotho","Lithuania","Luxembourg","Latvia","Libya","Morocco","Monaco","Moldova","Montenegro","Madagascar","Marshall Islands","Macedonia [FYROM]","Mali","Myanmar [Burma]","Mongolia","Macau","Northern Mariana Islands","Martinique","Mauritania","Montserrat","Malta","Mauritius","Maldives","Malawi","Mexico","Malaysia","Mozambique","Namibia","New Caledonia","Niger","Norfolk Island","Nigeria","Nicaragua","Netherlands","Norway","Nepal","Nauru","Niue","New Zealand","Oman","Panama","Peru","French Polynesia","Papua New Guinea","Philippines","Pakistan","Poland","Saint Pierre and Miquelon","Pitcairn Islands","Puerto Rico","Palestinian Territories","Portugal","Palau","Paraguay","Qatar","RÃ©union","Romania","Serbia","Russia","Rwanda","Saudi Arabia","Solomon Islands","Seychelles","Sudan","Sweden","Singapore","Saint Helena","Slovenia","Svalbard and Jan Mayen","Slovakia","Sierra Leone","San Marino","Senegal","Somalia","Suriname","SÃ£o TomÃ© and PrÃ­ncipe","El Salvador","Syria","Swaziland","Turks and Caicos Islands","Chad","French Southern Territories","Togo","Thailand","Tajikistan","Tokelau","Timor-Leste","Turkmenistan","Tunisia","Tonga","Turkey","Trinidad and Tobago","Tuvalu","Taiwan","Tanzania","Ukraine","Uganda","U.S. Minor Outlying Islands","United States","Uruguay","Uzbekistan","Vatican City","Saint Vincent and the Grenadines","Venezuela","British Virgin Islands","U.S. Virgin Islands","Vietnam","Vanuatu","Wallis and Futuna","Samoa","Kosovo","Yemen","Mayotte","South Africa","Zambia","Zimbabwe"];
+    const PROVINCES = ["آذربایجان شرقی","آذربایجان غربی","اردبیل","اصفهان","البرز","ایلام","بوشهر","تهران","شهرستان های تهران","چهارمحال و بختیاری","خراسان جنوبی","خراسان رضوی","خراسان شمالی","خوزستان","زنجان","سمنان","سیستان و بلوچستان","فارس","قزوین","قم","كردستان","كرمان","كرمانشاه","كهگیلویه و بویراحمد","گلستان","گیلان","لرستان","مازندران","مركزی","هرمزگان","همدان","یزد"];
+    const EDUCATIONS = ["قبل دیپلم","دیپلم","فوق دیپلم","لیسانس","فوق لیسانس","دکترا","سطح 1 حوزه","سطح 2 حوزه","سطح 3 و بالاتر حوزه"];
+
     // ================== STATE MANAGEMENT ==================
     let appData = { trainees: [], trainers: [], classes: [], staff: [] };
     let internetDateObj = null;
     let traineeDisplayLimit = 30; // Limit for trainees pagination
+    let targetClassForImport = null; // Used for Excel Import
     
     // ================== UTILS & UI CONTROLS ==================
-    const showGlobalLoader = () => document.getElementById('global-loader').style.display = 'flex';
+    const showGlobalLoader = (msg = 'در حال ارتباط با سرور، لطفاً شکیبا باشید...') => {
+        document.getElementById('loader-msg').innerText = msg;
+        document.getElementById('global-loader').style.display = 'flex';
+    };
     const hideGlobalLoader = () => document.getElementById('global-loader').style.display = 'none';
     
     const setButtonLoading = (btn, isLoading) => {
@@ -344,19 +363,36 @@
     const generateId = () => 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
 
     const validateNationalId = (code) => {
-        if (!code || code.length !== 10 || !/^\d{10}$/.test(code)) return false;
-        if (/^(\d)\1{9}$/.test(code)) return false;
-        const d = code.split('').map(Number);
-        const check = d[9];
-        let sum = 0;
-        for (let i = 0; i < 9; i++) sum += d[i] * (10 - i);
-        const rem = sum % 11;
-        return rem < 2 ? check === rem : check === 11 - rem;
+        if (!code) return false;
+        code = String(code).padStart(10, '0');
+        if (code.length === 10) {
+            if (!/^\d{10}$/.test(code)) return false;
+            if (/^(\d)\1{9}$/.test(code)) return false;
+            const d = code.split('').map(Number);
+            const check = d[9];
+            let sum = 0;
+            for (let i = 0; i < 9; i++) sum += d[i] * (10 - i);
+            const rem = sum % 11;
+            return rem < 2 ? check === rem : check === 11 - rem;
+        } else if (code.length > 10) {
+            return /^\d+$/.test(code); // For foreigners
+        }
+        return false;
+    };
+
+    const validatePhone = (phone) => {
+        if(!phone) return false;
+        phone = String(phone).trim().padStart(11, '0');
+        return phone.length === 11 && phone.startsWith('0') && /^\d+$/.test(phone);
     };
 
     const requestAdminPassword = () => {
         const pass = prompt('برای انجام این عملیات حساس، رمز عبور مدیریت را وارد کنید:');
         return pass === ADMIN_PASSWORD;
+    };
+
+    const generateOptions = (list, selectedVal) => {
+        return list.map(item => `<option value="${item}" ${item === selectedVal ? 'selected' : ''}>${item}</option>`).join('');
     };
 
     // ================== DATE HELPERS (JALALI) ==================
@@ -450,7 +486,7 @@
         }
 
         let yOptions = '<option value="">سال</option>';
-        for (let y = currentYear + 5; y >= currentYear - 60; y--) {
+        for (let y = currentYear; y >= currentYear - 80; y--) {
             yOptions += `<option value="${y}" ${y === sY ? 'selected' : ''}>${y}</option>`;
         }
         
@@ -539,12 +575,12 @@
     }
 
     async function loadDataFromServer() {
-        showGlobalLoader();
+        showGlobalLoader('در حال دریافت اطلاعات...');
         try {
             const res = await apiCall('getData');
             appData = res.data;
-            if(!appData.staff) appData.staff = []; // Ensure staff array exists
-            traineeDisplayLimit = 30; // Reset limit on load
+            if(!appData.staff) appData.staff = []; 
+            traineeDisplayLimit = 30;
             renderClasses();
             renderTrainees();
             renderTrainers();
@@ -590,6 +626,182 @@
         document.getElementById('modal-container').innerHTML = '';
     }
 
+    // ================== EXCEL IMPORT / EXPORT ==================
+    window.triggerExcelUpload = (classId = null) => {
+        targetClassForImport = classId;
+        document.getElementById('excel_upload').value = ""; // reset
+        document.getElementById('excel_upload').click();
+    };
+
+    window.handleExcelFile = async (e) => {
+        const file = e.target.files[0];
+        if(!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(firstSheet, {header: 1});
+
+                let newTrainees = [];
+                let errLog = [];
+                
+                // Skip header (i=0)
+                for(let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    if(!row || !row.length) continue;
+                    
+                    let nId = String(row[1] || '').trim();
+                    let phone = String(row[7] || '').trim();
+
+                    if(!nId) continue; // Skip if no national ID
+                    nId = nId.padStart(10, '0');
+                    if(phone) phone = phone.padStart(11, '0');
+
+                    if(!validateNationalId(nId)) {
+                        errLog.push(`ردیف ${i+1}: کد ملی نامعتبر (${nId})`);
+                        continue;
+                    }
+                    if(!validatePhone(phone)) {
+                        errLog.push(`ردیف ${i+1}: شماره تماس نامعتبر (${phone})`);
+                        continue;
+                    }
+
+                    // Avoid duplicate inside the file itself
+                    if(newTrainees.some(x => x.nationalId === nId)) {
+                        errLog.push(`ردیف ${i+1}: کد ملی تکراری در فایل`);
+                        continue;
+                    }
+
+                    let existTrainee = appData.trainees.find(t => String(t.nationalId) === String(nId));
+                    let tId = existTrainee ? existTrainee.id : generateId();
+
+                    newTrainees.push({
+                        nationality: String(row[0] || ''),
+                        nationalId: nId,
+                        firstName: String(row[2] || ''),
+                        lastName: String(row[3] || ''),
+                        gender: String(row[4] || ''),
+                        fatherName: String(row[5] || ''),
+                        issuePlace: String(row[6] || ''),
+                        phone: phone,
+                        birthDate: String(row[8] || ''),
+                        province: String(row[9] || ''),
+                        city: String(row[10] || ''),
+                        education: String(row[11] || ''),
+                        studyField: String(row[12] || ''),
+                        id: tId
+                    });
+                }
+
+                if(errLog.length > 0) {
+                    alert("خطاهای یافت شده در فایل اکسل:\n" + errLog.slice(0,10).join("\n") + (errLog.length > 10 ? "\nو..." : ""));
+                    if(!confirm("آیا مایلید اطلاعات صحیح (بدون خطاها) وارد سامانه شوند؟")) return;
+                }
+
+                if(newTrainees.length === 0) {
+                    showToast('هیچ اطلاعات معتبری برای ورود یافت نشد.', 'warning');
+                    return;
+                }
+
+                showGlobalLoader('در حال ذخیره اطلاعات اکسل...');
+                
+                // 1. Save all trainees to DB
+                await apiCall('bulkSaveTrainees', { payload: newTrainees });
+                
+                // Update local appData
+                newTrainees.forEach(nt => {
+                    let idx = appData.trainees.findIndex(x => x.id === nt.id);
+                    if(idx > -1) appData.trainees[idx] = nt;
+                    else appData.trainees.push(nt);
+                });
+
+                // 2. If uploaded inside a class, add them to the class
+                if(targetClassForImport) {
+                    const cls = appData.classes.find(c => c.id === targetClassForImport);
+                    if(!cls.students) cls.students = [];
+                    
+                    let addedCount = 0;
+                    newTrainees.forEach(nt => {
+                        if(!cls.students.some(s => s.traineeId === nt.id)) {
+                            cls.students.push({ traineeId: nt.id, payments: [] });
+                            addedCount++;
+                        }
+                    });
+                    
+                    if(addedCount > 0) {
+                        await apiCall('saveClass', { payload: cls });
+                    }
+                    viewClassDetail(targetClassForImport);
+                    showToast(`تعداد ${addedCount} متربی با موفقیت به کلاس اضافه شدند.`);
+                } else {
+                    showToast(`تعداد ${newTrainees.length} متربی با موفقیت در سامانه ثبت شدند.`);
+                }
+                
+                renderTrainees();
+            } catch(error) {
+                showToast('خطا در خواندن فایل اکسل!', 'error');
+            } finally {
+                hideGlobalLoader();
+                targetClassForImport = null;
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    };
+
+    window.exportClassTrainees = (classId) => {
+        const cls = appData.classes.find(c => c.id === classId);
+        if(!cls || !cls.students || cls.students.length === 0) {
+            showToast('این کلاس فاقد متربی است.', 'error');
+            return;
+        }
+
+        const dataToExport = [];
+        // Header Row Exactly as requested
+        dataToExport.push([
+            'ملیت (از لیست انتخاب کنید)',
+            'کد ملی / کد اتباع',
+            'نام',
+            'نام خانوادگی',
+            'جنسیت',
+            'نام پدر',
+            'محل صدور',
+            'شماره همراه',
+            'تاریخ تولد (نمونه 1375/03/09)',
+            'استان (از لیست انتخاب کنید، استان تهران و شهرستان های آن تفکیک شده اند)',
+            'شهر',
+            'تحصیلات (از لیست انتخاب کنید)',
+            'رشته تحصیلی'
+        ]);
+
+        for(const s of cls.students) {
+            const t = appData.trainees.find(x => x.id === s.traineeId);
+            if(!t) continue;
+            dataToExport.push([
+                t.nationality || '',
+                t.nationalId || '',
+                t.firstName || '',
+                t.lastName || '',
+                t.gender || '',
+                t.fatherName || '',
+                t.issuePlace || '',
+                t.phone || '',
+                t.birthDate || '',
+                t.province || '',
+                t.city || '',
+                t.education || '',
+                t.studyField || ''
+            ]);
+        }
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(dataToExport);
+        XLSX.utils.book_append_sheet(wb, ws, "Trainees");
+        XLSX.writeFile(wb, `Class_Trainees_${cls.title}.xlsx`);
+    };
+
     // ================== TRAINEES ==================
     function loadMoreTrainees() {
         traineeDisplayLimit += 30;
@@ -627,7 +839,7 @@
                 <td>${i+1}</td>
                 <td><strong>${t.firstName} ${t.lastName}</strong></td>
                 <td><code>${t.nationalId}</code></td>
-                <td>${t.fatherName}</td>
+                <td>${t.fatherName || '—'}</td>
                 <td>${formatDateStr(t.birthDate)}</td>
                 <td><a href="tel:${t.phone}" style="color:var(--primary); font-weight:600; text-decoration:none;"><i class="fas fa-phone-alt"></i> ${t.phone}</a></td>
                 <td>
@@ -649,17 +861,64 @@
                 <h3 style="margin-bottom: 20px; font-size:1.2rem; color:var(--primary);"><i class="fas fa-user-graduate"></i> ${title}</h3>
                 <form onsubmit="saveTrainee(event, '${id || ''}')">
                     <div class="form-row">
+                        <div class="form-group">
+                            <label>ملیت *</label>
+                            <select id="t_nationality" class="form-select" required>
+                                <option value="">-- انتخاب کنید --</option>
+                                ${generateOptions(NATIONALITIES, exist?.nationality || 'Iran جمهوری اسلامی ایران')}
+                            </select>
+                        </div>
+                        <div class="form-group"><label>کد ملی / کد اتباع *</label><input type="text" id="t_nId" class="form-input" value="${exist?.nationalId||''}" required></div>
+                    </div>
+                    
+                    <div class="form-row">
                         <div class="form-group"><label>نام *</label><input type="text" id="t_fName" class="form-input" value="${exist?.firstName||''}" required></div>
                         <div class="form-group"><label>نام خانوادگی *</label><input type="text" id="t_lName" class="form-input" value="${exist?.lastName||''}" required></div>
                     </div>
+
                     <div class="form-row">
-                        <div class="form-group"><label>کد ملی * (۱۰ رقمی)</label><input type="text" id="t_nId" class="form-input" value="${exist?.nationalId||''}" required maxlength="10"></div>
+                        <div class="form-group">
+                            <label>جنسیت *</label>
+                            <select id="t_gender" class="form-select" required>
+                                <option value="مرد" ${exist?.gender==='مرد'?'selected':''}>مرد</option>
+                                <option value="زن" ${exist?.gender==='زن'?'selected':''}>زن</option>
+                            </select>
+                        </div>
                         <div class="form-group"><label>نام پدر *</label><input type="text" id="t_father" class="form-input" value="${exist?.fatherName||''}" required></div>
                     </div>
+
+                    <div class="form-row">
+                        <div class="form-group"><label>محل صدور</label><input type="text" id="t_issuePlace" class="form-input" value="${exist?.issuePlace||''}"></div>
+                        <div class="form-group"><label>شماره همراه * (۱۱ رقم)</label><input type="text" id="t_phone" class="form-input" value="${exist?.phone||''}" required maxlength="11" placeholder="مثلا 09123456789"></div>
+                    </div>
+
                     <div class="form-row">
                         <div class="form-group"><label>تاریخ تولد *</label>${generateDateDropdownsHTML('t_birth', exist?.birthDate)}</div>
-                        <div class="form-group"><label>شماره تماس *</label><input type="text" id="t_phone" class="form-input" value="${exist?.phone||''}" required></div>
+                        <div class="form-group">
+                            <label>استان *</label>
+                            <select id="t_province" class="form-select" required>
+                                <option value="">-- انتخاب کنید --</option>
+                                ${generateOptions(PROVINCES, exist?.province || '')}
+                            </select>
+                        </div>
                     </div>
+
+                    <div class="form-row">
+                        <div class="form-group"><label>شهر</label><input type="text" id="t_city" class="form-input" value="${exist?.city||''}"></div>
+                        <div class="form-group">
+                            <label>تحصیلات</label>
+                            <select id="t_education" class="form-select">
+                                <option value="">-- انتخاب کنید --</option>
+                                ${generateOptions(EDUCATIONS, exist?.education || '')}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group"><label>رشته تحصیلی</label><input type="text" id="t_studyField" class="form-input" value="${exist?.studyField||''}"></div>
+                        <div class="form-group"></div>
+                    </div>
+
                     <div class="modal-actions">
                         <button type="button" class="btn-outline btn-sm" onclick="closeModal()">انصراف</button>
                         <button type="submit" class="btn-primary btn-sm">
@@ -680,19 +939,29 @@
         const bDate = getDropdownDateValue('t_birth');
         if(!bDate) { showToast('لطفا تاریخ تولد را کامل انتخاب کنید', 'error'); return; }
         
+        let phoneVal = document.getElementById('t_phone').value.trim();
+        phoneVal = String(phoneVal).padStart(11, '0');
+
         const payload = {
             id: id || generateId(),
+            nationality: document.getElementById('t_nationality').value,
+            nationalId: document.getElementById('t_nId').value.trim().padStart(10, '0'),
             firstName: document.getElementById('t_fName').value.trim(),
             lastName: document.getElementById('t_lName').value.trim(),
-            nationalId: document.getElementById('t_nId').value.trim(),
+            gender: document.getElementById('t_gender').value,
             fatherName: document.getElementById('t_father').value.trim(),
+            issuePlace: document.getElementById('t_issuePlace').value.trim(),
+            phone: phoneVal,
             birthDate: bDate,
-            phone: document.getElementById('t_phone').value.trim()
+            province: document.getElementById('t_province').value,
+            city: document.getElementById('t_city').value.trim(),
+            education: document.getElementById('t_education').value,
+            studyField: document.getElementById('t_studyField').value.trim()
         };
 
-        if(!validateNationalId(payload.nationalId)) { showToast('کد ملی وارد شده نامعتبر است', 'error'); return; }
-        
-        // برطرف کردن مشکل ثبت تکراری با اطمینان صد درصدی از String بودن و حذف فاصله‌ها
+        if(!validateNationalId(payload.nationalId)) { showToast('کد ملی / کد اتباع وارد شده نامعتبر است', 'error'); return; }
+        if(!validatePhone(payload.phone)) { showToast('شماره همراه باید ۱۱ رقم بوده و با ۰ شروع شود', 'error'); return; }
+
         const dup = appData.trainees.find(x => String(x.nationalId).trim() === String(payload.nationalId).trim() && x.id !== id);
         if(dup) { showToast('این کد ملی موجود است', 'error'); return; }
 
@@ -733,7 +1002,6 @@
             return;
         }
         
-        // حداکثر ۱۰ نفر آخر
         const listToDisplay = [...appData.trainers].reverse().slice(0, 10);
         
         tbody.innerHTML = listToDisplay.map((t, i) => `
@@ -801,7 +1069,7 @@
             id: id || generateId(),
             firstName: document.getElementById('tr_fName').value.trim(),
             lastName: document.getElementById('tr_lName').value.trim(),
-            nationalId: document.getElementById('tr_nId').value.trim(),
+            nationalId: document.getElementById('tr_nId').value.trim().padStart(10, '0'),
             fatherName: document.getElementById('tr_father').value.trim(),
             birthDate: bDate,
             phone: document.getElementById('tr_phone').value.trim(),
@@ -921,7 +1189,7 @@
             id: id || generateId(),
             firstName: document.getElementById('st_fName').value.trim(),
             lastName: document.getElementById('st_lName').value.trim(),
-            nationalId: document.getElementById('st_nId').value.trim(),
+            nationalId: document.getElementById('st_nId').value.trim().padStart(10, '0'),
             phone: document.getElementById('st_phone').value.trim(),
             startDate: sDate,
             cardNumber: document.getElementById('st_cardNumber').value.trim(),
@@ -1207,7 +1475,6 @@
             return;
         }
 
-        // نمایش حداکثر ۵ کلاس آخر
         const listToDisplay = [...appData.classes].reverse().slice(0, 5);
 
         tbody.innerHTML = listToDisplay.map((c, i) => {
@@ -1514,7 +1781,13 @@
 
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                     <h4 style="margin:0;"><i class="fas fa-users"></i> لیست متربیان (${cls.students?cls.students.length:0} نفر)</h4>
-                    ${cls.status==='active'?`<button class="btn-sm btn-primary" onclick="openAddStudentModal('${classId}')">➕ افزودن متربی (جستجو)</button>`:''}
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <button class="btn-sm btn-success" onclick="exportClassTrainees('${classId}')"><i class="fas fa-file-excel"></i> خروجی اکسل کلاس</button>
+                        ${cls.status==='active'?`
+                        <button class="btn-sm btn-info" onclick="triggerExcelUpload('${classId}')"><i class="fas fa-upload"></i> ورود اکسل</button>
+                        <button class="btn-sm btn-primary" onclick="openAddStudentModal('${classId}')">➕ افزودن متربی (جستجو)</button>
+                        `:''}
+                    </div>
                 </div>
                 
                 <div style="max-height:450px; overflow-y:auto; padding-right:5px;">
@@ -1587,7 +1860,7 @@
         }
 
         if(query.length < 10) {
-            container.innerHTML = '<p style="text-align:center; color:var(--text-light); font-size:0.9rem; margin-top:30px;">کد ملی را کامل (۱۰ رقم) وارد کنید...</p>';
+            container.innerHTML = '<p style="text-align:center; color:var(--text-light); font-size:0.9rem; margin-top:30px;">کد ملی را کامل وارد کنید...</p>';
             return;
         }
 
