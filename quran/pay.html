@@ -116,7 +116,7 @@
     // ==========================================
     // ⚠️ لینک Web App جدید خود را در خط زیر قرار دهید:
     // ==========================================
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwKSlAF0qwqH3eDufnJotO5aN_cf6RmEHA0ZocxP3Ed5A2QPzrLnBx8dZJ3JIZf-e8v/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxl-CpG4GBtJDG_lRPIdIjZYawJmrbrxnrh0DhcfRrMYByxcrQF6faCeCZmXTWxRuQT/exec"; 
 
     const toggleFullLoader = (show, text = 'لطفاً شکیبا باشید...') => {
         document.getElementById('full-loader').style.display = show ? 'flex' : 'none';
@@ -140,30 +140,16 @@
         if(!startDateStr) return periods;
         
         let sp = formatDateStr(startDateStr).split('/');
-        if (sp.length < 3) return periods; // جلوگیری از کرش در صورت فرمت اشتباه
-        
         let startDaysCalc = parseInt(sp[0]) * 365 + parseInt(sp[1]) * 30 + parseInt(sp[2]);
-        let endDaysCalc;
         
+        let endDaysCalc;
         if (endDateStr && endDateStr !== '') {
             let ep = formatDateStr(endDateStr).split('/');
-            if (ep.length >= 3) {
-                endDaysCalc = parseInt(ep[0]) * 365 + parseInt(ep[1]) * 30 + parseInt(ep[2]);
-            }
-        } 
-        
-        // محاسبه امن و ضدگلوله تاریخ امروز (بدون وابستگی به کاراکتر جداکننده مرورگر)
-        if (!endDaysCalc) {
+            endDaysCalc = parseInt(ep[0]) * 365 + parseInt(ep[1]) * 30 + parseInt(ep[2]);
+        } else {
             const today = new Date();
-            const formatter = new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: 'numeric', day: 'numeric' });
-            const parts = formatter.formatToParts(today);
-            const toEn = s => String(s).replace(/[۰-۹]/g, w => '۰۱۲۳۴۵۶۷۸۹'.indexOf(w));
-            
-            let ty = parseInt(toEn(parts.find(p => p.type === 'year')?.value || '1403'));
-            let tm = parseInt(toEn(parts.find(p => p.type === 'month')?.value || '1'));
-            let td = parseInt(toEn(parts.find(p => p.type === 'day')?.value || '1'));
-            
-            endDaysCalc = ty * 365 + tm * 30 + td;
+            const tp = new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: 'numeric', day: 'numeric' }).format(today).replace(/[۰-۹]/g, w => '۰۱۲۳۴۵۶۷۸۹'.indexOf(w)).split('/');
+            endDaysCalc = parseInt(tp[0]) * 365 + parseInt(tp[1]) * 30 + parseInt(tp[2]);
         }
 
         let diffDays = endDaysCalc - startDaysCalc;
@@ -239,7 +225,7 @@
 
     async function login() {
         const nId = document.getElementById('national-id').value.trim();
-        if(!/^\d{10}$/.test(nId)) return alert('لطفاً کد ملی ۱۰ رقمی وارد کنید.');
+        if(!/^\d+$/.test(nId) || nId.length < 8 || nId.length > 10) return alert('لطفاً کد ملی معتبر وارد کنید.');
         
         toggleFullLoader(true, 'در حال بررسی اطلاعات...');
         try {
@@ -265,7 +251,7 @@
             const res = await apiCall('getStudentDashboard', { traineeId: localStorage.getItem('traineeId') });
             if(res.success) renderClasses(res.classes);
             else alert(res.message);
-        } catch(e) { alert('خطا در دریافت کلاس‌ها'); } 
+        } catch(e) { alert('خطا در دریافت اطلاعات کلاس‌ها'); } 
         finally { toggleInlineLoader(false); }
     }
 
@@ -274,7 +260,7 @@
         const archivedContainer = document.getElementById('archived-classes-container');
         
         if(!classes || classes.length === 0) {
-            activeContainer.innerHTML = `<div class="card empty-state"><i class="fas fa-folder-open"></i><h3>کلاسی یافت نشد</h3></div>`;
+            activeContainer.innerHTML = `<div class="card empty-state" style="text-align:center; padding:40px;"><i class="fas fa-folder-open" style="font-size:3rem; color:#cbd5e1; margin-bottom:15px;"></i><h3>شما در هیچ کلاسی ثبت‌نام نشده‌اید.</h3></div>`;
             archivedContainer.innerHTML = '';
             return;
         }
@@ -288,11 +274,9 @@
             let unpaidCount = 0;
             
             let monthsHtml = periods.map(p => {
-                // بررسی دقیق پرداختی (هم دستی هم درگاه)
                 const isPaid = cls.myPayments.find(x => parseInt(x.periodIndex) === p.index);
                 
                 if (isPaid) {
-                    // تفکیک پرداخت دستی و آنلاین برای زیبایی بصری
                     const isManual = !isPaid.method || isPaid.method !== "درگاه آنلاین";
                     const chipClass = isManual ? "paid-manual" : "paid-online";
                     const icon = isManual ? "fa-money-bill-wave" : "fa-check";
@@ -319,9 +303,8 @@
                 }
             }).join('');
             
-            if(periods.length === 0) monthsHtml = '<p style="text-align:center; width:100%; color:#64748b;">زمان زیادی از کلاس نگذشته است.</p>';
+            if(periods.length === 0) monthsHtml = '<p style="text-align:center; width:100%; color:#64748b;">زمان زیادی از شروع کلاس نگذشته است.</p>';
 
-            // منطق بایگانی: اگر کلاس بایگانی شده باشد، یا کلاس پایان‌یافته باشد و هیچ بدهی نداشته باشد
             const isArchived = cls.status === 'archived' || (cls.status === 'finished' && unpaidCount === 0);
 
             const cardHtml = `
@@ -340,12 +323,12 @@
             else { hasActive = true; activeHtml += cardHtml; }
         });
         
-        activeContainer.innerHTML = hasActive ? activeHtml : '<p style="color:#64748b;">هیچ کلاسی در جریان نیست.</p>';
+        activeContainer.innerHTML = hasActive ? activeHtml : '<p style="color:#64748b;">شما در حال حاضر هیچ کلاس جاری یا بدهی ندارید.</p>';
         archivedContainer.innerHTML = hasArchived ? archivedHtml : '';
     }
 
     async function payMonth(classId, periodIndex) {
-        toggleFullLoader(true, 'در حال انتقال به درگاه شاپرک...');
+        toggleFullLoader(true, 'در حال اتصال به درگاه پرداخت شاپرک...');
         try {
             const res = await apiCall('requestPayment', {
                 traineeId: localStorage.getItem('traineeId'),
@@ -354,7 +337,7 @@
             });
             if(res.success) window.location.href = res.paymentUrl;
             else { alert('خطای درگاه: ' + res.message); toggleFullLoader(false); }
-        } catch(e) { alert('خطا در ارتباط'); toggleFullLoader(false); }
+        } catch(e) { alert('خطا در برقراری ارتباط با سرور'); toggleFullLoader(false); }
     }
 </script>
 </body>
