@@ -140,16 +140,30 @@
         if(!startDateStr) return periods;
         
         let sp = formatDateStr(startDateStr).split('/');
-        let startDaysCalc = parseInt(sp[0]) * 365 + parseInt(sp[1]) * 30 + parseInt(sp[2]);
+        if (sp.length < 3) return periods; // جلوگیری از کرش در صورت فرمت اشتباه
         
+        let startDaysCalc = parseInt(sp[0]) * 365 + parseInt(sp[1]) * 30 + parseInt(sp[2]);
         let endDaysCalc;
+        
         if (endDateStr && endDateStr !== '') {
             let ep = formatDateStr(endDateStr).split('/');
-            endDaysCalc = parseInt(ep[0]) * 365 + parseInt(ep[1]) * 30 + parseInt(ep[2]);
-        } else {
+            if (ep.length >= 3) {
+                endDaysCalc = parseInt(ep[0]) * 365 + parseInt(ep[1]) * 30 + parseInt(ep[2]);
+            }
+        } 
+        
+        // محاسبه امن و ضدگلوله تاریخ امروز (بدون وابستگی به کاراکتر جداکننده مرورگر)
+        if (!endDaysCalc) {
             const today = new Date();
-            const tp = new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: 'numeric', day: 'numeric' }).format(today).replace(/[۰-۹]/g, w => '۰۱۲۳۴۵۶۷۸۹'.indexOf(w)).split('/');
-            endDaysCalc = parseInt(tp[0]) * 365 + parseInt(tp[1]) * 30 + parseInt(tp[2]);
+            const formatter = new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: 'numeric', day: 'numeric' });
+            const parts = formatter.formatToParts(today);
+            const toEn = s => String(s).replace(/[۰-۹]/g, w => '۰۱۲۳۴۵۶۷۸۹'.indexOf(w));
+            
+            let ty = parseInt(toEn(parts.find(p => p.type === 'year')?.value || '1403'));
+            let tm = parseInt(toEn(parts.find(p => p.type === 'month')?.value || '1'));
+            let td = parseInt(toEn(parts.find(p => p.type === 'day')?.value || '1'));
+            
+            endDaysCalc = ty * 365 + tm * 30 + td;
         }
 
         let diffDays = endDaysCalc - startDaysCalc;
