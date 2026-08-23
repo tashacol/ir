@@ -94,7 +94,7 @@
 <!-- داشبورد قرآن‌آموز -->
 <div class="container" id="dashboard-view" style="display: none;">
     <div class="header-bar">
-        <h3 id="welcome-msg" style="color: var(--primary); font-size: 1.3rem;"><i class="fas fa-user-circle"></i> خوش آمدید</h3>
+        <h3 id="welcome-msg" style="color: var(--primary); font-size: 1.3rem;"><i class="fas fa-user-graduate"></i> خوش آمدید</h3>
         <button class="btn" style="background:#ef4444; width:auto; padding:8px 20px;" onclick="logout()">
             <i class="fas fa-power-off"></i> خروج
         </button>
@@ -145,37 +145,107 @@
         document.getElementById('archived-classes-container').style.display = show ? 'none' : 'block';
     };
 
+    // ==========================================
+    // توابع تبدیل و پالایش دقیق تاریخ‌های شمسی
+    // ==========================================
+    function cleanNumberStr(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+            .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+            .replace(/[^\d]/g, '');
+    }
+
+    function parsePersianDate(dateStr) {
+        if (!dateStr) return null;
+        let s = String(dateStr).split('T')[0].replace(/-/g, '/');
+        let parts = s.split('/');
+        if (parts.length !== 3) return null;
+        
+        let y = parseInt(cleanNumberStr(parts[0]), 10);
+        let m = parseInt(cleanNumberStr(parts[1]), 10);
+        let d = parseInt(cleanNumberStr(parts[2]), 10);
+        
+        if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
+        
+        // اگر تاریخ میلادی بود تبدیل به شمسی شود
+        if (y > 1900) {
+            try {
+                const gDate = new Date(y, m - 1, d);
+                const formatter = new Intl.DateTimeFormat('fa-IR-u-nu-latn', { year: 'numeric', month: 'numeric', day: 'numeric' });
+                const jParts = formatter.format(gDate).replace(/[^\d\/]/g, '').split('/');
+                y = parseInt(cleanNumberStr(jParts[0]), 10);
+                m = parseInt(cleanNumberStr(jParts[1]), 10);
+                d = parseInt(cleanNumberStr(jParts[2]), 10);
+            } catch(e) {}
+        }
+        
+        return { y, m, d, totalDays: y * 365 + m * 30 + d };
+    }
+
+    function getTodayPersianDate() {
+        const today = new Date();
+        try {
+            const formatter = new Intl.DateTimeFormat('fa-IR-u-nu-latn', { year: 'numeric', month: 'numeric', day: 'numeric' });
+            const cleanStr = formatter.format(today).replace(/[^\d\/]/g, '');
+            const parts = cleanStr.split('/');
+            const y = parseInt(cleanNumberStr(parts[0]), 10);
+            const m = parseInt(cleanNumberStr(parts[1]), 10);
+            const d = parseInt(cleanNumberStr(parts[2]), 10);
+            return { y, m, d, totalDays: y * 365 + m * 30 + d };
+        } catch(e) {
+            const p = new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: 'numeric', day: 'numeric' }).format(today);
+            const cleanStr = p.replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[^\d\/]/g, '');
+            const parts = cleanStr.split('/');
+            const y = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10);
+            const d = parseInt(parts[2], 10);
+            return { y, m, d, totalDays: y * 365 + m * 30 + d };
+        }
+    }
+
     function formatDateStr(dateStr) {
         if (!dateStr) return '—';
+        const parsed = parsePersianDate(dateStr);
+        if (parsed) {
+            return `${parsed.y}/${String(parsed.m).padStart(2, '0')}/${String(parsed.d).padStart(2, '0')}`;
+        }
         return String(dateStr).split('T')[0].replace(/-/g, '/');
     }
     
     function getMonthPeriods(startDateStr, endDateStr) {
         const periods = [];
-        if(!startDateStr) return periods;
+        if (!startDateStr) return periods;
         
-        let sp = formatDateStr(startDateStr).split('/');
-        if (sp.length !== 3) return periods;
-        let startDaysCalc = parseInt(sp[0]) * 365 + parseInt(sp[1]) * 30 + parseInt(sp[2]);
+        const start = parsePersianDate(startDateStr);
+        if (!start) return periods;
         
-        let endDaysCalc;
+        let end = null;
         if (endDateStr && endDateStr !== '' && endDateStr !== '—') {
-            let ep = formatDateStr(endDateStr).split('/');
-            endDaysCalc = parseInt(ep[0]) * 365 + parseInt(ep[1]) * 30 + parseInt(ep[2]);
-        } else {
-            const today = new Date();
-            const tp = new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: 'numeric', day: 'numeric' }).format(today).replace(/[۰-۹]/g, w => '۰۱۲۳۴۵۶۷۸۹'.indexOf(w)).split('/');
-            endDaysCalc = parseInt(tp[0]) * 365 + parseInt(tp[1]) * 30 + parseInt(tp[2]);
+            end = parsePersianDate(endDateStr);
+        }
+        if (!end) {
+            end = getTodayPersianDate();
         }
 
-        let diffDays = endDaysCalc - startDaysCalc;
-        if(diffDays < 0) diffDays = 0;
+        let diffDays = end.totalDays - start.totalDays;
+        if (diffDays < 0) diffDays = 0;
+        
+        // هر ماه معادل ۳۰ روز محاسبه می‌شود؛ از روز اول ماه اول شهریه تعلق می‌گیرد
         let monthsPassed = Math.floor(diffDays / 30) + 1; 
         
-        for(let i = 0; i < monthsPassed; i++) {
-            let m = parseInt(sp[1]) + i; let y = parseInt(sp[0]);
-            while(m > 12) { m -= 12; y += 1; }
-            periods.push({ index: i, label: `ماه ${i + 1}`, date: `${y}/${String(m).padStart(2,'0')}` });
+        for (let i = 0; i < monthsPassed; i++) {
+            let m = start.m + i;
+            let y = start.y;
+            while (m > 12) {
+                m -= 12;
+                y += 1;
+            }
+            periods.push({
+                index: i,
+                label: `ماه ${i + 1}`,
+                date: `${y}/${String(m).padStart(2, '0')}`
+            });
         }
         return periods;
     }
