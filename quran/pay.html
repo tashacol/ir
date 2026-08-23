@@ -114,7 +114,7 @@
 
 <script>
     // ==========================================
-    // ⚠️ لینک Web App جدید خود را در خط زیر قرار دهید:
+    // ⚠️ لینک Web App جدید گوگل اسکریپت خود را حتماً اینجا قرار دهید:
     // ==========================================
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxl-CpG4GBtJDG_lRPIdIjZYawJmrbrxnrh0DhcfRrMYByxcrQF6faCeCZmXTWxRuQT/exec"; 
 
@@ -224,8 +224,11 @@
     }
 
     async function login() {
-        const nId = document.getElementById('national-id').value.trim();
-        if(!/^\d+$/.test(nId) || nId.length < 8 || nId.length > 10) return alert('لطفاً کد ملی معتبر وارد کنید.');
+        let nId = document.getElementById('national-id').value.trim();
+        if(!/^\d{10}$/.test(nId)) return alert('لطفاً کد ملی ۱۰ رقمی وارد کنید.');
+        
+        // اطمینان از اینکه صفرهای ابتدا برای سرور حفظ می‌شود
+        nId = String(nId).padStart(10, '0');
         
         toggleFullLoader(true, 'در حال بررسی اطلاعات...');
         try {
@@ -251,7 +254,7 @@
             const res = await apiCall('getStudentDashboard', { traineeId: localStorage.getItem('traineeId') });
             if(res.success) renderClasses(res.classes);
             else alert(res.message);
-        } catch(e) { alert('خطا در دریافت اطلاعات کلاس‌ها'); } 
+        } catch(e) { alert('خطا در دریافت کلاس‌ها'); } 
         finally { toggleInlineLoader(false); }
     }
 
@@ -260,7 +263,7 @@
         const archivedContainer = document.getElementById('archived-classes-container');
         
         if(!classes || classes.length === 0) {
-            activeContainer.innerHTML = `<div class="card empty-state" style="text-align:center; padding:40px;"><i class="fas fa-folder-open" style="font-size:3rem; color:#cbd5e1; margin-bottom:15px;"></i><h3>شما در هیچ کلاسی ثبت‌نام نشده‌اید.</h3></div>`;
+            activeContainer.innerHTML = `<div class="card empty-state"><i class="fas fa-folder-open"></i><h3>کلاسی یافت نشد</h3></div>`;
             archivedContainer.innerHTML = '';
             return;
         }
@@ -274,9 +277,11 @@
             let unpaidCount = 0;
             
             let monthsHtml = periods.map(p => {
+                // بررسی دقیق پرداختی (هم دستی هم درگاه)
                 const isPaid = cls.myPayments.find(x => parseInt(x.periodIndex) === p.index);
                 
                 if (isPaid) {
+                    // تفکیک پرداخت دستی و آنلاین برای زیبایی بصری
                     const isManual = !isPaid.method || isPaid.method !== "درگاه آنلاین";
                     const chipClass = isManual ? "paid-manual" : "paid-online";
                     const icon = isManual ? "fa-money-bill-wave" : "fa-check";
@@ -303,8 +308,9 @@
                 }
             }).join('');
             
-            if(periods.length === 0) monthsHtml = '<p style="text-align:center; width:100%; color:#64748b;">زمان زیادی از شروع کلاس نگذشته است.</p>';
+            if(periods.length === 0) monthsHtml = '<p style="text-align:center; width:100%; color:#64748b;">زمان زیادی از کلاس نگذشته است.</p>';
 
+            // منطق بایگانی: اگر کلاس بایگانی شده باشد، یا کلاس پایان‌یافته باشد و هیچ بدهی نداشته باشد
             const isArchived = cls.status === 'archived' || (cls.status === 'finished' && unpaidCount === 0);
 
             const cardHtml = `
@@ -323,12 +329,12 @@
             else { hasActive = true; activeHtml += cardHtml; }
         });
         
-        activeContainer.innerHTML = hasActive ? activeHtml : '<p style="color:#64748b;">شما در حال حاضر هیچ کلاس جاری یا بدهی ندارید.</p>';
+        activeContainer.innerHTML = hasActive ? activeHtml : '<p style="color:#64748b;">هیچ کلاسی در جریان نیست.</p>';
         archivedContainer.innerHTML = hasArchived ? archivedHtml : '';
     }
 
     async function payMonth(classId, periodIndex) {
-        toggleFullLoader(true, 'در حال اتصال به درگاه پرداخت شاپرک...');
+        toggleFullLoader(true, 'در حال انتقال به درگاه شاپرک...');
         try {
             const res = await apiCall('requestPayment', {
                 traineeId: localStorage.getItem('traineeId'),
@@ -337,7 +343,7 @@
             });
             if(res.success) window.location.href = res.paymentUrl;
             else { alert('خطای درگاه: ' + res.message); toggleFullLoader(false); }
-        } catch(e) { alert('خطا در برقراری ارتباط با سرور'); toggleFullLoader(false); }
+        } catch(e) { alert('خطا در ارتباط'); toggleFullLoader(false); }
     }
 </script>
 </body>
