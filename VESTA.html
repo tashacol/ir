@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بانک مجازی | داشبورد کاربری</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
+    <style>
+        body { font-family: 'Vazirmatn', sans-serif; background-color: #f3f4f6; }
+        .hidden-view { display: none !important; }
+        .credit-card { background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <!-- صفحه لاگین -->
+    <div id="loginView" class="min-h-screen flex items-center justify-center">
+        <div class="bg-white p-8 rounded-xl shadow-lg w-96 text-center">
+            <h1 class="text-2xl font-bold mb-6 text-blue-900">بانک مجازی شخصی</h1>
+            <input type="text" id="nationalCode" placeholder="کد ملی" class="w-full mb-4 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-left" dir="ltr">
+            <input type="password" id="password" placeholder="رمز عبور" class="w-full mb-6 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-left" dir="ltr">
+            <button onclick="login()" id="loginBtn" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">ورود به پنل</button>
+            <p id="loginError" class="text-red-500 mt-4 text-sm hidden"></p>
+        </div>
+    </div>
+
+    <!-- داشبورد اصلی -->
+    <div id="dashboardView" class="hidden-view min-h-screen flex flex-col md:flex-row">
+        <!-- سایدبار -->
+        <div class="w-full md:w-64 bg-blue-900 text-white flex flex-col p-6 shadow-xl">
+            <h2 class="text-xl font-bold mb-8 text-center border-b border-blue-700 pb-4">بانک مجازی</h2>
+            <button onclick="switchTab('overview')" class="mb-4 text-right py-2 px-4 rounded hover:bg-blue-800 w-full">نمای کلی</button>
+            <button onclick="switchTab('transfer')" class="mb-4 text-right py-2 px-4 rounded hover:bg-blue-800 w-full">انتقال وجه</button>
+            <button onclick="switchTab('history')" class="mb-8 text-right py-2 px-4 rounded hover:bg-blue-800 w-full">گردش حساب</button>
+            <button onclick="logout()" class="mt-auto text-right py-2 px-4 rounded bg-red-600 hover:bg-red-700 w-full">خروج</button>
+        </div>
+
+        <!-- محتوای اصلی -->
+        <div class="flex-1 p-8 overflow-y-auto">
+            <div class="flex justify-between items-center mb-8">
+                <h1 class="text-2xl font-bold" id="pageTitle">خوش آمدید، <span id="userName">...</span></h1>
+                <span class="text-sm text-gray-500">محیط امن بانکی</span>
+            </div>
+
+            <!-- تب نمای کلی -->
+            <div id="tab-overview">
+                <!-- کارت بانکی و موجودی -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div class="credit-card text-white p-6 rounded-2xl shadow-lg relative overflow-hidden h-48 flex flex-col justify-between">
+                        <div class="flex justify-between items-start">
+                            <span class="text-lg opacity-80">کارت نقدی</span>
+                            <span class="font-mono tracking-widest" id="cardNoView">**** **** **** ****</span>
+                        </div>
+                        <div>
+                            <p class="text-xs opacity-70 mb-1">موجودی قابل برداشت</p>
+                            <h2 class="text-3xl font-bold font-mono"><span id="availBalanceView">0</span> <span class="text-sm">ریال</span></h2>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-2xl shadow border flex flex-col justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm mb-1">شماره حساب متصل</p>
+                            <p class="text-xl font-bold font-mono tracking-wider mb-4" id="accNoView">----------</p>
+                            
+                            <p class="text-gray-500 text-sm mb-1">شناسه Virtual IBAN</p>
+                            <p class="text-sm font-bold font-mono tracking-wide text-blue-600" id="ibanView">VX...</p>
+                        </div>
+                        <div class="mt-4 pt-4 border-t flex justify-between">
+                            <span class="text-gray-500 text-sm">موجودی کل (Ledger)</span>
+                            <span class="font-bold text-gray-800" id="realBalanceView">0 ریال</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- تب انتقال وجه -->
+            <div id="tab-transfer" class="hidden-view">
+                <div class="bg-white p-6 rounded-xl shadow max-w-lg mx-auto border">
+                    <h2 class="text-xl font-bold mb-6 border-b pb-2">ثبت تراکنش جدید</h2>
+                    
+                    <label class="block text-sm text-gray-600 mb-2">روش انتقال</label>
+                    <select id="transferMethod" class="w-full mb-4 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="CARD_TO_CARD">کارت به کارت</option>
+                        <option value="ACCOUNT_TO_ACCOUNT">حساب به حساب</option>
+                        <option value="VIRTUAL_IBAN_TRANSFER">انتقال با شبا (Virtual IBAN)</option>
+                    </select>
+
+                    <label class="block text-sm text-gray-600 mb-2">شناسه مقصد</label>
+                    <input type="text" id="targetId" class="w-full mb-4 px-4 py-2 border rounded-lg text-left" dir="ltr" placeholder="شماره کارت/حساب/شبا مقصد">
+
+                    <label class="block text-sm text-gray-600 mb-2">مبلغ (ریال)</label>
+                    <input type="number" id="transferAmount" class="w-full mb-4 px-4 py-2 border rounded-lg text-left" dir="ltr" placeholder="مثال: 1000000">
+                    
+                    <label class="block text-sm text-gray-600 mb-2">بابت / توضیحات</label>
+                    <input type="text" id="transferPurpose" class="w-full mb-6 px-4 py-2 border rounded-lg" placeholder="مثال: بابت شارژ حساب">
+
+                    <button onclick="executeTransfer()" id="transferBtn" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition">تایید و انتقال اتمیک</button>
+                    <p id="transferResult" class="mt-4 text-center text-sm font-bold"></p>
+                </div>
+            </div>
+
+            <!-- تب گردش حساب -->
+            <div id="tab-history" class="hidden-view">
+                <div class="bg-white rounded-xl shadow overflow-hidden border">
+                    <table class="w-full text-right">
+                        <thead class="bg-gray-100 text-gray-600">
+                            <tr>
+                                <th class="py-3 px-4">شناسه سند</th>
+                                <th class="py-3 px-4">نوع</th>
+                                <th class="py-3 px-4">مبلغ (ریال)</th>
+                                <th class="py-3 px-4">تاریخ سیستم</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTable" class="divide-y divide-gray-200">
+                            <!-- ردیف ها با جاوااسکریپت لود می شوند -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- کدهای جاوااسکریپت و منطق ارتباط با بک‌اند -->
+    <script>
+        // !!!!!!!!!! توجه: لینک زیر را با آدرس وب‌اپلیکیشن گوگل اسکریپت خود جایگزین کنید !!!!!!!!!!
+        const API_URL = "https://script.google.com/macros/s/AKfycbz0TES_V3XYUpaFF2ZhC8M1Jf3fT90vMjCzFpBsgv54d2X7x4iUXDdLEAfgWIl3bTn2/exec"; 
+        
+        let userToken = localStorage.getItem('bankToken');
+
+        // چک کردن لاگین هنگام باز شدن صفحه
+        window.onload = function() {
+            if (userToken) {
+                showDashboard();
+                fetchDashboardData();
+            }
+        };
+
+        // فرمت کننده پول
+        const formatMoney = (amount) => Number(amount).toLocaleString('fa-IR');
+
+        async function apiCall(payload) {
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                return await response.json();
+            } catch (error) {
+                return { status: 'error', message: 'خطای ارتباط با سرور بانکی' };
+            }
+        }
+
+        async function login() {
+            const nc = document.getElementById('nationalCode').value;
+            const pw = document.getElementById('password').value;
+            const btn = document.getElementById('loginBtn');
+            const err = document.getElementById('loginError');
+
+            if(!nc || !pw) return;
+
+            btn.innerText = "در حال احراز هویت...";
+            btn.disabled = true;
+
+            const res = await apiCall({ action: 'login', nationalCode: nc, password: pw });
+            
+            if (res.status === 'success') {
+                userToken = res.token;
+                localStorage.setItem('bankToken', userToken);
+                showDashboard();
+                fetchDashboardData();
+            } else {
+                err.innerText = res.message;
+                err.classList.remove('hidden');
+            }
+            btn.innerText = "ورود به پنل";
+            btn.disabled = false;
+        }
+
+        function showDashboard() {
+            document.getElementById('loginView').classList.add('hidden-view');
+            document.getElementById('dashboardView').classList.remove('hidden-view');
+        }
+
+        function logout() {
+            localStorage.removeItem('bankToken');
+            location.reload();
+        }
+
+        function switchTab(tabId) {
+            document.getElementById('tab-overview').classList.add('hidden-view');
+            document.getElementById('tab-transfer').classList.add('hidden-view');
+            document.getElementById('tab-history').classList.add('hidden-view');
+            document.getElementById('tab-' + tabId).classList.remove('hidden-view');
+        }
+
+        async function fetchDashboardData() {
+            const res = await apiCall({ action: 'getDashboard', nationalCode: userToken });
+            if (res.status === 'success') {
+                const d = res.data;
+                document.getElementById('userName').innerText = d.name;
+                document.getElementById('accNoView').innerText = d.account;
+                document.getElementById('ibanView').innerText = d.iban;
+                // مخفی کردن بخشی از کارت
+                document.getElementById('cardNoView').innerText = d.card ? d.card.replace(/(\d{4})(\d{4})(\d{4})(\d{4})/, "$1 **** **** $4") : 'صادر نشده';
+                
+                document.getElementById('realBalanceView').innerText = formatMoney(d.realBalance) + ' ریال';
+                document.getElementById('availBalanceView').innerText = formatMoney(d.availableBalance);
+
+                // پر کردن جدول تاریخچه
+                let tbody = '';
+                d.history.forEach(tx => {
+                    const typeColor = tx.type === 'CREDIT' ? 'text-green-600' : 'text-red-600';
+                    const typeText = tx.type === 'CREDIT' ? 'واریز (بستانکار)' : 'برداشت (بدهکار)';
+                    const sign = tx.type === 'CREDIT' ? '+' : '-';
+                    tbody += `<tr>
+                        <td class="py-3 px-4 font-mono text-sm">${tx.id}</td>
+                        <td class="py-3 px-4 ${typeColor} font-bold">${typeText}</td>
+                        <td class="py-3 px-4 font-mono" dir="ltr">${sign} ${formatMoney(tx.amount)}</td>
+                        <td class="py-3 px-4 text-xs text-gray-500">${new Date(tx.date).toLocaleString('fa-IR')}</td>
+                    </tr>`;
+                });
+                document.getElementById('historyTable').innerHTML = tbody;
+            } else {
+                alert("خطا در دریافت اطلاعات: " + res.message);
+                logout();
+            }
+        }
+
+        async function executeTransfer() {
+            const method = document.getElementById('transferMethod').value;
+            const targetId = document.getElementById('targetId').value;
+            const amount = document.getElementById('transferAmount').value;
+            const purpose = document.getElementById('transferPurpose').value;
+            const btn = document.getElementById('transferBtn');
+            const resultLabel = document.getElementById('transferResult');
+
+            if(!targetId || !amount) {
+                alert("لطفاً فیلدها را کامل کنید."); return;
+            }
+
+            if (!confirm(`آیا از انتقال مبلغ ${formatMoney(amount)} ریال اطمینان دارید؟`)) return;
+
+            btn.innerText = "در حال پردازش هسته بانکی...";
+            btn.disabled = true;
+            resultLabel.innerText = "";
+            resultLabel.className = "mt-4 text-center text-sm font-bold text-gray-600";
+
+            const res = await apiCall({ 
+                action: 'transfer', 
+                token: userToken,
+                transferMethod: method,
+                targetId: targetId,
+                amount: amount,
+                purpose: purpose || 'انتقال داخلی'
+            });
+
+            if (res.status === 'success') {
+                resultLabel.innerText = `موفق! کد پیگیری: ${res.trackCode} | شناسه: ${res.txId}`;
+                resultLabel.classList.add('text-green-600');
+                document.getElementById('targetId').value = '';
+                document.getElementById('transferAmount').value = '';
+                document.getElementById('transferPurpose').value = '';
+                // بروزرسانی موجودی
+                fetchDashboardData();
+            } else {
+                resultLabel.innerText = `خطا: ${res.message}`;
+                resultLabel.classList.add('text-red-600');
+            }
+
+            btn.innerText = "تایید و انتقال اتمیک";
+            btn.disabled = false;
+        }
+    </script>
+</body>
+</html>
