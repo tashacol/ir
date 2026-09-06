@@ -3,315 +3,412 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VESTA BANK | پنل مدیریت متمرکز هسته بانکی</title>
+    <title>VESTA BANK | سامانه کنترل متمرکز مدیریت</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vazirmatn Font -->
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" />
     <style>
-        body { font-family: 'Vazirmatn', sans-serif; background-color: #030712; color: #f8fafc; }
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+            background-color: #030712;
+            color: #f8fafc;
+            -webkit-tap-highlight-color: transparent;
+        }
+
         .glass-panel {
             background: rgba(15, 23, 42, 0.7);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
+
         .glass-panel-glow {
             background: rgba(15, 23, 42, 0.75);
             backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
             border: 1px solid rgba(56, 189, 248, 0.2);
-            box-shadow: 0 10px 30px -10px rgba(14, 165, 233, 0.2);
+            box-shadow: 0 10px 30px -10px rgba(14, 165, 233, 0.15);
         }
-        /* اسکرول‌بار زیبا و باریک برای جداول افقی */
-        .table-scroll-container::-webkit-scrollbar { height: 6px; width: 6px; }
-        .table-scroll-container::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); border-radius: 9999px; }
-        .table-scroll-container::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.3); border-radius: 9999px; }
-        .table-scroll-container::-webkit-scrollbar-thumb:hover { background: rgba(56, 189, 248, 0.6); }
+
+        .floating-nav {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7), 0 0 20px rgba(14, 165, 233, 0.15);
+            border-radius: 9999px;
+        }
+
+        /* اسکرول افقی نرم بدون شکستگی ستون‌ها */
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .table-container::-webkit-scrollbar {
+            height: 6px;
+        }
+        .table-container::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 4px;
+        }
+        .table-container::-webkit-scrollbar-thumb {
+            background: rgba(56, 189, 248, 0.3);
+            border-radius: 4px;
+        }
+
         .hidden-view { display: none !important; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between selection:bg-cyan-500 selection:text-white">
+<body class="min-h-screen flex justify-center selection:bg-cyan-500 selection:text-white">
 
-    <!-- LOGIN OVERLAY -->
-    <div id="adminLoginView" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gradient-to-b from-blue-950/40 via-[#030712] to-[#030712]">
-        <div class="glass-panel w-full max-w-md rounded-[32px] p-8 shadow-2xl border border-slate-800 text-center">
-            <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-bold text-white tracking-widest text-lg mx-auto mb-4 shadow-[0_0_20px_rgba(6,182,212,0.4)]">
-                VST
-            </div>
-            <h1 class="text-xl font-bold text-white mb-1">ورود به هسته مدیریت وستا</h1>
-            <p class="text-xs text-slate-400 mb-6">احراز هویت دسترسی به کنترل عملیات مالی و خزانه</p>
-            <input type="password" id="adminPassInput" placeholder="کلمه عبور مدیریت..." class="w-full px-4 py-3.5 bg-slate-900 border border-slate-800 rounded-2xl font-mono text-center outline-none text-white focus:border-cyan-500 transition mb-4" dir="ltr">
-            <button onclick="adminLogin()" id="adminLoginBtn" class="w-full bg-gradient-to-r from-blue-600 to-cyan-500 hover:opacity-95 text-white font-bold py-3.5 rounded-2xl shadow-lg transition active:scale-95 text-xs">احراز هویت و بازگشایی</button>
-            <p id="adminLoginErr" class="text-red-400 text-xs font-bold mt-3 hidden"></p>
-        </div>
-    </div>
+    <!-- کانتینر اصلی تمام‌صفحه با حداکثر عرض در دسکتاپ -->
+    <div id="adminShell" class="w-full max-w-[1280px] min-h-screen flex flex-col relative px-4 sm:px-8 py-6">
 
-    <!-- MAIN ADMIN INTERFACE -->
-    <div id="adminDashboardView" class="hidden-view min-h-screen flex flex-col">
-        <!-- Top App Bar -->
-        <header class="glass-panel px-6 py-4 flex justify-between items-center z-30 shrink-0 border-x-0 border-t-0">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-bold text-white tracking-widest text-xs shadow-lg">VST</div>
-                <div>
-                    <h2 class="font-bold text-sm text-white tracking-wide">هسته متمرکز وستا (Admin Console)</h2>
-                    <p class="text-[10px] text-cyan-400 font-mono">CORE BANKING ACTIVE</p>
+        <!-- ================= LOGIN SCREEN ================= -->
+        <div id="loginView" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gradient-to-b from-blue-950/40 via-[#030712] to-[#030712]">
+            <div class="glass-panel p-8 sm:p-10 rounded-[36px] max-w-md w-full shadow-2xl border border-slate-800 text-center relative overflow-hidden">
+                <div class="w-16 h-16 rounded-3xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center mx-auto mb-5 shadow-[0_0_25px_rgba(6,182,212,0.4)] text-2xl font-bold">
+                    🏛️
+                </div>
+                <h1 class="text-2xl font-black text-white mb-1 tracking-wide">کنسول مدیریت وستا بانک</h1>
+                <p class="text-xs text-slate-400 mb-8">سامانه کنترل متمرکز هسته بانکداری (Core Banking)</p>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-right text-xs text-slate-400 mb-2 font-medium mr-1">رمز عبور امنیتی مدیریت</label>
+                        <input type="password" id="adminPassInput" placeholder="••••••••" class="w-full px-5 py-4 bg-slate-900 border border-slate-800 rounded-2xl font-mono text-center text-lg outline-none text-white focus:border-cyan-500 transition shadow-inner" dir="ltr">
+                    </div>
+                    <button onclick="adminLogin()" id="loginBtn" class="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 text-white font-bold py-4 rounded-2xl shadow-[0_10px_25px_rgba(6,182,212,0.3)] transition active:scale-95 text-sm">
+                        احراز هویت و ورود به سامانه
+                    </button>
+                    <p id="loginAlert" class="text-xs font-bold text-red-400 mt-4 hidden"></p>
                 </div>
             </div>
-            <div class="flex items-center gap-3">
-                <span class="text-xs text-slate-400 hidden sm:inline">مدیر ارشد سامانه</span>
-                <button onclick="adminLogout()" class="px-3 py-1.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white text-xs font-bold transition">خروج امن</button>
-            </div>
-        </header>
+        </div>
 
-        <!-- Main Body: Navigation Tabs & Tab Content -->
-        <div class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
-            <!-- Navigation Tabs Pill -->
-            <div class="glass-panel p-1.5 rounded-2xl flex gap-1.5 overflow-x-auto hide-scrollbar">
-                <button onclick="switchAdminTab('stats')" id="btnTab-stats" class="px-4 py-2.5 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs shrink-0 transition">📊 داشبورد خزانه و آمار</button>
-                <button onclick="switchAdminTab('pending')" id="btnTab-pending" class="px-4 py-2.5 rounded-xl text-slate-400 hover:text-white font-bold text-xs shrink-0 transition flex items-center gap-1.5">
-                    <span>👤 متقاضیان افتتاح حساب</span>
-                    <span id="badgePending" class="px-1.5 py-0.2 bg-amber-500/20 text-amber-300 rounded-full text-[10px] font-mono">0</span>
-                </button>
-                <button onclick="switchAdminTab('accounts')" id="btnTab-accounts" class="px-4 py-2.5 rounded-xl text-slate-400 hover:text-white font-bold text-xs shrink-0 transition">💳 مشتریان و حساب‌ها</button>
-                <button onclick="switchAdminTab('treasury')" id="btnTab-treasury" class="px-4 py-2.5 rounded-xl text-slate-400 hover:text-white font-bold text-xs shrink-0 transition">💰 تزریق اعتبار خزانه</button>
-                <button onclick="switchAdminTab('transactions')" id="btnTab-transactions" class="px-4 py-2.5 rounded-xl text-slate-400 hover:text-white font-bold text-xs shrink-0 transition">📑 نظارت بر تراکنش‌ها</button>
-            </div>
+        <!-- ================= MAIN ADMIN DASHBOARD ================= -->
+        <div id="adminDashboard" class="hidden-view flex flex-col flex-1 pb-28">
 
-            <!-- TAB 1: TREASURY STATS -->
-            <section id="tab-stats" class="space-y-6">
+            <!-- Top Luxury Header -->
+            <header class="glass-panel p-5 rounded-3xl mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-white text-sm shadow-[0_0_20px_rgba(6,182,212,0.3)]">
+                        VST
+                    </div>
+                    <div>
+                        <h1 class="text-base font-extrabold text-white flex items-center gap-2">
+                            پنل مرکزی مدیریت وستا بانک
+                            <span class="text-[10px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded-full font-mono">CORE v4.0</span>
+                        </h1>
+                        <p class="text-[11px] text-slate-400">کنترل جریان نقدینگی، مشتریان و اسناد دفترکل</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+                    <button onclick="adminLogout()" class="px-4 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-bold transition flex items-center gap-2">
+                        <span>خروج امن</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    </button>
+                </div>
+            </header>
+
+            <!-- TAB 1: METRICS & TREASURY -->
+            <section id="tab-metrics" class="space-y-6">
+                <!-- Bento Grid: Institutional Financial Metrics -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <!-- Total Injected (M0) -->
                     <div class="glass-panel-glow p-5 rounded-3xl">
-                        <span class="text-xs text-slate-400 block mb-1">کل اعتبار تزریق‌شده از خزانه</span>
-                        <div class="flex items-baseline gap-1.5 mb-1">
-                            <span class="text-2xl font-black font-mono text-cyan-400" id="statInjected">0</span>
-                            <span class="text-[10px] text-slate-400">ریال</span>
+                        <span class="text-xs text-slate-400 block mb-1">کل اعتبار صادرشده خزانه</span>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-2xl font-black font-mono text-cyan-400" id="statMinted">0</span>
+                            <span class="text-xs text-slate-400">ریال</span>
                         </div>
-                        <span class="text-[10px] text-slate-500 font-mono" id="statInjectedToman">0 تومان</span>
+                        <span class="text-[10px] text-slate-500 block mt-1">تزریق شده از حساب 0000000000</span>
                     </div>
-                    <!-- Circulating Balance -->
-                    <div class="glass-panel-glow p-5 rounded-3xl">
-                        <span class="text-xs text-slate-400 block mb-1">نقدینگی در گردش کاربران</span>
-                        <div class="flex items-baseline gap-1.5 mb-1">
+
+                    <div class="glass-panel p-5 rounded-3xl">
+                        <span class="text-xs text-slate-400 block mb-1">نقدینگی فعال در گردش کاربران</span>
+                        <div class="flex items-baseline gap-2">
                             <span class="text-2xl font-black font-mono text-emerald-400" id="statCirculation">0</span>
-                            <span class="text-[10px] text-slate-400">ریال</span>
+                            <span class="text-xs text-slate-400">ریال</span>
                         </div>
-                        <span class="text-[10px] text-slate-500 font-mono" id="statCirculationToman">0 تومان</span>
+                        <span class="text-[10px] text-slate-500 block mt-1">حاصل جمع خالص مانده دفترکل</span>
                     </div>
-                    <!-- Fees Revenue -->
+
                     <div class="glass-panel p-5 rounded-3xl">
-                        <span class="text-xs text-slate-400 block mb-1">درآمد کارمزد خزانه</span>
-                        <div class="flex items-baseline gap-1.5 mb-1">
-                            <span class="text-2xl font-black font-mono text-amber-400" id="statFees">0</span>
-                            <span class="text-[10px] text-slate-400">ریال</span>
+                        <span class="text-xs text-slate-400 block mb-1">درآمد انباشته کارمزدها</span>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-2xl font-black font-mono text-amber-300" id="statFees">0</span>
+                            <span class="text-xs text-slate-400">ریال</span>
                         </div>
-                        <span class="text-[10px] text-slate-500">واریزی اتوماتیک ۵۰۰ ریالی</span>
+                        <span class="text-[10px] text-slate-500 block mt-1">واریز شده به حساب سیستم</span>
                     </div>
-                    <!-- Total Transactions -->
+
                     <div class="glass-panel p-5 rounded-3xl">
-                        <span class="text-xs text-slate-400 block mb-1">تعداد کل تراکنش‌های ثبت‌شده</span>
-                        <div class="flex items-baseline gap-1.5 mb-1">
-                            <span class="text-2xl font-black font-mono text-white" id="statTxCount">0</span>
-                            <span class="text-[10px] text-slate-400">تراکنش</span>
+                        <span class="text-xs text-slate-400 block mb-1">کاربران در انتظار بررسی</span>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-2xl font-black font-mono text-rose-400" id="statPending">0</span>
+                            <span class="text-xs text-slate-400">متقاضی</span>
                         </div>
-                        <span class="text-[10px] text-slate-500">دارای سند معتبر در دفترکل</span>
+                        <span class="text-[10px] text-slate-500 block mt-1">نیازمند تأیید و افتتاح حساب</span>
                     </div>
+                </div>
+
+                <!-- Treasury Deposit Card -->
+                <div class="glass-panel p-6 sm:p-8 rounded-3xl">
+                    <div class="flex items-center gap-3 pb-4 border-b border-slate-800 mb-6">
+                        <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">💰</div>
+                        <div>
+                            <h2 class="text-base font-bold text-white">شارژ و تزریق نقدینگی مصوب از خزانه (SYSTEM TREASURY)</h2>
+                            <p class="text-xs text-slate-400">صدور سند بدهکار خزانه و بستانکار حساب مقصد در دفترکل</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1.5 mr-1 font-bold">شماره حساب ۱۰ رقمی مقصد</label>
+                            <input type="text" id="trTargetAcc" placeholder="مثال: 1010001015" class="w-full px-4 py-3.5 bg-slate-900 border border-slate-800 rounded-2xl font-mono text-left outline-none text-white focus:border-cyan-500 transition" dir="ltr">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1.5 mr-1 font-bold">مبلغ تزریق (ریال)</label>
+                            <input type="number" id="trAmount" placeholder="مثال: 50000000" class="w-full px-4 py-3.5 bg-slate-900 border border-slate-800 rounded-2xl font-mono text-left outline-none text-white focus:border-cyan-500 transition" dir="ltr">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1.5 mr-1 font-bold">شرح / دلیل تزریق اعتبار</label>
+                            <input type="text" id="trDesc" placeholder="مثال: شارژ اولیه سرمایه مشتری" class="w-full px-4 py-3.5 bg-slate-900 border border-slate-800 rounded-2xl outline-none text-xs text-white focus:border-cyan-500 transition">
+                        </div>
+                    </div>
+
+                    <button onclick="submitTreasuryDeposit()" id="treasuryBtn" class="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:opacity-95 text-white font-bold rounded-2xl shadow-lg transition active:scale-95 text-xs">
+                        تأیید و صدور سند در دفترکل
+                    </button>
+                    <p id="treasuryAlert" class="text-xs font-bold mt-3 hidden"></p>
                 </div>
             </section>
 
             <!-- TAB 2: PENDING APPROVALS -->
             <section id="tab-pending" class="hidden-view space-y-4">
-                <div class="glass-panel p-5 rounded-3xl space-y-4">
-                    <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                <div class="glass-panel p-6 rounded-3xl">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 border-b border-slate-800 mb-4">
                         <div>
-                            <h3 class="font-bold text-sm text-white">متقاضیان در انتظار تایید هویت</h3>
-                            <p class="text-[11px] text-slate-400">تولید خودکار حساب ۱۰ رقمی واقعی، شبای استاندارد و کارت ۹۹۰۸۹۰ با تایید مدیر</p>
+                            <h2 class="text-base font-bold text-white">متقاضیان عضویت در انتظار تأیید</h2>
+                            <p class="text-xs text-slate-400">تولید شماره حساب ساختاریافته، شبای ۲۶ کاراکتری و کارت با پیش‌شماره ۹۹۰۸۹۰ در لحظه تأیید</p>
                         </div>
+                        <input type="text" id="searchPendingInput" oninput="filterPendingTable()" placeholder="جستجو در متقاضیان..." class="px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs outline-none text-white w-full sm:w-64">
                     </div>
 
-                    <!-- Horizontal Scroll Table Container -->
-                    <div class="table-scroll-container overflow-x-auto w-full rounded-2xl border border-slate-800">
-                        <table class="w-full min-w-[750px] text-right text-xs">
+                    <div class="table-container">
+                        <table class="w-full text-right text-xs whitespace-nowrap">
                             <thead class="bg-slate-900/90 text-slate-400 font-bold border-b border-slate-800">
                                 <tr>
-                                    <th class="p-4">نام و نام خانوادگی</th>
-                                    <th class="p-4">کد ملی (نام کاربری)</th>
-                                    <th class="p-4">موبایل</th>
-                                    <th class="p-4">پست الکترونیک</th>
-                                    <th class="p-4">تاریخ درخواست</th>
-                                    <th class="p-4 text-center">عملیات افتتاح حساب</th>
+                                    <th class="p-3.5">نام و نام خانوادگی</th>
+                                    <th class="p-3.5">کد ملی</th>
+                                    <th class="p-3.5">موبایل</th>
+                                    <th class="p-3.5">ایمیل</th>
+                                    <th class="p-3.5">تاریخ تقاضا</th>
+                                    <th class="p-3.5 text-center">عملیات</th>
                                 </tr>
                             </thead>
-                            <tbody id="pendingTableBody" class="divide-y divide-slate-800 font-mono">
-                                <!-- Dynamic -->
+                            <tbody id="pendingTableBody" class="divide-y divide-slate-800/60 font-sans">
+                                <!-- Populated by JS -->
                             </tbody>
                         </table>
                     </div>
                 </div>
             </section>
 
-            <!-- TAB 3: ACCOUNTS & CARDS MANAGEMENT -->
+            <!-- TAB 3: ACCOUNTS & CARDS -->
             <section id="tab-accounts" class="hidden-view space-y-4">
-                <div class="glass-panel p-5 rounded-3xl space-y-4">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-800">
+                <div class="glass-panel p-6 rounded-3xl">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 border-b border-slate-800 mb-4">
                         <div>
-                            <h3 class="font-bold text-sm text-white">فهرست مشتریان و حساب‌ها</h3>
-                            <p class="text-[11px] text-slate-400">امکان مسدودسازی و رفع مسدودی دوطرفه حساب و کارت</p>
+                            <h2 class="text-base font-bold text-white">فهرست کل حساب‌ها و کارت‌های مشتریان</h2>
+                            <p class="text-xs text-slate-400">نظارت بر موجودی دفترکل، مسدودسازی و مدیریت کارت‌ها</p>
                         </div>
-                        <input type="text" id="searchAccInput" oninput="renderAccountsTable()" placeholder="جستجو (کد ملی، حساب، کارت، نام)..." class="px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs outline-none text-white focus:border-cyan-500 w-full sm:w-64 font-sans">
+                        <input type="text" id="searchAccInput" oninput="filterAccountsTable()" placeholder="جستجو (کد ملی، حساب، کارت، نام)..." class="px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs outline-none text-white w-full sm:w-72">
                     </div>
 
-                    <!-- Horizontal Scroll Table Container -->
-                    <div class="table-scroll-container overflow-x-auto w-full rounded-2xl border border-slate-800">
-                        <table class="w-full min-w-[900px] text-right text-xs">
+                    <div class="table-container">
+                        <table class="w-full text-right text-xs whitespace-nowrap">
                             <thead class="bg-slate-900/90 text-slate-400 font-bold border-b border-slate-800">
                                 <tr>
-                                    <th class="p-4">شماره حساب (۱۰ رقم)</th>
-                                    <th class="p-4">شماره کارت (۱۶ رقم)</th>
-                                    <th class="p-4">صاحب حساب</th>
-                                    <th class="p-4">کد ملی</th>
-                                    <th class="p-4">شناسه شبا</th>
-                                    <th class="p-4">وضعیت</th>
-                                    <th class="p-4 text-center">تغییر وضعیت</th>
+                                    <th class="p-3.5">صاحب حساب</th>
+                                    <th class="p-3.5">شماره حساب ۱۰ رقمی</th>
+                                    <th class="p-3.5">شماره کارت ۱۶ رقمی</th>
+                                    <th class="p-3.5">موجودی دفترکل (ریال)</th>
+                                    <th class="p-3.5">شناسه شبا</th>
+                                    <th class="p-3.5">وضعیت</th>
+                                    <th class="p-3.5 text-center">تغییر وضعیت</th>
                                 </tr>
                             </thead>
-                            <tbody id="accountsTableBody" class="divide-y divide-slate-800 font-mono">
-                                <!-- Dynamic -->
+                            <tbody id="accountsTableBody" class="divide-y divide-slate-800/60 font-mono">
+                                <!-- Populated by JS -->
                             </tbody>
                         </table>
                     </div>
                 </div>
             </section>
 
-            <!-- TAB 4: TREASURY DEPOSIT / MINT -->
-            <section id="tab-treasury" class="hidden-view">
-                <div class="glass-panel p-6 rounded-3xl max-w-xl mx-auto space-y-5">
-                    <div class="pb-3 border-b border-slate-800">
-                        <h3 class="font-bold text-base text-white mb-1">تزریق نقدینگی از حساب خزانه مرکزی (SYSTEM TREASURY)</h3>
-                        <p class="text-xs text-slate-400 leading-relaxed">
-                            ⚠️ بر اساس اصل عدم خلق پول از هوا: هر اعتباری که به کاربر داده می‌شود باید به صورت بدهکار (Debit) از حساب خزانه وستا (<span class="font-mono text-cyan-400">0000000000</span>) و بستانکار (Credit) به حساب کاربر در دفترکل ثبت شود.
-                        </p>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs text-slate-400 mb-1.5">شماره حساب ۱۰ رقمی مقصد</label>
-                        <input type="text" id="trTargetAcc" placeholder="101201..." class="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl font-mono text-left outline-none text-white focus:border-cyan-500 text-sm" dir="ltr">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs text-slate-400 mb-1.5">مبلغ واریزی (ریال)</label>
-                        <input type="number" id="trAmount" placeholder="مثال: 50000000" class="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl font-mono text-left outline-none text-white focus:border-cyan-500 text-sm" dir="ltr">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs text-slate-400 mb-1.5">شرح سند حسابداری</label>
-                        <input type="text" id="trDesc" placeholder="شارژ اعتبار اولیه / تسویه خزانه..." class="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl outline-none text-white focus:border-cyan-500 text-xs">
-                    </div>
-
-                    <button onclick="commitTreasuryDeposit()" id="trBtn" class="w-full bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-bold py-3.5 rounded-2xl shadow-lg transition active:scale-95 text-xs">صدور سند دوطرفه دفترکل و واریز</button>
-                    <p id="trMsg" class="text-xs font-bold text-center mt-2 hidden"></p>
-                </div>
-            </section>
-
-            <!-- TAB 5: TRANSACTIONS & REVERSAL -->
+            <!-- TAB 4: TRANSACTIONS & REVERSAL -->
             <section id="tab-transactions" class="hidden-view space-y-4">
-                <div class="glass-panel p-5 rounded-3xl space-y-4">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-800">
+                <div class="glass-panel p-6 rounded-3xl">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 border-b border-slate-800 mb-4">
                         <div>
-                            <h3 class="font-bold text-sm text-white">نظارت زنده بر تراکنش‌های شبکه</h3>
-                            <p class="text-[11px] text-slate-400">قابلیت جستجو و برگشت سند اشتباه (Reversal) توسط مدیریت</p>
+                            <h2 class="text-base font-bold text-white">نظارت زنده بر تراکنش‌ها و برگشت اسناد (Reversal)</h2>
+                            <p class="text-xs text-slate-400">امکان ابطال و برگشت تراکنش با صدور اسناد حسابداری معکوس در دفترکل</p>
                         </div>
-                        <input type="text" id="searchTxInput" oninput="renderTransactionsTable()" placeholder="جستجو (کد پیگیری، سند، مبلغ)..." class="px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs outline-none text-white focus:border-cyan-500 w-full sm:w-64 font-sans">
+                        <input type="text" id="searchTxInput" oninput="filterTxTable()" placeholder="جستجو (کد پیگیری، شناسه سند، حساب)..." class="px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs outline-none text-white w-full sm:w-72">
                     </div>
 
-                    <!-- Horizontal Scroll Table Container -->
-                    <div class="table-scroll-container overflow-x-auto w-full rounded-2xl border border-slate-800">
-                        <table class="w-full min-w-[850px] text-right text-xs">
+                    <div class="table-container">
+                        <table class="w-full text-right text-xs whitespace-nowrap">
                             <thead class="bg-slate-900/90 text-slate-400 font-bold border-b border-slate-800">
                                 <tr>
-                                    <th class="p-4">کد پیگیری</th>
-                                    <th class="p-4">سند (TX)</th>
-                                    <th class="p-4">روش انتقال</th>
-                                    <th class="p-4">مبدأ</th>
-                                    <th class="p-4">مقصد</th>
-                                    <th class="p-4">مبلغ (ریال)</th>
-                                    <th class="p-4">وضعیت</th>
-                                    <th class="p-4">زمان ثبت</th>
-                                    <th class="p-4 text-center">عملیات بازگشت</th>
+                                    <th class="p-3.5">سند</th>
+                                    <th class="p-3.5">کد پیگیری</th>
+                                    <th class="p-3.5">نوع عملیات</th>
+                                    <th class="p-3.5">حساب مبدأ</th>
+                                    <th class="p-3.5">حساب مقصد</th>
+                                    <th class="p-3.5">مبلغ (ریال)</th>
+                                    <th class="p-3.5">کارمزد</th>
+                                    <th class="p-3.5">زمان ثبت</th>
+                                    <th class="p-3.5 text-center">اقدام</th>
                                 </tr>
                             </thead>
-                            <tbody id="txTableBody" class="divide-y divide-slate-800 font-mono">
-                                <!-- Dynamic -->
+                            <tbody id="txTableBody" class="divide-y divide-slate-800/60 font-mono">
+                                <!-- Populated by JS -->
                             </tbody>
                         </table>
                     </div>
                 </div>
             </section>
+
+            <!-- TAB 5: AUDIT LOGS -->
+            <section id="tab-audit" class="hidden-view space-y-4">
+                <div class="glass-panel p-6 rounded-3xl">
+                    <div class="flex justify-between items-center pb-4 border-b border-slate-800 mb-4">
+                        <h2 class="text-base font-bold text-white">جعبه سیاه و لاگ‌های امنیتی سیستم (Audit Log)</h2>
+                        <button onclick="loadAuditLogs()" class="text-xs text-cyan-400 hover:underline">بروزرسانی لاگ‌ها</button>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="w-full text-right text-xs whitespace-nowrap">
+                            <thead class="bg-slate-900/90 text-slate-400 font-bold border-b border-slate-800">
+                                <tr>
+                                    <th class="p-3.5">شناسه لاگ</th>
+                                    <th class="p-3.5">سطح</th>
+                                    <th class="p-3.5">اقدام‌کننده</th>
+                                    <th class="p-3.5">نوع رویداد</th>
+                                    <th class="p-3.5">هدف</th>
+                                    <th class="p-3.5">زمان ثبت</th>
+                                    <th class="p-3.5">جزئیات رویداد</th>
+                                </tr>
+                            </thead>
+                            <tbody id="auditTableBody" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
         </div>
+
+        <!-- ================= FLOATING CAPSULE NAVIGATION ================= -->
+        <div id="adminNavWrapper" class="fixed bottom-6 inset-x-6 z-40 pointer-events-none flex justify-center hidden-view">
+            <nav class="floating-nav pointer-events-auto px-6 py-3 flex items-center justify-between gap-3 sm:gap-6 max-w-fit">
+                <button onclick="switchAdminTab('metrics')" id="btn-metrics" class="flex items-center gap-2 text-cyan-400 text-xs font-bold transition">
+                    <span>📊</span>
+                    <span class="hidden sm:inline">آمار و خزانه</span>
+                </button>
+                <button onclick="switchAdminTab('pending')" id="btn-pending" class="flex items-center gap-2 text-slate-400 hover:text-white text-xs font-bold transition">
+                    <span>👥</span>
+                    <span class="hidden sm:inline">متقاضیان</span>
+                    <span id="badgePending" class="bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded-full text-[10px] font-mono">0</span>
+                </button>
+                <button onclick="switchAdminTab('accounts')" id="btn-accounts" class="flex items-center gap-2 text-slate-400 hover:text-white text-xs font-bold transition">
+                    <span>💳</span>
+                    <span class="hidden sm:inline">حساب‌ها و کارت‌ها</span>
+                </button>
+                <button onclick="switchAdminTab('transactions')" id="btn-transactions" class="flex items-center gap-2 text-slate-400 hover:text-white text-xs font-bold transition">
+                    <span>📑</span>
+                    <span class="hidden sm:inline">تراکنش‌ها و برگشت</span>
+                </button>
+                <button onclick="switchAdminTab('audit')" id="btn-audit" class="flex items-center gap-2 text-slate-400 hover:text-white text-xs font-bold transition">
+                    <span>🛡️</span>
+                    <span class="hidden sm:inline">لاگ سیستم</span>
+                </button>
+            </nav>
+        </div>
+
     </div>
 
-    <!-- JAVASCRIPT LOGIC -->
+    <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // آدرس وب‌اپلیکیشن Google Apps Script
-        const API_URL = "https://script.google.com/macros/s/AKfycbwMffoma3k_467ZPKxdnkRvx4oZKV6QEG2SuXzhi7SRBrUhdkQsKd3S_yUl2KLgGgeD/exec";
+        // آدرس وب‌اپلیکیشن اختصاصی اسکریپت سرور مدیریت
+        const ADMIN_API_URL = "https://script.google.com/macros/s/AKfycbwMffoma3k_467ZPKxdnkRvx4oZKV6QEG2SuXzhi7SRBrUhdkQsKd3S_yUl2KLgGgeD/exec";
 
         let adminToken = localStorage.getItem('vestaAdminToken');
-        let rawAccounts = [];
-        let rawTransactions = [];
+        let pendingData = [];
+        let accountsData = [];
+        let txData = [];
 
         window.onload = function() {
             if (adminToken) {
-                showAdminPanel();
+                showDashboard();
                 loadStats();
                 loadPendingUsers();
             }
         };
 
         const fmt = (num) => Number(num).toLocaleString('fa-IR');
-        function sanitize(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+        function sanitizeText(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
 
-        async function adminApi(payload) {
+        async function requestAdmin(payload) {
             try {
-                const res = await fetch(API_URL, {
+                const res = await fetch(ADMIN_API_URL, {
                     method: 'POST',
                     body: JSON.stringify({ adminToken: adminToken, ...payload })
                 });
                 return await res.json();
-            } catch (err) {
-                return { status: 'error', message: 'خطای ارتباط با سرور' };
+            } catch (e) {
+                return { status: 'error', message: 'خطای ارتباط با سرور مدیریت وستا' };
             }
         }
 
         async function adminLogin() {
             const pass = document.getElementById('adminPassInput').value;
-            const err = document.getElementById('adminLoginErr');
-            const btn = document.getElementById('adminLoginBtn');
+            const alertBox = document.getElementById('loginAlert');
+            const btn = document.getElementById('loginBtn');
 
-            if (!pass) return;
+            if (!pass) return alert("کلمه عبور مدیریت را وارد فرمایید.");
             btn.innerText = "احراز هویت...";
             btn.disabled = true;
 
-            const res = await (await fetch(API_URL, {
+            const res = await (await fetch(ADMIN_API_URL, {
                 method: 'POST',
                 body: JSON.stringify({ action: 'adminLogin', password: pass })
             })).json();
 
-            btn.innerText = "احراز هویت و بازگشایی";
+            btn.innerText = "احراز هویت و ورود به سامانه";
             btn.disabled = false;
 
             if (res.status === 'success') {
                 adminToken = res.token;
                 localStorage.setItem('vestaAdminToken', adminToken);
-                showAdminPanel();
+                showDashboard();
                 loadStats();
                 loadPendingUsers();
             } else {
-                err.innerText = res.message;
-                err.classList.remove('hidden');
+                alertBox.innerText = res.message;
+                alertBox.classList.remove('hidden');
             }
         }
 
-        function showAdminPanel() {
-            document.getElementById('adminLoginView').classList.add('hidden-view');
-            document.getElementById('adminDashboardView').classList.remove('hidden-view');
+        function showDashboard() {
+            document.getElementById('loginView').classList.add('hidden-view');
+            document.getElementById('adminDashboard').classList.remove('hidden-view');
+            document.getElementById('adminNavWrapper').classList.remove('hidden-view');
         }
 
         function adminLogout() {
@@ -320,216 +417,278 @@
         }
 
         function switchAdminTab(tabId) {
-            ['stats', 'pending', 'accounts', 'treasury', 'transactions'].forEach(t => {
-                document.getElementById('tab-' + t).classList.add('hidden-view');
-                const btn = document.getElementById('btnTab-' + t);
-                btn.className = "px-4 py-2.5 rounded-xl text-slate-400 hover:text-white font-bold text-xs shrink-0 transition";
+            ['metrics', 'pending', 'accounts', 'transactions', 'audit'].forEach(t => {
+                const el = document.getElementById('tab-' + t);
+                if (el) el.classList.add('hidden-view');
+                const btn = document.getElementById('btn-' + t);
+                if (btn) btn.className = "flex items-center gap-2 text-slate-400 hover:text-white text-xs font-bold transition";
             });
-            document.getElementById('tab-' + tabId).classList.remove('hidden-view');
-            document.getElementById('btnTab-' + tabId).className = "px-4 py-2.5 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs shrink-0 transition";
 
-            if (tabId === 'stats') loadStats();
+            document.getElementById('tab-' + tabId).classList.remove('hidden-view');
+            const activeBtn = document.getElementById('btn-' + tabId);
+            if (activeBtn) activeBtn.className = "flex items-center gap-2 text-cyan-400 text-xs font-bold transition";
+
+            if (tabId === 'metrics') loadStats();
             if (tabId === 'pending') loadPendingUsers();
             if (tabId === 'accounts') loadAccounts();
             if (tabId === 'transactions') loadTransactions();
+            if (tabId === 'audit') loadAuditLogs();
         }
 
+        // --- بارگذاری آمار و مقادیر پولی خزانه ---
         async function loadStats() {
-            const res = await adminApi({ action: 'adminGetStats' });
+            const res = await requestAdmin({ action: 'adminGetStats' });
             if (res.status === 'success') {
                 const d = res.data;
-                document.getElementById('statInjected').innerText = fmt(d.treasuryInjected);
-                document.getElementById('statInjectedToman').innerText = fmt(Math.floor(d.treasuryInjected / 10)) + ' تومان';
-                document.getElementById('statCirculation').innerText = fmt(d.totalCirculation);
-                document.getElementById('statCirculationToman').innerText = fmt(Math.floor(d.totalCirculation / 10)) + ' تومان';
-                document.getElementById('statFees').innerText = fmt(d.treasuryFees);
-                document.getElementById('statTxCount').innerText = fmt(d.totalTransactions);
+                document.getElementById('statMinted').innerText = fmt(d.totalMintedMoney);
+                document.getElementById('statCirculation').innerText = fmt(d.totalActiveCirculation);
+                document.getElementById('statFees').innerText = fmt(d.totalFeesCollected);
+                document.getElementById('statPending').innerText = d.pendingUsers;
                 document.getElementById('badgePending').innerText = d.pendingUsers;
             }
         }
 
+        // --- بارگذاری متقاضیان در انتظار ---
         async function loadPendingUsers() {
-            const res = await adminApi({ action: 'adminGetPendingUsers' });
-            const tbody = document.getElementById('pendingTableBody');
+            const res = await requestAdmin({ action: 'adminGetPendingUsers' });
             if (res.status === 'success') {
-                if (res.data.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-500 font-sans">هیچ درخواست در انتظاری وجود ندارد.</td></tr>`;
-                    return;
-                }
-                let html = '';
-                res.data.forEach(u => {
-                    html += `<tr>
-                        <td class="p-4 font-bold text-white font-sans">${sanitize(u.fullName)}</td>
-                        <td class="p-4 text-cyan-300">${u.nationalCode}</td>
-                        <td class="p-4 text-slate-400">${u.mobile}</td>
-                        <td class="p-4 text-slate-400">${u.email}</td>
-                        <td class="p-4 text-slate-500 text-[11px]">${new Date(u.date).toLocaleDateString('fa-IR')}</td>
-                        <td class="p-4 text-center space-x-2 space-x-reverse font-sans">
-                            <button onclick="approveUser('${u.userId}')" class="bg-gradient-to-r from-emerald-600 to-teal-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold active:scale-95 transition">تأیید و صدور آنی</button>
-                            <button onclick="rejectUser('${u.userId}')" class="bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition">رد</button>
-                        </td>
-                    </tr>`;
-                });
-                tbody.innerHTML = html;
+                pendingData = res.data;
+                renderPendingTable(pendingData);
             }
         }
 
+        function renderPendingTable(list) {
+            const tbody = document.getElementById('pendingTableBody');
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-500">هیچ درخواست عضویتی در انتظار نیست.</td></tr>`;
+                return;
+            }
+
+            let html = '';
+            list.forEach(u => {
+                html += `
+                    <tr class="hover:bg-slate-900/60 transition">
+                        <td class="p-3.5 font-bold text-white">${sanitizeText(u.fullName)}</td>
+                        <td class="p-3.5 font-mono text-cyan-300">${u.nationalCode}</td>
+                        <td class="p-3.5 font-mono">${u.mobile}</td>
+                        <td class="p-3.5 font-mono text-slate-400">${u.email}</td>
+                        <td class="p-3.5 font-mono text-[11px] text-slate-400">${new Date(u.date).toLocaleDateString('fa-IR')}</td>
+                        <td class="p-3.5 text-center space-x-2 space-x-reverse">
+                            <button onclick="approveUser('${u.userId}')" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-bold text-[11px] shadow transition active:scale-95">
+                                تایید و افتتاح حساب
+                            </button>
+                            <button onclick="rejectUser('${u.userId}')" class="px-3 py-1.5 rounded-xl bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 font-bold text-[11px] transition">
+                                رد
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function filterPendingTable() {
+            const q = document.getElementById('searchPendingInput').value.toLowerCase();
+            const filtered = pendingData.filter(u => 
+                u.fullName.toLowerCase().includes(q) || u.nationalCode.includes(q) || u.mobile.includes(q)
+            );
+            renderPendingTable(filtered);
+        }
+
         async function approveUser(userId) {
-            if (!confirm("آیا با تأیید این کاربر و صدور شماره حساب ۱۰ رقمی و کارت ۹۹۰۸۹۰ موافقید؟")) return;
-            const res = await adminApi({ action: 'adminApproveUser', userId: userId });
+            if (!confirm("آیا با تایید مدارک، تولید حساب ۱۰ رقمی، شماره کارت با پیش‌شماره ۹۹۰۸۹۰ و شبای ۲۶ کاراکتری موافقید؟")) return;
+            const res = await requestAdmin({ action: 'adminApproveUser', userId: userId });
             alert(res.message);
             loadPendingUsers();
             loadStats();
         }
 
         async function rejectUser(userId) {
-            if (!confirm("آیا از رد درخواست این متقاضی اطمینان دارید؟")) return;
-            const res = await adminApi({ action: 'adminRejectUser', userId: userId });
+            if (!confirm("درخواست ثبت‌نام رد شود؟")) return;
+            const res = await requestAdmin({ action: 'adminRejectUser', userId: userId });
             alert(res.message);
             loadPendingUsers();
-            loadStats();
         }
 
+        // --- بارگذاری لیست حساب‌ها و کارت‌ها ---
         async function loadAccounts() {
-            const res = await adminApi({ action: 'adminGetAllAccounts' });
+            const res = await requestAdmin({ action: 'adminGetAllAccounts' });
             if (res.status === 'success') {
-                rawAccounts = res.data;
-                renderAccountsTable();
+                accountsData = res.data;
+                renderAccountsTable(accountsData);
             }
         }
 
-        function renderAccountsTable() {
-            const query = (document.getElementById('searchAccInput').value || '').toLowerCase();
+        function renderAccountsTable(list) {
             const tbody = document.getElementById('accountsTableBody');
-            let filtered = rawAccounts.filter(a => {
-                return a.accountNo.includes(query) || a.cardNo.includes(query) || a.ownerName.toLowerCase().includes(query) || a.nationalCode.includes(query);
-            });
-
-            if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-500 font-sans">موردی یافت نشد.</td></tr>`;
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-500">حسابی یافت نشد.</td></tr>`;
                 return;
             }
 
             let html = '';
-            filtered.forEach(a => {
+            list.forEach(a => {
                 const isBlocked = a.status === 'Blocked' || a.status === 'Blocked_Admin';
                 const newStatus = isBlocked ? 'Active' : 'Blocked';
-                const btnText = isBlocked ? 'فعال‌سازی مجدد' : 'مسدودسازی';
-                const btnClass = isBlocked ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white' : 'bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white';
-                
-                let formattedCard = a.cardNo;
-                if (formattedCard.length === 16) formattedCard = formattedCard.replace(/(\d{4})/g, '$1 ').trim();
+                const btnColor = isBlocked ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300';
+                const btnText = isBlocked ? 'فعال‌سازی' : 'مسدودسازی';
 
-                html += `<tr>
-                    <td class="p-4 font-bold text-white">${a.accountNo}</td>
-                    <td class="p-4 text-cyan-300" dir="ltr" style="text-align: right;">${formattedCard}</td>
-                    <td class="p-4 text-slate-200 font-sans">${sanitize(a.ownerName)}</td>
-                    <td class="p-4 text-slate-400">${a.nationalCode}</td>
-                    <td class="p-4 text-slate-500 text-[11px]" dir="ltr">${a.iban}</td>
-                    <td class="p-4 font-sans"><span class="px-2 py-0.5 rounded-full text-[10px] ${a.status === 'Active' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'}">${a.status}</span></td>
-                    <td class="p-4 text-center font-sans">
-                        ${a.accountNo === '0000000000' ? '<span class="text-slate-600 text-xs">حساب سیستمی</span>' : `
-                            <button onclick="toggleAccountStatus('${a.accountNo}', '${newStatus}')" class="px-3 py-1 rounded-lg text-xs font-bold transition ${btnClass}">
-                                ${btnText}
-                            </button>
-                        `}
-                    </td>
-                </tr>`;
+                html += `
+                    <tr class="hover:bg-slate-900/60 transition">
+                        <td class="p-3.5 font-sans font-bold text-white">${sanitizeText(a.ownerName)}</td>
+                        <td class="p-3.5 text-cyan-300 font-bold">${a.accountNo}</td>
+                        <td class="p-3.5 text-slate-200" dir="ltr" style="text-align: right;">${a.cardNo.replace(/(\d{4})/g, '$1 ').trim()}</td>
+                        <td class="p-3.5 font-bold text-emerald-400">${fmt(a.balance)}</td>
+                        <td class="p-3.5 text-slate-400 text-[11px]" dir="ltr" style="text-align: right;">${a.iban}</td>
+                        <td class="p-3.5"><span class="px-2 py-0.5 rounded text-[10px] font-sans ${a.status === 'Active' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'}">${a.status}</span></td>
+                        <td class="p-3.5 text-center">
+                            ${a.accountNo === '0000000000' ? '<span class="text-slate-500 text-[11px] font-sans">خزانه</span>' : `
+                                <button onclick="toggleAccount('${a.accountNo}', '${newStatus}')" class="${btnColor} px-3 py-1 rounded-xl text-[11px] font-sans font-bold transition">
+                                    ${btnText}
+                                </button>
+                            `}
+                        </td>
+                    </tr>
+                `;
             });
             tbody.innerHTML = html;
         }
 
-        async function toggleAccountStatus(accountNo, newStatus) {
-            if (!confirm(`آیا مطمئن هستید که وضعیت حساب ${accountNo} به ${newStatus} تغییر یابد؟`)) return;
-            const res = await adminApi({ action: 'adminToggleAccountStatus', accountNo: accountNo, newStatus: newStatus });
+        function filterAccountsTable() {
+            const q = document.getElementById('searchAccInput').value.toLowerCase();
+            const filtered = accountsData.filter(a => 
+                a.ownerName.toLowerCase().includes(q) || a.accountNo.includes(q) || a.cardNo.includes(q) || a.nationalCode.includes(q)
+            );
+            renderAccountsTable(filtered);
+        }
+
+        async function toggleAccount(accNo, newStatus) {
+            if (!confirm(`وضعیت حساب ${accNo} به ${newStatus} تغییر یابد؟`)) return;
+            const res = await requestAdmin({ action: 'adminToggleAccountStatus', accountNo: accNo, newStatus: newStatus });
             alert(res.message);
             loadAccounts();
         }
 
-        async function commitTreasuryDeposit() {
-            const acc = document.getElementById('trTargetAcc').value;
-            const am = document.getElementById('trAmount').value;
-            const desc = document.getElementById('trDesc').value;
-            const msg = document.getElementById('trMsg');
-            const btn = document.getElementById('trBtn');
+        // --- شارژ از خزانه ---
+        async function submitTreasuryDeposit() {
+            const acc = document.getElementById('trTargetAcc').value.trim();
+            const am = document.getElementById('trAmount').value.trim();
+            const desc = document.getElementById('trDesc').value.trim();
+            const alertBox = document.getElementById('treasuryAlert');
+            const btn = document.getElementById('treasuryBtn');
 
-            if (!acc || !am || Number(am) <= 0) return alert("شماره حساب معتبر و مبلغ الزامی است.");
-            if (!confirm(`آیا از واریز ${fmt(am)} ریال از خزانه سیستم به حساب ${acc} اطمینان دارید؟`)) return;
+            if (!acc || !am) return alert("شماره حساب مقصد و مبلغ الزامی است.");
+            if (!confirm(`مبلغ ${fmt(am)} ریال از حساب خزانه به حساب ${acc} واریز شود؟`)) return;
 
+            btn.innerText = "صدور سند در دفترکل...";
             btn.disabled = true;
-            btn.innerText = "در حال صدور سند در دفترکل...";
-            msg.classList.add('hidden');
 
-            const res = await adminApi({
+            const res = await requestAdmin({
                 action: 'adminTreasuryDeposit',
                 targetAccount: acc,
                 amount: am,
                 description: desc
             });
 
+            btn.innerText = "تأیید و صدور سند در دفترکل";
             btn.disabled = false;
-            btn.innerText = "صدور سند دوطرفه دفترکل و واریز";
-
-            msg.innerText = res.message;
-            msg.className = `text-xs font-bold text-center mt-2 ${res.status === 'success' ? 'text-emerald-400' : 'text-red-400'}`;
-            msg.classList.remove('hidden');
 
             if (res.status === 'success') {
+                alertBox.innerText = res.message;
+                alertBox.className = "text-xs font-bold mt-3 text-emerald-400";
+                alertBox.classList.remove('hidden');
                 document.getElementById('trAmount').value = '';
-                document.getElementById('trDesc').value = '';
                 loadStats();
+            } else {
+                alertBox.innerText = res.message;
+                alertBox.className = "text-xs font-bold mt-3 text-red-400";
+                alertBox.classList.remove('hidden');
             }
         }
 
+        // --- بارگذاری تراکنش‌ها و برگشت وجه ---
         async function loadTransactions() {
-            const res = await adminApi({ action: 'adminGetAllTransactions' });
+            const res = await requestAdmin({ action: 'adminGetAllTransactions' });
             if (res.status === 'success') {
-                rawTransactions = res.data;
-                renderTransactionsTable();
+                txData = res.data;
+                renderTxTable(txData);
             }
         }
 
-        function renderTransactionsTable() {
-            const query = (document.getElementById('searchTxInput').value || '').toLowerCase();
+        function renderTxTable(list) {
             const tbody = document.getElementById('txTableBody');
-            let filtered = rawTransactions.filter(t => {
-                return t.trackCode.toString().includes(query) || t.txId.toLowerCase().includes(query) || t.amount.toString().includes(query);
-            });
-
-            if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-slate-500 font-sans">تراکنشی یافت نشد.</td></tr>`;
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-slate-500">تراکنشی ثبت نشده است.</td></tr>`;
                 return;
             }
 
             let html = '';
-            filtered.forEach(t => {
-                html += `<tr>
-                    <td class="p-4 font-bold text-slate-200">${t.trackCode}</td>
-                    <td class="p-4 text-slate-400">${t.txId}</td>
-                    <td class="p-4 text-cyan-300 font-sans text-[11px]">${t.method}</td>
-                    <td class="p-4 text-slate-400">${t.sourceAcc}</td>
-                    <td class="p-4 text-slate-400">${t.targetAcc}</td>
-                    <td class="p-4 font-bold text-emerald-400 font-mono">${fmt(t.amount)}</td>
-                    <td class="p-4 font-sans"><span class="px-2 py-0.5 rounded text-[10px] ${t.status === 'Completed' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'}">${t.status}</span></td>
-                    <td class="p-4 text-slate-500 text-[11px]">${new Date(t.date).toLocaleDateString('fa-IR')}</td>
-                    <td class="p-4 text-center font-sans">
-                        ${t.method === 'REVERSAL' ? '<span class="text-slate-600 text-xs">سند معکوس</span>' : `
-                            <button onclick="reverseTransaction('${t.txId}')" class="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500 hover:text-slate-950 text-amber-300 rounded text-xs font-bold transition">
-                                برگشت وجه
-                            </button>
-                        `}
-                    </td>
-                </tr>`;
+            list.forEach(t => {
+                const isReversal = t.method === 'REVERSAL';
+                html += `
+                    <tr class="hover:bg-slate-900/60 transition">
+                        <td class="p-3.5 font-bold text-slate-300">${t.txId}</td>
+                        <td class="p-3.5 text-cyan-300">${t.trackCode}</td>
+                        <td class="p-3.5 font-sans font-bold text-[11px] ${isReversal ? 'text-rose-400' : 'text-slate-300'}">${t.method}</td>
+                        <td class="p-3.5 text-slate-400">${t.sourceAcc}</td>
+                        <td class="p-3.5 text-slate-400">${t.targetAcc}</td>
+                        <td class="p-3.5 font-bold text-emerald-400">${fmt(t.amount)}</td>
+                        <td class="p-3.5 text-slate-400">${fmt(t.fee)}</td>
+                        <td class="p-3.5 text-slate-500 text-[11px]">${new Date(t.date).toLocaleString('fa-IR')}</td>
+                        <td class="p-3.5 text-center">
+                            ${(isReversal || t.method === 'TREASURY_MINT') ? '---' : `
+                                <button onclick="reverseTransaction('${t.txId}')" class="px-2.5 py-1 rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 text-[10px] font-sans font-bold transition">
+                                    برگشت وجه
+                                </button>
+                            `}
+                        </td>
+                    </tr>
+                `;
             });
             tbody.innerHTML = html;
         }
 
+        function filterTxTable() {
+            const q = document.getElementById('searchTxInput').value.toLowerCase();
+            const filtered = txData.filter(t => 
+                t.txId.toLowerCase().includes(q) || String(t.trackCode).includes(q) || t.sourceAcc.includes(q) || t.targetAcc.includes(q)
+            );
+            renderTxTable(filtered);
+        }
+
         async function reverseTransaction(txId) {
-            if (!confirm(`آیا از برگشت قطعی سند مالی ${txId} اطمینان دارید؟ اسناد معکوس در دفترکل صادر خواهد شد.`)) return;
-            const res = await adminApi({ action: 'adminReverseTransaction', txId: txId });
+            if (!confirm(`آیا مطمئن هستید که تراکنش ${txId} باید برگشت داده شده و سند معکوس در دفترکل صادر شود؟`)) return;
+            const res = await requestAdmin({ action: 'adminReverseTransaction', txId: txId });
             alert(res.message);
             loadTransactions();
             loadStats();
+        }
+
+        // --- بارگذاری لاگ‌های امنیتی ---
+        async function loadAuditLogs() {
+            const res = await requestAdmin({ action: 'adminGetAuditLogs' });
+            const tbody = document.getElementById('auditTableBody');
+            if (res.status === 'success') {
+                if (res.data.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-500">لاگی موجود نیست.</td></tr>`;
+                    return;
+                }
+                let html = '';
+                res.data.forEach(l => {
+                    html += `
+                        <tr class="hover:bg-slate-900/60 transition">
+                            <td class="p-3 text-slate-400">${l.logId}</td>
+                            <td class="p-3 font-sans font-bold ${l.actorType === 'ADMIN' ? 'text-amber-300' : 'text-cyan-300'}">${l.actorType}</td>
+                            <td class="p-3 text-slate-300">${l.actorId}</td>
+                            <td class="p-3 font-sans font-bold text-white">${l.action}</td>
+                            <td class="p-3 text-slate-400">${l.targetEntity}: ${l.targetId}</td>
+                            <td class="p-3 text-slate-500 text-[10px]">${new Date(l.date).toLocaleString('fa-IR')}</td>
+                            <td class="p-3 font-sans text-slate-300">${sanitizeText(l.details)}</td>
+                        </tr>
+                    `;
+                });
+                tbody.innerHTML = html;
+            }
         }
     </script>
 </body>
