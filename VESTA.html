@@ -3,25 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VESTA BANK | سامانه اینترنت‌بانک وستا</title>
+    <title>VESTA BANK | سامانه اینترنت‌بانک متمرکز وستا</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body { font-family: 'Vazirmatn', sans-serif; background-color: #070d1e; color: #f1f5f9; }
         .hidden-view { display: none !important; }
         .vesta-card {
-            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #2563eb 100%);
+            background: linear-gradient(135deg, #0b152e 0%, #1e3a8a 50%, #2563eb 100%);
             box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.6), inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
         }
         .chip {
             background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
             border-radius: 6px;
         }
+        .filter-btn-active {
+            background-color: #2563eb !important;
+            color: #ffffff !important;
+        }
         @media print {
             body * { visibility: hidden; }
-            #receiptModal, #receiptModal * { visibility: visible; }
-            #receiptModal { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
-            #closeReceiptBtn, #printReceiptBtn { display: none; }
+            #receiptCaptureArea, #receiptCaptureArea * { visibility: visible; }
+            #receiptCaptureArea { position: absolute; left: 0; top: 0; width: 100%; }
+            #receiptActionBtns { display: none !important; }
         }
     </style>
 </head>
@@ -35,17 +40,20 @@
                 <p class="text-xs text-slate-400">بانکداری نوین و اختصاصی وستا</p>
             </div>
             <div class="flex border-b border-slate-800 mb-6 text-center font-bold">
-                <button id="tabLoginBtn" onclick="toggleAuth('login')" class="w-1/2 pb-3 border-b-2 border-blue-500 text-blue-400">ورود به اینترنت‌بانک</button>
+                <button id="tabLoginBtn" onclick="toggleAuth('login')" class="w-1/2 pb-3 border-b-2 border-blue-500 text-blue-400">ورود به حساب</button>
                 <button id="tabRegisterBtn" onclick="toggleAuth('register')" class="w-1/2 pb-3 border-b-2 border-transparent text-slate-500">افتتاح حساب آنلاین</button>
             </div>
 
             <!-- Login Form -->
             <div id="loginForm">
                 <label class="block text-xs text-slate-400 mb-2">نام کاربری (کد ملی)</label>
-                <input type="text" id="lUser" placeholder="0012345678" class="w-full mb-4 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr">
+                <input type="text" id="lUser" placeholder="0012345678" maxlength="10" class="w-full mb-4 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr">
                 <label class="block text-xs text-slate-400 mb-2">رمز عبور</label>
-                <input type="password" id="lPass" placeholder="••••••••" class="w-full mb-6 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr">
-                <button onclick="login()" id="loginBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 rounded-xl transition">ورود امن به سامانه</button>
+                <input type="password" id="lPass" placeholder="••••••••" class="w-full mb-5 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr">
+                <button onclick="login()" id="loginBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 rounded-xl transition mb-3">ورود امن با رمز عبور</button>
+                <button onclick="biometricLoginAction()" id="bioLoginBtn" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 rounded-xl border border-slate-700 transition flex items-center justify-center gap-2 text-xs">
+                    <span>👆</span> ورود سریع با اثر انگشت / تشخیص چهره
+                </button>
             </div>
 
             <!-- Register Form -->
@@ -86,14 +94,14 @@
             <nav class="space-y-2 flex-1">
                 <button onclick="switchView('overview')" class="w-full text-right px-4 py-3 rounded-xl hover:bg-slate-800 text-sm flex items-center gap-2"><span>💳 کارت و حساب</span></button>
                 <button onclick="switchView('transfer')" class="w-full text-right px-4 py-3 rounded-xl hover:bg-slate-800 text-sm flex items-center gap-2"><span>🔄 انتقال وجه امن</span></button>
-                <button onclick="switchView('security')" class="w-full text-right px-4 py-3 rounded-xl hover:bg-slate-800 text-sm flex items-center gap-2"><span>🔐 رمزساز Authenticator</span></button>
-                <button onclick="switchView('pin')" class="w-full text-right px-4 py-3 rounded-xl hover:bg-slate-800 text-sm flex items-center gap-2"><span>🔢 مدیریت پین کارت</span></button>
+                <button onclick="switchView('beneficiaries')" class="w-full text-right px-4 py-3 rounded-xl hover:bg-slate-800 text-sm flex items-center gap-2"><span>⭐ مقصدهای پرکاربرد</span></button>
+                <button onclick="switchView('pin')" class="w-full text-right px-4 py-3 rounded-xl hover:bg-slate-800 text-sm flex items-center gap-2"><span>🔢 مدیریت پین و بیومتریک</span></button>
                 <button onclick="switchView('statement')" class="w-full text-right px-4 py-3 rounded-xl hover:bg-slate-800 text-sm flex items-center gap-2"><span>📑 صورت‌حساب دفترکل</span></button>
             </nav>
             <button onclick="logout()" class="mt-auto w-full text-right px-4 py-3 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-600 hover:text-white transition text-sm">خروج امن از سیستم</button>
         </aside>
 
-        <!-- Main Content -->
+        <!-- Main Content Area -->
         <main class="flex-1 p-6 md:p-10 overflow-y-auto">
             <header class="flex justify-between items-center mb-8 pb-4 border-b border-slate-800">
                 <div>
@@ -109,15 +117,15 @@
             <!-- 1. Overview -->
             <section id="view-overview">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                    <!-- Virtual Card (Fixed LTR display) -->
+                    <!-- Physical Style Virtual Card -->
                     <div class="vesta-card rounded-3xl p-6 h-64 flex flex-col justify-between relative overflow-hidden border border-slate-700/50">
                         <div class="flex justify-between items-start">
                             <div><span class="text-xs tracking-widest text-slate-300 font-bold">VESTA DEBIT CARD</span><div class="chip w-11 h-8 mt-2 shadow-inner"></div></div>
                             <span id="cardStatusBadge" class="text-[10px] px-2.5 py-1 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Active</span>
                         </div>
                         <div class="text-center my-auto">
-                            <!-- Card Number with strict Left-to-Right layout -->
-                            <p class="font-mono text-xl sm:text-2xl font-bold tracking-[0.25em] text-white" id="displayCardNo" dir="ltr" style="direction: ltr; unicode-bidi: isolate; text-align: center;">9908 ---- ---- ----</p>
+                            <!-- Card Number Horizontal LTR Single Line -->
+                            <p class="font-mono text-xl sm:text-2xl font-bold tracking-[0.22em] text-white" id="displayCardNo" dir="ltr" style="direction: ltr; unicode-bidi: isolate; text-align: center;">9908 90-- ---- ----</p>
                         </div>
                         <div class="flex justify-between items-end text-xs">
                             <div>
@@ -138,7 +146,7 @@
                         </div>
                     </div>
 
-                    <!-- Account Box -->
+                    <!-- Account Details -->
                     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col justify-between">
                         <div>
                             <span class="text-xs text-slate-400 block mb-1">موجودی قابل برداشت (Ledger Balance):</span>
@@ -161,29 +169,37 @@
                 </div>
             </section>
 
-            <!-- 2. Transfer (Two-step with TOTP) -->
+            <!-- 2. Transfer (Two-step with Static PIN) -->
             <section id="view-transfer" class="hidden-view">
                 <div class="max-w-xl bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-xl">
-                    <h2 class="text-lg font-bold mb-6 flex items-center gap-2 border-b border-slate-800 pb-4"><span class="text-blue-500">🛡️</span> انتقال وجه امن با تایید TOTP</h2>
+                    <h2 class="text-lg font-bold mb-6 flex items-center gap-2 border-b border-slate-800 pb-4"><span class="text-blue-500">🛡️</span> انتقال وجه امن وستا</h2>
 
-                    <!-- Step 1 -->
+                    <!-- Step 1: Destination and Amount -->
                     <div id="transferStep1">
-                        <label class="block text-xs text-slate-400 mb-2">روش انتقال</label>
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="block text-xs text-slate-400">روش انتقال</label>
+                            <button onclick="openBeneficiariesPicker()" class="text-xs text-blue-400 hover:underline">⭐ انتخاب از مقصدهای پرکاربرد</button>
+                        </div>
                         <select id="tfMethod" class="w-full mb-4 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl outline-none text-sm">
-                            <option value="CARD_TO_CARD">کارت به کارت (۱۶ رقمی با ۹۹۰۸۹۰)</option>
-                            <option value="ACCOUNT_TO_ACCOUNT">حساب به حساب وستا (۱۰ رقمی)</option>
-                            <option value="VIRTUAL_IBAN_TRANSFER">انتقال با شناسه شبا (۲۶ کاراکتری)</option>
+                            <option value="CARD_TO_CARD">کارت به کارت</option>
+                            <option value="ACCOUNT_TO_ACCOUNT">حساب به حساب</option>
+                            <option value="VIRTUAL_IBAN_TRANSFER">انتقال با شبا (پایا / ساتنا)</option>
                         </select>
+
                         <label class="block text-xs text-slate-400 mb-2">شناسه مقصد</label>
-                        <input type="text" id="tfTarget" placeholder="شماره کارت، حساب یا شبا" class="w-full mb-4 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-left outline-none" dir="ltr">
+                        <input type="text" id="tfTarget" oninput="formatCardInputLive(this)" placeholder="شماره کارت، حساب یا شبا" class="w-full mb-4 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-left outline-none" dir="ltr">
+
                         <label class="block text-xs text-slate-400 mb-2">مبلغ تراکنش (ریال)</label>
-                        <input type="number" id="tfAmount" placeholder="مبلغ به ریال" class="w-full mb-4 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-left outline-none" dir="ltr">
+                        <input type="number" id="tfAmount" oninput="updateTomanPreview(this.value)" placeholder="مبلغ به ریال" class="w-full mb-1 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-left outline-none" dir="ltr">
+                        <span class="text-[11px] text-slate-500 font-mono block mb-4" id="tfTomanPreview">معادل: ۰ تومان</span>
+
                         <label class="block text-xs text-slate-400 mb-2">بابت / شرح تراکنش</label>
-                        <input type="text" id="tfPurpose" placeholder="مثال: خرید، اجاره، تسویه..." class="w-full mb-6 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl outline-none text-sm">
+                        <input type="text" id="tfPurpose" placeholder="مثال: خرید کالا، اجاره‌بها، تسویه..." class="w-full mb-6 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl outline-none text-sm">
+
                         <button onclick="startInquiry()" id="inquiryBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 rounded-xl transition text-sm">استعلام نام گیرنده</button>
                     </div>
 
-                    <!-- Step 2 -->
+                    <!-- Step 2: Verification Challenge -->
                     <div id="transferStep2" class="hidden-view">
                         <div class="bg-blue-950/40 border border-blue-800/50 p-4 rounded-2xl mb-6">
                             <div class="flex justify-between text-xs mb-2"><span class="text-slate-400">گیرنده:</span><span class="font-bold text-emerald-400 text-sm" id="inqReceiverName">---</span></div>
@@ -192,13 +208,27 @@
                         </div>
 
                         <div class="grid grid-cols-2 gap-3 mb-4">
-                            <div><label class="block text-xs text-slate-400 mb-2">کد CVV2 کارت شما</label><input type="password" id="tfCvv2" maxlength="4" placeholder="***" class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-center outline-none" dir="ltr"></div>
-                            <div><label class="block text-xs text-slate-400 mb-2">انقضا (MM/YY)</label><input type="text" id="tfExpiry" placeholder="08/14" maxlength="5" class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-center outline-none" dir="ltr"></div>
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-2">کد CVV2</label>
+                                <input type="password" id="tfCvv2" maxlength="4" placeholder="***" class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-center outline-none" dir="ltr">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-2">تاریخ انقضا</label>
+                                <div class="grid grid-cols-2 gap-1" dir="ltr">
+                                    <input type="text" id="tfExpMM" maxlength="2" placeholder="MM" oninput="if(this.value.length>=2) document.getElementById('tfExpYY').focus()" class="px-2 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-center outline-none">
+                                    <input type="text" id="tfExpYY" maxlength="2" placeholder="YY" class="px-2 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-center outline-none">
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="mb-6">
-                            <label class="block text-xs text-slate-400 mb-2">کد ۶ رقمی نرم‌افزار Authenticator گوشی</label>
-                            <input type="text" id="tfTotpCode" placeholder="123456" maxlength="6" class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-center tracking-widest text-xl text-amber-300 outline-none" dir="ltr">
+                            <label class="block text-xs text-slate-400 mb-2">رمز اول کارت (PIN1)</label>
+                            <input type="password" id="tfCardPin" placeholder="••••" maxlength="4" class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-center tracking-widest text-xl text-amber-300 outline-none" dir="ltr">
+                        </div>
+
+                        <div class="flex items-center gap-2 mb-6">
+                            <input type="checkbox" id="saveBeneficiaryCheck" class="rounded border-slate-800">
+                            <label for="saveBeneficiaryCheck" class="text-xs text-slate-400">ذخیره این مقصد در دفترچه پرکاربرد</label>
                         </div>
 
                         <div class="flex gap-3">
@@ -210,46 +240,68 @@
                 </div>
             </section>
 
-            <!-- 3. Authenticator Setup -->
-            <section id="view-security" class="hidden-view">
-                <div class="max-w-xl bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-xl">
-                    <h2 class="text-lg font-bold mb-4 flex items-center gap-2 border-b border-slate-800 pb-4"><span class="text-blue-500">🔐</span> راه‌اندازی Google Authenticator</h2>
-                    <p class="text-xs text-slate-400 mb-6 leading-relaxed">
-                        این بارکد را با نرم‌افزار Authenticator گوشی اسکن کنید. پس از اسکن، گوشی شما هر ۳۰ ثانیه یک کد ۶ رقمی امن تولید می‌کند که برای تأیید تراکنش‌ها به آن نیاز خواهید داشت.
-                    </p>
-                    <div class="bg-white p-4 rounded-2xl w-48 h-48 mx-auto mb-6 flex items-center justify-center">
-                        <img id="totpQrImg" src="" alt="QR Code" class="w-full h-full object-contain">
+            <!-- 3. Beneficiaries Section -->
+            <section id="view-beneficiaries" class="hidden-view">
+                <div class="max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-xl">
+                    <div class="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
+                        <h2 class="text-lg font-bold flex items-center gap-2"><span class="text-blue-500">⭐</span> مقصدهای پرکاربرد من</h2>
                     </div>
-                    <div class="text-center">
-                        <span class="text-[11px] text-slate-400 block mb-1">کلید متنی جهت ثبت دستی در نرم‌افزار:</span>
-                        <span class="font-mono font-bold text-amber-400 bg-slate-950 px-4 py-2 rounded-xl text-sm tracking-widest inline-block select-all" id="totpSecretText">----------------</span>
+                    <div id="beneficiariesList" class="space-y-3">
+                        <!-- Rendered by JS -->
                     </div>
                 </div>
             </section>
 
-            <!-- 4. PIN Management -->
+            <!-- 4. PIN & Biometrics Management -->
             <section id="view-pin" class="hidden-view">
-                <div class="max-w-xl bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-xl">
-                    <h2 class="text-lg font-bold mb-6 flex items-center gap-2 border-b border-slate-800 pb-4"><span class="text-blue-500">🔢</span> تغییر رمز اول و دوم کارت</h2>
-                    <label class="block text-xs text-slate-400 mb-2">رمز اول کارت جدید (۴ رقم)</label>
-                    <input type="password" id="newPin1" maxlength="4" placeholder="••••" class="w-full mb-4 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-center outline-none" dir="ltr">
-                    
-                    <label class="block text-xs text-slate-400 mb-2">رمز اینترنتی کارت جدید (۵ تا ۸ رقم)</label>
-                    <input type="password" id="newPin2" maxlength="8" placeholder="••••••••" class="w-full mb-6 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-center outline-none" dir="ltr">
+                <div class="max-w-xl bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-xl space-y-6">
+                    <div>
+                        <h2 class="text-lg font-bold mb-4 flex items-center gap-2 border-b border-slate-800 pb-3"><span class="text-blue-500">🔢</span> تغییر رمز اول کارت (رمز تراکنش)</h2>
+                        <label class="block text-xs text-slate-400 mb-2">رمز اول جدید (۴ رقم)</label>
+                        <input type="password" id="newPin1" maxlength="4" placeholder="••••" class="w-full mb-4 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-center outline-none" dir="ltr">
+                        <button onclick="changePinSubmit()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition text-sm">ثبت و تغییر رمز</button>
+                        <p id="pinAlert" class="text-xs font-bold text-center mt-3 hidden"></p>
+                    </div>
 
-                    <button onclick="changePinSubmit()" id="changePinBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 rounded-xl transition text-sm">ثبت و تغییر رمزها</button>
-                    <p id="pinAlert" class="text-xs font-bold text-center mt-4 hidden"></p>
+                    <div class="border-t border-slate-800 pt-6">
+                        <h2 class="text-lg font-bold mb-2 flex items-center gap-2"><span class="text-blue-500">👆</span> ثبت ورود بیومتریک (اثر انگشت/چهره)</h2>
+                        <p class="text-xs text-slate-400 mb-4 leading-relaxed">
+                            با فعال‌سازی این قابلیت، می‌توانید در دفعات بعدی با لمس حسگر اثر انگشت گوشی یا FaceID بدون تایپ رمز وارد پنل شوید.
+                        </p>
+                        <button onclick="registerBiometricDevice()" id="regBioBtn" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-400 font-bold py-3 rounded-xl transition text-sm">
+                            فعال‌سازی حسگر بیومتریک این دستگاه
+                        </button>
+                        <p id="bioAlert" class="text-xs font-bold text-center mt-3 hidden"></p>
+                    </div>
                 </div>
             </section>
 
-            <!-- 5. Statement (Running Balance) -->
+            <!-- 5. Statement (Running Balance + Filters + Clickable Rows) -->
             <section id="view-statement" class="hidden-view">
                 <div class="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-                    <div class="p-6 border-b border-slate-800"><h2 class="font-bold text-sm">گردش لحظه‌ای اسناد دفترکل (Running Balance)</h2></div>
+                    <div class="p-6 border-b border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <h2 class="font-bold text-sm">گردش اسناد دفترکل (Running Balance)</h2>
+                        <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+                            <button onclick="filterStatement('ALL')" id="filterBtnALL" class="px-3 py-1.5 rounded-lg filter-btn-active font-bold transition">همه تراکنش‌ها</button>
+                            <button onclick="filterStatement('CREDIT')" id="filterBtnCREDIT" class="px-3 py-1.5 rounded-lg text-slate-400 font-bold transition">فقط واریزها</button>
+                            <button onclick="filterStatement('DEBIT')" id="filterBtnDEBIT" class="px-3 py-1.5 rounded-lg text-slate-400 font-bold transition">فقط برداشت‌ها</button>
+                        </div>
+                    </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-right text-xs">
-                            <thead class="bg-slate-950 text-slate-400"><tr><th class="p-4">سند</th><th class="p-4">نوع</th><th class="p-4">مبلغ (ریال)</th><th class="p-4">مانده لحظه‌ای (ریال)</th><th class="p-4">زمان ثبت سیستم</th></tr></thead>
-                            <tbody id="statementTableBody" class="divide-y divide-slate-800 font-mono"></tbody>
+                            <thead class="bg-slate-950 text-slate-400">
+                                <tr>
+                                    <th class="p-4">سند</th>
+                                    <th class="p-4">نوع</th>
+                                    <th class="p-4">مبلغ (ریال)</th>
+                                    <th class="p-4">مانده لحظه‌ای (ریال)</th>
+                                    <th class="p-4">زمان ثبت سیستم</th>
+                                    <th class="p-4 text-center">مشاهده فیش</th>
+                                </tr>
+                            </thead>
+                            <tbody id="statementTableBody" class="divide-y divide-slate-800 font-mono">
+                                <!-- Rendered by JS -->
+                            </tbody>
                         </table>
                     </div>
                 </div>
@@ -257,27 +309,46 @@
         </main>
     </div>
 
-    <!-- Official Printable Receipt Modal -->
+    <!-- Official Printable & Image Export Receipt Modal -->
     <div id="receiptModal" class="hidden-view fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-        <div class="bg-white text-slate-900 rounded-3xl p-8 max-w-md w-full shadow-2xl relative">
-            <div class="text-center border-b pb-4 mb-4">
-                <div class="font-bold text-xl tracking-widest text-blue-900 mb-1">VESTA BANK</div>
-                <h3 class="font-bold text-xs bg-emerald-100 text-emerald-800 rounded-full inline-block px-4 py-1">رسید رسمی تراکنش بانکی</h3>
+        <div class="bg-white text-slate-900 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative">
+            <div id="receiptCaptureArea" class="bg-white p-2">
+                <div class="text-center border-b pb-4 mb-4">
+                    <div class="font-bold text-2xl tracking-widest text-blue-900 mb-1">VESTA BANK</div>
+                    <h3 class="font-bold text-xs bg-emerald-100 text-emerald-800 rounded-full inline-block px-4 py-1">رسید رسمی انتقال وجه</h3>
+                </div>
+                <div class="space-y-2.5 text-xs mb-4 font-sans">
+                    <div class="flex justify-between"><span class="text-slate-500">شماره پیگیری:</span><span class="font-mono font-bold text-slate-900" id="rcptTrack">---</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">شناسه سند دفترکل:</span><span class="font-mono" id="rcptTx">---</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">فرستنده:</span><span class="font-bold text-slate-800" id="rcptSender">---</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">حساب/کارت مبدأ:</span><span class="font-mono text-slate-700" id="rcptSource">---</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">گیرنده:</span><span class="font-bold text-slate-800" id="rcptReceiver">---</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">شناسه مقصد:</span><span class="font-mono text-slate-700" id="rcptTarget">---</span></div>
+                    <div class="flex justify-between border-t pt-2"><span class="text-slate-500">مبلغ انتقال:</span><span class="font-bold text-emerald-700 font-mono text-sm" id="rcptAmount">0</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">کارمزد خدمات:</span><span class="font-bold text-slate-700 font-mono text-sm" id="rcptFee">0</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">بابت:</span><span class="text-slate-700" id="rcptPurpose">---</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">زمان ثبت:</span><span class="text-[11px] font-mono" id="rcptTime">---</span></div>
+                    <div class="border-t pt-2 text-[9px] text-slate-400 text-center">
+                        <span class="font-mono bg-slate-100 p-1 rounded" id="rcptHash">---</span><br>مُهر دیجیتال تأییدیه وستا بانک
+                    </div>
+                </div>
             </div>
-            <div class="space-y-3 text-xs mb-6 font-sans">
-                <div class="flex justify-between"><span class="text-slate-500">شماره پیگیری:</span><span class="font-mono font-bold text-slate-900" id="rcptTrack">---</span></div>
-                <div class="flex justify-between"><span class="text-slate-500">شناسه سند دفترکل:</span><span class="font-mono" id="rcptTx">---</span></div>
-                <div class="flex justify-between"><span class="text-slate-500">صاحب مقصد:</span><span class="font-bold" id="rcptReceiver">---</span></div>
-                <div class="flex justify-between"><span class="text-slate-500">شناسه مقصد:</span><span class="font-mono" id="rcptTarget">---</span></div>
-                <div class="flex justify-between border-t pt-2"><span class="text-slate-500">مبلغ خالص:</span><span class="font-bold text-emerald-700 font-mono text-sm" id="rcptAmount">0</span></div>
-                <div class="flex justify-between"><span class="text-slate-500">کارمزد خدمات:</span><span class="font-bold text-slate-700 font-mono text-sm" id="rcptFee">0</span></div>
-                <div class="flex justify-between"><span class="text-slate-500">زمان ثبت سیستم:</span><span class="text-[11px] font-mono" id="rcptTime">---</span></div>
-                <div class="border-t pt-2 text-[9px] text-slate-400 text-center"><span class="font-mono bg-slate-100 p-1 rounded" id="rcptHash">---</span><br>مُهر دیجیتال تأییدیه وستا بانک</div>
+
+            <div class="flex gap-2 pt-2 border-t" id="receiptActionBtns">
+                <button onclick="downloadReceiptImage()" id="downloadImgBtn" class="w-1/2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1">
+                    <span>🖼️</span> دانلود تصویر فیش
+                </button>
+                <button onclick="closeReceipt()" class="w-1/2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2.5 rounded-xl text-xs">بستن</button>
             </div>
-            <div class="flex gap-3">
-                <button onclick="window.print()" id="printReceiptBtn" class="w-1/2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs">🖨️ چاپ فیش رسمی</button>
-                <button onclick="closeReceipt()" id="closeReceiptBtn" class="w-1/2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2.5 rounded-xl text-xs">بستن</button>
-            </div>
+        </div>
+    </div>
+
+    <!-- Beneficiaries Picker Modal -->
+    <div id="pickerModal" class="hidden-view fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-800 text-slate-100 rounded-3xl p-6 max-w-md w-full shadow-2xl">
+            <h3 class="font-bold text-sm mb-4 border-b border-slate-800 pb-3">انتخاب از مقصدهای پرکاربرد</h3>
+            <div id="pickerItems" class="space-y-2 max-h-60 overflow-y-auto mb-4"></div>
+            <button onclick="closePickerModal()" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 rounded-xl text-xs">انصراف</button>
         </div>
     </div>
 
@@ -287,8 +358,11 @@
 
         let clientToken = localStorage.getItem('vestaToken');
         let currentCard = null;
+        let currentUserData = null;
         let inquiryData = null;
         let isCvvVisible = false;
+        let cachedStatement = [];
+        let currentFilter = 'ALL';
 
         window.onload = function() {
             if (clientToken) { showDashboard(); loadBankData(); }
@@ -296,6 +370,16 @@
 
         const fmt = (num) => Number(num).toLocaleString('fa-IR');
         function sanitizeText(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+
+        function formatCardInputLive(input) {
+            let val = input.value.replace(/\D/g, '').substring(0, 16);
+            input.value = val.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+        }
+
+        function updateTomanPreview(amount) {
+            const toman = Math.floor(Number(amount || 0) / 10);
+            document.getElementById('tfTomanPreview').innerText = `معادل: ${fmt(toman)} تومان`;
+        }
 
         async function requestApi(payload) {
             try { return await (await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) })).json(); } 
@@ -308,34 +392,47 @@
             if (!nc || !pass) return;
             btn.innerText = "احراز هویت..."; btn.disabled = true;
             const res = await requestApi({ action: 'login', nationalCode: nc, password: pass });
-            btn.innerText = "ورود امن به سامانه"; btn.disabled = false;
+            btn.innerText = "ورود امن با رمز عبور"; btn.disabled = false;
             if (res.status === 'success') {
                 clientToken = res.token; localStorage.setItem('vestaToken', clientToken); showDashboard(); loadBankData();
             } else { alertBox.innerText = res.message; alertBox.className = "text-center text-xs font-bold mt-4 text-red-400"; alertBox.classList.remove('hidden'); }
+        }
+
+        async function biometricLoginAction() {
+            const nc = document.getElementById('lUser').value;
+            const alertBox = document.getElementById('authAlert');
+            if (!nc) { alertBox.innerText = "کد ملی خود را وارد نمایید."; alertBox.classList.remove('hidden'); return; }
+            
+            const credId = localStorage.getItem('vestaBioCred_' + nc);
+            if (!credId) {
+                alertBox.innerText = "ورود بیومتریک برای این حساب روی این مرورگر فعال نشده است.";
+                alertBox.classList.remove('hidden');
+                return;
+            }
+
+            const res = await requestApi({ action: 'biometricLogin', nationalCode: nc, credentialId: credId });
+            if (res.status === 'success') {
+                clientToken = res.token; localStorage.setItem('vestaToken', clientToken); showDashboard(); loadBankData();
+            } else {
+                alertBox.innerText = res.message; alertBox.classList.remove('hidden');
+            }
         }
 
         function showDashboard() { document.getElementById('authView').classList.add('hidden-view'); document.getElementById('mainDashboard').classList.remove('hidden-view'); }
         function logout() { localStorage.removeItem('vestaToken'); location.reload(); }
         
         function switchView(viewId) { 
-            ['overview', 'transfer', 'security', 'pin', 'statement'].forEach(v => document.getElementById('view-' + v).classList.add('hidden-view')); 
+            ['overview', 'transfer', 'beneficiaries', 'pin', 'statement'].forEach(v => document.getElementById('view-' + v).classList.add('hidden-view')); 
             document.getElementById('view-' + viewId).classList.remove('hidden-view'); 
             if (viewId === 'overview' || viewId === 'statement') loadBankData();
-            if (viewId === 'security') loadTotpData();
-        }
-
-        async function loadTotpData() {
-            const res = await requestApi({ action: 'getTotpSetup', token: clientToken });
-            if (res.status === 'success') {
-                document.getElementById('totpQrImg').src = res.data.qrUrl;
-                document.getElementById('totpSecretText').innerText = res.data.secret;
-            }
+            if (viewId === 'beneficiaries') loadBeneficiaries();
         }
 
         async function loadBankData() {
             const res = await requestApi({ action: 'getDashboard', token: clientToken });
             if (res.status === 'success') {
                 const d = res.data;
+                currentUserData = d;
                 document.getElementById('clientName').innerText = sanitizeText(d.name);
                 document.getElementById('displayAccNo').innerText = d.account;
                 document.getElementById('displayIban').innerText = d.iban;
@@ -345,7 +442,6 @@
 
                 if (d.card) {
                     currentCard = d.card;
-                    // Format correctly as 9908 90xx xxxx xxxx
                     const rawCard = d.card.number;
                     const formatted = rawCard.replace(/(\d{4})/g, '$1 ').trim();
                     document.getElementById('displayCardNo').innerText = formatted;
@@ -367,19 +463,59 @@
                     }
                 }
 
-                let stRows = '';
-                d.history.forEach(tx => {
-                    const isCredit = tx.type === 'CREDIT';
-                    stRows += `<tr>
-                        <td class="p-4 text-slate-400">${tx.txId}</td>
-                        <td class="p-4 font-bold ${isCredit ? 'text-emerald-400' : 'text-red-400'}">${isCredit ? 'واریز (بستانکار)' : 'برداشت (بدهکار)'}</td>
-                        <td class="p-4 ${isCredit ? 'text-emerald-400' : 'text-slate-200'}">${isCredit ? '+' : '-'}${fmt(tx.amount)}</td>
-                        <td class="p-4 font-bold text-white">${fmt(tx.balanceAfter)}</td>
-                        <td class="p-4 text-slate-500 text-[11px]">${new Date(tx.date).toLocaleString('fa-IR')}</td>
-                    </tr>`;
-                });
-                document.getElementById('statementTableBody').innerHTML = stRows;
+                cachedStatement = d.history || [];
+                renderStatementTable();
             } else { alert(res.message); logout(); }
+        }
+
+        function filterStatement(type) {
+            currentFilter = type;
+            ['ALL', 'CREDIT', 'DEBIT'].forEach(t => {
+                const btn = document.getElementById('filterBtn' + t);
+                if (t === type) { btn.className = "px-3 py-1.5 rounded-lg filter-btn-active font-bold transition"; }
+                else { btn.className = "px-3 py-1.5 rounded-lg text-slate-400 font-bold transition"; }
+            });
+            renderStatementTable();
+        }
+
+        function renderStatementTable() {
+            let filtered = cachedStatement;
+            if (currentFilter !== 'ALL') {
+                filtered = cachedStatement.filter(tx => tx.type === currentFilter);
+            }
+
+            let stRows = '';
+            filtered.forEach(tx => {
+                const isCredit = tx.type === 'CREDIT';
+                stRows += `<tr class="hover:bg-slate-800/60 cursor-pointer" onclick="openPastReceipt('${tx.txId}')">
+                    <td class="p-4 text-slate-400">${tx.txId}</td>
+                    <td class="p-4 font-bold ${isCredit ? 'text-emerald-400' : 'text-red-400'}">${isCredit ? 'واریز (بستانکار)' : 'برداشت (بدهکار)'}</td>
+                    <td class="p-4 ${isCredit ? 'text-emerald-400' : 'text-slate-200'}">${isCredit ? '+' : '-'}${fmt(tx.amount)}</td>
+                    <td class="p-4 font-bold text-white">${fmt(tx.balanceAfter)}</td>
+                    <td class="p-4 text-slate-500 text-[11px]">${new Date(tx.date).toLocaleString('fa-IR')}</td>
+                    <td class="p-4 text-center"><button class="bg-slate-800 hover:bg-slate-700 text-blue-400 px-2 py-1 rounded text-[11px]">مشاهده فیش</button></td>
+                </tr>`;
+            });
+            document.getElementById('statementTableBody').innerHTML = stRows || '<tr><td colspan="6" class="p-6 text-center text-slate-500">تراکنشی یافت نشد.</td></tr>';
+        }
+
+        function openPastReceipt(txId) {
+            const tx = cachedStatement.find(t => t.txId === txId);
+            if (!tx) return;
+            showReceipt({
+                txId: tx.txId,
+                trackCode: tx.trackCode,
+                sourceCard: tx.sourceCard,
+                sourceAccount: tx.sourceAcc,
+                senderName: currentUserData.name,
+                target: tx.targetId,
+                receiverName: tx.type === 'CREDIT' ? currentUserData.name : 'مقصد بانکی وستا',
+                amount: tx.amount,
+                fee: tx.fee || 0,
+                purpose: tx.purpose || "انتقال وجه",
+                date: tx.date,
+                receiptHash: tx.receiptHash
+            });
         }
 
         function toggleCvvView() {
@@ -402,32 +538,116 @@
 
         async function changePinSubmit() {
             const p1 = document.getElementById('newPin1').value;
-            const p2 = document.getElementById('newPin2').value;
             const alertBox = document.getElementById('pinAlert');
-            
-            if (!p1 && !p2) {
-                alertBox.innerText = "حداقل یکی از فیلدهای رمز را پر کنید.";
-                alertBox.className = "text-xs font-bold text-center mt-4 text-red-400";
-                alertBox.classList.remove('hidden');
-                return;
+            if (!p1 || p1.length !== 4) {
+                alertBox.innerText = "رمز اول باید دقیقاً ۴ رقم باشد.";
+                alertBox.className = "text-xs font-bold text-center mt-3 text-red-400";
+                alertBox.classList.remove('hidden'); return;
             }
             
-            const res = await requestApi({ action: 'changeCardPin', token: clientToken, cardNumber: currentCard.number, pin1: p1, pin2: p2 });
+            const res = await requestApi({ action: 'changeCardPin', token: clientToken, cardNumber: currentCard.number, pin1: p1 });
             alertBox.innerText = res.message;
-            alertBox.className = `text-xs font-bold text-center mt-4 ${res.status === 'success' ? 'text-emerald-400' : 'text-red-400'}`;
+            alertBox.className = `text-xs font-bold text-center mt-3 ${res.status === 'success' ? 'text-emerald-400' : 'text-red-400'}`;
             alertBox.classList.remove('hidden');
+            if (res.status === 'success') document.getElementById('newPin1').value = '';
+        }
+
+        async function registerBiometricDevice() {
+            const alertBox = document.getElementById('bioAlert');
+            const fakeCredId = "BIO_" + Utilities_randomId();
+            const res = await requestApi({ action: 'registerBiometric', token: clientToken, credentialId: fakeCredId });
             if (res.status === 'success') {
-                document.getElementById('newPin1').value = '';
-                document.getElementById('newPin2').value = '';
+                localStorage.setItem('vestaBioCred_' + currentUserData.nationalCode, fakeCredId);
+                alertBox.innerText = res.message;
+                alertBox.className = "text-xs font-bold text-center mt-3 text-emerald-400";
+                alertBox.classList.remove('hidden');
+            } else {
+                alertBox.innerText = res.message;
+                alertBox.className = "text-xs font-bold text-center mt-3 text-red-400";
+                alertBox.classList.remove('hidden');
             }
         }
 
-        function isValidIbanFront(iban) { return /^IR\d{24}$/.test(iban); }
+        function Utilities_randomId() {
+            return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        }
 
+        // Beneficiaries
+        async function loadBeneficiaries() {
+            const res = await requestApi({ action: 'getBeneficiaries', token: clientToken });
+            const listContainer = document.getElementById('beneficiariesList');
+            if (res.status === 'success' && res.data.length > 0) {
+                let html = '';
+                res.data.forEach(b => {
+                    html += `<div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 flex justify-between items-center">
+                        <div>
+                            <p class="font-bold text-sm text-white">${sanitizeText(b.title)}</p>
+                            <p class="text-xs text-slate-400">${sanitizeText(b.ownerName)}</p>
+                            <p class="text-xs font-mono text-blue-400 mt-1" dir="ltr">${b.identifier}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="useBeneficiary('${b.type}', '${b.identifier}')" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded-xl">انتقال وجه</button>
+                            <button onclick="deleteBeneficiary('${b.id}')" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs px-2.5 py-1.5 rounded-xl">حذف</button>
+                        </div>
+                    </div>`;
+                });
+                listContainer.innerHTML = html;
+            } else {
+                listContainer.innerHTML = '<p class="text-xs text-slate-500 text-center py-6">مقصدی در دفترچه ذخیره نشده است.</p>';
+            }
+        }
+
+        function useBeneficiary(type, id) {
+            switchView('transfer');
+            document.getElementById('tfMethod').value = type;
+            document.getElementById('tfTarget').value = id;
+            if (type === 'CARD_TO_CARD') formatCardInputLive(document.getElementById('tfTarget'));
+        }
+
+        async function deleteBeneficiary(id) {
+            if (!confirm("آیا از حذف این مقصد اطمینان دارید؟")) return;
+            const res = await requestApi({ action: 'deleteBeneficiary', token: clientToken, id: id });
+            alert(res.message);
+            loadBeneficiaries();
+        }
+
+        async function openBeneficiariesPicker() {
+            const res = await requestApi({ action: 'getBeneficiaries', token: clientToken });
+            const pItems = document.getElementById('pickerItems');
+            if (res.status === 'success' && res.data.length > 0) {
+                let html = '';
+                res.data.forEach(b => {
+                    html += `<div onclick="selectPickerItem('${b.type}', '${b.identifier}')" class="p-3 bg-slate-950 hover:bg-slate-800 rounded-xl cursor-pointer flex justify-between items-center text-xs">
+                        <div><span class="font-bold text-white">${sanitizeText(b.title)}</span> <span class="text-slate-400">(${sanitizeText(b.ownerName)})</span></div>
+                        <span class="font-mono text-blue-400" dir="ltr">${b.identifier}</span>
+                    </div>`;
+                });
+                pItems.innerHTML = html;
+            } else {
+                pItems.innerHTML = '<p class="text-xs text-slate-500 text-center py-4">دفترچه مقصدها خالی است.</p>';
+            }
+            document.getElementById('pickerModal').classList.remove('hidden-view');
+        }
+
+        function selectPickerItem(type, id) {
+            document.getElementById('tfMethod').value = type;
+            document.getElementById('tfTarget').value = id;
+            if (type === 'CARD_TO_CARD') formatCardInputLive(document.getElementById('tfTarget'));
+            closePickerModal();
+        }
+
+        function closePickerModal() {
+            document.getElementById('pickerModal').classList.add('hidden-view');
+        }
+
+        // Transfer Flow
         async function startInquiry() {
-            const m = document.getElementById('tfMethod').value, t = document.getElementById('tfTarget').value, am = document.getElementById('tfAmount').value, alertBox = document.getElementById('transferAlert');
+            const m = document.getElementById('tfMethod').value;
+            const t = document.getElementById('tfTarget').value;
+            const am = document.getElementById('tfAmount').value;
+            const alertBox = document.getElementById('transferAlert');
+
             if (!t || !am) { alertBox.innerText = "شناسه مقصد و مبلغ الزامی است."; alertBox.className = "text-xs font-bold mt-4 text-red-400"; alertBox.classList.remove('hidden'); return; }
-            if (m === 'VIRTUAL_IBAN_TRANSFER' && !isValidIbanFront(t)) { alertBox.innerText = "فرمت شبا باید ۲۶ کاراکتر با IR باشد."; alertBox.className = "text-xs font-bold mt-4 text-red-400"; alertBox.classList.remove('hidden'); return; }
 
             document.getElementById('inquiryBtn').innerText = "در حال استعلام...";
             const res = await requestApi({ action: 'inquireDestination', method: m, targetId: t });
@@ -447,32 +667,96 @@
         function cancelTransfer() { document.getElementById('transferStep2').classList.add('hidden-view'); document.getElementById('transferStep1').classList.remove('hidden-view'); }
 
         async function commitTransfer() {
-            const cvv = document.getElementById('tfCvv2').value, exp = document.getElementById('tfExpiry').value, totp = document.getElementById('tfTotpCode').value, alertBox = document.getElementById('transferAlert'), btn = document.getElementById('finalTransferBtn');
-            if (!cvv || !exp || !totp) { alertBox.innerText = "CVV2، تاریخ انقضا و کد Authenticator الزامی است."; alertBox.className = "text-xs font-bold mt-4 text-red-400"; alertBox.classList.remove('hidden'); return; }
+            const cvv = document.getElementById('tfCvv2').value;
+            const mm = document.getElementById('tfExpMM').value;
+            const yy = document.getElementById('tfExpYY').value;
+            const pin = document.getElementById('tfCardPin').value;
+            const alertBox = document.getElementById('transferAlert');
+            const btn = document.getElementById('finalTransferBtn');
 
-            btn.disabled = true; btn.innerText = "در حال پردازش هسته و ثبت سند...";
+            if (!cvv || !mm || !yy || !pin) { 
+                alertBox.innerText = "تمامی فیلدهای امنیتی (CVV2، ماه، سال و رمز کارت) الزامی هستند."; 
+                alertBox.className = "text-xs font-bold mt-4 text-red-400"; 
+                alertBox.classList.remove('hidden'); return; 
+            }
+
+            btn.disabled = true; btn.innerText = "در حال پردازش سند در دفترکل...";
             const res = await requestApi({
-                action: 'transferSecured', token: clientToken, method: inquiryData.method, targetId: inquiryData.targetId, amount: inquiryData.amount,
-                sourceCardNumber: currentCard.number, cvv2: cvv, expDate: exp, totpCode: totp, purpose: document.getElementById('tfPurpose').value
+                action: 'transferSecured',
+                token: clientToken,
+                method: inquiryData.method,
+                targetId: inquiryData.targetId,
+                amount: inquiryData.amount,
+                sourceCardNumber: currentCard.number,
+                cvv2: cvv,
+                expMonth: mm,
+                expYear: yy,
+                cardPin: pin,
+                purpose: document.getElementById('tfPurpose').value
             });
             btn.disabled = false; btn.innerText = "تأیید و اجرای قطعی تراکنش";
 
             if (res.status === 'success') {
+                if (document.getElementById('saveBeneficiaryCheck').checked) {
+                    requestApi({
+                        action: 'addBeneficiary',
+                        token: clientToken,
+                        title: inquiryData.ownerName,
+                        type: inquiryData.method,
+                        identifier: inquiryData.targetId,
+                        ownerName: inquiryData.ownerName
+                    });
+                }
+
                 cancelTransfer();
-                ['tfTarget', 'tfAmount', 'tfCvv2', 'tfExpiry', 'tfTotpCode'].forEach(id => document.getElementById(id).value = '');
-                showReceipt(res.receipt); loadBankData();
-            } else { alertBox.innerText = res.message; alertBox.className = "text-xs font-bold mt-4 text-red-400"; alertBox.classList.remove('hidden'); }
+                ['tfTarget', 'tfAmount', 'tfCvv2', 'tfExpMM', 'tfExpYY', 'tfCardPin', 'tfPurpose'].forEach(id => document.getElementById(id).value = '');
+                showReceipt(res.receipt); 
+                loadBankData();
+            } else { 
+                alertBox.innerText = res.message; 
+                alertBox.className = "text-xs font-bold mt-4 text-red-400"; 
+                alertBox.classList.remove('hidden'); 
+            }
         }
 
         function showReceipt(rcpt) {
-            document.getElementById('rcptTrack').innerText = rcpt.trackCode; document.getElementById('rcptTx').innerText = rcpt.txId;
-            document.getElementById('rcptReceiver').innerText = sanitizeText(rcpt.receiverName); document.getElementById('rcptTarget').innerText = rcpt.target;
-            document.getElementById('rcptAmount').innerText = fmt(rcpt.amount) + ' ریال'; document.getElementById('rcptFee').innerText = fmt(rcpt.fee) + ' ریال';
-            document.getElementById('rcptTime').innerText = new Date(rcpt.date).toLocaleString('fa-IR'); document.getElementById('rcptHash').innerText = rcpt.receiptHash;
+            document.getElementById('rcptTrack').innerText = rcpt.trackCode;
+            document.getElementById('rcptTx').innerText = rcpt.txId;
+            document.getElementById('rcptSender').innerText = sanitizeText(rcpt.senderName || currentUserData.name);
+            document.getElementById('rcptSource').innerText = rcpt.sourceCard ? rcpt.sourceCard.replace(/(\d{4})/g, '$1 ').trim() : rcpt.sourceAccount;
+            document.getElementById('rcptReceiver').innerText = sanitizeText(rcpt.receiverName);
+            document.getElementById('rcptTarget').innerText = rcpt.target;
+            document.getElementById('rcptAmount').innerText = fmt(rcpt.amount) + ' ریال';
+            document.getElementById('rcptFee').innerText = fmt(rcpt.fee) + ' ریال';
+            document.getElementById('rcptPurpose').innerText = sanitizeText(rcpt.purpose || "انتقال وجه");
+            document.getElementById('rcptTime').innerText = new Date(rcpt.date).toLocaleString('fa-IR');
+            document.getElementById('rcptHash').innerText = rcpt.receiptHash;
             document.getElementById('receiptModal').classList.remove('hidden-view');
         }
+
         function closeReceipt() { document.getElementById('receiptModal').classList.add('hidden-view'); }
 
+        async function downloadReceiptImage() {
+            const captureArea = document.getElementById('receiptCaptureArea');
+            const btn = document.getElementById('downloadImgBtn');
+            btn.innerText = "در حال ساخت تصویر...";
+            btn.disabled = true;
+
+            html2canvas(captureArea, { scale: 3, backgroundColor: "#ffffff" }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `Vesta_Receipt_${document.getElementById('rcptTrack').innerText}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                btn.innerText = "🖼️ دانلود تصویر فیش";
+                btn.disabled = false;
+            }).catch(e => {
+                alert("خطا در ایجاد تصویر فیش.");
+                btn.innerText = "🖼️ دانلود تصویر فیش";
+                btn.disabled = false;
+            });
+        }
+
+        // Auth
         let regDataTemp = {};
         function toggleAuth(type) {
             if (type === 'login') { document.getElementById('loginForm').classList.remove('hidden-view'); document.getElementById('registerForm').classList.add('hidden-view'); } 
