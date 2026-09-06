@@ -96,6 +96,20 @@
     <!-- Mobile-First App Shell (Max 600px width on Desktop) -->
     <div id="appShell" class="w-full max-w-[550px] h-[100dvh] bg-[#030712] relative flex flex-col overflow-hidden sm:border-x sm:border-slate-800 shadow-2xl">
 
+        <!-- ================= CARD EXPIRED BLOCKER OVERLAY ================= -->
+        <div id="cardExpiredBlocker" class="absolute inset-0 z-[200] hidden flex-col items-center justify-center bg-[#030712]/95 backdrop-blur-xl transition-opacity duration-300">
+            <div class="glass-panel-glow w-11/12 max-w-[340px] rounded-3xl p-8 text-center shadow-2xl border border-red-500/30">
+                <div class="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-5 text-red-400">
+                    <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                </div>
+                <h2 class="text-white font-bold text-lg mb-3 tracking-wide">کارت شما منقضی شده است</h2>
+                <p class="text-[11px] text-slate-300 mb-8 leading-relaxed text-justify">
+                    کاربر گرامی، مدت زمان اعتبار ۳ ساله کارت وستا بانک شما به پایان رسیده است. جهت ادامه فعالیت و آزادسازی سیستم، لطفاً نسبت به تمدید کارت خود اقدام نمایید.
+                </p>
+                <button onclick="renewCard()" id="forceRenewBtn" class="w-full bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-bold py-4 rounded-xl text-sm shadow-lg active:scale-95 transition-all hover:opacity-90">تمدید ۳ ساله کارت (حفظ شماره)</button>
+            </div>
+        </div>
+
         <!-- ================= BANK LOADING OVERLAY ================= -->
         <div id="bankLoading" class="absolute inset-0 z-[100] hidden items-center justify-center bg-black/80 backdrop-blur-md opacity-0 transition-opacity duration-300">
             <div class="flex flex-col items-center">
@@ -227,7 +241,15 @@
             </header>
 
             <!-- Scrollable Page Content -->
-            <main class="flex-1 overflow-y-auto px-5 pb-32 space-y-6 pt-1">
+            <main class="flex-1 overflow-y-auto px-5 pb-32 space-y-6 pt-1 relative">
+                
+                <!-- هشدارهای داشبورد کارت (نزدیک به انقضا) -->
+                <div id="cardWarningBox" class="hidden glass-panel-glow border border-amber-500/40 p-4 rounded-2xl bg-amber-500/10 text-amber-200">
+                    <div class="flex items-start gap-2">
+                        <svg class="w-5 h-5 shrink-0 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        <p id="cardWarningMsg" class="text-xs font-bold leading-relaxed text-justify"></p>
+                    </div>
+                </div>
 
                 <!-- TAB 1: HOME (داشبورد و کارت) -->
                 <section id="view-home" class="space-y-6">
@@ -424,9 +446,37 @@
                     </div>
                 </section>
 
-                <!-- TAB 4: SETTINGS (کنترل کارت و رمزها و بیومتریک و PWA) -->
+                <!-- TAB 4: SETTINGS (کنترل کارت و رمزها و بیومتریک و تغییر رمز اپلیکیشن) -->
                 <section id="view-settings" class="hidden-view space-y-4">
                     
+                    <!-- تغییر رمز عبور ورود به اپلیکیشن (جدید اضافه شد) -->
+                    <div class="glass-panel p-5 rounded-3xl space-y-4">
+                        <h3 class="text-xs font-bold text-white pb-3 border-b border-slate-800">تغییر رمز ورود به اپلیکیشن</h3>
+                        <div class="space-y-3">
+                            <p class="text-[10px] text-slate-400 leading-relaxed text-justify">جهت حفظ امنیت، برای تغییر رمز ورود خود باید رمز فعلی را وارد نمایید. رمز جدید باید حداقل ۸ کاراکتر باشد.</p>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-400 mb-1 mr-1">رمز ورود فعلی</label>
+                                <div class="relative">
+                                    <input type="password" id="loginOldPass" placeholder="••••••••" class="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl font-mono text-center tracking-[0.3em] outline-none text-white focus:border-cyan-500 pr-10" dir="ltr">
+                                    <button type="button" onclick="togglePasswordVisibility('loginOldPass', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-cyan-400 focus:outline-none transition-colors">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="pt-2">
+                                <label class="block text-[11px] font-bold text-slate-400 mb-1 mr-1">رمز ورود جدید</label>
+                                <div class="relative">
+                                    <input type="password" id="loginNewPass" placeholder="••••••••" class="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl font-mono text-center tracking-[0.3em] outline-none text-white focus:border-cyan-500 pr-10" dir="ltr">
+                                    <button type="button" onclick="togglePasswordVisibility('loginNewPass', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-cyan-400 focus:outline-none transition-colors">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <button onclick="changeLoginPasswordSubmit()" id="changeLoginPassBtn" class="w-full bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-bold py-3 rounded-xl text-xs transition active:scale-95 shadow-lg mt-2">تغییر رمز ورود به اپلیکیشن</button>
+                            <p id="loginPassAlert" class="text-xs font-bold text-center mt-2 hidden"></p>
+                        </div>
+                    </div>
+
                     <!-- نصب برنامه (PWA) -->
                     <div class="glass-panel p-5 rounded-3xl space-y-4">
                         <h3 class="text-xs font-bold text-white pb-3 border-b border-slate-800">نصب برنامه وستا بانک</h3>
@@ -473,7 +523,7 @@
                                 <div class="flex items-center gap-3">
                                     <div class="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center">🔄</div>
                                     <div class="text-right">
-                                        <p class="text-xs font-bold text-slate-200">تمدید ۵ ساله کارت وستا</p>
+                                        <p class="text-xs font-bold text-slate-200">تمدید ۳ ساله کارت وستا</p>
                                         <p class="text-[10px] text-slate-500">حفظ شماره ۱۶ رقمی (بازه ۱۵ روز به انقضا)</p>
                                     </div>
                                 </div>
@@ -799,7 +849,6 @@
                 showLoading();
                 loadBankData().then(() => hideLoading());
             } else {
-                // اگر بیومتریک قبلاً فعال شده باشد به محض باز شدن صفحه پاپ‌آپ اثر انگشت ظاهر می‌شود
                 const bioDataStr = localStorage.getItem('vestaBioAuth');
                 if (bioDataStr && window.PublicKeyCredential) {
                     setTimeout(() => {
@@ -820,7 +869,7 @@
                 });
                 return await res.json();
             } catch (err) {
-                return { status: 'error', message: 'خطای ارتباط با سرور. لطفاً اتصال اینترنت خود را بررسی کنید. همچنین ممکن است ایمیل اشتباه وارد شده باشد' };
+                return { status: 'error', message: 'خطای ارتباط با سرور. لطفاً اتصال اینترنت خود را بررسی کنید. ممکن است سیستم دچار کندی شده باشد.' };
             }
         }
 
@@ -914,7 +963,59 @@
             }
         }
 
-        // ورود بیومتریک به همراه خواندن مشخصات ثبت شده گره‌خورده به اثر انگشت
+        // تغییر رمز عبور لاگین اپلیکیشن (جدید اضافه شد)
+        async function changeLoginPasswordSubmit() {
+            const oldPass = document.getElementById('loginOldPass').value;
+            const newPass = document.getElementById('loginNewPass').value;
+            const alertBox = document.getElementById('loginPassAlert');
+            const btn = document.getElementById('changeLoginPassBtn');
+
+            if (!oldPass || !newPass) {
+                alertBox.innerText = "لطفا رمز فعلی و رمز جدید را وارد نمایید.";
+                alertBox.className = "text-xs font-bold text-center mt-2 text-red-400";
+                alertBox.classList.remove('hidden');
+                return;
+            }
+
+            if (newPass.length < 8 || newPass.length > 23) {
+                alertBox.innerText = "رمز عبور جدید باید بین ۸ تا ۲۳ کاراکتر باشد.";
+                alertBox.className = "text-xs font-bold text-center mt-2 text-red-400";
+                alertBox.classList.remove('hidden');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = "در حال پردازش و ثبت تغییرات...";
+
+            const res = await requestApi({
+                action: 'changeLoginPassword',
+                token: clientToken,
+                oldPassword: oldPass,
+                newPassword: newPass
+            });
+
+            btn.disabled = false;
+            btn.innerText = "تغییر رمز ورود به اپلیکیشن";
+
+            alertBox.innerText = res.message;
+            alertBox.className = `text-xs font-bold text-center mt-2 ${res.status === 'success' ? 'text-emerald-400' : 'text-red-400'}`;
+            alertBox.classList.remove('hidden');
+
+            if (res.status === 'success') {
+                document.getElementById('loginOldPass').value = '';
+                document.getElementById('loginNewPass').value = '';
+                
+                // در صورتی که کاربر بیومتریک را فعال کرده باشد، باید دوباره آن را با رمز جدید تنظیم کند
+                if (localStorage.getItem('vestaBioAuth')) {
+                    disableBiometric();
+                    alert("رمز عبور با موفقیت تغییر کرد. به دلیل مسائل امنیتی، قابلیت ورود بیومتریک غیرفعال شد. لطفاً مجدداً آن را با رمز جدید فعال کنید.");
+                } else {
+                    alert(res.message);
+                }
+            }
+        }
+
+        // ورود بیومتریک با رفع کامل باگ و ارسال ID صحیح
         async function biometricLogin() {
             const bioDataStr = localStorage.getItem('vestaBioAuth');
             if (!bioDataStr) {
@@ -923,18 +1024,25 @@
 
             if (window.PublicKeyCredential) {
                 try {
+                    let bioData = JSON.parse(bioDataStr);
                     const challenge = window.crypto.getRandomValues(new Uint8Array(32));
+                    
+                    // استفاده دقیق از ID ذخیره شده برای جلوگیری از خطای NotAllowedError
+                    const allowCredentials = bioData.credId ? [{
+                        type: 'public-key',
+                        id: new Uint8Array(bioData.credId),
+                        transports: ['internal']
+                    }] : undefined;
+
                     const credential = await navigator.credentials.get({
                         publicKey: { 
                             challenge: challenge, 
-                            userVerification: "required" 
+                            userVerification: "required",
+                            allowCredentials: allowCredentials
                         }
                     });
                     
                     if (credential) {
-                        let bioData = JSON.parse(atob(bioDataStr));
-                        
-                        // نمایش لودینگ در دکمه
                         const btn = document.getElementById('bioBtn');
                         const oldContent = btn.innerHTML;
                         btn.innerHTML = `<div class="w-5 h-5 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin"></div>`;
@@ -986,15 +1094,16 @@
                         displayName: nc
                     },
                     pubKeyCredParams: [{alg: -7, type: "public-key"}, {alg: -257, type: "public-key"}],
-                    authenticatorSelection: { userVerification: "required" },
+                    authenticatorSelection: { userVerification: "required", authenticatorAttachment: "platform" },
                     timeout: 60000,
                     attestation: "none"
                 };
 
                 const credential = await navigator.credentials.create({ publicKey: publicKeyCredentialCreationOptions });
                 if(credential) {
-                    // رمزنگاری اولیه و ثبت مشخصات جهت استفاده خودکار در لاگین بعدی
-                    localStorage.setItem('vestaBioAuth', btoa(JSON.stringify({ nc: nc, pass: pass })));
+                    // ذخیره کردن ID خام برای فراخوانی قطعی اثر انگشت در لاگین بعدی (حل مشکل عدم کارکرد)
+                    const credIdArray = Array.from(new Uint8Array(credential.rawId));
+                    localStorage.setItem('vestaBioAuth', JSON.stringify({ nc: nc, pass: pass, credId: credIdArray }));
                     updateBioUI();
                     alert("ورود بیومتریک با موفقیت به مشخصات شما گره خورد و فعال شد.");
                     
@@ -1113,6 +1222,38 @@
                     } else {
                         badge.innerText = 'Active';
                         badge.className = "text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+                        if (blockBtn) {
+                            blockBtn.disabled = false;
+                            blockBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                        }
+                    }
+
+                    // بررسی انقضای کارت و مسدودسازی یا اعلام هشدار سیستم
+                    const expDate = new Date(d.card.expiryDateRaw);
+                    const now = new Date();
+                    // پاک کردن زمان از هر دو برای محاسبه دقیق روزها
+                    expDate.setHours(0,0,0,0);
+                    now.setHours(0,0,0,0);
+                    const daysLeft = Math.ceil((expDate - now) / (1000 * 3600 * 24));
+
+                    const expireBlocker = document.getElementById('cardExpiredBlocker');
+                    const warningBox = document.getElementById('cardWarningBox');
+                    
+                    if (daysLeft < 0) {
+                        // مسدودسازی کامل سیستم
+                        expireBlocker.classList.remove('hidden');
+                        expireBlocker.classList.add('flex');
+                    } else {
+                        expireBlocker.classList.add('hidden');
+                        expireBlocker.classList.remove('flex');
+                        
+                        if (daysLeft <= 15) {
+                            // نمایش هشدار در داشبورد اگر در بازه ۱۵ روزه است
+                            document.getElementById('cardWarningMsg').innerText = `کاربر گرامی، تنها ${daysLeft} روز تا انقضای کارت شما باقی مانده است. لطفاً پیش از انسداد سیستم از بخش تنظیمات نسبت به تمدید آن اقدام نمایید.`;
+                            warningBox.classList.remove('hidden');
+                        } else {
+                            warningBox.classList.add('hidden');
+                        }
                     }
                 }
 
@@ -1190,7 +1331,6 @@
             }
         }
 
-        // تابع برای فرمت دادن مبلغ حین تایپ و سه رقم سه رقم جدا کردن
         function formatAmountInput(el) {
             let v = el.value;
             const persianNumbers = [/۰/g, /۱/g, /۲/g, /۳/g, /۴/g, /۵/g, /۶/g, /۷/g, /۸/g, /۹/g];
@@ -1203,7 +1343,6 @@
             }
         }
 
-        // تابع کمکی برای استخراج عدد خالص از فیلد مبلغ
         function getRawAmount() {
             let v = document.getElementById('tfAmount').value;
             const persianNumbers = [/۰/g, /۱/g, /۲/g, /۳/g, /۴/g, /۵/g, /۶/g, /۷/g, /۸/g, /۹/g];
@@ -1407,14 +1546,12 @@
             document.getElementById('rcptTx').innerText = rcpt.txId;
             document.getElementById('rcptSender').innerText = rcpt.senderName || clientNameGlobal;
             
-            // Format Source
             let src = rcpt.sourceCard || (currentCard ? currentCard.number : "---");
             if (src.length === 16) src = src.replace(/(\d{4})/g, '$1 ').trim();
             document.getElementById('rcptSource').innerText = src;
 
             document.getElementById('rcptReceiver').innerText = sanitizeText(rcpt.receiverName);
             
-            // Format Target
             let trg = rcpt.target || "---";
             if (trg.length === 16) trg = trg.replace(/(\d{4})/g, '$1 ').trim();
             document.getElementById('rcptTarget').innerText = trg;
@@ -1425,7 +1562,6 @@
             document.getElementById('rcptTime').innerText = new Date(rcpt.date).toLocaleString('fa-IR');
             document.getElementById('rcptHash').innerText = rcpt.receiptHash || "---";
 
-            // Open Bottom Sheet Modal
             const modal = document.getElementById('receiptModal');
             modal.classList.remove('pointer-events-none');
             document.getElementById('receiptOverlay').classList.remove('opacity-0');
@@ -1439,7 +1575,6 @@
             setTimeout(() => modal.classList.add('pointer-events-none'), 350);
         }
 
-        // بررسی رویدادهای لمسی برای بستن رسید با کشیدن به پایین
         let touchStartY = 0;
         let touchEndY = 0;
         const receiptModal = document.getElementById('receiptModal');
@@ -1455,13 +1590,11 @@
 
         function handleReceiptSwipe() {
             const scrollArea = document.getElementById('receiptCaptureArea');
-            // اگر انگشت بیش از 80 پیکسل به پایین کشیده شد و اسکرول در بالای محتوا بود
             if (touchEndY - touchStartY > 80 && scrollArea.scrollTop <= 0) {
                 closeReceipt();
             }
         }
 
-        // ۱. دانلود عکس فیش
         function downloadReceiptImage() {
             const targetNode = document.getElementById('receiptCaptureArea');
             html2canvas(targetNode, {
@@ -1476,7 +1609,6 @@
             });
         }
 
-        // ۲. کپی و ارسال متن رسید
         function shareReceiptText() {
             const track = document.getElementById('rcptTrack').innerText;
             const sender = document.getElementById('rcptSender').innerText;
@@ -1524,11 +1656,24 @@
         }
 
         async function renewCard() {
-            if (!confirm("تمدید ۵ ساله کارت VESTA با حفظ قطعی شماره ۱۶ رقمی فعلی انجام می‌شود. آیا ادامه می‌دهید؟")) return;
+            const btn = document.getElementById('forceRenewBtn');
+            if (!confirm("تمدید ۳ ساله کارت VESTA با حفظ قطعی شماره ۱۶ رقمی فعلی انجام می‌شود. آیا ادامه می‌دهید؟")) return;
+            
+            if(btn) {
+                btn.disabled = true;
+                btn.innerText = 'در حال ارتباط با هسته مرکزی و صدور...';
+            }
             showLoading();
+
             const res = await requestApi({ action: 'renewCard', token: clientToken, oldCardNumber: currentCard.number });
             await loadBankData();
+            
             hideLoading();
+            if(btn) {
+                btn.disabled = false;
+                btn.innerText = 'تمدید ۳ ساله کارت (حفظ شماره)';
+            }
+
             setTimeout(() => alert(res.message), 100);
         }
 
@@ -1675,7 +1820,6 @@
                 
                 toggleAuth('login');
             } else {
-                // اگر اشتباه بود فقط هشدار می‌دهد و فرم باز می‌ماند تا درست وارد کند
                 alert(res.message);
             }
         }
