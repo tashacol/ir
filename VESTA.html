@@ -3,305 +3,589 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سامانه بانکداری مجازی</title>
+    <title>سامانه جامع بانکداری مجازی</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" />
     <style>
-        body { font-family: 'Vazirmatn', sans-serif; background-color: #f8fafc; }
+        body { font-family: 'Vazirmatn', sans-serif; background-color: #0b1329; color: #f1f5f9; }
         .hidden-view { display: none !important; }
-        .credit-card { background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); }
+        .bank-card {
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e3a8a 100%);
+            box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
+        }
+        .chip {
+            background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+            border-radius: 6px;
+        }
+        @media print {
+            body * { visibility: hidden; }
+            #receiptModal, #receiptModal * { visibility: visible; }
+            #receiptModal { position: absolute; left: 0; top: 0; width: 100%; }
+            #closeReceiptBtn, #printReceiptBtn { display: none; }
+        }
     </style>
 </head>
-<body class="text-slate-800">
+<body class="min-h-screen">
 
-    <!-- بخش ورود و ثبت نام -->
-    <div id="authContainer" class="min-h-screen flex items-center justify-center p-4">
-        <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-100">
-            <!-- سوئیچ بین ورود و ثبت نام -->
-            <div class="flex border-b mb-6 text-center font-bold">
-                <button id="tabLoginBtn" onclick="toggleAuth('login')" class="w-1/2 pb-3 border-b-2 border-blue-600 text-blue-600">ورود به حساب</button>
-                <button id="tabRegisterBtn" onclick="toggleAuth('register')" class="w-1/2 pb-3 border-b-2 border-transparent text-slate-400">افتتاح حساب</button>
+    <!-- صفحه ورود و ثبت نام -->
+    <div id="authView" class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl w-full max-w-md">
+            <div class="flex border-b border-slate-800 mb-6 text-center font-bold">
+                <button id="tabLoginBtn" onclick="toggleAuth('login')" class="w-1/2 pb-3 border-b-2 border-blue-500 text-blue-400">ورود به اینترنت‌بانک</button>
+                <button id="tabRegisterBtn" onclick="toggleAuth('register')" class="w-1/2 pb-3 border-b-2 border-transparent text-slate-500">افتتاح حساب</button>
             </div>
 
             <!-- فرم ورود -->
-            <div id="loginSection">
-                <input type="text" id="loginNationalCode" placeholder="کد ملی (نام کاربری)" class="w-full mb-3 px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 text-left outline-none" dir="ltr">
-                <input type="password" id="loginPassword" placeholder="رمز عبور" class="w-full mb-5 px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 text-left outline-none" dir="ltr">
-                <button onclick="login()" id="loginBtn" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition">ورود به پنل بانکی</button>
+            <div id="loginForm">
+                <label class="block text-xs text-slate-400 mb-2">نام کاربری (کد ملی)</label>
+                <input type="text" id="lUser" placeholder="0012345678" class="w-full mb-4 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr">
+                <label class="block text-xs text-slate-400 mb-2">کلمه عبور</label>
+                <input type="password" id="lPass" placeholder="••••••••" class="w-full mb-6 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr">
+                <button onclick="login()" id="loginBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition">ورود به محیط بانکداری</button>
             </div>
 
-            <!-- فرم ثبت نام -->
-            <div id="registerSection" class="hidden-view">
-                <div id="regStep1">
+            <!-- فرم ثبت نام و تایید ایمیل -->
+            <div id="registerForm" class="hidden-view">
+                <div id="regInputs">
                     <div class="grid grid-cols-2 gap-2 mb-3">
-                        <input type="text" id="regFirst" placeholder="نام" class="px-3 py-2 border rounded-xl outline-none">
-                        <input type="text" id="regLast" placeholder="نام خانوادگی" class="px-3 py-2 border rounded-xl outline-none">
+                        <input type="text" id="rName" placeholder="نام" class="px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl outline-none text-sm">
+                        <input type="text" id="rFamily" placeholder="نام خانوادگی" class="px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl outline-none text-sm">
                     </div>
-                    <input type="text" id="regNC" placeholder="کد ملی" class="w-full mb-3 px-4 py-2 border rounded-xl outline-none text-left" dir="ltr">
-                    <input type="text" id="regMobile" placeholder="شماره موبایل" class="w-full mb-3 px-4 py-2 border rounded-xl outline-none text-left" dir="ltr">
-                    <input type="text" id="regDOB" placeholder="تاریخ تولد (مثال: 1375-01-01)" class="w-full mb-3 px-4 py-2 border rounded-xl outline-none text-left" dir="ltr">
-                    <input type="email" id="regEmail" placeholder="ایمیل معتبر" class="w-full mb-3 px-4 py-2 border rounded-xl outline-none text-left" dir="ltr">
-                    <input type="password" id="regPass" placeholder="رمز عبور دلخواه" class="w-full mb-5 px-4 py-2 border rounded-xl outline-none text-left" dir="ltr">
-                    <button onclick="sendOtp()" id="sendOtpBtn" class="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition">دریافت کد تأیید ایمیل</button>
+                    <input type="text" id="rNC" placeholder="کد ملی" class="w-full mb-3 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl font-mono text-left text-sm" dir="ltr">
+                    <input type="text" id="rMobile" placeholder="شماره همراه" class="w-full mb-3 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl font-mono text-left text-sm" dir="ltr">
+                    <input type="text" id="rDOB" placeholder="تاریخ تولد (مثال: 1378-05-12)" class="w-full mb-3 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl font-mono text-left text-sm" dir="ltr">
+                    <input type="email" id="rEmail" placeholder="پست الکترونیک (جهت ارسال رمز)" class="w-full mb-3 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl font-mono text-left text-sm" dir="ltr">
+                    <input type="password" id="rPass" placeholder="رمز عبور دلخواه" class="w-full mb-5 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl font-mono text-left text-sm" dir="ltr">
+                    <button onclick="requestRegisterOtp()" id="regOtpBtn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition text-sm">ارسال کد اعتبارسنجی ایمیل</button>
                 </div>
-
-                <!-- تایید کد ارسالی -->
-                <div id="regStep2" class="hidden-view text-center">
-                    <p class="text-sm text-slate-600 mb-4">کد ۶ رقمی ارسال‌شده به ایمیلتان را وارد کنید:</p>
-                    <input type="text" id="emailOtp" placeholder="123456" maxlength="6" class="w-48 mx-auto mb-5 text-center tracking-widest text-2xl font-mono py-2 border rounded-xl outline-none" dir="ltr">
-                    <button onclick="verifyAndRegister()" id="verifyBtn" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition">تأیید و تکمیل ثبت‌نام</button>
+                <div id="regOtpVerify" class="hidden-view text-center">
+                    <p class="text-xs text-slate-400 mb-3">کد ۶ رقمی ارسال‌شده به ایمیلتان را وارد کنید:</p>
+                    <input type="text" id="regCode" placeholder="123456" maxlength="6" class="w-44 mx-auto mb-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-center text-2xl font-mono tracking-widest text-emerald-400" dir="ltr">
+                    <button onclick="verifyRegisterOtp()" id="regFinalBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl text-sm">تأیید نهایی و ثبت اطلاعات</button>
                 </div>
             </div>
 
-            <p id="authMessage" class="text-center text-sm font-bold mt-4 hidden"></p>
+            <p id="authAlert" class="text-center text-xs font-bold mt-4 hidden"></p>
         </div>
     </div>
 
-    <!-- داشبورد کاربری پس از لاگین -->
-    <div id="dashboardView" class="hidden-view min-h-screen flex flex-col md:flex-row">
-        <div class="w-full md:w-64 bg-slate-900 text-white flex flex-col p-6">
-            <h2 class="text-xl font-bold mb-8 text-center border-b border-slate-700 pb-4">سامانه بانکداری</h2>
-            <button onclick="switchTab('overview')" class="text-right py-3 px-4 rounded-xl hover:bg-slate-800 mb-2">نمای کلی حساب</button>
-            <button onclick="switchTab('transfer')" class="text-right py-3 px-4 rounded-xl hover:bg-slate-800 mb-2">انتقال وجه</button>
-            <button onclick="switchTab('history')" class="text-right py-3 px-4 rounded-xl hover:bg-slate-800 mb-6">گردش حساب</button>
-            <button onclick="logout()" class="mt-auto text-right py-3 px-4 rounded-xl bg-red-600 hover:bg-red-700">خروج</button>
-        </div>
+    <!-- پنل اصلی کاربری -->
+    <div id="mainDashboard" class="hidden-view min-h-screen flex flex-col md:flex-row">
+        <!-- منوی دسترسی -->
+        <aside class="w-full md:w-72 bg-slate-900 border-l border-slate-800 p-6 flex flex-col">
+            <div class="flex items-center gap-3 pb-6 border-b border-slate-800 mb-6">
+                <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold text-white text-lg">🏦</div>
+                <div>
+                    <h2 class="font-bold text-sm">بانکداری هوشمند</h2>
+                    <p class="text-[11px] text-slate-400">سامانه خدمات الکترونیک</p>
+                </div>
+            </div>
+            <nav class="space-y-2 flex-1">
+                <button onclick="switchView('overview')" class="w-full text-right px-4 py-3 rounded-xl hover:bg-slate-800 text-sm flex items-center gap-2">
+                    <span>💳 کارت و اطلاعات حساب</span>
+                </button>
+                <button onclick="switchView('transfer')" class="w-full text-right px-4 py-3 rounded-xl hover:bg-slate-800 text-sm flex items-center gap-2">
+                    <span>🔄 انتقال وجه دو مرحله‌ای</span>
+                </button>
+                <button onclick="switchView('statement')" class="w-full text-right px-4 py-3 rounded-xl hover:bg-slate-800 text-sm flex items-center gap-2">
+                    <span>📑 صورت‌حساب دفترکل</span>
+                </button>
+            </nav>
+            <button onclick="logout()" class="mt-auto w-full text-right px-4 py-3 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-600 hover:text-white transition text-sm">خروج امن از سیستم</button>
+        </aside>
 
-        <div class="flex-1 p-6 md:p-10">
-            <h1 class="text-2xl font-bold mb-6">سلام، <span id="dashName">...</span></h1>
+        <!-- بدنه محتوا -->
+        <main class="flex-1 p-6 md:p-10 overflow-y-auto">
+            <header class="flex justify-between items-center mb-8 pb-4 border-b border-slate-800">
+                <div>
+                    <span class="text-xs text-slate-400">صاحب حساب:</span>
+                    <h1 class="text-xl font-bold text-white" id="clientName">...</h1>
+                </div>
+                <div class="text-left">
+                    <span class="text-xs text-slate-400">سقف انتقال روزانه:</span>
+                    <p class="text-sm font-bold text-amber-400 font-mono" id="dailyLimitView">50,000,000 ریال</p>
+                </div>
+            </header>
 
-            <!-- تب اطلاعات کلی -->
-            <div id="tab-overview">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    <div class="credit-card text-white p-6 rounded-2xl shadow-xl flex flex-col justify-between h-52">
-                        <div class="flex justify-between">
-                            <span class="text-sm opacity-75">کارت مجازی</span>
-                            <span class="font-mono tracking-widest text-lg" id="dashCard">---- ---- ---- ----</span>
+            <!-- ۱. بخش کارت و موجودی -->
+            <section id="view-overview">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <!-- کارت بانکی شبیه‌سازی‌شده -->
+                    <div class="bank-card rounded-3xl p-6 h-64 flex flex-col justify-between relative overflow-hidden border border-slate-700/50">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="text-xs tracking-widest text-slate-300 font-bold">DEBIT VIRTUAL CARD</span>
+                                <div class="chip w-11 h-8 mt-2 shadow-inner"></div>
+                            </div>
+                            <span id="cardStatusBadge" class="text-[10px] px-2.5 py-1 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Active</span>
                         </div>
-                        <div>
-                            <p class="text-xs opacity-75 mb-1">موجودی قابل برداشت</p>
-                            <h2 class="text-3xl font-bold font-mono"><span id="dashAvail">0</span> <span class="text-sm">ریال</span></h2>
+
+                        <!-- شماره کارت ۱۶ رقمی -->
+                        <div class="text-center my-auto">
+                            <p class="font-mono text-xl sm:text-2xl font-bold tracking-[0.25em] text-white" id="displayCardNo">---- ---- ---- ----</p>
+                        </div>
+
+                        <!-- اطلاعات تکمیلی: انقضا، CVV2 و دارنده -->
+                        <div class="flex justify-between items-end text-xs">
+                            <div>
+                                <span class="text-[10px] text-slate-400 block mb-0.5">CARD HOLDER</span>
+                                <span class="font-bold text-slate-200" id="displayHolder">---</span>
+                            </div>
+                            <div class="text-center">
+                                <span class="text-[10px] text-slate-400 block mb-0.5">EXPIRES</span>
+                                <span class="font-mono font-bold text-slate-200" id="displayExpiry">--/--</span>
+                            </div>
+                            <div class="text-left">
+                                <span class="text-[10px] text-slate-400 block mb-0.5">CVV2</span>
+                                <div class="flex items-center gap-1">
+                                    <span class="font-mono font-bold text-amber-300" id="displayCvv">***</span>
+                                    <button onclick="toggleCvvView()" class="text-slate-400 hover:text-white text-[10px]">👁️</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="bg-white p-6 rounded-2xl shadow border flex flex-col justify-between">
+                    <!-- جعبه حساب و موجودی -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col justify-between">
                         <div>
-                            <p class="text-xs text-slate-500 mb-1">شماره حساب ۱۰ رقمی</p>
-                            <p class="text-lg font-bold font-mono text-slate-800 mb-4" id="dashAcc">----------</p>
-                            <p class="text-xs text-slate-500 mb-1">شناسه Virtual IBAN</p>
-                            <p class="text-sm font-bold font-mono text-blue-600" id="dashIban">VX----------------------</p>
+                            <span class="text-xs text-slate-400 block mb-1">موجودی قابل برداشت (Ledger Balance):</span>
+                            <div class="flex items-baseline gap-2 mb-6">
+                                <span class="text-3xl sm:text-4xl font-bold font-mono text-emerald-400" id="displayAvailBal">0</span>
+                                <span class="text-xs text-slate-400">ریال</span>
+                            </div>
+
+                            <div class="space-y-3 border-t border-slate-800 pt-4">
+                                <div>
+                                    <span class="text-[11px] text-slate-400 block">شماره حساب ۱۰ رقمی:</span>
+                                    <span class="font-mono font-bold text-slate-200 text-sm" id="displayAccNo">----------</span>
+                                </div>
+                                <div>
+                                    <span class="text-[11px] text-slate-400 block">شناسه شبا (Virtual IBAN):</span>
+                                    <span class="font-mono font-bold text-blue-400 text-xs tracking-wider" id="displayIban">IR------------------------</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="border-t pt-3 flex justify-between text-sm">
-                            <span class="text-slate-500">موجودی کل دفترکل (Ledger):</span>
-                            <span class="font-bold" id="dashReal">0 ریال</span>
+
+                        <!-- دکمه‌های عملیاتی کارت -->
+                        <div class="grid grid-cols-2 gap-3 pt-4 border-t border-slate-800">
+                            <button onclick="renewCard()" id="renewCardBtn" class="bg-slate-800 hover:bg-slate-700 text-xs font-bold py-2.5 px-3 rounded-xl border border-slate-700 text-slate-200 transition">
+                                🔄 درخواست تمدید کارت
+                            </button>
+                            <button onclick="toggleCardStatus()" id="blockCardBtn" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-bold py-2.5 px-3 rounded-xl transition">
+                                🔒 مسدودسازی کارت
+                            </button>
                         </div>
                     </div>
                 </div>
+            </section>
+
+            <!-- ۲. بخش انتقال وجه امن دو مرحله‌ای -->
+            <section id="view-transfer" class="hidden-view">
+                <div class="max-w-xl bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-xl">
+                    <h2 class="text-lg font-bold mb-6 flex items-center gap-2 border-b border-slate-800 pb-4">
+                        <span class="text-blue-500">🛡️</span> درگاه انتقال وجه امن درون‌بانکی
+                    </h2>
+
+                    <!-- مرحله اول: انتخاب روش و استعلام گیرنده -->
+                    <div id="transferStep1">
+                        <label class="block text-xs text-slate-400 mb-2">نوع شناسه مقصد</label>
+                        <select id="tfMethod" class="w-full mb-4 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl outline-none text-sm">
+                            <option value="CARD_TO_CARD">کارت به کارت (۱۶ رقمی)</option>
+                            <option value="ACCOUNT_TO_ACCOUNT">حساب به حساب (۱۰ رقمی)</option>
+                            <option value="VIRTUAL_IBAN_TRANSFER">انتقال با شناسه شبا (Virtual IBAN)</option>
+                        </select>
+
+                        <label class="block text-xs text-slate-400 mb-2">شناسه مقصد</label>
+                        <input type="text" id="tfTarget" placeholder="شماره کارت یا حساب مقصد را وارد کنید" class="w-full mb-4 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-left outline-none" dir="ltr">
+
+                        <label class="block text-xs text-slate-400 mb-2">مبلغ تراکنش (ریال)</label>
+                        <input type="number" id="tfAmount" placeholder="مثال: 5000000" class="w-full mb-4 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-left outline-none" dir="ltr">
+
+                        <label class="block text-xs text-slate-400 mb-2">بابت / توضیحات</label>
+                        <input type="text" id="tfPurpose" placeholder="مثال: اجاره، بدهی، خرید و..." class="w-full mb-6 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl outline-none text-sm">
+
+                        <button onclick="startInquiry()" id="inquiryBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 rounded-xl transition text-sm">استعلام نام گیرنده و ادامه</button>
+                    </div>
+
+                    <!-- مرحله دوم: تایید هویت و ورود CVV2 و رمز پویا/TOTP -->
+                    <div id="transferStep2" class="hidden-view">
+                        <div class="bg-blue-950/40 border border-blue-800/50 p-4 rounded-2xl mb-6">
+                            <div class="flex justify-between text-xs mb-2">
+                                <span class="text-slate-400">نام گیرنده:</span>
+                                <span class="font-bold text-emerald-400 text-sm" id="inqReceiverName">---</span>
+                            </div>
+                            <div class="flex justify-between text-xs mb-2">
+                                <span class="text-slate-400">حساب مقصد:</span>
+                                <span class="font-mono text-slate-200" id="inqTargetAcc">---</span>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-400">مبلغ واریزی:</span>
+                                <span class="font-bold text-white font-mono" id="inqAmount">0 ریال</span>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 mb-4">
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-2">کد CVV2 کارت شما</label>
+                                <input type="password" id="tfCvv2" maxlength="4" placeholder="***" class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-center outline-none" dir="ltr">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-2">تاریخ انقضا (MM/YY)</label>
+                                <input type="text" id="tfExpiry" placeholder="06/29" maxlength="5" class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-center outline-none" dir="ltr">
+                            </div>
+                        </div>
+
+                        <label class="block text-xs text-slate-400 mb-2">رمز دوم پویا / کد رمزساز TOTP گوشی</label>
+                        <input type="text" id="tfDynamicPass" placeholder="کد ۶ رقمی" class="w-full mb-6 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-center tracking-widest text-lg text-amber-300 outline-none" dir="ltr">
+
+                        <div class="flex gap-3">
+                            <button onclick="cancelTransfer()" class="w-1/3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3.5 rounded-xl text-sm transition">انصراف</button>
+                            <button onclick="commitTransfer()" id="finalTransferBtn" class="w-2/3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 rounded-xl text-sm transition">تأیید و اجرای قطعی تراکنش</button>
+                        </div>
+                    </div>
+
+                    <p id="transferAlert" class="text-xs font-bold text-center mt-4 hidden"></p>
+                </div>
+            </section>
+
+            <!-- ۳. بخش صورت‌حساب دفترکل (Running Balance) -->
+            <section id="view-statement" class="hidden-view">
+                <div class="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
+                    <div class="p-6 border-b border-slate-800">
+                        <h2 class="font-bold text-sm">گردش حساب و مانده لحظه‌ای دفترکل (Ledger Statement)</h2>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right text-xs">
+                            <thead class="bg-slate-950 text-slate-400">
+                                <tr>
+                                    <th class="p-4">سند مالی</th>
+                                    <th class="p-4">نوع عملیات</th>
+                                    <th class="p-4">مبلغ سند (ریال)</th>
+                                    <th class="p-4">مانده پس از تراکنش (ریال)</th>
+                                    <th class="p-4">تاریخ و زمان ثبت</th>
+                                </tr>
+                            </thead>
+                            <tbody id="statementTableBody" class="divide-y divide-slate-800 font-mono">
+                                <!-- ردیف‌های صورت‌حساب درج می‌شوند -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- مودال رسید دیجیتال بانکی رسمی (قابل چاپ) -->
+    <div id="receiptModal" class="hidden-view fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+        <div class="bg-white text-slate-900 rounded-3xl p-8 max-w-md w-full shadow-2xl relative">
+            <div class="text-center border-b pb-4 mb-4">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-2 text-2xl font-bold">✓</div>
+                <h3 class="font-bold text-lg">رسید انتقال وجه موفق</h3>
+                <p class="text-xs text-slate-500">هسته پردازش بانکداری مجازی</p>
             </div>
 
-            <!-- تب انتقال وجه -->
-            <div id="tab-transfer" class="hidden-view">
-                <div class="bg-white p-6 rounded-2xl shadow max-w-lg border">
-                    <h3 class="text-lg font-bold mb-4">انتقال وجه جدید</h3>
-                    <select id="tMethod" class="w-full mb-3 px-3 py-2 border rounded-xl">
-                        <option value="CARD_TO_CARD">کارت به کارت</option>
-                        <option value="ACCOUNT_TO_ACCOUNT">حساب به حساب</option>
-                        <option value="VIRTUAL_IBAN_TRANSFER">شناسه Virtual IBAN</option>
-                    </select>
-                    <input type="text" id="tTarget" placeholder="شماره کارت / حساب / شبا مقصد" class="w-full mb-3 px-3 py-2 border rounded-xl text-left" dir="ltr">
-                    <input type="number" id="tAmount" placeholder="مبلغ به ریال" class="w-full mb-3 px-3 py-2 border rounded-xl text-left" dir="ltr">
-                    <input type="text" id="tPurpose" placeholder="بابت / توضیحات" class="w-full mb-4 px-3 py-2 border rounded-xl">
-                    <button onclick="doTransfer()" id="tBtn" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700">تأیید و اجرای انتقال اتمیک</button>
-                    <p id="tMsg" class="mt-3 text-center text-sm font-bold"></p>
+            <div class="space-y-3 text-xs mb-6 font-sans">
+                <div class="flex justify-between"><span class="text-slate-500">کد پیگیری:</span><span class="font-mono font-bold" id="rcptTrack">---</span></div>
+                <div class="flex justify-between"><span class="text-slate-500">شناسه سند دفترکل:</span><span class="font-mono" id="rcptTx">---</span></div>
+                <div class="flex justify-between"><span class="text-slate-500">نام گیرنده:</span><span class="font-bold" id="rcptReceiver">---</span></div>
+                <div class="flex justify-between"><span class="text-slate-500">شناسه مقصد:</span><span class="font-mono" id="rcptTarget">---</span></div>
+                <div class="flex justify-between border-t pt-2"><span class="text-slate-500">مبلغ واریزی:</span><span class="font-bold text-emerald-700 font-mono text-sm" id="rcptAmount">0 ریال</span></div>
+                <div class="flex justify-between"><span class="text-slate-500">زمان ثبت سیستم:</span><span class="text-[11px]" id="rcptTime">---</span></div>
+                <div class="border-t pt-2 text-[10px] text-slate-400 break-all">
+                    <span>کد امنیتی هش رسید: </span><span class="font-mono" id="rcptHash">---</span>
                 </div>
             </div>
 
-            <!-- تب گردش حساب -->
-            <div id="tab-history" class="hidden-view">
-                <div class="bg-white rounded-2xl shadow border overflow-hidden">
-                    <table class="w-full text-right">
-                        <thead class="bg-slate-100 text-slate-600 text-sm">
-                            <tr>
-                                <th class="p-4">سند</th>
-                                <th class="p-4">نوع</th>
-                                <th class="p-4">مبلغ</th>
-                                <th class="p-4">زمان ثبت</th>
-                            </tr>
-                        </thead>
-                        <tbody id="dashHistory" class="divide-y divide-slate-100"></tbody>
-                    </table>
-                </div>
+            <div class="flex gap-3">
+                <button onclick="window.print()" id="printReceiptBtn" class="w-1/2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs">🖨️ چاپ فیش</button>
+                <button onclick="closeReceipt()" id="closeReceiptBtn" class="w-1/2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2.5 rounded-xl text-xs">بستن</button>
             </div>
         </div>
     </div>
 
     <script>
-        // آدرس وب‌اپلیکیشن گوگل اسکریپت خود را در این خط قرار دهید
+        // آدرس وب‌اپلیکیشن گوگل اسکریپت خود را اینجا قرار دهید:
         const API_URL = "https://script.google.com/macros/s/AKfycbzXBRUtH23zAbIvRLkV2c2VfCrhsz9GrM_BnCiuuyzIz5ocMSG2OtZBv22z79_59qW2vg/exec";
 
-        let token = localStorage.getItem('bankToken');
-        let regDataTemp = {};
+        let clientToken = localStorage.getItem('bankClientToken');
+        let cardSecretCvv = "";
+        let currentCard = null;
+        let isCvvVisible = false;
+        let inquiryData = null;
 
         window.onload = function() {
-            if(token) { showDash(); loadDash(); }
+            if (clientToken) {
+                showDashboard();
+                loadBankData();
+            }
         };
 
-        const showMsg = (txt, isErr) => {
-            const m = document.getElementById('authMessage');
-            m.innerText = txt;
-            m.className = `text-center text-sm font-bold mt-4 ${isErr ? 'text-red-500' : 'text-green-600'}`;
-            m.classList.remove('hidden');
-        };
+        const fmt = (num) => Number(num).toLocaleString('fa-IR');
 
-        function toggleAuth(type) {
-            document.getElementById('authMessage').classList.add('hidden');
-            if(type === 'login') {
-                document.getElementById('loginSection').classList.remove('hidden-view');
-                document.getElementById('registerSection').classList.add('hidden-view');
-                document.getElementById('tabLoginBtn').className = "w-1/2 pb-3 border-b-2 border-blue-600 text-blue-600";
-                document.getElementById('tabRegisterBtn').className = "w-1/2 pb-3 border-b-2 border-transparent text-slate-400";
-            } else {
-                document.getElementById('loginSection').classList.add('hidden-view');
-                document.getElementById('registerSection').classList.remove('hidden-view');
-                document.getElementById('tabLoginBtn').className = "w-1/2 pb-3 border-b-2 border-transparent text-slate-400";
-                document.getElementById('tabRegisterBtn').className = "w-1/2 pb-3 border-b-2 border-blue-600 text-blue-600";
+        async function requestApi(payload) {
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                return await res.json();
+            } catch (err) {
+                return { status: 'error', message: 'عدم پاسخگویی سرور بانکی' };
             }
         }
 
-        async function sendOtp() {
-            const f = document.getElementById('regFirst').value;
-            const l = document.getElementById('regLast').value;
-            const nc = document.getElementById('regNC').value;
-            const mb = document.getElementById('regMobile').value;
-            const dob = document.getElementById('regDOB').value;
-            const em = document.getElementById('regEmail').value;
-            const pw = document.getElementById('regPass').value;
-
-            if(!f || !l || !nc || !em || !pw) return showMsg("لطفاً تمامی فیلدها را تکمیل نمایید.", true);
-
-            regDataTemp = { firstName: f, lastName: l, nationalCode: nc, mobile: mb, dob: dob, email: em, password: pw };
-            document.getElementById('sendOtpBtn').innerText = "در حال ارسال کد...";
-            
-            const res = await (await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'registerRequest', ...regDataTemp }) })).json();
-            document.getElementById('sendOtpBtn').innerText = "دریافت کد تأیید ایمیل";
-            
-            if(res.status === 'success') {
-                showMsg(res.message, false);
-                document.getElementById('regStep1').classList.add('hidden-view');
-                document.getElementById('regStep2').classList.remove('hidden-view');
-            } else {
-                showMsg(res.message, true);
-            }
-        }
-
-        async function verifyAndRegister() {
-            const code = document.getElementById('emailOtp').value;
-            if(!code) return;
-            document.getElementById('verifyBtn').innerText = "در حال بررسی...";
-
-            const res = await (await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'verifyAndRegister', code: code, ...regDataTemp }) })).json();
-            document.getElementById('verifyBtn').innerText = "تأیید و تکمیل ثبت‌نام";
-
-            if(res.status === 'success') {
-                alert(res.message);
-                toggleAuth('login');
-                document.getElementById('regStep2').classList.add('hidden-view');
-                document.getElementById('regStep1').classList.remove('hidden-view');
-            } else {
-                showMsg(res.message, true);
-            }
-        }
-
+        // احراز هویت
         async function login() {
-            const nc = document.getElementById('loginNationalCode').value;
-            const pw = document.getElementById('loginPassword').value;
-            if(!nc || !pw) return;
+            const nc = document.getElementById('lUser').value;
+            const pass = document.getElementById('lPass').value;
+            const btn = document.getElementById('loginBtn');
+            const alertBox = document.getElementById('authAlert');
 
-            const res = await (await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'login', nationalCode: nc, password: pw }) })).json();
-            if(res.status === 'success') {
-                token = res.token;
-                localStorage.setItem('bankToken', token);
-                showDash();
-                loadDash();
+            if (!nc || !pass) return;
+            btn.innerText = "در حال احراز هویت...";
+            btn.disabled = true;
+
+            const res = await requestApi({ action: 'login', nationalCode: nc, password: pass });
+            btn.innerText = "ورود به محیط بانکداری";
+            btn.disabled = false;
+
+            if (res.status === 'success') {
+                clientToken = res.token;
+                localStorage.setItem('bankClientToken', clientToken);
+                showDashboard();
+                loadBankData();
             } else {
-                showMsg(res.message, true);
+                alertBox.innerText = res.message;
+                alertBox.className = "text-center text-xs font-bold mt-4 text-red-400";
+                alertBox.classList.remove('hidden');
             }
         }
 
-        function showDash() {
-            document.getElementById('authContainer').classList.add('hidden-view');
-            document.getElementById('dashboardView').classList.remove('hidden-view');
+        function showDashboard() {
+            document.getElementById('authView').classList.add('hidden-view');
+            document.getElementById('mainDashboard').classList.remove('hidden-view');
         }
 
         function logout() {
-            localStorage.removeItem('bankToken');
+            localStorage.removeItem('bankClientToken');
             location.reload();
         }
 
-        function switchTab(t) {
-            document.getElementById('tab-overview').classList.add('hidden-view');
-            document.getElementById('tab-transfer').classList.add('hidden-view');
-            document.getElementById('tab-history').classList.add('hidden-view');
-            document.getElementById('tab-' + t).classList.remove('hidden-view');
+        function switchView(viewId) {
+            ['overview', 'transfer', 'statement'].forEach(v => document.getElementById('view-' + v).classList.add('hidden-view'));
+            document.getElementById('view-' + viewId).classList.remove('hidden-view');
+            if (viewId === 'overview' || viewId === 'statement') loadBankData();
         }
 
-        async function loadDash() {
-            const res = await (await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getDashboard', nationalCode: token }) })).json();
-            if(res.status === 'success') {
+        // بارگذاری داده‌های بانکی
+        async function loadBankData() {
+            const res = await requestApi({ action: 'getDashboard', nationalCode: clientToken });
+            if (res.status === 'success') {
                 const d = res.data;
-                document.getElementById('dashName').innerText = d.name;
-                document.getElementById('dashAcc').innerText = d.account;
-                document.getElementById('dashIban').innerText = d.iban;
-                document.getElementById('dashCard').innerText = d.card ? d.card.replace(/(\d{4})/g, '$1 ').trim() : 'فاقد کارت فعال';
-                document.getElementById('dashAvail').innerText = Number(d.availableBalance).toLocaleString('fa-IR');
-                document.getElementById('dashReal').innerText = Number(d.realBalance).toLocaleString('fa-IR') + ' ریال';
+                document.getElementById('clientName').innerText = d.name;
+                document.getElementById('displayAccNo').innerText = d.account;
+                document.getElementById('displayIban').innerText = d.iban;
+                document.getElementById('displayAvailBal').innerText = fmt(d.availableBalance);
+                document.getElementById('dailyLimitView').innerText = fmt(d.dailyLimit) + ' ریال';
 
-                let h = '';
-                d.history.forEach(row => {
-                    let col = row.type === 'CREDIT' ? 'text-green-600' : 'text-red-600';
-                    let sign = row.type === 'CREDIT' ? '+' : '-';
-                    h += `<tr>
-                        <td class="p-4 font-mono text-sm">${row.id}</td>
-                        <td class="p-4 font-bold ${col}">${row.type === 'CREDIT' ? 'واریز' : 'برداشت'}</td>
-                        <td class="p-4 font-mono">${sign} ${Number(row.amount).toLocaleString('fa-IR')}</td>
-                        <td class="p-4 text-xs text-slate-400">${new Date(row.date).toLocaleString('fa-IR')}</td>
+                if (d.card) {
+                    currentCard = d.card;
+                    cardSecretCvv = d.card.cvv2;
+                    document.getElementById('displayCardNo').innerText = d.card.number.replace(/(\d{4})/g, '$1 ').trim();
+                    document.getElementById('displayHolder').innerText = d.card.holderName;
+                    document.getElementById('displayExpiry').innerText = d.card.expiryDate;
+                    document.getElementById('cardStatusBadge').innerText = d.card.status;
+                    document.getElementById('displayCvv').innerText = '***';
+                    
+                    const blockBtn = document.getElementById('blockCardBtn');
+                    blockBtn.innerText = d.card.status === 'Active' ? '🔒 مسدودسازی کارت' : '🔓 رفع مسدودی کارت';
+                }
+
+                // صورت‌حساب دفترکل
+                let stRows = '';
+                d.history.forEach(tx => {
+                    const isCredit = tx.type === 'CREDIT';
+                    stRows += `<tr>
+                        <td class="p-4 text-slate-400">${tx.txId}</td>
+                        <td class="p-4 font-bold ${isCredit ? 'text-emerald-400' : 'text-red-400'}">${isCredit ? 'واریز (بستانکار)' : 'برداشت (بدهکار)'}</td>
+                        <td class="p-4 ${isCredit ? 'text-emerald-400' : 'text-slate-200'}">${isCredit ? '+' : '-'}${fmt(tx.amount)}</td>
+                        <td class="p-4 font-bold text-white">${fmt(tx.balanceAfter)}</td>
+                        <td class="p-4 text-slate-500 text-[11px]">${new Date(tx.date).toLocaleString('fa-IR')}</td>
                     </tr>`;
                 });
-                document.getElementById('dashHistory').innerHTML = h;
+                document.getElementById('statementTableBody').innerHTML = stRows;
             } else {
                 alert(res.message);
                 logout();
             }
         }
 
-        async function doTransfer() {
-            const m = document.getElementById('tMethod').value;
-            const trg = document.getElementById('tTarget').value;
-            const am = document.getElementById('tAmount').value;
-            const p = document.getElementById('tPurpose').value;
-            const msg = document.getElementById('tMsg');
+        function toggleCvvView() {
+            isCvvVisible = !isCvvVisible;
+            document.getElementById('displayCvv').innerText = isCvvVisible ? cardSecretCvv : '***';
+        }
 
-            if(!trg || !am) return alert("فیلدها را کامل کنید.");
-            if(!confirm(`آیا از انتقال ${Number(am).toLocaleString('fa-IR')} ریال مطمئن هستید؟`)) return;
+        // تمدید کارت
+        async function renewCard() {
+            if (!confirm("آیا درخواست صدور کارت ۱۶ رقمی جدید با انقضای ۳ ساله برای این حساب را دارید؟ (کارت فعلی باطل خواهد شد)")) return;
+            const res = await requestApi({ action: 'renewCard', nationalCode: clientToken, oldCardNumber: currentCard.number });
+            alert(res.message);
+            loadBankData();
+        }
 
-            document.getElementById('tBtn').disabled = true;
-            msg.innerText = "در حال پردازش هسته بانکی...";
-            msg.className = "mt-3 text-center text-sm font-bold text-slate-500";
+        // مسدودسازی کارت
+        async function toggleCardStatus() {
+            const newStat = currentCard.status === 'Active' ? 'Blocked' : 'Active';
+            if (!confirm(`آیا مطمئن هستید که کارت ${newStat === 'Blocked' ? 'مسدود' : 'فعال'} شود؟`)) return;
+            const res = await requestApi({ action: 'toggleCardStatus', nationalCode: clientToken, cardNumber: currentCard.number, newStatus: newStat });
+            alert(res.message);
+            loadBankData();
+        }
 
-            const res = await (await fetch(API_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: 'transfer', token: token, transferMethod: m, targetId: trg, amount: am, purpose: p })
-            })).json();
+        // فرآیند انتقال وجه دو مرحله‌ای
+        async function startInquiry() {
+            const m = document.getElementById('tfMethod').value;
+            const t = document.getElementById('tfTarget').value;
+            const am = document.getElementById('tfAmount').value;
+            const alertBox = document.getElementById('transferAlert');
 
-            document.getElementById('tBtn').disabled = false;
-            if(res.status === 'success') {
-                msg.innerText = `انتقال موفق! کد پیگیری: ${res.trackCode}`;
-                msg.className = "mt-3 text-center text-sm font-bold text-green-600";
-                loadDash();
-            } else {
-                msg.innerText = res.message;
-                msg.className = "mt-3 text-center text-sm font-bold text-red-500";
+            if (!t || !am) {
+                alertBox.innerText = "شناسه مقصد و مبلغ را وارد نمایید.";
+                alertBox.className = "text-xs font-bold text-center mt-4 text-red-400";
+                alertBox.classList.remove('hidden');
+                return;
             }
+
+            document.getElementById('inquiryBtn').innerText = "در حال استعلام گیرنده...";
+            const res = await requestApi({ action: 'inquireDestination', method: m, targetId: t });
+            document.getElementById('inquiryBtn').innerText = "استعلام نام گیرنده و ادامه";
+
+            if (res.status === 'success') {
+                inquiryData = { method: m, targetId: t, amount: am, ...res.data };
+                document.getElementById('inqReceiverName').innerText = res.data.ownerName;
+                document.getElementById('inqTargetAcc').innerText = res.data.targetAccount;
+                document.getElementById('inqAmount').innerText = fmt(am) + ' ریال';
+
+                document.getElementById('transferStep1').classList.add('hidden-view');
+                document.getElementById('transferStep2').classList.remove('hidden-view');
+                alertBox.classList.add('hidden');
+            } else {
+                alertBox.innerText = res.message;
+                alertBox.className = "text-xs font-bold text-center mt-4 text-red-400";
+                alertBox.classList.remove('hidden');
+            }
+        }
+
+        function cancelTransfer() {
+            document.getElementById('transferStep2').classList.add('hidden-view');
+            document.getElementById('transferStep1').classList.remove('hidden-view');
+        }
+
+        async function commitTransfer() {
+            const cvv = document.getElementById('tfCvv2').value;
+            const exp = document.getElementById('tfExpiry').value;
+            const dyn = document.getElementById('tfDynamicPass').value;
+            const alertBox = document.getElementById('transferAlert');
+            const btn = document.getElementById('finalTransferBtn');
+
+            if (!cvv || !exp || !dyn) {
+                alertBox.innerText = "CVV2، تاریخ انقضا و رمز پویا الزامی است.";
+                alertBox.className = "text-xs font-bold text-center mt-4 text-red-400";
+                alertBox.classList.remove('hidden');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = "در حال پردازش و ثبت سند در دفترکل...";
+
+            const res = await requestApi({
+                action: 'transferSecured',
+                token: clientToken,
+                method: inquiryData.method,
+                targetId: inquiryData.targetId,
+                amount: inquiryData.amount,
+                sourceCardNumber: currentCard.number,
+                cvv2: cvv,
+                expDate: exp,
+                dynamicPass: dyn,
+                purpose: document.getElementById('tfPurpose').value
+            });
+
+            btn.disabled = false;
+            btn.innerText = "تأیید و اجرای قطعی تراکنش";
+
+            if (res.status === 'success') {
+                cancelTransfer();
+                document.getElementById('tfTarget').value = '';
+                document.getElementById('tfAmount').value = '';
+                document.getElementById('tfCvv2').value = '';
+                document.getElementById('tfExpiry').value = '';
+                document.getElementById('tfDynamicPass').value = '';
+
+                // نمایش فیش رسمی
+                showReceipt(res.receipt);
+                loadBankData();
+            } else {
+                alertBox.innerText = res.message;
+                alertBox.className = "text-xs font-bold text-center mt-4 text-red-400";
+                alertBox.classList.remove('hidden');
+            }
+        }
+
+        function showReceipt(rcpt) {
+            document.getElementById('rcptTrack').innerText = rcpt.trackCode;
+            document.getElementById('rcptTx').innerText = rcpt.txId;
+            document.getElementById('rcptReceiver').innerText = rcpt.receiverName;
+            document.getElementById('rcptTarget').innerText = rcpt.target;
+            document.getElementById('rcptAmount').innerText = fmt(rcpt.amount) + ' ریال';
+            document.getElementById('rcptTime').innerText = new Date(rcpt.date).toLocaleString('fa-IR');
+            document.getElementById('rcptHash').innerText = rcpt.receiptHash;
+            document.getElementById('receiptModal').classList.remove('hidden-view');
+        }
+
+        function closeReceipt() {
+            document.getElementById('receiptModal').classList.add('hidden-view');
+        }
+
+        // بخش ثبت نام و ایمیل
+        let regDataTemp = {};
+        function toggleAuth(type) {
+            if (type === 'login') {
+                document.getElementById('loginForm').classList.remove('hidden-view');
+                document.getElementById('registerForm').classList.add('hidden-view');
+            } else {
+                document.getElementById('loginForm').classList.add('hidden-view');
+                document.getElementById('registerForm').classList.remove('hidden-view');
+            }
+        }
+
+        async function requestRegisterOtp() {
+            const f = document.getElementById('rName').value, l = document.getElementById('rFamily').value,
+                  nc = document.getElementById('rNC').value, mb = document.getElementById('rMobile').value,
+                  dob = document.getElementById('rDOB').value, em = document.getElementById('rEmail').value,
+                  pw = document.getElementById('rPass').value;
+
+            if (!f || !nc || !em || !pw) return alert("فیلدها را کامل کنید.");
+            regDataTemp = { firstName: f, lastName: l, nationalCode: nc, mobile: mb, dob: dob, email: em, password: pw };
+
+            document.getElementById('regOtpBtn').innerText = "در حال ارسال ایمیل...";
+            const res = await requestApi({ action: 'registerRequest', ...regDataTemp });
+            document.getElementById('regOtpBtn').innerText = "ارسال کد اعتبارسنجی ایمیل";
+
+            if (res.status === 'success') {
+                document.getElementById('regInputs').classList.add('hidden-view');
+                document.getElementById('regOtpVerify').classList.remove('hidden-view');
+            } else alert(res.message);
+        }
+
+        async function verifyRegisterOtp() {
+            const code = document.getElementById('regCode').value;
+            if (!code) return;
+            const res = await requestApi({ action: 'verifyAndRegister', code: code, ...regDataTemp });
+            if (res.status === 'success') {
+                alert(res.message);
+                toggleAuth('login');
+            } else alert(res.message);
         }
     </script>
 </body>
