@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مدیریت ToWeb</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;700&display=swap');
+        body { font-family: 'Vazirmatn', sans-serif; background-color: #f1f5f9; }
+        .hidden { display: none !important; }
+        .chat-bubble { max-width: 80%; padding: 10px 15px; border-radius: 15px; margin-bottom: 10px; font-size: 0.9rem; }
+        .chat-admin { background-color: #eff6ff; color: #1e3a8a; border-bottom-right-radius: 0; margin-left: auto; border: 1px solid #bfdbfe; }
+        .chat-user { background-color: #f3f4f6; color: #374151; border-bottom-left-radius: 0; margin-right: auto; border: 1px solid #e5e7eb; }
+        pre { white-space: pre-wrap; font-family: inherit; }
+        
+        /* Loading Animation */
+        .skeleton-box { background: linear-gradient(90deg, #e2e8f0 25%, #cbd5e1 50%, #e2e8f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite linear; border-radius: 8px; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        .status-section { margin-bottom: 1.5rem; }
+        .status-section .section-header { 
+            cursor: pointer; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .status-section .section-header:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+        .status-section .section-content {
+            margin-top: 0.5rem;
+            padding: 1rem;
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 1rem;
+            border: 1px solid rgba(255,255,255,0.3);
+            transition: all 0.3s ease;
+        }
+        .status-badge {
+            background: #ff4757;
+            color: white;
+            border-radius: 999px;
+            padding: 0.2rem 0.8rem;
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin-right: 1rem;
+        }
+        /* بهبود تفکیک ظاهری کارت‌های سفارش */
+        .order-card {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+            border: 2px solid #e0e7ff; /* کادر بنفش ملایم برای تفکیک کامل */
+            transition: all 0.3s ease;
+            margin-bottom: 1rem;
+        }
+        .order-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+            border-color: #c7d2fe;
+        }
+        .chat-bubble.spinner-bubble {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .spinner {
+            border: 2px solid #ccc;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .checkmark {
+            color: #2ecc71;
+            font-size: 1.2rem;
+        }
+        /* Image preview modal */
+        .image-preview-container img {
+            max-width: 90vw;
+            max-height: 85vh;
+            border-radius: 1rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+<!-- لودینگ اولیه هنگام بررسی نشست -->
+<div id="initialLoading" class="fixed inset-0 bg-gray-900 flex items-center justify-center z-50">
+    <div class="text-center">
+        <div class="spinner mx-auto" style="width: 40px; height: 40px; border-width: 4px;"></div>
+        <p class="text-white mt-4 font-bold">در حال احراز هویت...</p>
+    </div>
+</div>
+
+<script>
+    // توجه: لینک را با لینک Deploy نهایی اسکریپت جایگزین کنید
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbznPx_IQszGjD4MOI0BuZH1gI0x5c-9trF1dRt2estcEo1jqgV_NVRcLJoEuhCHfRD3/exec"; 
+</script>
+
+<!-- فرم لاگین ادمین -->
+<div id="adminAuthSection" class="min-h-screen flex items-center justify-center bg-gray-900 hidden">
+    <div class="bg-white p-8 rounded-2xl shadow-2xl w-96 border-t-8 border-indigo-600">
+        <h2 class="text-2xl font-bold text-center mb-6 text-indigo-900"><i class="fas fa-user-shield text-indigo-600"></i> پنل مدیریت ToWeb</h2>
+        <input type="text" id="adminUser" placeholder="نام کاربری (موجود در تب Admin)" class="w-full mb-4 p-3 border rounded-xl focus:ring-2 focus:ring-indigo-400 outline-none" dir="ltr">
+        <input type="password" id="adminPass" placeholder="رمز عبور" class="w-full mb-6 p-3 border rounded-xl focus:ring-2 focus:ring-indigo-400 outline-none" dir="ltr">
+        <button onclick="handleAdminLogin()" class="w-full bg-indigo-600 text-white p-3 rounded-xl hover:bg-indigo-700 font-bold transition shadow-lg">ورود امن</button>
+    </div>
+</div>
+
+<!-- داشبورد اصلی ادمین -->
+<div id="adminDashboard" class="hidden min-h-screen flex flex-col">
+    <nav class="bg-gradient-to-r from-indigo-900 to-purple-900 text-white shadow-md p-4 flex justify-between items-center sticky top-0 z-40">
+        <div class="font-bold text-xl flex items-center gap-3">
+            <i class="fas fa-shield-alt text-indigo-300"></i> پنل مدیریت سایت
+            <button onclick="loadAllData()" class="text-indigo-200 hover:text-white transition ml-4 text-sm"><i class="fas fa-sync-alt"></i> رفرش اطلاعات</button>
+        </div>
+        <div class="flex gap-4 items-center text-sm">
+            <button onclick="openCreateUserModal()" class="bg-green-500 hover:bg-green-400 px-4 py-2 rounded-xl transition font-bold shadow"><i class="fas fa-user-plus ml-1"></i> ایجاد کاربر جدید</button>
+            <button onclick="freeUpSpace()" class="bg-orange-500 hover:bg-orange-400 px-4 py-2 rounded-xl transition font-bold shadow"><i class="fas fa-broom ml-1"></i> آزادسازی فضا</button>
+            <button onclick="logoutAdmin()" class="text-red-300 hover:text-red-200 font-bold"><i class="fas fa-sign-out-alt ml-1"></i> خروج</button>
+        </div>
+    </nav>
+
+    <div class="p-4 sm:p-6 flex-1 w-full max-w-7xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-indigo-900"><i class="fas fa-tasks ml-2"></i> لیست کل سفارشات سیستم</h1>
+        </div>
+        <input type="text" id="searchInput" onkeyup="handleSearch()" placeholder="جستجو بر اساس کد ملی یا شماره سفارش..." class="w-full mb-6 p-4 rounded-2xl shadow-sm border border-gray-200 outline-none focus:ring-2 focus:ring-indigo-300 font-bold text-indigo-900">
+        
+        <div id="ordersContainer"></div>
+    </div>
+</div>
+
+<!-- مودال ایجاد کاربر جدید -->
+<div id="createUserModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-2xl w-full max-w-md relative shadow-2xl border-t-4 border-green-500">
+        <button onclick="closeModal('createUserModal')" class="absolute top-4 left-4 text-gray-400 hover:text-red-500"><i class="fas fa-times text-xl"></i></button>
+        <h2 class="text-lg font-bold mb-4 text-gray-800"><i class="fas fa-user-plus text-green-500"></i> ساخت حساب برای کاربر</h2>
+        <div class="space-y-3">
+            <input type="text" id="newUserFullName" placeholder="نام و نام خانوادگی" class="w-full p-3 border rounded-xl bg-gray-50">
+            <input type="text" id="newUserNationalID" placeholder="کد ملی (۱۰ رقمی)" class="w-full p-3 border rounded-xl bg-gray-50" dir="ltr" maxlength="10">
+            <input type="text" id="newUserPhone" placeholder="شماره تماس" class="w-full p-3 border rounded-xl bg-gray-50" dir="ltr">
+        </div>
+        <button onclick="adminCreateUser()" class="w-full bg-green-600 text-white p-3 rounded-xl font-bold hover:bg-green-700 shadow mt-4"><i class="fas fa-check"></i> ثبت نام و ایجاد کاربر</button>
+    </div>
+</div>
+
+<!-- مودال نمایش مرتب متن برای کپی -->
+<div id="copyDataModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh]">
+        <div class="p-4 border-b flex justify-between items-center bg-indigo-50 rounded-t-2xl">
+            <h2 class="font-bold text-indigo-900 text-lg"><i class="fas fa-file-alt ml-2"></i> درخواست طراحی سایت</h2>
+            <div class="flex gap-2">
+                <button onclick="copyToClipboard()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl shadow hover:bg-indigo-700 font-bold text-sm"><i class="fas fa-copy ml-1"></i> کپی تمام متن</button>
+                <button onclick="closeModal('copyDataModal')" class="text-red-500 p-2 hover:bg-red-50 rounded-full"><i class="fas fa-times text-xl"></i></button>
+            </div>
+        </div>
+        <div class="p-6 overflow-y-auto bg-gray-50 flex-1">
+            <pre id="formattedDataText" class="text-sm text-gray-800 leading-relaxed bg-white p-6 rounded-2xl border shadow-inner whitespace-pre-wrap font-mono" dir="rtl"></pre>
+        </div>
+    </div>
+</div>
+
+<!-- مودال بررسی دامنه‌های درخواستی (جدید) -->
+<div id="adminDomainModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+    <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-2xl relative border-t-4 border-purple-500 max-h-[90vh] overflow-y-auto">
+        <button onclick="closeModal('adminDomainModal')" class="absolute top-4 left-4 text-gray-400 hover:text-red-500"><i class="fas fa-times text-xl"></i></button>
+        <h2 class="text-xl font-bold mb-4 border-b pb-2 text-purple-800"><i class="fas fa-globe text-purple-600 ml-2"></i> بررسی اطلاعات دامنه سفارش</h2>
+        
+        <div id="adminDomainContent" class="space-y-4">
+            <!-- محتوای دامنه از طریق جاوا اسکریپت در اینجا قرار می‌گیرد -->
+        </div>
+        
+        <div class="mt-6">
+            <button onclick="closeModal('adminDomainModal')" class="w-full bg-gray-200 text-gray-800 font-bold px-4 py-3 rounded-xl hover:bg-gray-300 transition">بستن پنجره</button>
+        </div>
+    </div>
+</div>
+
+<!-- مودال تغییر وضعیت و تحویل سفارش -->
+<div id="editStatusModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+    <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative border-t-4 border-yellow-500">
+        <button onclick="closeModal('editStatusModal')" class="absolute top-4 left-4 text-gray-400 hover:text-red-500"><i class="fas fa-times text-xl"></i></button>
+        <h2 class="text-xl font-bold mb-4 border-b pb-2"><i class="fas fa-edit text-yellow-500"></i> تغییر وضعیت و اطلاعات تحویل سایت</h2>
+        
+        <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+                <label class="text-xs text-gray-600 font-bold">وضعیت پیشرفت سفارش</label>
+                <select id="inpOrderStatus" class="w-full p-3 border rounded-xl mt-1 bg-gray-50 font-bold">
+                    <option value="ثبت اولیه">ثبت اولیه (خام)</option>
+                    <option value="در انتظار شروع انجام">در انتظار شروع انجام</option>
+                    <option value="در حال طراحی">در حال طراحی</option>
+                    <option value="آماده تحویل">آماده تحویل (در انتظار تسویه)</option>
+                    <option value="تکمیل شده">تکمیل شده نهایی</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-xs text-gray-600 font-bold">وضعیت مالی</label>
+                <select id="inpPaymentStatus" class="w-full p-3 border rounded-xl mt-1 bg-gray-50 font-bold">
+                    <option value="پرداخت نشده">پرداخت نشده</option>
+                    <option value="پیش پرداخت انجام شد">پیش پرداخت انجام شد</option>
+                    <option value="تسویه کامل انجام شد">تسویه کامل انجام شد</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="bg-blue-50 p-4 rounded-2xl border border-blue-200 mb-4 mt-6">
+            <h3 class="font-bold text-sm text-blue-900 border-b border-blue-200 pb-2 mb-3"><i class="fas fa-box-open"></i> اطلاعات تحویل نهایی (نمایش به کاربر پس از تسویه)</h3>
+            <div class="space-y-3">
+                <input type="text" id="inpSiteUrl" placeholder="آدرس سایت (URL)" class="w-full p-2 border rounded-lg text-sm font-mono" dir="ltr">
+                <input type="text" id="inpSiteEmail" placeholder="ایمیل ادمین سایت" class="w-full p-2 border rounded-lg text-sm font-mono" dir="ltr">
+                <input type="text" id="inpSitePass" placeholder="رمز عبور پنل سایت" class="w-full p-2 border rounded-lg text-sm font-mono" dir="ltr">
+                <input type="text" id="inpGithub" placeholder="لینک سورس کد / گیت هاب / درایو" class="w-full p-2 border rounded-lg text-sm font-mono" dir="ltr">
+            </div>
+        </div>
+
+        <button onclick="saveAdminOrderUpdates()" class="w-full bg-green-600 text-white p-3 rounded-xl font-bold hover:bg-green-700 shadow"><i class="fas fa-save ml-2"></i> ذخیره تغییرات دیتابیس</button>
+    </div>
+</div>
+
+<!-- مودال بررسی فیش‌های واریزی -->
+<div id="receiptsModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+    <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto relative">
+        <button onclick="closeModal('receiptsModal')" class="absolute top-4 left-4 text-gray-400 hover:text-red-500"><i class="fas fa-times text-xl"></i></button>
+        <h2 class="text-xl font-bold mb-4 border-b pb-2"><i class="fas fa-receipt text-green-600"></i> بررسی فیش‌های کارت به کارت دستی</h2>
+        <div id="receiptsContainer" class="space-y-4"></div>
+    </div>
+</div>
+
+<!-- مودال گالری تصاویر -->
+<div id="adminImagesModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+    <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto relative">
+        <button onclick="closeModal('adminImagesModal')" class="absolute top-4 left-4 text-gray-400 hover:text-red-500"><i class="fas fa-times text-xl"></i></button>
+        <h2 class="text-xl font-bold mb-4 border-b pb-2"><i class="fas fa-images text-purple-600"></i> تصاویر ارسال شده کاربر</h2>
+        <div id="adminImagesGallery" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+    </div>
+</div>
+
+<!-- مودال تیکت و پشتیبانی -->
+<div id="adminTicketsModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+    <div class="bg-white p-0 rounded-2xl shadow-2xl w-full max-w-2xl h-[80vh] flex flex-col relative border-t-4 border-blue-500">
+        <div class="p-4 border-b bg-gray-50 rounded-t-2xl flex justify-between items-center shadow-sm z-10">
+            <h2 class="text-xl font-bold text-blue-600"><i class="fas fa-comments text-blue-500"></i> چت و پشتیبانی سفارش</h2>
+            <button onclick="closeModal('adminTicketsModal')" class="text-gray-400 hover:text-red-500"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        
+        <div id="adminChatBox" class="flex-1 overflow-y-auto p-4 flex flex-col bg-gray-50 border-b inner-shadow"></div>
+        
+        <div class="p-4 bg-white rounded-b-2xl">
+            <div class="flex gap-2 relative items-stretch w-full">
+                <!-- تغییر input به textarea برای جلوگیری از خروج دکمه و راحتی نوشتن متون طولانی -->
+                <textarea id="adminNewMsg" rows="2" placeholder="پاسخ خود را بنویسید (حداکثر ۳۰۰ کلمه)..." class="flex-1 p-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm resize-none"></textarea>
+                <!-- ثابت کردن دکمه با flex-shrink-0 تا هرگز جمع نشود -->
+                <button onclick="adminSendTicket()" class="bg-blue-600 text-white px-5 rounded-xl hover:bg-blue-700 shadow font-bold flex flex-col items-center justify-center flex-shrink-0 h-auto whitespace-nowrap"><i class="fas fa-paper-plane mb-1"></i> ارسال</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- مودال ثبت دلیل رد فیش -->
+<div id="rejectReasonModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+    <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md relative border-t-4 border-red-500">
+        <button onclick="closeModal('rejectReasonModal')" class="absolute top-4 left-4 text-gray-400 hover:text-red-500 transition">
+            <i class="fas fa-times text-xl"></i>
+        </button>
+        
+        <div class="text-center mb-4">
+            <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <i class="fas fa-times-circle text-3xl text-red-500"></i>
+            </div>
+            <h2 class="text-xl font-bold text-gray-800">رد فیش پرداخت</h2>
+            <p class="text-sm text-gray-500 mt-1">لطفاً دلیل رد شدن فیش را وارد کنید</p>
+        </div>
+        
+        <div class="mb-4">
+            <label class="block text-sm font-bold text-gray-600 mb-2">
+                <i class="fas fa-pen ml-1"></i> دلیل رد شدن:
+            </label>
+            <textarea id="rejectReasonText" 
+                      maxlength="300" 
+                      rows="3"
+                      placeholder="مثال: تصویر ناخواناست / مبلغ واریزی اشتباه است / شماره کارت مطابقت ندارد / فیش تکراری است"
+                      class="w-full p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-red-300 focus:border-red-400 outline-none transition text-sm"></textarea>
+            <p class="text-xs text-gray-400 mt-1">حداکثر ۳۰۰ کاراکتر - این متن به کاربر نمایش داده می‌شود</p>
+        </div>
+        
+        <div class="flex gap-3">
+            <button onclick="closeModal('rejectReasonModal')" 
+                    class="flex-1 bg-gray-200 text-gray-700 p-3 rounded-xl font-bold hover:bg-gray-300 transition">
+                <i class="fas fa-undo ml-1"></i> انصراف
+            </button>
+            <button onclick="confirmRejectReceipt()" 
+                    class="flex-1 bg-red-600 text-white p-3 rounded-xl font-bold hover:bg-red-700 shadow-lg transition">
+                <i class="fas fa-times ml-1"></i> ثبت رد فیش
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- مودال پیش‌نمایش تصویر بزرگ -->
+<div id="imagePreviewModal" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4" onclick="closeModal('imagePreviewModal')">
+    <div class="relative image-preview-container" onclick="event.stopPropagation()">
+        <button onclick="closeModal('imagePreviewModal')" class="absolute -top-4 -left-4 bg-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg text-gray-600 hover:text-red-500 transition z-10">
+            <i class="fas fa-times text-xl"></i>
+        </button>
+        <img id="previewImage" src="" alt="پیش‌نمایش تصویر" class="max-w-[90vw] max-h-[85vh] rounded-xl shadow-2xl">
+    </div>
+</div>
+
+<script>
+    let allOrdersData = [];
+    let currentOrderId = null;
+    let adminToken = null;
+
+    let pendingRejectOrderId = null;
+    let pendingRejectRowIdx = null;
+    let pendingRejectStage = null;
+
+    let ticketsCache = {};
+    let imagesCache = {};
+
+    function checkSavedSession() {
+        const token = sessionStorage.getItem('adminToken');
+        if (!token) {
+            document.getElementById('initialLoading').classList.add('hidden');
+            document.getElementById('adminAuthSection').classList.remove('hidden');
+            return;
+        }
+        fetch(GAS_URL, {
+            method: "POST", headers: {"Content-Type": "text/plain;charset=utf-8"},
+            body: JSON.stringify({action: "verify_token", token: token})
+        })
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('initialLoading').classList.add('hidden');
+            if (data.status === 'success') {
+                adminToken = token;
+                document.getElementById('adminAuthSection').classList.add('hidden');
+                document.getElementById('adminDashboard').classList.remove('hidden');
+                loadAllData();
+            } else {
+                sessionStorage.removeItem('adminToken');
+                document.getElementById('adminAuthSection').classList.remove('hidden');
+            }
+        })
+        .catch(() => {
+            document.getElementById('initialLoading').classList.add('hidden');
+            sessionStorage.removeItem('adminToken');
+            document.getElementById('adminAuthSection').classList.remove('hidden');
+        });
+    }
+
+    window.addEventListener('load', checkSavedSession);
+
+    // تابع قدرتمند برای پاکسازی ورودی‌ها از کدهای مخرب (XSS)
+    function sanitizeExcel(str) {
+        if (!str) return str;
+        // تبدیل کاراکترهای حساس HTML به معادل‌های امن (HTML Entities) تا ساختار گرافیکی سایت نشکند و هک نشود
+        str = str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        if (/^[=+\-@]/.test(str)) {
+            return "'" + str;
+        }
+        return str;
+    }
+
+    function unpackContactForAdmin(str) {
+        if(!str) return "اطلاعاتی ثبت نشده است.";
+        let res = "";
+        const mapNames = {
+            'Phone': '📞 شماره تماس', 'Email': '✉️ ایمیل', 'Address': '📍 آدرس',
+            'GoogleMap': '🗺️ گوگل مپ', 'Neshan': '🗺️ مپ نشان', 'Balad': '🗺️ مپ بلد',
+            'Insta': '📱 اینستاگرام', 'Wa': '💬 واتساپ', 'Telegram': '✈️ تلگرام',
+            'Eitaa': '📱 ایتا', 'Rubika': '📱 روبیکا'
+        };
+
+        if(str.includes("::")) {
+            str.split("||").forEach(p => {
+                let [key, val] = p.split("::");
+                let pName = mapNames[key] || key;
+                res += `${pName}: ${val}\n`;
+            });
+        } else { res = str; }
+        return res;
+    }
+
+    function extractBioParts(rawBio) {
+        if(!rawBio) return { bio: "ندارد", notes: "ندارد" };
+        let parts = rawBio.split("|||NOTES|||");
+        return { bio: parts[0] || "ندارد", notes: parts[1] || "ندارد" };
+    }
+
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    function isValidIranianNationalCode(code) {
+        if (!code || code.length !== 10 || !/^\d{10}$/.test(code)) return false;
+        const check = parseInt(code[9]);
+        const sum = Array.from(code.slice(0,9)).reduce((acc, digit, index) => acc + parseInt(digit) * (10 - index), 0);
+        const remainder = sum % 11;
+        return (remainder < 2 && check === remainder) || (remainder >= 2 && check === 11 - remainder);
+    }
+
+    function handleAdminLogin() {
+        const u = document.getElementById('adminUser').value;
+        const p = document.getElementById('adminPass').value;
+        if(!u || !p) return Swal.fire('خطا', 'فیلدها را پر کنید', 'warning');
+
+        Swal.fire({title:'در حال تایید مدیریت...', didOpen:()=>Swal.showLoading()});
+        fetch(GAS_URL, {
+            method: "POST", headers: {"Content-Type": "text/plain;charset=utf-8"},
+            body: JSON.stringify({action: "admin_login", username: u, password: p})
+        }).then(res => res.json()).then(data => {
+            if(data.status === 'success') {
+                Swal.close();
+                adminToken = data.token;
+                sessionStorage.setItem('adminToken', data.token);
+                document.getElementById('adminAuthSection').classList.add('hidden');
+                document.getElementById('adminDashboard').classList.remove('hidden');
+                loadAllData();
+            } else {
+                Swal.fire('خطا', data.message, 'error');
+            }
+        }).catch(err => Swal.fire('خطا', 'مشکل ارتباط با سرور', 'error'));
+    }
+
+    function logoutAdmin() {
+        sessionStorage.removeItem('adminToken');
+        location.reload();
+    }
+
+    function openCreateUserModal() {
+        document.getElementById('createUserModal').classList.remove('hidden');
+    }
+
+    function adminCreateUser() {
+        const fullName = document.getElementById('newUserFullName').value.trim();
+        const nationalID = document.getElementById('newUserNationalID').value.trim();
+        const phone = document.getElementById('newUserPhone').value.trim();
+
+        if(!fullName || !nationalID || !phone) {
+            return Swal.fire('خطا', 'تمام فیلدها الزامی هستند', 'warning');
+        }
+
+        if (!isValidIranianNationalCode(nationalID)) {
+            return Swal.fire('خطا', 'کد ملی وارد شده معتبر نیست', 'error');
+        }
+
+        Swal.fire({title:'در حال ساخت...', didOpen:()=>Swal.showLoading()});
+        fetch(GAS_URL, {
+            method: "POST", headers: {"Content-Type": "text/plain;charset=utf-8"},
+            body: JSON.stringify({
+                action: "admin_create_user",
+                fullName: fullName,
+                nationalID: nationalID,
+                phone: phone,
+                password: nationalID
+            })
+        }).then(res => res.json()).then(d => {
+            if(d.status === 'success') {
+                Swal.fire('موفق', d.message, 'success');
+                closeModal('createUserModal');
+                document.getElementById('newUserFullName').value = '';
+                document.getElementById('newUserNationalID').value = '';
+                document.getElementById('newUserPhone').value = '';
+            } else {
+                Swal.fire('خطا', d.message, 'error');
+            }
+        });
+    }
+
+    function freeUpSpace() {
+        Swal.fire({
+            title: 'آزادسازی فضای ذخیره‌سازی',
+            text: 'این عملیات تمام تصاویر و فیش‌های مربوط به پروژه‌های تکمیل شده را حذف می‌کند. ادامه می‌دهید؟',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'بله، حذف کن',
+            cancelButtonText: 'انصراف'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({title:'در حال پاکسازی...', didOpen:()=>Swal.showLoading()});
+                fetch(GAS_URL, {
+                    method: "POST",
+                    headers: {"Content-Type": "text/plain;charset=utf-8"},
+                    body: JSON.stringify({action: "admin_cleanup_old_images"})
+                })
+                .then(r => r.json())
+                .then(d => {
+                    if(d.status === 'success') {
+                        Swal.fire('موفق', d.message, 'success');
+                        loadAllData(); 
+                    } else {
+                        Swal.fire('خطا', d.message, 'error');
+                    }
+                })
+                .catch(() => Swal.fire('خطا', 'مشکل در ارتباط با سرور', 'error'));
+            }
+        });
+    }
+
+    function loadAllData(searchQuery = '') {
+        const container = document.getElementById('ordersContainer');
+        container.innerHTML = `<div class="skeleton-box h-32 w-full mb-4"></div><div class="skeleton-box h-32 w-full"></div>`;
+        
+        ticketsCache = {};
+        imagesCache = {};
+
+        const body = {action: "admin_get_all_data"};
+        if (searchQuery.trim()) body.search = searchQuery.trim();
+
+        fetch(GAS_URL, {
+            method: "POST", headers: {"Content-Type": "text/plain;charset=utf-8"},
+            body: JSON.stringify(body)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === 'success') {
+                allOrdersData = data.orders;
+                renderOrdersCategorized(allOrdersData);
+            } else {
+                Swal.fire('خطا', data.message, 'error');
+            }
+        })
+        .catch(() => Swal.fire('خطا', 'مشکل ارتباط با سرور', 'error'));
+    }
+
+    function handleSearch() {
+        const q = document.getElementById('searchInput').value;
+        loadAllData(q);
+    }
+
+    const statusOrder = [
+        "ثبت اولیه",
+        "در انتظار شروع انجام",
+        "در حال طراحی",
+        "آماده تحویل",
+        "تکمیل شده"
+    ];
+
+    function renderOrdersCategorized(ordersArray) {
+        const container = document.getElementById('ordersContainer');
+        container.innerHTML = '';
+
+        if (!ordersArray.length) {
+            container.innerHTML = '<p class="col-span-full text-center text-gray-500 font-bold py-10">هیچ سفارشی یافت نشد.</p>';
+            return;
+        }
+
+        const groups = {};
+        ordersArray.forEach(order => {
+            const status = order.orderStatus.trim();
+            if (!groups[status]) groups[status] = [];
+            groups[status].push(order);
+        });
+
+        statusOrder.forEach(statusKey => {
+            const orders = groups[statusKey] || [];
+            if (orders.length === 0) return;
+
+            const pendingCount = orders.reduce((acc, o) => acc + (o.receipts ? o.receipts.filter(r => r.status.includes('در انتظار')).length : 0), 0);
+
+            const sectionDiv = document.createElement('div');
+            sectionDiv.className = 'status-section';
+
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'section-header';
+            headerDiv.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-clipboard-list ml-2"></i>
+                    <span class="font-bold">${statusKey} (${orders.length})</span>
+                    ${pendingCount > 0 ? `<span class="status-badge">${pendingCount} فیش جدید</span>` : ''}
+                </div>
+                <i class="fas fa-chevron-down transition-transform duration-300" id="toggle-icon-${statusKey}"></i>
+            `;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'section-content hidden';
+
+            const grid = document.createElement('div');
+            grid.className = 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6';
+            contentDiv.appendChild(grid);
+
+            const initialCount = 10;
+            let shownCount = Math.min(initialCount, orders.length);
+
+            function renderVisible() {
+                grid.innerHTML = '';
+                for (let i = 0; i < shownCount; i++) {
+                    grid.innerHTML += createOrderCard(orders[i]);
+                }
+                if (shownCount < orders.length) {
+                    const moreBtn = document.createElement('button');
+                    moreBtn.className = 'load-more-btn col-span-full bg-white hover:bg-gray-100 text-indigo-600 font-bold py-3 px-4 rounded-xl border border-indigo-200 shadow-sm transition';
+                    moreBtn.textContent = `نمایش بیشتر (${orders.length - shownCount} سفارش دیگر)`;
+                    moreBtn.onclick = () => {
+                        shownCount = Math.min(shownCount + 10, orders.length);
+                        renderVisible();
+                    };
+                    grid.appendChild(moreBtn);
+                }
+            }
+            renderVisible();
+
+            headerDiv.addEventListener('click', () => {
+                contentDiv.classList.toggle('hidden');
+                const icon = document.getElementById(`toggle-icon-${statusKey}`);
+                if (contentDiv.classList.contains('hidden')) {
+                    icon.classList.remove('fa-chevron-up');
+                    icon.classList.add('fa-chevron-down');
+                } else {
+                    icon.classList.remove('fa-chevron-down');
+                    icon.classList.add('fa-chevron-up');
+                }
+            });
+
+            const defaultIcon = headerDiv.querySelector('i:last-child');
+            if (defaultIcon) {
+                defaultIcon.classList.add('fa-chevron-down');
+            }
+
+            sectionDiv.appendChild(headerDiv);
+            sectionDiv.appendChild(contentDiv);
+            container.appendChild(sectionDiv);
+        });
+    }
+
+    function openAdminDomainModal(orderId) {
+        const order = allOrdersData.find(o => o.orderId === orderId);
+        if(!order) return;
+        
+        const contentDiv = document.getElementById('adminDomainContent');
+        
+        if(order.domainStatus === "نیاز به ثبت دامنه" && order.proposedDomains) {
+            const domains = order.proposedDomains.split(',').filter(d => d.trim() !== '');
+            let listHtml = '<ul class="space-y-2 mt-2">';
+            domains.forEach((d, idx) => {
+                listHtml += `<li class="bg-gray-50 p-3 rounded-xl border border-gray-200 font-mono text-left flex justify-between items-center" dir="ltr">
+                                <span>${d}</span>
+                                <span class="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded font-bold font-sans">پیشنهاد ${idx + 1}</span>
+                             </li>`;
+            });
+            listHtml += '</ul>';
+            
+            contentDiv.innerHTML = `
+                <div class="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                    <p class="font-bold text-blue-800 mb-2"><i class="fas fa-search"></i> کاربر درخواست ثبت دامنه جدید داده است.</p>
+                    <p class="text-sm text-blue-700">لطفاً یکی از دامنه‌های زیر را بررسی و ثبت کنید:</p>
+                    ${listHtml}
+                </div>
+            `;
+        } else if (order.domainStatus && order.domainStatus.trim() !== "" && order.domainStatus !== "نیاز به ثبت دامنه") {
+            contentDiv.innerHTML = `
+                <div class="bg-green-50 p-4 rounded-xl border border-green-200">
+                    <p class="font-bold text-green-800 mb-2"><i class="fas fa-check-circle"></i> کاربر دامنه شخصی خود را متصل کرده است.</p>
+                    <p class="text-sm text-green-700 mb-2">لطفاً تنظیمات اتصال به هاست را برای این دامنه انجام دهید:</p>
+                    <div class="bg-white p-4 rounded-xl border border-green-300 font-mono text-center text-lg shadow-sm" dir="ltr">
+                        ${order.domainStatus}
+                    </div>
+                </div>
+            `;
+        } else {
+            contentDiv.innerHTML = `
+                <div class="bg-yellow-50 p-4 rounded-xl border border-yellow-200 text-center">
+                    <p class="font-bold text-yellow-800"><i class="fas fa-hourglass-half"></i> اطلاعات دامنه هنوز توسط کاربر تکمیل نشده است.</p>
+                </div>
+            `;
+        }
+        
+        document.getElementById('adminDomainModal').classList.remove('hidden');
+    }
+
+    function createOrderCard(order) {
+        // ایجاد محفظه برای Badge ها (فیش جدید و پیام جدید) تا روی هم نیفتند
+        let badgesHtml = '';
+        
+        // 1. بررسی فیش جدید
+        const pendingCount = order.receipts ? order.receipts.filter(r => r.status.includes('در انتظار')).length : 0;
+        if (pendingCount > 0) {
+            badgesHtml += `<span class="bg-red-500 text-white text-xs px-3 py-1 rounded-full animate-bounce shadow-lg">${pendingCount} فیش جدید</span>`;
+        }
+        
+        // 2. بررسی پیام پشتیبانی جدید از طرف کاربر
+        let hasNewUserMessage = false;
+        if (order.tickets && order.tickets.length > 0) {
+            const lastTicket = order.tickets[order.tickets.length - 1];
+            // اگر آخرین پیام از طرف "پشتیبانی ToWeb" نباشد، یعنی کاربر فرستاده است
+            if (lastTicket.sender !== "پشتیبانی ToWeb") {
+                hasNewUserMessage = true;
+            }
+        }
+        if (hasNewUserMessage) {
+            badgesHtml += `<span class="bg-orange-500 text-white text-xs px-3 py-1 rounded-full animate-bounce shadow-lg"><i class="fas fa-envelope ml-1"></i>پیام جدید</span>`;
+        }
+
+        let badgesContainer = badgesHtml ? `<div class="absolute -top-3 -right-3 flex gap-2 z-10">${badgesHtml}</div>` : '';
+
+        let statClass = order.orderStatus.includes('تکمیل') ? 'bg-green-100 text-green-800' : 'bg-indigo-100 text-indigo-800';
+
+        let userInfoHtml = '';
+        if (order.user) {
+            userInfoHtml = `
+                <div class="text-xs text-gray-600 mt-2 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                    <p class="mb-1"><strong>کاربر:</strong> ${order.user.fullName || '---'}</p>
+                    <p class="mb-1"><strong>کد ملی:</strong> <span class="font-mono bg-white px-1 border rounded">${order.nationalCode || '---'}</span></p>
+                    <p><strong>تلفن:</strong> <span dir="ltr" class="font-mono bg-white px-1 border rounded">${order.user.phone || '---'}</span></p>
+                </div>`;
+        }
+
+        // بخش مشخصات پلن و دامنه
+        let isSeo = order.seoDomainChoice === "بله";
+        let planName = isSeo ? "<span class='text-purple-700 font-bold'>پکیج ویژه (سئو + دامنه اختصاصی)</span>" : "<span class='text-gray-600 font-bold'>پکیج استاندارد (بدون دامنه)</span>";
+        let domainActionBtn = '';
+
+        if (isSeo) {
+            if (order.domainStatus === "نیاز به ثبت دامنه") {
+                domainActionBtn = `<button onclick="openAdminDomainModal('${order.orderId}')" class="w-full mt-2 bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 shadow-sm"><i class="fas fa-list-ul"></i> بررسی دامنه‌های پیشنهادی کاربر (جدید)</button>`;
+            } else if (order.domainStatus && order.domainStatus.trim() !== "") {
+                domainActionBtn = `<button onclick="openAdminDomainModal('${order.orderId}')" class="w-full mt-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border border-indigo-300 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 shadow-sm"><i class="fas fa-globe"></i> مشاهده دامنه متصل شده</button>`;
+            } else {
+                domainActionBtn = `<div class="w-full mt-2 bg-gray-100 text-gray-500 border border-gray-200 py-2 rounded-lg text-xs text-center flex items-center justify-center gap-1"><i class="fas fa-hourglass-half"></i> در انتظار ارسال دامنه توسط کاربر</div>`;
+            }
+        }
+
+        let planHtml = `
+            <div class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs">
+                <p class="mb-1"><i class="fas fa-box text-blue-500 ml-1"></i> نوع پلن: ${planName}</p>
+                ${domainActionBtn}
+            </div>
+        `;
+
+        return `
+            <div class="order-card p-5 relative">
+                ${badgesContainer}
+                <div class="flex justify-between items-start border-b pb-3 mb-3">
+                    <div>
+                        <h3 class="font-bold text-lg text-indigo-900">${order.siteName || 'بدون نام'}</h3>
+                        <p class="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded inline-block mt-1">${order.orderId}</p>
+                    </div>
+                    <button onclick="generateAndShowText('${order.orderId}')" class="bg-indigo-50 text-indigo-600 p-3 rounded-xl hover:bg-indigo-600 hover:text-white transition shadow-sm" title="استخراج متن تمیز پروژه"><i class="fas fa-copy text-xl"></i></button>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-2 text-xs mb-2">
+                    <div class="bg-gray-50 p-2 rounded-lg border border-gray-100 shadow-sm"><span class="text-gray-500 block mb-1">وضعیت پروژه:</span><span class="font-bold px-2 py-1 rounded ${statClass}">${order.orderStatus}</span></div>
+                    <div class="bg-gray-50 p-2 rounded-lg border border-gray-100 shadow-sm"><span class="text-gray-500 block mb-1">مالی:</span><span class="font-bold text-gray-800">${order.paymentStatus}</span></div>
+                    <div class="bg-gray-50 p-2 rounded-lg border border-gray-100 shadow-sm col-span-2"><span class="text-gray-500 block mb-1">قالب:</span><span class="font-bold">${order.template || 'انتخاب نشده'}</span></div>
+                </div>
+
+                ${planHtml}
+                ${userInfoHtml}
+
+                <div class="flex flex-wrap gap-2 border-t pt-4 mt-4">
+                    <button onclick="openStatusModal('${order.orderId}')" class="flex-1 bg-yellow-500 text-white py-2 rounded-lg text-sm font-bold hover:bg-yellow-600 shadow-sm transition"><i class="fas fa-edit"></i> ویرایش / تحویل</button>
+                    <button onclick="openAdminTickets('${order.orderId}')" class="flex-1 bg-blue-500 text-white py-2 rounded-lg text-sm font-bold hover:bg-blue-600 shadow-sm transition"><i class="fas fa-comments"></i> پشتیبانی</button>
+                </div>
+                <div class="flex flex-wrap gap-2 mt-2">
+                    <button onclick="openReceiptsModal('${order.orderId}')" class="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm font-bold hover:bg-green-700 relative shadow-sm transition"><i class="fas fa-receipt"></i> فیش‌ها</button>
+                    <button onclick="openAdminImages('${order.orderId}')" class="flex-1 bg-purple-500 text-white py-2 rounded-lg text-sm font-bold hover:bg-purple-600 shadow-sm transition"><i class="fas fa-images"></i> گالری (${order.images.length})</button>
+                </div>
+            </div>
+        `;
+    }
+
+    function generateAndShowText(orderId) {
+        const order = allOrdersData.find(o => o.orderId === orderId);
+        if (!order) return;
+        const bInfo = extractBioParts(order.bio);
+        const contacts = unpackContactForAdmin(order.contactInfo);
+        
+        let text = `🌍 درخواست طراحی سایت (${order.siteName || 'بدون نام'})
+--------------------------------------
+🌍 [ مشخصات اصلی سایت ]
+--------------------------------------
+🔹 نام سایت: ${order.siteName || 'ندارد'}
+🔹 شعار سایت: ${order.slogan || 'ندارد'}
+🔹 قالب انتخابی: ${order.template || 'ندارد'}
+🔹 خدمات سئو و دامنه: ${order.seoDomainChoice || 'خیر'}
+
+📝 [ درباره کسب و کار / بیوگرافی ]
+--------------------------------------
+${bInfo.bio}
+
+🎨 [ توضیحات و شخصی‌سازی طراحی ]
+--------------------------------------
+${bInfo.notes}
+
+📞 [ راه‌های ارتباطی و شبکه‌های اجتماعی ]
+--------------------------------------
+${contacts}
+
+🌐 [ وضعیت دامنه ]
+--------------------------------------
+وضعیت فعلی: ${order.domainStatus || 'ثبت نشده'}
+پیشنهادات کاربر: ${order.proposedDomains || 'ندارد'}
+`;
+
+        document.getElementById('formattedDataText').innerText = text;
+        document.getElementById('copyDataModal').classList.remove('hidden');
+        document.querySelector('#copyDataModal .font-bold').innerHTML = `<i class="fas fa-file-alt ml-2"></i> درخواست طراحی سایت (${order.siteName || 'بدون نام'})`;
+    }
+
+    function copyToClipboard() {
+        const text = document.getElementById('formattedDataText').innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'در کلیپ‌بورد کپی شد!', showConfirmButton: false, timer: 1500});
+        });
+    }
+
+    function openStatusModal(orderId) {
+        currentOrderId = orderId;
+        const order = allOrdersData.find(o => o.orderId === orderId);
+        
+        document.getElementById('inpOrderStatus').value = order.orderStatus.trim();
+        
+        let pStatus = order.paymentStatus.trim();
+        if(pStatus.includes("پیش پرداخت") || pStatus.includes("قسط 1")) pStatus = "پیش پرداخت انجام شد";
+        else if(pStatus.includes("تسویه") || pStatus.includes("قسط 2")) pStatus = "تسویه کامل انجام شد";
+        else pStatus = "پرداخت نشده";
+        
+        document.getElementById('inpPaymentStatus').value = pStatus;
+        
+        document.getElementById('inpSiteUrl').value = order.siteUrl || "";
+        document.getElementById('inpSiteEmail').value = order.siteEmail || "";
+        document.getElementById('inpSitePass').value = order.sitePass || "";
+        document.getElementById('inpGithub').value = order.githubLink || "";
+
+        document.getElementById('editStatusModal').classList.remove('hidden');
+    }
+
+    function saveAdminOrderUpdates() {
+        Swal.fire({title:'در حال ذخیره...', didOpen:()=>Swal.showLoading()});
+        const payload = {
+            action: "admin_update_order",
+            orderId: currentOrderId,
+            orderStatus: document.getElementById('inpOrderStatus').value,
+            paymentStatus: document.getElementById('inpPaymentStatus').value,
+            siteUrl: document.getElementById('inpSiteUrl').value,
+            siteEmail: document.getElementById('inpSiteEmail').value,
+            sitePass: document.getElementById('inpSitePass').value,
+            githubLink: document.getElementById('inpGithub').value
+        };
+
+        fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) }).then(r=>r.json()).then(d=>{
+            if(d.status==='success') { Swal.fire('موفق', d.message, 'success'); closeModal('editStatusModal'); loadAllData(); }
+            else Swal.fire('خطا', d.message, 'error');
+        });
+    }
+
+    function openReceiptsModal(orderId) {
+        const order = allOrdersData.find(o => o.orderId === orderId);
+        const container = document.getElementById('receiptsContainer');
+        container.innerHTML = '';
+
+        if(!order.receipts || order.receipts.length === 0) {
+            container.innerHTML = '<p class="text-center text-gray-500 font-bold py-6">هیچ فیش دستی برای این سفارش ارسال نشده است.</p>';
+        } else {
+            order.receipts.forEach(r => {
+                let fileId = null;
+                if (r.link && r.link.includes('/file/d/')) {
+                    fileId = r.link.split('/file/d/')[1].split('/')[0];
+                } else if (r.link && r.link.includes('id=')) {
+                    fileId = r.link.split('id=')[1];
+                } else {
+                    fileId = r.link;
+                }
+
+                let badgeClass = r.status.includes('تایید') ? 'bg-green-100 text-green-800' : (r.status.includes('رد') ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800 animate-pulse');
+                let receiptDiv = document.createElement('div');
+                receiptDiv.className = 'border rounded-xl p-5 bg-white flex flex-col md:flex-row justify-between items-center gap-4 shadow-sm';
+                receiptDiv.innerHTML = `
+                    <div>
+                        <p class="font-bold text-gray-800">پرداخت قسط مرحله: <span class="bg-indigo-100 px-2 py-1 rounded text-indigo-800">${r.stage}</span></p>
+                        <p class="text-sm text-gray-600 mt-2">مبلغ: <strong>${r.amount}</strong> | زمان: <span dir="ltr">${r.date}</span></p>
+                        <span class="text-xs px-2 py-1 rounded mt-2 inline-block font-bold ${badgeClass}">${r.status}</span>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <div class="receipt-image-container cursor-pointer" data-fileid="${fileId}">
+                            <span class="text-gray-400">در حال بارگذاری تصویر...</span>
+                        </div>
+                        ${r.status.includes('در انتظار') ? `
+                            <button onclick="handleReceiptAdmin('${orderId}', ${r.rowIdx}, 'تایید شده', ${r.stage})" class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600 shadow" title="تایید پرداخت"><i class="fas fa-check"></i></button>
+                            <button onclick="showRejectReasonModal('${orderId}', ${r.rowIdx}, '${r.stage}')" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600 shadow" title="رد پرداخت"><i class="fas fa-times"></i></button>
+                        ` : ''}
+                    </div>
+                `;
+                container.appendChild(receiptDiv);
+
+                if (fileId) {
+                    loadImageBase64(fileId, (base64) => {
+                        const imgContainer = receiptDiv.querySelector('.receipt-image-container');
+                        if (imgContainer) {
+                            imgContainer.innerHTML = `<img src="data:image/png;base64,${base64}" class="max-w-xs max-h-32 rounded-lg shadow cursor-pointer" alt="فیش">`;
+                            imgContainer.onclick = (e) => {
+                                e.stopPropagation();
+                                showImagePreview(base64);
+                            };
+                        }
+                    });
+                }
+            });
+        }
+        document.getElementById('receiptsModal').classList.remove('hidden');
+    }
+
+    function loadImageBase64(fileId, callback) {
+        fetch(GAS_URL, {
+            method: "POST", headers: {"Content-Type": "text/plain;charset=utf-8"},
+            body: JSON.stringify({action: "get_image_base64", fileId: fileId})
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                callback(data.base64);
+            } else {
+                callback(null);
+            }
+        })
+        .catch(() => callback(null));
+    }
+
+    function showImagePreview(base64) {
+        document.getElementById('previewImage').src = 'data:image/png;base64,' + base64;
+        document.getElementById('imagePreviewModal').classList.remove('hidden');
+    }
+
+    function showRejectReasonModal(orderId, rowIdx, stage) {
+        pendingRejectOrderId = orderId;
+        pendingRejectRowIdx = rowIdx;
+        pendingRejectStage = stage;
+        document.getElementById('rejectReasonText').value = '';
+        document.getElementById('rejectReasonModal').classList.remove('hidden');
+        setTimeout(() => {
+            document.getElementById('rejectReasonText').focus();
+        }, 100);
+    }
+
+    function confirmRejectReceipt() {
+        const reason = sanitizeExcel(document.getElementById('rejectReasonText').value.trim());
+        if (!reason) {
+            return Swal.fire({ icon: 'warning', title: 'خطا', text: 'لطفاً دلیل رد شدن فیش را وارد کنید', confirmButtonText: 'باشه' });
+        }
+        
+        closeModal('rejectReasonModal');
+        
+        Swal.fire({ title: 'در حال ثبت رد فیش...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+        
+        fetch(GAS_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({
+                action: "admin_handle_receipt",
+                orderId: pendingRejectOrderId,
+                receiptRow: pendingRejectRowIdx,
+                newStatus: "رد شده",
+                stage: pendingRejectStage,
+                rejectReason: reason
+            })
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (d.status === 'success') {
+                Swal.fire({ icon: 'success', title: 'موفق', text: 'فیش با موفقیت رد شد و دلیل آن برای کاربر نمایش داده می‌شود.', timer: 2000, showConfirmButton: false });
+                closeModal('receiptsModal');
+                loadAllData();
+                pendingRejectOrderId = null;
+                pendingRejectRowIdx = null;
+                pendingRejectStage = null;
+            } else {
+                Swal.fire({ icon: 'error', title: 'خطا', text: d.message || 'مشکل در ثبت رد فیش' });
+            }
+        })
+        .catch(err => {
+            Swal.fire({ icon: 'error', title: 'خطا', text: 'مشکل در ارتباط با سرور' });
+        });
+    }
+
+    function handleReceiptAdmin(orderId, rowIdx, newStatus, stage) {
+        Swal.fire({title:'درحال اعمال...', didOpen:()=>Swal.showLoading()});
+        fetch(GAS_URL, {
+            method: "POST", body: JSON.stringify({action: "admin_handle_receipt", orderId: orderId, receiptRow: rowIdx, newStatus: newStatus, stage: stage})
+        }).then(r=>r.json()).then(d=>{
+            if(d.status==='success') { Swal.fire('موفق', d.message, 'success'); closeModal('receiptsModal'); loadAllData(); }
+            else Swal.fire('خطا', d.message, 'error');
+        });
+    }
+
+    function openAdminImages(orderId) {
+        const gallery = document.getElementById('adminImagesGallery');
+        gallery.innerHTML = '';
+        
+        const order = allOrdersData.find(o => o.orderId === orderId);
+        if(!order.images || order.images.length === 0) {
+            gallery.innerHTML = '<p class="col-span-full text-center text-gray-500 font-bold py-6">تصویری آپلود نشده است.</p>';
+        } else {
+            if (imagesCache[orderId]) {
+                renderCachedImages(orderId, gallery);
+            } else {
+                let loadedCount = 0;
+                const total = order.images.length;
+                const cached = [];
+                order.images.forEach((img, index) => {
+                    let imgDiv = document.createElement('div');
+                    imgDiv.className = 'border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition bg-white p-2';
+                    imgDiv.innerHTML = `
+                        <div class="image-gallery-container h-32 bg-gray-100 flex items-center justify-center rounded-lg" data-fileid="${img.id}">
+                            <span class="text-gray-400">در حال بارگذاری...</span>
+                        </div>
+                        <p class="text-xs mt-2 text-center text-gray-800 font-bold truncate" title="${img.desc}">${img.desc}</p>
+                    `;
+                    gallery.appendChild(imgDiv);
+                    
+                    loadImageBase64(img.id, (base64) => {
+                        const container = imgDiv.querySelector('.image-gallery-container');
+                        if (container && base64) {
+                            container.innerHTML = `<img src="data:image/png;base64,${base64}" class="max-h-full max-w-full object-cover cursor-pointer" alt="${img.desc}">`;
+                            container.onclick = (e) => {
+                                e.stopPropagation();
+                                showImagePreview(base64);
+                            };
+                        }
+                        cached.push({id: img.id, desc: img.desc, base64: base64});
+                        loadedCount++;
+                        if (loadedCount === total) {
+                            imagesCache[orderId] = cached; 
+                        }
+                    });
+                });
+            }
+        }
+        document.getElementById('adminImagesModal').classList.remove('hidden');
+    }
+
+    function renderCachedImages(orderId, gallery) {
+        const cached = imagesCache[orderId];
+        gallery.innerHTML = '';
+        cached.forEach(img => {
+            let imgDiv = document.createElement('div');
+            imgDiv.className = 'border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition bg-white p-2';
+            imgDiv.innerHTML = `
+                <div class="image-gallery-container h-32 bg-gray-100 flex items-center justify-center rounded-lg cursor-pointer">
+                    <img src="data:image/png;base64,${img.base64}" class="max-h-full max-w-full object-cover" alt="${img.desc}">
+                </div>
+                <p class="text-xs mt-2 text-center text-gray-800 font-bold truncate" title="${img.desc}">${img.desc}</p>
+            `;
+            imgDiv.querySelector('.image-gallery-container').onclick = (e) => {
+                e.stopPropagation();
+                showImagePreview(img.base64);
+            };
+            gallery.appendChild(imgDiv);
+        });
+    }
+
+    function refreshTickets(orderId, force = false) {
+        if (!force && ticketsCache[orderId]) {
+            renderTicketsFromCache(orderId);
+            return;
+        }
+        fetch(GAS_URL, {
+            method: "POST", headers: {"Content-Type": "text/plain;charset=utf-8"},
+            body: JSON.stringify({action: "admin_get_tickets", orderId: orderId})
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                ticketsCache[orderId] = data.tickets;
+                renderTicketsFromCache(orderId);
+            }
+        });
+    }
+
+    function renderTicketsFromCache(orderId) {
+        const box = document.getElementById('adminChatBox');
+        const tickets = ticketsCache[orderId] || [];
+        box.innerHTML = '';
+        if (tickets.length > 0) {
+            tickets.forEach(t => {
+                let isAdmin = t.sender === "پشتیبانی ToWeb";
+                box.innerHTML += `
+                    <div class="chat-bubble shadow-sm ${isAdmin ? 'chat-admin' : 'chat-user'}">
+                        <div class="text-xs opacity-70 mb-2 border-b pb-1 font-bold flex justify-between items-center">
+                            <span>${t.sender}</span>
+                            <span class="font-normal text-[10px] bg-white bg-opacity-30 px-2 py-0.5 rounded">${t.date}</span>
+                        </div>
+                        <div class="leading-relaxed text-sm whitespace-pre-wrap">${t.message}</div>
+                    </div>`;
+            });
+        } else {
+            box.innerHTML = '<div class="text-center text-gray-400 mt-8 font-bold empty-ticket-text bg-white p-6 rounded-2xl w-11/12 mx-auto shadow-sm border"><i class="fas fa-comment-dots text-4xl mb-3 text-gray-300 block"></i>هنوز پیامی رد و بدل نشده است.</div>';
+        }
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function openAdminTickets(orderId) {
+        currentOrderId = orderId;
+        document.getElementById('adminChatBox').innerHTML = '<div class="text-center mt-10"><div class="spinner mx-auto"></div><p class="text-gray-400 mt-2 font-bold">در حال بارگذاری پیام‌ها...</p></div>';
+        refreshTickets(orderId);
+        document.getElementById('adminTicketsModal').classList.remove('hidden');
+    }
+
+    function adminSendTicket() {
+        const rawMsg = document.getElementById('adminNewMsg').value.trim();
+        if(!rawMsg) return;
+
+        // کنترل محدودیت 300 کلمه
+        const wordCount = rawMsg.split(/\s+/).length;
+        if(wordCount > 300) {
+            Swal.fire('خطا', 'متن پیام نمی‌تواند بیشتر از ۳۰۰ کلمه باشد.', 'warning');
+            return;
+        }
+
+        // امن کردن متن با جایگزین کردن کدهای مخرب احتمالی
+        const msg = sanitizeExcel(rawMsg);
+
+        document.getElementById('adminNewMsg').value = '';
+
+        const chatBox = document.getElementById('adminChatBox');
+        const emptyText = chatBox.querySelector('.empty-ticket-text');
+        if (emptyText) emptyText.remove();
+
+        const tempMsgId = 'temp-' + Date.now();
+        const tempBubble = document.createElement('div');
+        tempBubble.id = tempMsgId;
+        tempBubble.className = 'chat-bubble chat-admin spinner-bubble';
+        tempBubble.innerHTML = `
+            <div class="text-xs opacity-70 mb-2 border-b pb-1 font-bold flex justify-between items-center">
+                <span>پشتیبانی ToWeb</span>
+                <span class="font-normal text-[10px] bg-white bg-opacity-30 px-2 py-0.5 rounded">همین الان</span>
+            </div>
+            <div class="leading-relaxed text-sm flex items-center gap-2 whitespace-pre-wrap">
+                <div class="spinner"></div>
+                <span>${msg}</span>
+            </div>
+        `;
+        chatBox.appendChild(tempBubble);
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        fetch(GAS_URL, {
+            method: "POST", body: JSON.stringify({action: "admin_reply_ticket", orderId: currentOrderId, message: msg})
+        }).then(r=>r.json()).then(d=>{
+            if(d.status==='success') {
+                if (ticketsCache[currentOrderId]) {
+                    ticketsCache[currentOrderId].push({ sender: "پشتیبانی ToWeb", message: msg, date: "همین الان" });
+                }
+                const bubble = document.getElementById(tempMsgId);
+                if (bubble) {
+                    bubble.querySelector('.spinner')?.remove();
+                    const msgSpan = bubble.querySelector('span');
+                    if (msgSpan) {
+                        msgSpan.insertAdjacentHTML('afterend', ' <i class="fas fa-check checkmark"></i>');
+                    }
+                }
+                refreshTickets(currentOrderId, true);
+                loadAllData(); // رفرش کل داده‌ها تا نشانگر پیام جدید در کارت آپدیت شود
+            } else {
+                const bubble = document.getElementById(tempMsgId);
+                if (bubble) {
+                    bubble.classList.add('bg-red-50');
+                    bubble.innerHTML += '<div class="text-red-500 text-xs mt-1 font-bold">خطا در ارسال</div>';
+                }
+            }
+        }).catch(() => {
+            const bubble = document.getElementById(tempMsgId);
+            if (bubble) {
+                bubble.classList.add('bg-red-50');
+                bubble.innerHTML += '<div class="text-red-500 text-xs mt-1 font-bold">خطا در اتصال</div>';
+            }
+        });
+    }
+</script>
+</body>
+</html>
