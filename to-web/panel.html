@@ -1,0 +1,2117 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ToWeb Panel</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Google reCAPTCHA v3 -->
+    <script src="https://www.google.com/recaptcha/api.js?render=6Lf4KyUtAAAAACXMJ67b8p2lxG6tsmj9wI9z11tk"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;700&display=swap');
+        body { font-family: 'Vazirmatn', sans-serif; background-color: #f3f4f6; }
+        .hidden { display: none !important; }
+        
+        .chat-bubble { max-width: 80%; padding: 10px 15px; border-radius: 15px; margin-bottom: 10px; font-size: 0.9rem; transition: all 0.3s ease; }
+        .chat-user { background-color: #eff6ff; color: #1e3a8a; border-bottom-right-radius: 0; margin-left: auto; border: 1px solid #bfdbfe; }
+        .chat-admin { background-color: #f3f4f6; color: #374151; border-bottom-left-radius: 0; margin-right: auto; border: 1px solid #e5e7eb; }
+
+        .skeleton-box {
+            background: #e2e8f0;
+            background: linear-gradient(90deg, #e2e8f0 25%, #cbd5e1 50%, #e2e8f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite linear;
+            border-radius: 8px;
+        }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        /* نوار وضعیت اینترنت */
+        #connectionStatus {
+            position: fixed; top: 0; right: 0; left: 0; z-index: 1000;
+            height: 28px; line-height: 28px; font-size: 0.8rem; font-weight: bold; text-align: center;
+            transition: opacity 0.3s ease;
+        }
+        .online-bar { background-color: #10b981; color: white; }
+        .offline-bar { background-color: #ef4444; color: white; }
+
+        /* افکت کلیک روی تصاویر */
+        .clickable-img {
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .clickable-img:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+<script>
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbzz3vPtWqzsUA7J3KRvcMR4QxMgFF_U-jcTBdZtu2RBUsJ1prZ5-ltw_TVZRorVmrMZ/exec"; 
+</script>
+
+<!-- نوار وضعیت اینترنت -->
+<div id="connectionStatus" class="hidden"></div>
+
+<!-- لایت باکس برای نمایش تصویر بزرگ -->
+<div id="lightboxModal" class="hidden fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[100]" onclick="closeLightbox()">
+    <button class="absolute top-6 right-6 text-white hover:text-red-500 text-4xl transition transform hover:scale-110"><i class="fas fa-times"></i></button>
+    <img id="lightboxImg" class="max-h-[90vh] max-w-[95vw] object-contain cursor-zoom-out shadow-2xl rounded-lg">
+</div>
+
+<div id="authSection" class="min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md border-t-4 border-blue-600">
+        <h2 class="text-2xl font-bold text-center mb-6 text-blue-600">ورود به حساب</h2>
+        <input type="text" id="nationalCode" placeholder="کد ملی (۱۰ رقمی)" class="w-full mb-4 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" maxlength="10" inputmode="numeric">
+        <div class="relative w-full mb-4">
+            <input type="password" id="password" placeholder="رمز عبور" class="w-full p-3 pl-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+            <span onclick="togglePasswordVisibility()" class="absolute inset-y-0 left-3 flex items-center cursor-pointer text-gray-400 hover:text-blue-600">
+                <i class="fas fa-eye" id="togglePasswordIcon"></i>
+            </span>
+        </div>
+        <button onclick="handleAuth()" id="authBtn" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition font-bold shadow">ورود</button>
+    </div>
+</div>
+
+<div id="dashboardSection" class="hidden min-h-screen flex flex-col">
+    <nav class="bg-white shadow-md p-4 flex justify-between items-center sticky top-0 z-40">
+        <div class="font-bold text-xl text-blue-600 flex items-center gap-3">
+            <span>ToWeb</span>
+            <button onclick="loadOrders()" class="text-gray-400 hover:text-blue-600 transition" title="بروزرسانی اطلاعات"><i class="fas fa-sync-alt"></i></button>
+        </div>
+        <div class="flex items-center">
+            <span id="userNationalCodeDisplay" class="ml-4 text-sm text-gray-600 hidden md:inline"></span>
+            <button onclick="showUserProfile()" class="text-blue-600 hover:text-blue-800 ml-4 text-sm font-bold transition"><i class="fas fa-user-circle"></i> پروفایل من</button>
+            <button onclick="changePassword()" class="text-gray-600 hover:text-blue-600 ml-4 text-sm transition"><i class="fas fa-key"></i> تغییر رمز</button>
+            <button onclick="logout()" class="text-red-500 hover:text-red-700 text-sm"><i class="fas fa-sign-out-alt"></i> خروج</button>
+        </div>
+    </nav>
+
+    <div class="container mx-auto p-4 sm:p-6 w-full max-w-5xl flex-1">
+        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-8 flex flex-col md:flex-row justify-between items-center shadow-sm gap-4">
+            <div>
+                <h2 class="text-lg font-bold text-blue-800">سایت جدید نیاز دارید؟</h2>
+                <p class="text-sm text-blue-600">همین حالا سفارش جدید خود را ثبت و اطلاعات را تکمیل کنید.</p>
+            </div>
+            <button onclick="showOrderForm()" class="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 shadow-md font-bold transition whitespace-nowrap"><i class="fas fa-plus ml-2"></i> ایجاد سفارش جدید</button>
+        </div>
+
+        <div id="newOrderForm" class="hidden bg-white p-6 rounded-xl shadow-lg mb-8 border-t-4 border-blue-600 relative">
+            <button onclick="closeOrderForm()" class="absolute top-4 left-4 text-gray-400 hover:text-red-500 transition"><i class="fas fa-times text-2xl"></i></button>
+            <h2 id="orderFormTitle" class="text-2xl font-bold mb-6 text-gray-800 border-b pb-3">ثبت سفارش جدید</h2>
+            
+            <div id="step1">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <input type="text" id="siteName" maxlength="100" placeholder="نام سایت" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-400 outline-none transition bg-gray-50">
+                    <input type="text" id="slogan" maxlength="150" placeholder="شعار سایت" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-400 outline-none transition bg-gray-50">
+                    <div class="col-span-full">
+                        <select id="template" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-400 outline-none transition bg-gray-50">
+                            <option value="">انتخاب قالب مد نظر...</option>
+                            <option value="سالن زیبایی - کد 10">سالن زیبایی - کد 10</option>
+                            <option value="کلینیک زیبایی/ لیزر - کد 11">کلینیک زیبایی/ لیزر - کد 11</option>
+                            <option value="لوازم آرایشی - 12">لوازم آرایشی - 12</option>
+                            <option value="مربی بدنسازی- کد 13">مربی بدنسازی- کد 13</option>
+                            <option value="معلم خصوصی - کد 14">معلم خصوصی - کد 14</option>
+                            <option value="مربی فوتبال - 15">مربی فوتبال - 15</option>
+                            <option value="مربی زبان کد 16">مربی زبان کد 16</option>
+                            <option value="مربی کنکور - کد 17">مربی کنکور - کد 17</option>
+                            <option value="آموزشگاه کنکور - کد 18">آموزشگاه کنکور - کد 18</option>
+                            <option value="دفتر وکالت - کد 19">دفتر وکالت - کد 19</option>
+                            <option value="دفتر املاک - کد 20">دفتر املاک - کد 20</option>
+                            <option value="آتلیه و عکاسی - کد 21">آتلیه و عکاسی - کد 21</option>
+                            <option value="آرایشگاه مردانه - کد 22">آرایشگاه مردانه - کد 22</option>
+                            <option value="مزون عروس - کد 23">مزون عروس - کد 23</option>
+                            <option value="جواهر آلات - کد 24">جواهر آلات - کد 24</option>
+                            <option value="کافه - کد 25">کافه - کد 25</option>
+                            <option value="رستوران - کد 26">رستوران - کد 26</option>
+                            <option value="دفتر طراحی و معماری - کد 27">دفتر طراحی و معماری - کد 27</option>
+                            <option value="دفتر مشاوره / مشاور کد 28">دفتر مشاوره / مشاور کد 28</option>
+                            <option value="بوتیک - کد 29">بوتیک - کد 29</option>
+                            <option value="طلافروشی - کد 30">طلافروشی - کد 30</option>
+                            <option value="مؤسسه قرآنی - کد 31">مؤسسه قرآنی - کد 31</option>
+                            <option value="خواننده - کد 32">خواننده - کد 32</option>
+                            <option value="بلاگر - کد 33">بلاگر - کد 33</option>
+                            <option value="صفحه شخصی - کد 34">صفحه شخصی - کد 34</option>
+                        </select>
+                    </div>
+                </div>
+                <button id="btnSubmitStep1" onclick="submitStep1()" class="bg-blue-600 text-white px-6 py-3 rounded-xl w-full font-bold hover:bg-blue-700 shadow-lg transition text-lg mt-2">ثبت اولیه و ادامه</button>
+            </div>
+
+            <div id="step2" class="hidden animate-fade-in mt-2">
+                <div class="bg-yellow-50 text-yellow-800 p-4 rounded-xl mb-6 text-sm border border-yellow-200 shadow-sm leading-relaxed font-bold">
+                    <i class="fas fa-exclamation-triangle ml-1"></i> تکمیل دقیق این اطلاعات به ما کمک می‌کند تا سایت شما را به بهترین شکل طراحی کنیم.
+                </div>
+                
+                <div class="bg-gray-50 p-5 rounded-2xl mb-5 border border-gray-100 shadow-sm">
+                    <h3 class="font-bold text-gray-700 mb-4 border-b pb-2 flex items-center"><i class="fas fa-info-circle text-blue-500 ml-2"></i> اطلاعات پایه و خدمات</h3>
+                    <textarea id="bio" maxlength="1000" placeholder="درباره کسب و کار / بیوگرافی (الزامی - حداکثر ۱۰۰۰ کاراکتر)" class="w-full mb-4 p-3 border rounded-xl h-24 focus:ring-2 focus:ring-blue-400 outline-none transition"></textarea>
+                    <textarea id="inp_SERVICES" maxlength="300" placeholder="لیست خدمات (حداکثر ۳۰۰ کاراکتر)" class="w-full mb-4 p-3 border rounded-xl h-20 focus:ring-2 focus:ring-blue-400 outline-none transition"></textarea>
+                    <textarea id="inp_ADDITIONAL" maxlength="500" placeholder="هر توضیح اضافی برای نمایش در سایت (حداکثر ۵۰۰ کاراکتر)" class="w-full p-3 border rounded-xl h-20 focus:ring-2 focus:ring-blue-400 outline-none transition"></textarea>
+                </div>
+                
+                <div class="bg-gray-50 p-5 rounded-2xl mb-5 border border-gray-100 shadow-sm">
+                    <div class="flex justify-between items-center mb-4 border-b pb-2">
+                        <h3 class="font-bold text-gray-700 flex items-center"><i class="fas fa-phone-alt text-green-500 ml-2"></i> راه‌های ارتباطی و آدرس</h3>
+                        <button onclick="addPhoneRow('')" class="text-xs bg-green-100 text-green-700 px-3 py-1.5 rounded-lg hover:bg-green-200 font-bold transition shadow-sm"><i class="fas fa-plus ml-1"></i> افزودن شماره</button>
+                    </div>
+                    <div id="phoneContainer" class="mb-4"></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex items-center border rounded-xl bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <span class="p-3 bg-gray-100 text-gray-500 border-l"><i class="fas fa-envelope"></i></span>
+                            <input type="email" id="inp_Email" maxlength="100" placeholder="ایمیل کاری" class="w-full p-3 outline-none text-sm" dir="ltr">
+                        </div>
+                        <div class="flex items-center border rounded-xl bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <span class="p-3 bg-gray-100 text-gray-500 border-l"><i class="fas fa-map-marker-alt"></i></span>
+                            <input type="text" id="inp_Address" maxlength="200" placeholder="آدرس فیزیکی دفتر/فروشگاه" class="w-full p-3 outline-none text-sm">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 p-5 rounded-2xl mb-5 border border-gray-100 shadow-sm">
+                    <h3 class="font-bold text-gray-700 mb-4 border-b pb-2 flex items-center"><i class="fas fa-map text-red-500 ml-2"></i> مسیریاب‌ها (لینک نقشه)</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="flex items-center border rounded-xl bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <span class="p-3 bg-gray-100 text-blue-500 border-l"><i class="fas fa-map"></i></span>
+                            <input type="text" id="inp_GoogleMap" maxlength="200" placeholder="لینک گوگل مپ" class="w-full p-3 outline-none text-sm" dir="ltr">
+                        </div>
+                        <div class="flex items-center border rounded-xl bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <span class="p-3 bg-gray-100 text-red-500 border-l"><i class="fas fa-location-arrow"></i></span>
+                            <input type="text" id="inp_Neshan" maxlength="200" placeholder="لینک مپ نشان" class="w-full p-3 outline-none text-sm" dir="ltr">
+                        </div>
+                        <div class="flex items-center border rounded-xl bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <span class="p-3 bg-gray-100 text-green-500 border-l"><i class="fas fa-route"></i></span>
+                            <input type="text" id="inp_Balad" maxlength="200" placeholder="لینک مپ بلد" class="w-full p-3 outline-none text-sm" dir="ltr">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 p-5 rounded-2xl mb-5 border border-gray-100 shadow-sm">
+                    <h3 class="font-bold text-gray-700 mb-4 border-b pb-2 flex items-center"><i class="fas fa-hashtag text-purple-500 ml-2"></i> شبکه‌های اجتماعی</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div class="flex items-center border rounded-xl bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <span class="p-3 bg-gray-100 text-pink-500 border-l"><i class="fab fa-instagram w-5 text-center"></i></span>
+                            <input type="text" id="inp_Insta" maxlength="150" placeholder="آیدی یا لینک اینستاگرام" class="w-full p-3 outline-none text-sm" dir="ltr">
+                        </div>
+                        <div class="flex items-center border rounded-xl bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <span class="p-3 bg-gray-100 text-green-500 border-l"><i class="fab fa-whatsapp w-5 text-center"></i></span>
+                            <input type="text" id="inp_Wa" maxlength="150" placeholder="واتساپ" class="w-full p-3 outline-none text-sm" dir="ltr">
+                        </div>
+                        <div class="flex items-center border rounded-xl bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <span class="p-3 bg-gray-100 text-blue-400 border-l"><i class="fab fa-telegram w-5 text-center"></i></span>
+                            <input type="text" id="inp_Telegram" maxlength="150" placeholder="تلگرام" class="w-full p-3 outline-none text-sm" dir="ltr">
+                        </div>
+                        <div class="flex items-center border rounded-xl bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <span class="p-3 bg-gray-100 text-orange-500 border-l"><i class="fas fa-comment-dots w-5 text-center"></i></span>
+                            <input type="text" id="inp_Eitaa" maxlength="150" placeholder="لینک کانال ایتا" class="w-full p-3 outline-none text-sm" dir="ltr">
+                        </div>
+                        <div class="flex items-center border rounded-xl bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <span class="p-3 bg-gray-100 text-purple-500 border-l"><i class="fas fa-users w-5 text-center"></i></span>
+                            <input type="text" id="inp_Rubika" maxlength="150" placeholder="روبیکا" class="w-full p-3 outline-none text-sm" dir="ltr">
+                        </div>
+                        <div class="flex items-center border rounded-xl bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <span class="p-3 bg-gray-100 text-red-600 border-l"><i class="fab fa-youtube w-5 text-center"></i></span>
+                            <input type="text" id="inp_YouTube" maxlength="150" placeholder="یوتیوب" class="w-full p-3 outline-none text-sm" dir="ltr">
+                        </div>
+                        <div class="flex items-center border rounded-xl bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <span class="p-3 bg-gray-100 text-green-600 border-l"><i class="fas fa-comment w-5 text-center"></i></span>
+                            <input type="text" id="inp_Bale" maxlength="150" placeholder="بله" class="w-full p-3 outline-none text-sm" dir="ltr">
+                        </div>
+                        <div class="flex items-center border rounded-xl bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <span class="p-3 bg-gray-100 text-blue-500 border-l"><i class="fas fa-comments w-5 text-center"></i></span>
+                            <input type="text" id="inp_Soroush" maxlength="150" placeholder="سروش پلاس" class="w-full p-3 outline-none text-sm" dir="ltr">
+                        </div>
+                        <div class="flex items-center border rounded-xl bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <span class="p-3 bg-gray-100 text-gray-800 border-l"><i class="fab fa-twitter w-5 text-center"></i></span>
+                            <input type="text" id="inp_Twitter" maxlength="150" placeholder="توییتر (X)" class="w-full p-3 outline-none text-sm" dir="ltr">
+                        </div>
+                        <div class="flex items-center border rounded-xl bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <span class="p-3 bg-gray-100 text-blue-700 border-l"><i class="fab fa-linkedin w-5 text-center"></i></span>
+                            <input type="text" id="inp_LinkedIn" maxlength="150" placeholder="لینکدین" class="w-full p-3 outline-none text-sm" dir="ltr">
+                        </div>
+                        <div class="flex items-center border rounded-xl bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <span class="p-3 bg-gray-100 text-pink-600 border-l"><i class="fas fa-video w-5 text-center"></i></span>
+                            <input type="text" id="inp_Aparat" maxlength="150" placeholder="آپارات" class="w-full p-3 outline-none text-sm" dir="ltr">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 p-5 rounded-2xl mb-5 border border-gray-100 shadow-sm">
+                    <h3 class="font-bold text-gray-700 mb-4 border-b pb-2 flex items-center"><i class="fas fa-mouse-pointer text-orange-500 ml-2"></i> دکمه اقدام (CTA) و ساعات کاری</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex items-center border rounded-xl bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <select id="inp_CTA_TYPE" class="w-full p-3 outline-none text-sm bg-transparent">
+                                <option value="">نوع دکمه بالای سایت...</option>
+                                <option value="مشاوره رایگان">مشاوره رایگان</option>
+                                <option value="ثبت سفارش">ثبت سفارش</option>
+                                <option value="تماس با ما">تماس با ما</option>
+                                <option value="واتساپ">واتساپ</option>
+                                <option value="تلگرام">تلگرام</option>
+                                <option value="سفارشی">سفارشی</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center border rounded-xl bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <input type="text" id="inp_CTA_TEXT" maxlength="50" placeholder="متن دکمه (مثلا دریافت مشاوره)" class="w-full p-3 outline-none text-sm">
+                        </div>
+                        <div class="md:col-span-2 flex items-center border rounded-xl bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <input type="text" id="inp_CTA_LINK" maxlength="200" placeholder="لینک مقصد دکمه یا شماره تماس" class="w-full p-3 outline-none text-sm" dir="ltr">
+                        </div>
+                        <div class="md:col-span-2 flex flex-col md:flex-row gap-4 mt-2">
+                            <input type="text" id="inp_WORK_DAYS" maxlength="100" placeholder="روزهای کاری (مثلا شنبه تا پنجشنبه)" class="flex-1 p-3 border rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-sm">
+                            <div class="flex items-center gap-2 flex-1">
+                                <input type="time" id="inp_WORK_START" class="w-1/2 p-3 border rounded-xl outline-none text-sm focus:ring-2 focus:ring-blue-400">
+                                <span class="text-sm font-bold text-gray-500">تا</span>
+                                <input type="time" id="inp_WORK_END" class="w-1/2 p-3 border rounded-xl outline-none text-sm focus:ring-2 focus:ring-blue-400">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 p-5 rounded-2xl mb-5 border border-gray-100 shadow-sm">
+                    <h3 class="font-bold text-gray-700 mb-4 border-b pb-2 flex items-center"><i class="fas fa-cogs text-gray-500 ml-2"></i> تنظیمات نمایش بخش‌ها و توضیحات طراحی</h3>
+                    <div id="sectionsContainer" class="flex flex-wrap gap-4 text-sm font-bold text-gray-700 bg-white p-4 rounded-xl border mb-4">
+                        <label class="flex items-center cursor-pointer bg-gray-50 px-3 py-2 rounded border hover:bg-gray-100 transition"><input type="checkbox" value="خدمات" checked class="mr-2 ml-2 w-4 h-4"> خدمات</label>
+                        <label class="flex items-center cursor-pointer bg-gray-50 px-3 py-2 rounded border hover:bg-gray-100 transition"><input type="checkbox" value="نمونه‌کارها" checked class="mr-2 ml-2 w-4 h-4"> نمونه‌کارها</label>
+                        <label class="flex items-center cursor-pointer bg-gray-50 px-3 py-2 rounded border hover:bg-gray-100 transition"><input type="checkbox" value="نظرات" checked class="mr-2 ml-2 w-4 h-4"> نظرات مشتریان</label>
+                        <label class="flex items-center cursor-pointer bg-gray-50 px-3 py-2 rounded border hover:bg-gray-100 transition"><input type="checkbox" value="ساعات کاری" checked class="mr-2 ml-2 w-4 h-4"> ساعات کاری</label>
+                        <label class="flex items-center cursor-pointer bg-gray-50 px-3 py-2 rounded border hover:bg-gray-100 transition"><input type="checkbox" value="نقشه" checked class="mr-2 ml-2 w-4 h-4"> نقشه</label>
+                        <label class="flex items-center cursor-pointer bg-gray-50 px-3 py-2 rounded border hover:bg-gray-100 transition"><input type="checkbox" value="فرم تماس" checked class="mr-2 ml-2 w-4 h-4"> فرم تماس</label>
+                        <label class="flex items-center cursor-pointer bg-gray-50 px-3 py-2 rounded border hover:bg-gray-100 transition"><input type="checkbox" value="شبکه‌های اجتماعی" checked class="mr-2 ml-2 w-4 h-4"> شبکه‌های اجتماعی</label>
+                    </div>
+                    <textarea id="designNotes" maxlength="300" placeholder="توضیحات طراحی و سفارشی‌سازی‌های جزئی (حداکثر ۳۰۰ کاراکتر)" class="w-full p-3 border rounded-xl h-24 focus:ring-2 focus:ring-blue-400 outline-none transition"></textarea>
+                </div>
+
+                <div class="bg-blue-50 text-blue-800 p-5 rounded-2xl mb-6 text-sm border border-blue-200 shadow-sm transition hover:shadow-md">
+                    <label class="flex items-center cursor-pointer font-bold text-base">
+                        <input type="checkbox" id="wantsSeoDomain" class="mr-2 ml-3 w-6 h-6 text-blue-600 rounded">
+                        مایل به انجام خدمات سئو و اخذ دامنه اختصاصی هستم (مبلغ 1 میلیون تومان به فاکتور نهایی اضافه می‌شود)
+                    </label>
+                    <p class="text-xs mt-3 text-gray-600 font-bold leading-relaxed pr-9"><i class="fas fa-info-circle ml-1"></i> امکان اتصال دامنه اختصاصی در صورت انتخاب این گزینه برای شما فعال خواهد شد.</p>
+                </div>
+
+                <button id="btnSaveDetails" onclick="saveDetailsAndEnablePay()" class="w-full bg-blue-600 text-white px-6 py-4 rounded-xl hover:bg-blue-700 shadow-xl font-bold text-lg transition flex justify-center items-center gap-2">
+                    <i class="fas fa-save"></i> ذخیره نهایی اطلاعات
+                </button>
+            </div>
+        </div>
+
+        <h1 class="text-2xl font-bold mb-6 text-gray-800"><i class="fas fa-list-alt text-blue-500 ml-2"></i> سفارشات من</h1>
+        <div id="ordersList" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+    </div>
+</div>
+
+<!-- مودال کارت به کارت -->
+<div id="cardPaymentModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+    <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md relative border-t-4 border-green-500 w-full overflow-hidden">
+        <button onclick="closeModal('cardPaymentModal')" class="absolute top-4 left-4 text-gray-400 hover:text-red-500 transition"><i class="fas fa-times text-xl"></i></button>
+        <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-3"><i class="fas fa-credit-card text-green-500 ml-2"></i> پرداخت کارت به کارت</h2>
+        
+        <div class="mb-4 text-center bg-gray-50 p-4 rounded-xl border shadow-inner">
+            <p class="text-gray-600 mb-1 font-bold">مبلغ قابل پرداخت این قسط:</p>
+            <p class="text-3xl font-bold text-green-600" id="paymentAmountDisplay">0 تومان</p>
+        </div>
+
+        <div class="bg-yellow-50 p-5 rounded-xl border border-yellow-200 text-sm text-yellow-800 mb-5 text-center leading-relaxed shadow-sm">
+            لطفاً مبلغ فوق را دقیقاً به شماره کارت زیر واریز نموده و تصویر رسید را آپلود کنید.<br>
+            <span class="text-xs text-gray-500 block mt-2">(جهت کپی روی شماره کارت کلیک کنید)</span>
+            <div class="w-full flex justify-center mt-2">
+                <div onclick="copyCardNumber()" class="text-2xl font-bold tracking-widest text-gray-900 bg-white p-3 border rounded-xl cursor-pointer hover:bg-blue-50 transition shadow-sm inline-block" dir="ltr" title="کلیک برای کپی">6219861910806008</div>
+            </div>
+            <div class="text-sm text-gray-700 mt-3 font-bold bg-white inline-block px-4 py-1 rounded-full border shadow-sm">به نام: امیرحسین دادگستر</div>
+        </div>
+        
+        <input type="file" id="receiptInput" accept="image/*" class="w-full border-2 border-dashed border-gray-300 p-3 rounded-xl text-sm bg-gray-50 hover:bg-gray-100 transition mb-4 outline-none">
+        
+        <div id="receiptPreview" class="hidden mb-4 w-full h-48 border-2 border-dashed border-green-300 rounded-xl overflow-hidden bg-green-50 flex items-center justify-center relative p-1">
+            <img id="receiptPreviewImg" class="h-full w-full object-cover rounded-lg shadow-sm clickable-img" alt="پیش‌نمایش رسید" onclick="openLightbox(this.src)">
+        </div>
+        
+        <button id="uploadReceiptBtn" onclick="uploadReceipt()" class="w-full bg-green-600 text-white px-4 py-4 rounded-xl hover:bg-green-700 font-bold transition flex justify-center items-center gap-2 shadow-lg text-lg">
+            <i class="fas fa-upload"></i> ارسال رسید پرداخت
+        </button>
+    </div>
+</div>
+
+<!-- مودال تاریخچه پرداخت‌ها -->
+<div id="paymentsHistoryModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+    <div class="bg-white p-0 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col relative border-t-4 border-indigo-500">
+        <div class="p-6 border-b bg-gray-50 rounded-t-2xl flex justify-between items-center sticky top-0 z-10">
+            <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-history text-indigo-500 ml-2"></i> تاریخچه پرداخت‌های این سفارش</h2>
+            <button onclick="closeModal('paymentsHistoryModal')" class="text-gray-400 hover:text-red-500 transition"><i class="fas fa-times text-2xl"></i></button>
+        </div>
+        
+        <div class="overflow-y-auto p-6 flex-1 bg-white">
+            <div class="overflow-x-auto rounded-xl border shadow-sm">
+                <table class="w-full text-sm text-right text-gray-600">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-100 border-b">
+                        <tr>
+                            <th scope="col" class="px-6 py-4 font-bold">نوع/مرحله</th>
+                            <th scope="col" class="px-6 py-4 font-bold">مبلغ</th>
+                            <th scope="col" class="px-6 py-4 font-bold">تاریخ و ساعت</th>
+                            <th scope="col" class="px-6 py-4 font-bold">وضعیت / تصویر رسید</th>
+                        </tr>
+                    </thead>
+                    <tbody id="paymentsHistoryTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- مودال تحویل نهایی -->
+<div id="finalDataModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+    <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-lg relative border-t-8 border-green-500 transform transition-all">
+        <div class="text-center mb-6">
+            <div class="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+                <i class="fas fa-check-circle text-6xl text-green-500"></i>
+            </div>
+            <h2 class="text-3xl font-bold text-gray-800">سایت شما آماده است!</h2>
+            <p class="text-sm text-gray-500 mt-3 font-bold bg-gray-50 p-2 rounded-lg border inline-block">اطلاعات ورود و فایل‌های پروژه در دسترس شماست.</p>
+        </div>
+        <div id="finalDataContent" class="space-y-4 mb-6"></div>
+        <button onclick="closeModal('finalDataModal')" class="w-full bg-gray-200 text-gray-800 font-bold px-4 py-4 rounded-xl hover:bg-gray-300 transition shadow">بستن پنجره</button>
+    </div>
+</div>
+
+<div id="ticketsModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+    <div class="bg-white p-0 rounded-2xl shadow-2xl w-full max-w-2xl h-[85vh] flex flex-col relative border-t-4 border-blue-500">
+        <div class="p-5 border-b bg-gray-50 rounded-t-2xl flex justify-between items-center shadow-sm z-10">
+            <h2 class="text-xl font-bold text-blue-600 flex items-center"><i class="fas fa-headset ml-2 text-2xl"></i> پشتیبانی سفارش: <span id="ticketOrderIdDisplay" class="text-sm text-gray-500 mr-2 bg-white px-2 py-1 rounded border"></span></h2>
+            <button onclick="closeModal('ticketsModal')" class="text-gray-400 hover:text-red-500 transition"><i class="fas fa-times text-2xl"></i></button>
+        </div>
+        <div id="ticketsChatBox" class="flex-1 overflow-y-auto p-4 flex flex-col bg-gray-100 inner-shadow"></div>
+        <div class="p-4 bg-white border-t rounded-b-2xl shadow-inner flex-shrink-0">
+            <div class="flex flex-row gap-2 relative items-stretch w-full">
+                <textarea id="newTicketMessage" rows="2" placeholder="پیام خود را بنویسید (حداکثر ۳۰۰ کلمه)..." class="flex-1 p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition bg-gray-50 resize-none"></textarea>
+                <button onclick="sendNewTicket()" id="btnSendTicket" class="bg-blue-600 text-white px-5 rounded-xl hover:bg-blue-700 shadow-lg font-bold transition flex flex-col items-center justify-center flex-shrink-0 h-auto whitespace-nowrap"><i class="fas fa-paper-plane mb-1"></i> ارسال</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="orderDetailsModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+    <div class="bg-white p-0 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col relative border-t-4 border-blue-600">
+        <div class="p-6 border-b bg-gray-50 rounded-t-2xl flex justify-between items-center sticky top-0 z-20 shadow-sm">
+            <h2 class="text-2xl font-bold text-blue-600 flex items-center"><i class="fas fa-edit ml-2"></i> جزئیات و ویرایش سفارش <span id="viewOrderId" class="text-sm text-gray-500 mr-3 bg-white px-3 py-1 rounded-lg border font-mono"></span></h2>
+            <button onclick="closeModal('orderDetailsModal')" class="text-gray-400 hover:text-red-500 transition"><i class="fas fa-times text-2xl"></i></button>
+        </div>
+        
+        <div class="p-6 overflow-y-auto bg-gray-100 flex-1">
+            <div id="editWarningMessage" class="hidden bg-green-50 text-green-800 p-4 rounded-xl mb-6 text-sm font-bold border border-green-200 shadow-sm flex items-center">
+                <i class="fas fa-info-circle text-xl ml-2 text-green-600"></i> وضعیت پروژه اجازه ویرایش را به شما می‌دهد. لطفا اطلاعات را با دقت وارد کنید.
+            </div>
+            <div id="viewOnlyMessage" class="hidden bg-red-50 text-red-600 p-4 rounded-xl mb-6 text-sm font-bold border border-red-200 shadow-sm flex items-center">
+                <i class="fas fa-lock text-xl ml-2 text-red-500"></i> وضعیت این سفارش در حالت طراحی/تکمیل است و اطلاعات آن قفل شده است.
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-4">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
+                    <h3 class="font-bold text-gray-700 mb-4 border-b pb-2 flex items-center"><i class="fas fa-info-circle text-blue-500 ml-2"></i> اطلاعات پایه و خدمات</h3>
+                    <div class="space-y-4">
+                        <div><label class="text-xs text-gray-500 font-bold block mb-1">نام سایت</label><input type="text" id="viewSiteName" maxlength="100" class="w-full p-3 border rounded-xl bg-gray-50 disabled:text-gray-600 disabled:bg-gray-100 outline-none focus:ring-2 focus:ring-blue-400 transition"></div>
+                        <div><label class="text-xs text-gray-500 font-bold block mb-1">شعار</label><input type="text" id="viewSlogan" maxlength="150" class="w-full p-3 border rounded-xl bg-gray-50 disabled:text-gray-600 disabled:bg-gray-100 outline-none focus:ring-2 focus:ring-blue-400 transition"></div>
+                        <div>
+                            <label class="text-xs text-gray-500 font-bold block mb-1">قالب انتخابی</label>
+                            <select id="viewTemplate" class="w-full p-3 border rounded-xl bg-gray-50 disabled:text-gray-600 disabled:bg-gray-100 outline-none focus:ring-2 focus:ring-blue-400 transition">
+                                <option value="">انتخاب قالب مد نظر...</option>
+                                <option value="سالن زیبایی - کد 10">سالن زیبایی - کد 10</option>
+                                <option value="کلینیک زیبایی/ لیزر - کد 11">کلینیک زیبایی/ لیزر - کد 11</option>
+                                <option value="لوازم آرایشی - 12">لوازم آرایشی - 12</option>
+                                <option value="مربی بدنسازی- کد 13">مربی بدنسازی- کد 13</option>
+                                <option value="معلم خصوصی - کد 14">معلم خصوصی - کد 14</option>
+                                <option value="مربی فوتبال - 15">مربی فوتبال - 15</option>
+                                <option value="مربی زبان کد 16">مربی زبان کد 16</option>
+                                <option value="مربی کنکور - کد 17">مربی کنکور - کد 17</option>
+                                <option value="آموزشگاه کنکور - کد 18">آموزشگاه کنکور - کد 18</option>
+                                <option value="دفتر وکالت - کد 19">دفتر وکالت - کد 19</option>
+                                <option value="دفتر املاک - کد 20">دفتر املاک - کد 20</option>
+                                <option value="آتلیه و عکاسی - کد 21">آتلیه و عکاسی - کد 21</option>
+                                <option value="آرایشگاه مردانه - کد 22">آرایشگاه مردانه - کد 22</option>
+                                <option value="مزون عروس - کد 23">مزون عروس - کد 23</option>
+                                <option value="جواهر آلات - کد 24">جواهر آلات - کد 24</option>
+                                <option value="کافه - کد 25">کافه - کد 25</option>
+                                <option value="رستوران - کد 26">رستوران - کد 26</option>
+                                <option value="دفتر طراحی و معماری - کد 27">دفتر طراحی و معماری - کد 27</option>
+                                <option value="دفتر مشاوره / مشاور کد 28">دفتر مشاوره / مشاور کد 28</option>
+                                <option value="بوتیک - کد 29">بوتیک - کد 29</option>
+                                <option value="طلافروشی - کد 30">طلافروشی - کد 30</option>
+                                <option value="مؤسسه قرآنی - کد 31">مؤسسه قرآنی - کد 31</option>
+                                <option value="خواننده - کد 32">خواننده - کد 32</option>
+                                <option value="بلاگر - کد 33">بلاگر - کد 33</option>
+                                <option value="صفحه شخصی - کد 34">صفحه شخصی - کد 34</option>
+                            </select>
+                        </div>
+                        <div><label class="text-xs text-gray-500 font-bold block mb-1">بیوگرافی / درباره</label><textarea id="viewBio" maxlength="1000" class="w-full p-3 border rounded-xl bg-gray-50 h-24 disabled:text-gray-600 disabled:bg-gray-100 outline-none focus:ring-2 focus:ring-blue-400 transition"></textarea></div>
+                        <div><label class="text-xs text-gray-500 font-bold block mb-1">خدمات اصلی</label><textarea id="view_inp_SERVICES" maxlength="300" class="w-full p-3 border rounded-xl bg-gray-50 h-20 disabled:text-gray-600 focus:ring-2 focus:ring-blue-400 outline-none transition"></textarea></div>
+                        <div><label class="text-xs text-gray-500 font-bold block mb-1">توضیحات تکمیلی</label><textarea id="view_inp_ADDITIONAL" maxlength="500" class="w-full p-3 border rounded-xl bg-gray-50 h-20 disabled:text-gray-600 focus:ring-2 focus:ring-blue-400 outline-none transition"></textarea></div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
+                    <div class="flex justify-between items-center mb-4 border-b pb-2">
+                        <h3 class="font-bold text-gray-700 flex items-center"><i class="fas fa-phone-alt text-green-500 ml-2"></i> راه‌های ارتباطی و آدرس</h3>
+                        <button onclick="addPhoneRow('view')" id="btnViewAddPhone" class="text-xs bg-green-100 text-green-700 px-3 py-1.5 rounded-lg hover:bg-green-200 font-bold transition shadow-sm"><i class="fas fa-plus ml-1"></i> افزودن شماره</button>
+                    </div>
+                    <div id="view_phoneContainer" class="mb-4 space-y-2"></div>
+                    <div class="space-y-4">
+                        <div class="flex items-center border rounded-xl overflow-hidden bg-gray-50 focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <span class="p-3 text-gray-400 border-l bg-white"><i class="fas fa-envelope"></i></span>
+                            <input type="email" id="view_inp_Email" maxlength="100" placeholder="ایمیل کاری" class="w-full p-3 bg-transparent disabled:text-gray-600 outline-none text-sm" dir="ltr">
+                        </div>
+                        <div class="flex items-center border rounded-xl overflow-hidden bg-gray-50 focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <span class="p-3 text-gray-400 border-l bg-white"><i class="fas fa-map-marker-alt"></i></span>
+                            <input type="text" id="view_inp_Address" maxlength="200" placeholder="آدرس فیزیکی" class="w-full p-3 bg-transparent disabled:text-gray-600 outline-none text-sm">
+                        </div>
+                    </div>
+
+                    <h3 class="font-bold text-gray-700 mt-6 mb-4 border-b pb-2 flex items-center"><i class="fas fa-map text-red-500 ml-2"></i> مسیریاب‌ها (لینک نقشه)</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center border rounded-xl overflow-hidden bg-gray-50 focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <span class="p-3 text-blue-500 border-l bg-white w-12 text-center"><i class="fas fa-map"></i></span>
+                            <input type="text" id="view_inp_GoogleMap" maxlength="200" placeholder="گوگل مپ" class="w-full p-3 bg-transparent disabled:text-gray-600 outline-none text-sm" dir="ltr">
+                        </div>
+                        <div class="flex items-center border rounded-xl overflow-hidden bg-gray-50 focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <span class="p-3 text-red-500 border-l bg-white w-12 text-center"><i class="fas fa-location-arrow"></i></span>
+                            <input type="text" id="view_inp_Neshan" maxlength="200" placeholder="مپ نشان" class="w-full p-3 bg-transparent disabled:text-gray-600 outline-none text-sm" dir="ltr">
+                        </div>
+                        <div class="flex items-center border rounded-xl overflow-hidden bg-gray-50 focus-within:ring-2 focus-within:ring-blue-400 transition">
+                            <span class="p-3 text-green-500 border-l bg-white w-12 text-center"><i class="fas fa-route"></i></span>
+                            <input type="text" id="view_inp_Balad" maxlength="200" placeholder="مپ بلد" class="w-full p-3 bg-transparent disabled:text-gray-600 outline-none text-sm" dir="ltr">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
+                    <h3 class="font-bold text-gray-700 mb-4 border-b pb-2 flex items-center"><i class="fas fa-hashtag text-purple-500 ml-2"></i> شبکه‌های اجتماعی</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="flex items-center border rounded-xl overflow-hidden bg-gray-50 focus-within:ring-2 focus-within:ring-blue-400 transition"><span class="p-3 text-pink-500 border-l bg-white w-10 text-center"><i class="fab fa-instagram"></i></span><input type="text" id="view_inp_Insta" maxlength="150" placeholder="اینستاگرام" class="w-full p-2 bg-transparent disabled:text-gray-600 outline-none text-sm" dir="ltr"></div>
+                        <div class="flex items-center border rounded-xl overflow-hidden bg-gray-50 focus-within:ring-2 focus-within:ring-blue-400 transition"><span class="p-3 text-green-500 border-l bg-white w-10 text-center"><i class="fab fa-whatsapp"></i></span><input type="text" id="view_inp_Wa" maxlength="150" placeholder="واتساپ" class="w-full p-2 bg-transparent disabled:text-gray-600 outline-none text-sm" dir="ltr"></div>
+                        <div class="flex items-center border rounded-xl overflow-hidden bg-gray-50 focus-within:ring-2 focus-within:ring-blue-400 transition"><span class="p-3 text-blue-400 border-l bg-white w-10 text-center"><i class="fab fa-telegram"></i></span><input type="text" id="view_inp_Telegram" maxlength="150" placeholder="تلگرام" class="w-full p-2 bg-transparent disabled:text-gray-600 outline-none text-sm" dir="ltr"></div>
+                        <div class="flex items-center border rounded-xl overflow-hidden bg-gray-50 focus-within:ring-2 focus-within:ring-blue-400 transition"><span class="p-3 text-orange-500 border-l bg-white w-10 text-center"><i class="fas fa-comment-dots"></i></span><input type="text" id="view_inp_Eitaa" maxlength="150" placeholder="ایتا" class="w-full p-2 bg-transparent disabled:text-gray-600 outline-none text-sm" dir="ltr"></div>
+                        <div class="flex items-center border rounded-xl overflow-hidden bg-gray-50 focus-within:ring-2 focus-within:ring-blue-400 transition"><span class="p-3 text-purple-500 border-l bg-white w-10 text-center"><i class="fas fa-users"></i></span><input type="text" id="view_inp_Rubika" maxlength="150" placeholder="روبیکا" class="w-full p-2 bg-transparent disabled:text-gray-600 outline-none text-sm" dir="ltr"></div>
+                        <div class="flex items-center border rounded-xl overflow-hidden bg-gray-50 focus-within:ring-2 focus-within:ring-blue-400 transition"><span class="p-3 text-red-600 border-l bg-white w-10 text-center"><i class="fab fa-youtube"></i></span><input type="text" id="view_inp_YouTube" maxlength="150" placeholder="یوتیوب" class="w-full p-2 bg-transparent disabled:text-gray-600 outline-none text-sm" dir="ltr"></div>
+                        <div class="flex items-center border rounded-xl overflow-hidden bg-gray-50 focus-within:ring-2 focus-within:ring-blue-400 transition"><span class="p-3 text-green-600 border-l bg-white w-10 text-center"><i class="fas fa-comment"></i></span><input type="text" id="view_inp_Bale" maxlength="150" placeholder="بله" class="w-full p-2 bg-transparent disabled:text-gray-600 outline-none text-sm" dir="ltr"></div>
+                        <div class="flex items-center border rounded-xl overflow-hidden bg-gray-50 focus-within:ring-2 focus-within:ring-blue-400 transition"><span class="p-3 text-blue-500 border-l bg-white w-10 text-center"><i class="fas fa-comments"></i></span><input type="text" id="view_inp_Soroush" maxlength="150" placeholder="سروش پلاس" class="w-full p-2 bg-transparent disabled:text-gray-600 outline-none text-sm" dir="ltr"></div>
+                        <div class="flex items-center border rounded-xl overflow-hidden bg-gray-50 focus-within:ring-2 focus-within:ring-blue-400 transition"><span class="p-3 text-gray-800 border-l bg-white w-10 text-center"><i class="fab fa-twitter"></i></span><input type="text" id="view_inp_Twitter" maxlength="150" placeholder="توییتر (X)" class="w-full p-2 bg-transparent disabled:text-gray-600 outline-none text-sm" dir="ltr"></div>
+                        <div class="flex items-center border rounded-xl overflow-hidden bg-gray-50 focus-within:ring-2 focus-within:ring-blue-400 transition"><span class="p-3 text-blue-700 border-l bg-white w-10 text-center"><i class="fab fa-linkedin"></i></span><input type="text" id="view_inp_LinkedIn" maxlength="150" placeholder="لینکدین" class="w-full p-2 bg-transparent disabled:text-gray-600 outline-none text-sm" dir="ltr"></div>
+                        <div class="flex items-center border rounded-xl overflow-hidden bg-gray-50 focus-within:ring-2 focus-within:ring-blue-400 transition"><span class="p-3 text-pink-600 border-l bg-white w-10 text-center"><i class="fas fa-video"></i></span><input type="text" id="view_inp_Aparat" maxlength="150" placeholder="آپارات" class="w-full p-2 bg-transparent disabled:text-gray-600 outline-none text-sm" dir="ltr"></div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
+                    <h3 class="font-bold text-gray-700 mb-4 border-b pb-2 flex items-center"><i class="fas fa-mouse-pointer text-orange-500 ml-2"></i> دکمه اقدام (CTA) و ساعات کاری</h3>
+                    <div class="space-y-4">
+                        <select id="view_inp_CTA_TYPE" class="w-full p-3 border rounded-xl bg-gray-50 disabled:text-gray-600 outline-none focus:ring-2 focus:ring-blue-400 transition text-sm">
+                            <option value="">نوع دکمه...</option>
+                            <option value="مشاوره رایگان">مشاوره رایگان</option>
+                            <option value="ثبت سفارش">ثبت سفارش</option>
+                            <option value="تماس با ما">تماس با ما</option>
+                            <option value="واتساپ">واتساپ</option>
+                            <option value="تلگرام">تلگرام</option>
+                            <option value="سفارشی">سفارشی</option>
+                        </select>
+                        <input type="text" id="view_inp_CTA_TEXT" maxlength="50" placeholder="متن دکمه" class="w-full p-3 border rounded-xl bg-gray-50 disabled:text-gray-600 outline-none focus:ring-2 focus:ring-blue-400 transition text-sm">
+                        <input type="text" id="view_inp_CTA_LINK" maxlength="200" placeholder="لینک مقصد یا شماره" class="w-full p-3 border rounded-xl bg-gray-50 disabled:text-gray-600 outline-none focus:ring-2 focus:ring-blue-400 transition text-sm" dir="ltr">
+                        
+                        <div class="pt-2 border-t mt-4">
+                            <input type="text" id="view_inp_WORK_DAYS" maxlength="100" placeholder="روزهای کاری" class="w-full p-3 border rounded-xl bg-gray-50 disabled:text-gray-600 outline-none focus:ring-2 focus:ring-blue-400 transition text-sm mb-3">
+                            <div class="flex items-center gap-3">
+                                <div class="flex-1"><label class="text-xs text-gray-500 font-bold ml-1">از ساعت</label><input type="time" id="view_inp_WORK_START" class="w-full p-3 border rounded-xl bg-gray-50 disabled:text-gray-600 outline-none focus:ring-2 focus:ring-blue-400 transition text-sm"></div>
+                                <div class="flex-1"><label class="text-xs text-gray-500 font-bold ml-1">تا ساعت</label><input type="time" id="view_inp_WORK_END" class="w-full p-3 border rounded-xl bg-gray-50 disabled:text-gray-600 outline-none focus:ring-2 focus:ring-blue-400 transition text-sm"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
+                    <h3 class="font-bold text-gray-700 mb-4 border-b pb-2 flex items-center"><i class="fas fa-cogs text-gray-500 ml-2"></i> تنظیمات نمایش بخش‌ها و توضیحات طراحی</h3>
+                    <div id="view_sectionsContainer" class="flex flex-wrap gap-4 text-sm font-bold text-gray-700 bg-gray-50 p-4 rounded-xl border mb-4">
+                        <label class="flex items-center cursor-pointer bg-white px-3 py-2 rounded border shadow-sm"><input type="checkbox" value="خدمات" class="mr-2 ml-2 w-4 h-4 text-blue-600"> خدمات</label>
+                        <label class="flex items-center cursor-pointer bg-white px-3 py-2 rounded border shadow-sm"><input type="checkbox" value="نمونه‌کارها" class="mr-2 ml-2 w-4 h-4 text-blue-600"> نمونه‌کارها</label>
+                        <label class="flex items-center cursor-pointer bg-white px-3 py-2 rounded border shadow-sm"><input type="checkbox" value="نظرات" class="mr-2 ml-2 w-4 h-4 text-blue-600"> نظرات</label>
+                        <label class="flex items-center cursor-pointer bg-white px-3 py-2 rounded border shadow-sm"><input type="checkbox" value="ساعات کاری" class="mr-2 ml-2 w-4 h-4 text-blue-600"> ساعات کاری</label>
+                        <label class="flex items-center cursor-pointer bg-white px-3 py-2 rounded border shadow-sm"><input type="checkbox" value="نقشه" class="mr-2 ml-2 w-4 h-4 text-blue-600"> نقشه</label>
+                        <label class="flex items-center cursor-pointer bg-white px-3 py-2 rounded border shadow-sm"><input type="checkbox" value="فرم تماس" class="mr-2 ml-2 w-4 h-4 text-blue-600"> فرم تماس</label>
+                        <label class="flex items-center cursor-pointer bg-white px-3 py-2 rounded border shadow-sm"><input type="checkbox" value="شبکه‌های اجتماعی" class="mr-2 ml-2 w-4 h-4 text-blue-600"> شبکه‌های اجتماعی</label>
+                    </div>
+                    <div><label class="text-xs text-gray-500 font-bold block mb-1">توضیحات طراحی</label><textarea id="viewDesignNotes" maxlength="300" class="w-full p-3 border rounded-xl bg-gray-50 h-20 disabled:text-gray-600 disabled:bg-gray-100 outline-none focus:ring-2 focus:ring-blue-400 transition"></textarea></div>
+                    
+                    <div class="bg-blue-50 p-5 rounded-xl border border-blue-200 mt-5 transition hover:shadow-md" id="editSeoSection">
+                        <label class="flex items-center cursor-pointer font-bold text-sm text-blue-800">
+                            <input type="checkbox" id="viewWantsSeoDomain" class="mr-2 ml-3 w-6 h-6 text-blue-600 rounded">
+                            مایل به انجام خدمات سئو و اخذ دامنه اختصاصی هستم (مبلغ 1 میلیون تومان به فاکتور نهایی اضافه می‌شود)
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-5 border-t bg-white rounded-b-2xl sticky bottom-0 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+            <button id="saveEditBtn" onclick="saveEditedOrder()" class="w-full bg-green-600 text-white p-4 rounded-xl hover:bg-green-700 font-bold hidden shadow-lg text-lg transition flex justify-center items-center gap-2"><i class="fas fa-save"></i> ذخیره تغییرات سفارش</button>
+        </div>
+    </div>
+</div>
+
+<div id="domainModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+    <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-lg relative max-h-[90vh] overflow-y-auto border-t-4 border-purple-500">
+        <button onclick="closeModal('domainModal')" class="absolute top-4 left-4 text-gray-400 hover:text-red-500 transition"><i class="fas fa-times text-xl"></i></button>
+        <h2 class="text-xl font-bold text-purple-600 mb-6 border-b pb-3 flex items-center"><i class="fas fa-globe ml-2 text-2xl"></i> اتصال دامنه اختصاصی</h2>
+        
+        <div class="mb-6 bg-gray-50 p-4 rounded-xl border">
+            <label class="flex items-center cursor-pointer mb-3 font-bold text-gray-700 hover:bg-white p-2 rounded transition border border-transparent hover:border-gray-200 shadow-sm">
+                <input type="radio" name="domainRadio" value="has_domain" onchange="toggleDomainInputs()" class="mr-2 ml-3 w-5 h-5 text-purple-600" checked> دامنه دارم (اتصال به هاست ToWeb)
+            </label>
+            <label class="flex items-center cursor-pointer font-bold text-gray-700 hover:bg-white p-2 rounded transition border border-transparent hover:border-gray-200 shadow-sm">
+                <input type="radio" name="domainRadio" value="needs_domain" onchange="toggleDomainInputs()" class="mr-2 ml-3 w-5 h-5 text-purple-600"> دامنه ندارم، لطفاً برایم ثبت کنید
+            </label>
+        </div>
+
+        <div id="hasDomainSection" class="animate-fade-in">
+            <div class="text-sm text-gray-700 mb-5 bg-purple-50 p-5 rounded-xl border border-purple-200 leading-relaxed shadow-inner">
+                <p class="font-bold mb-3 text-purple-800 text-base"><i class="fas fa-cog ml-1"></i> راهنمای تنظیم DNS:</p>
+                <p class="mb-3">لطفا در پنل دامنه خود، رکوردهای A زیر را به سمت سرورهای ما تنظیم کرده و سپس دامنه خود را در کادر زیر وارد کنید:</p>
+                <ul class="list-disc list-inside bg-white p-3 rounded-lg border font-mono shadow-sm" dir="ltr">
+                    <li>185.199.108.153</li><li>185.199.109.153</li><li>185.199.110.153</li><li>185.199.111.153</li>
+                </ul>
+            </div>
+            <label class="block text-sm font-bold mb-2 text-gray-600 ml-1">نام دامنه شما:</label>
+            <input type="text" id="customDomainInput" maxlength="150" placeholder="مثال: www.mywebsite.com" class="w-full p-4 border rounded-xl mb-4 focus:ring-2 focus:ring-purple-400 outline-none transition font-mono bg-gray-50" dir="ltr" style="text-align:left;">
+        </div>
+
+        <div id="needsDomainSection" class="hidden animate-fade-in">
+            <div class="text-sm text-gray-700 mb-5 bg-blue-50 p-5 rounded-xl border border-blue-200 leading-relaxed shadow-inner font-bold">
+                <i class="fas fa-lightbulb text-blue-500 ml-1 text-lg"></i> لطفاً حداکثر 5 نام دامنه پیشنهادی خود را وارد کنید. ما یکی از آن‌ها را بر اساس آزاد بودن، برای شما ثبت خواهیم کرد.
+            </div>
+            <div class="space-y-3">
+                <input type="text" id="propDomain1" maxlength="100" placeholder="پیشنهاد اول (الزامی)" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-400 outline-none transition font-mono bg-gray-50" dir="ltr" style="text-align:left;">
+                <input type="text" id="propDomain2" maxlength="100" placeholder="پیشنهاد دوم" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-400 outline-none transition font-mono bg-gray-50" dir="ltr" style="text-align:left;">
+                <input type="text" id="propDomain3" maxlength="100" placeholder="پیشنهاد سوم" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-400 outline-none transition font-mono bg-gray-50" dir="ltr" style="text-align:left;">
+                <input type="text" id="propDomain4" maxlength="100" placeholder="پیشنهاد چهارم" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-400 outline-none transition font-mono bg-gray-50" dir="ltr" style="text-align:left;">
+                <input type="text" id="propDomain5" maxlength="100" placeholder="پیشنهاد پنجم" class="w-full p-3 border rounded-xl mb-4 focus:ring-2 focus:ring-blue-400 outline-none transition font-mono bg-gray-50" dir="ltr" style="text-align:left;">
+            </div>
+        </div>
+
+        <button onclick="saveDomainOnly()" class="w-full bg-purple-600 text-white p-4 rounded-xl hover:bg-purple-700 font-bold shadow-lg text-lg transition flex justify-center items-center gap-2 mt-2"><i class="fas fa-save"></i> ذخیره و ارسال اطلاعات دامنه</button>
+    </div>
+</div>
+
+<div id="imageModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+    <div class="bg-white p-0 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col relative border-t-4 border-blue-500">
+        <div class="p-6 border-b bg-gray-50 rounded-t-2xl flex justify-between items-center sticky top-0 z-10 shadow-sm">
+            <h2 class="text-xl font-bold text-blue-600 flex items-center gap-2">
+                <i class="fas fa-images text-2xl ml-1"></i> گالری تصاویر سایت
+                <span id="imageCountBadge" class="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full border border-blue-200 shadow-sm font-mono mr-2">0 / 10</span>
+            </h2>
+            <button onclick="closeModal('imageModal')" class="text-gray-400 hover:text-red-500 transition"><i class="fas fa-times text-2xl"></i></button>
+        </div>
+        
+        <div class="p-6 overflow-y-auto bg-gray-100 flex-1">
+            <div class="bg-blue-50 border border-blue-200 p-5 rounded-2xl mb-6 text-sm text-blue-800 leading-relaxed shadow-sm">
+                <p class="font-bold mb-2 text-base"><i class="fas fa-info-circle ml-1"></i> راهنمای ارسال تصویر:</p>
+                <ul class="list-disc list-inside space-y-1 mr-2">
+                    <li>می‌توانید همزمان چندین تصویر را انتخاب کنید (روی دکمه انتخاب فایل کلیک کرده و چند عکس انتخاب کنید).</li>
+                    <li>حداکثر <strong>10 تصویر</strong> مجاز است. حجم تصاویر به صورت خودکار فشرده و بهینه‌سازی می‌شود.</li>
+                    <li>نوشتن توضیح پایه الزامی است (تصاویر گروهی به صورت خودکار شماره‌گذاری می‌شوند).</li>
+                </ul>
+            </div>
+
+            <div class="flex flex-col md:flex-row items-stretch gap-4 mb-8 bg-white p-6 rounded-2xl border shadow-sm">
+                <div class="w-full md:w-1/3">
+                    <input type="file" id="imageInput" accept="image/*" multiple class="w-full border-2 border-dashed border-gray-300 p-3 rounded-xl text-sm bg-gray-50 hover:bg-gray-100 outline-none transition cursor-pointer" onchange="previewSelectedImage()">
+                    <div id="imagePreviewContainer" class="hidden mt-3 w-full h-36 border rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center relative shadow-inner">
+                        <img id="imagePreview" class="h-full w-full object-cover" alt="پیش‌نمایش">
+                        <div id="multiImgOverlay" class="absolute inset-0 bg-black bg-opacity-60 hidden flex-col items-center justify-center text-white font-bold text-sm backdrop-blur-sm"></div>
+                    </div>
+                </div>
+                <div class="w-full md:w-1/2 flex flex-col justify-center">
+                    <label class="text-xs text-gray-500 font-bold mb-1 ml-1">توضیح تصویر</label>
+                    <input type="text" id="imageDescription" maxlength="150" placeholder="توضیح (الزامی)" class="w-full border p-4 rounded-xl text-sm focus:ring-2 focus:ring-blue-400 outline-none bg-gray-50 transition">
+                </div>
+                <div class="w-full md:w-auto flex items-end">
+                    <button id="uploadImgBtn" onclick="uploadOrderImage()" class="w-full bg-blue-600 text-white px-8 py-4 rounded-xl hover:bg-blue-700 transition flex justify-center items-center gap-2 shadow-lg font-bold text-base h-auto md:h-14">
+                        <i class="fas fa-upload"></i> آپلود
+                    </button>
+                </div>
+            </div>
+            
+            <h3 class="font-bold text-gray-700 mb-4 border-b pb-2 flex items-center"><i class="fas fa-folder-open text-yellow-500 ml-2 text-xl"></i> تصاویر ارسال شده</h3>
+            <div id="uploadedImagesGallery" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 pb-4"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // متغیرهای نشست امن (به روز شده)
+    let currentUser = localStorage.getItem('userNationalCode');
+    let currentToken = localStorage.getItem('userAuthToken');
+    
+    let globalUserInfo = null; 
+    let currentOrderId = null; 
+    let activeTicketOrderId = null; 
+    let activeEditOrderId = null;
+    let activeActionOrderId = null; 
+    let allLoadedOrders = []; 
+    
+    let activePayOrderId = null;
+    let activePayStage = 1;
+    let activePayAmount = 0;
+
+    // تابع امن‌ساز محلی برای فیلدهای خروجی
+    function sanitizeExcel(str) {
+        if (!str) return str;
+        str = String(str);
+        str = str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
+        if (/^[=+\-@]/.test(str)) { return "'" + str; }
+        return str;
+    }
+
+    function openLightbox(src) {
+        if(!src) return;
+        document.getElementById('lightboxImg').src = src;
+        document.getElementById('lightboxModal').classList.remove('hidden');
+    }
+    function closeLightbox() {
+        document.getElementById('lightboxModal').classList.add('hidden');
+    }
+
+    function addPhoneRow(prefix = '') {
+        const container = document.getElementById((prefix ? prefix + '_' : '') + 'phoneContainer');
+        const row = document.createElement('div');
+        row.className = 'phone-row flex items-center gap-2 mb-2 bg-white p-2 rounded-xl border overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-blue-400 transition';
+        row.innerHTML = `
+            <span class="p-2 text-gray-400 border-l"><i class="fas fa-phone"></i></span>
+            <input type="text" placeholder="عنوان (مثلا دفتر)" class="phone-title w-1/3 p-2 outline-none text-sm border-l bg-transparent">
+            <input type="text" placeholder="شماره تماس" class="phone-num w-full p-2 outline-none text-sm bg-transparent" dir="ltr">
+            <button onclick="this.parentElement.remove()" class="text-red-500 hover:text-red-700 p-2 mr-auto" title="حذف"><i class="fas fa-trash"></i></button>
+        `;
+        container.appendChild(row);
+    }
+
+    function loadImageFromFile(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.src = reader.result;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function canvasToBlob(canvas, type, quality) {
+        return new Promise(resolve => canvas.toBlob(resolve, type, quality));
+    }
+
+    function blobToBase64(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    function hasTransparency(img) {
+        const sampleSize = 50; 
+        const canvas = document.createElement('canvas');
+        canvas.width = sampleSize;
+        canvas.height = sampleSize;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, sampleSize, sampleSize);
+        const imageData = ctx.getImageData(0, 0, sampleSize, sampleSize);
+        const data = imageData.data;
+        for (let i = 3; i < data.length; i += 4) {
+            if (data[i] < 255) return true;
+        }
+        return false;
+    }
+
+    async function compressBaseImage(img, maxKB, usePNG = false) {
+        const origW = img.naturalWidth;
+        const origH = img.naturalHeight;
+        const maxBytes = maxKB * 1024;
+        const MIN_DIM = 10;   
+        const MAX_DIM = 1600; 
+
+        let w = origW;
+        let h = origH;
+
+        if (Math.max(origW, origH) > MAX_DIM) {
+            const scale = MAX_DIM / Math.max(origW, origH);
+            w = Math.round(origW * scale);
+            h = Math.round(origH * scale);
+        }
+
+        let canvas = document.createElement('canvas');
+        let ctx = canvas.getContext('2d');
+        canvas.width = w;
+        canvas.height = h;
+        ctx.drawImage(img, 0, 0, w, h);
+
+        const mimeType = usePNG ? 'image/png' : 'image/jpeg';
+        let quality = usePNG ? undefined : 0.65; 
+        let blob = await canvasToBlob(canvas, mimeType, quality);
+
+        if (!usePNG) {
+            while (blob.size > maxBytes && quality > 0.01) {
+                quality = Math.max(0.01, quality - 0.05);
+                blob = await canvasToBlob(canvas, mimeType, quality);
+            }
+        }
+
+        let resizeAttempts = 0;
+        while (blob.size > maxBytes && (w > MIN_DIM || h > MIN_DIM) && resizeAttempts < 50) {
+            const scaleFactor = 0.7; 
+            w = Math.max(MIN_DIM, Math.round(w * scaleFactor));
+            h = Math.max(MIN_DIM, Math.round(h * scaleFactor));
+            canvas = document.createElement('canvas');
+            ctx = canvas.getContext('2d');
+            canvas.width = w;
+            canvas.height = h;
+            ctx.drawImage(img, 0, 0, w, h);
+            blob = await canvasToBlob(canvas, mimeType, quality);
+            resizeAttempts++;
+        }
+
+        if (!usePNG && blob.size > maxBytes) {
+            quality = 0.01;
+            blob = await canvasToBlob(canvas, mimeType, quality);
+        }
+
+        const base64 = await blobToBase64(blob);
+        return { base64, mimeType };
+    }
+
+    async function smartCompressImage(file, maxKB = 190) {
+        const img = await loadImageFromFile(file);
+        const isTransparent = hasTransparency(img);
+        return await compressBaseImage(img, maxKB, isTransparent);
+    }
+
+    function isValidNationalCode(code) {
+        if (!/^\d{10}$/.test(code)) return false;
+        if (/^(\d)\1{9}$/.test(code)) return false;
+        let sum = 0;
+        for (let i = 0; i < 9; i++) {
+            sum += parseInt(code.charAt(i)) * (10 - i);
+        }
+        const mod = sum % 11;
+        const check = parseInt(code.charAt(9));
+        return (mod < 2 && check === mod) || (mod >= 2 && check === (11 - mod));
+    }
+
+    function packDataToString(prefix) {
+        let packed = "";
+        const fields = [
+            'Email', 'Address', 'GoogleMap', 'Neshan', 'Balad',
+            'Insta', 'Wa', 'Telegram', 'Eitaa', 'Rubika',
+            'YouTube', 'Bale', 'Soroush', 'Twitter', 'LinkedIn', 'Aparat',
+            'CTA_TYPE', 'CTA_TEXT', 'CTA_LINK',
+            'WORK_DAYS', 'WORK_START', 'WORK_END',
+            'SERVICES', 'ADDITIONAL'
+        ];
+        
+        fields.forEach(f => {
+            const inputId = prefix ? prefix + '_inp_' + f : 'inp_' + f;
+            const el = document.getElementById(inputId);
+            if(el && el.value.trim() !== '') {
+                packed += `${f}::${sanitizeExcel(el.value.trim())}||`;
+            }
+        });
+
+        const phoneContainer = document.getElementById((prefix ? prefix + '_' : '') + 'phoneContainer');
+        if (phoneContainer) {
+            const phoneRows = phoneContainer.querySelectorAll('.phone-row');
+            phoneRows.forEach((row, index) => {
+                const title = row.querySelector('.phone-title').value.trim();
+                const num = row.querySelector('.phone-num').value.trim();
+                if(title && num) {
+                    packed += `PhoneTitle_${index}::${sanitizeExcel(title)}||PhoneNum_${index}::${sanitizeExcel(num)}||`;
+                } else if (!title && num) {
+                    packed += `PhoneTitle_${index}::پشتیبانی||PhoneNum_${index}::${sanitizeExcel(num)}||`;
+                }
+            });
+        }
+
+        const secContainer = document.getElementById((prefix ? prefix + '_' : '') + 'sectionsContainer');
+        if (secContainer) {
+            let secStr = "";
+            const checks = secContainer.querySelectorAll('input[type="checkbox"]');
+            checks.forEach(chk => {
+                secStr += `${chk.value}:${chk.checked ? 'بله' : 'خیر'};;`;
+            });
+            if(secStr) packed += `SECTIONS::${secStr}||`;
+        }
+
+        return packed.replace(/\|\|$/, '');
+    }
+
+    function unpackStringToInputs(str, prefix) {
+        const fields = [
+            'Email','Address','GoogleMap','Neshan','Balad',
+            'Insta','Wa','Telegram','Eitaa','Rubika',
+            'YouTube', 'Bale', 'Soroush', 'Twitter', 'LinkedIn', 'Aparat',
+            'CTA_TYPE', 'CTA_TEXT', 'CTA_LINK',
+            'WORK_DAYS', 'WORK_START', 'WORK_END',
+            'SERVICES', 'ADDITIONAL'
+        ];
+        fields.forEach(f => {
+            const el = document.getElementById(prefix ? prefix + '_inp_' + f : 'inp_' + f);
+            if(el) el.value = '';
+        });
+
+        const phoneContainer = document.getElementById((prefix ? prefix + '_' : '') + 'phoneContainer');
+        if (phoneContainer) phoneContainer.innerHTML = '';
+
+        const secContainer = document.getElementById((prefix ? prefix + '_' : '') + 'sectionsContainer');
+        if (secContainer) {
+            const checks = secContainer.querySelectorAll('input[type="checkbox"]');
+            checks.forEach(c => c.checked = true);
+        }
+
+        if(!str) return;
+
+        if(str.includes('::')) {
+            const parts = str.split('||');
+            let phoneData = {};
+
+            parts.forEach(p => {
+                if(!p.includes('::')) return;
+                const [key, val] = p.split('::');
+
+                if (key.startsWith('PhoneTitle_') || key.startsWith('PhoneNum_')) {
+                    const idx = key.split('_')[1];
+                    const type = key.split('_')[0];
+                    if(!phoneData[idx]) phoneData[idx] = {title:'', num:''};
+                    if(type === 'PhoneTitle') phoneData[idx].title = val;
+                    if(type === 'PhoneNum') phoneData[idx].num = val;
+                } 
+                else if (key === 'SECTIONS') {
+                    const sParts = val.split(';;');
+                    sParts.forEach(pt => {
+                        if(!pt) return;
+                        const [sName, sVal] = pt.split(':');
+                        if (secContainer) {
+                            const checks = secContainer.querySelectorAll('input[type="checkbox"]');
+                            checks.forEach(c => {
+                                if(c.value === sName) c.checked = (sVal === 'بله');
+                            });
+                        }
+                    });
+                }
+                else {
+                    if(key === 'Phone' && phoneContainer) {
+                        addPhoneRow(prefix);
+                        const lastRow = phoneContainer.lastElementChild;
+                        lastRow.querySelector('.phone-title').value = "تماس";
+                        lastRow.querySelector('.phone-num').value = val;
+                    } else {
+                        const el = document.getElementById(prefix ? prefix + '_inp_' + key : 'inp_' + key);
+                        if(el && val) el.value = val;
+                    }
+                }
+            });
+
+            if (phoneContainer) {
+                Object.keys(phoneData).forEach(idx => {
+                    addPhoneRow(prefix);
+                    const lastRow = phoneContainer.lastElementChild;
+                    lastRow.querySelector('.phone-title').value = phoneData[idx].title;
+                    lastRow.querySelector('.phone-num').value = phoneData[idx].num;
+                });
+            }
+
+        } else {
+            const addrEl = document.getElementById(prefix ? prefix + '_inp_Address' : 'inp_Address');
+            if(addrEl) addrEl.value = str;
+        }
+    }
+
+    // ارسال توکن امنیتی در خواندن تصاویر
+    function loadImageBase64(fileId, callback) {
+        fetch(GAS_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ action: "get_image_base64", fileId: fileId, nationalCode: currentUser, token: currentToken })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                callback({ success: true, base64: data.base64, mime: data.mime });
+            } else {
+                callback({ success: false });
+            }
+        })
+        .catch(() => callback({ success: false }));
+    }
+
+    function previewSelectedImage() {
+        const fileInput = document.getElementById('imageInput');
+        const container = document.getElementById('imagePreviewContainer');
+        const img = document.getElementById('imagePreview');
+        const overlay = document.getElementById('multiImgOverlay');
+        
+        if (fileInput.files && fileInput.files.length > 0) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                img.src = e.target.result;
+                container.classList.remove('hidden');
+                
+                if(fileInput.files.length > 1) {
+                    overlay.innerHTML = `+ ${fileInput.files.length - 1} تصویر دیگر`;
+                    overlay.classList.remove('hidden');
+                    overlay.classList.add('flex');
+                } else {
+                    overlay.classList.add('hidden');
+                    overlay.classList.remove('flex');
+                }
+            }
+            reader.readAsDataURL(fileInput.files[0]);
+        } else {
+            container.classList.add('hidden');
+            overlay.classList.add('hidden');
+        }
+    }
+
+    document.getElementById('receiptInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        const previewDiv = document.getElementById('receiptPreview');
+        const img = document.getElementById('receiptPreviewImg');
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                img.src = ev.target.result;
+                previewDiv.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        } else {
+            previewDiv.classList.add('hidden');
+        }
+    });
+
+    function copyCardNumber() {
+        const cardNumber = "6219861910806008";
+        navigator.clipboard.writeText(cardNumber).then(() => {
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'شماره کارت کپی شد!', showConfirmButton: false, timer: 1500 });
+        }).catch(err => {
+            const tempInput = document.createElement("input"); tempInput.value = cardNumber; document.body.appendChild(tempInput); tempInput.select(); document.execCommand("copy"); document.body.removeChild(tempInput);
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'شماره کارت کپی شد!', showConfirmButton: false, timer: 1500 });
+        });
+    }
+
+    function togglePasswordVisibility() {
+        const passwordInput = document.getElementById('password');
+        const icon = document.getElementById('togglePasswordIcon');
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text'; icon.classList.remove('fa-eye'); icon.classList.add('fa-eye-slash');
+        } else {
+            passwordInput.type = 'password'; icon.classList.remove('fa-eye-slash'); icon.classList.add('fa-eye');
+        }
+    }
+
+    function showUserProfile() {
+        let name = (globalUserInfo && globalUserInfo.name && globalUserInfo.name !== "undefined") ? sanitizeExcel(globalUserInfo.name) : 'نامشخص';
+        let natCode = (globalUserInfo && globalUserInfo.natCode) ? sanitizeExcel(globalUserInfo.natCode) : sanitizeExcel(currentUser);
+        let phone = (globalUserInfo && globalUserInfo.phone && globalUserInfo.phone !== "undefined") ? sanitizeExcel(globalUserInfo.phone) : 'ثبت نشده';
+
+        Swal.fire({
+            title: '<i class="fas fa-user-circle text-blue-600 text-5xl mb-3 mt-2"></i><br><span class="font-bold">پروفایل شما</span>',
+            html: `
+                <div class="text-right bg-gray-50 p-5 rounded-2xl border text-sm leading-loose shadow-inner mt-4">
+                    <p class="border-b pb-2 mb-2"><span class="font-bold text-gray-700 ml-2">نام و نام خانوادگی:</span> ${name}</p>
+                    <p class="border-b pb-2 mb-2"><span class="font-bold text-gray-700 ml-2">کد ملی:</span> <span dir="ltr" class="font-mono bg-white px-2 py-1 rounded border">${natCode}</span></p>
+                    <p><span class="font-bold text-gray-700 ml-2">شماره تماس:</span> <span dir="ltr" class="font-mono bg-white px-2 py-1 rounded border">${phone}</span></p>
+                </div>
+            `,
+            confirmButtonText: 'بستن',
+            confirmButtonColor: '#3b82f6',
+            customClass: { confirmButton: 'px-8 py-3 rounded-xl shadow-lg font-bold' }
+        });
+    }
+
+    window.onload = function() {
+        if (currentUser && currentToken) {
+            document.getElementById('authSection').classList.add('hidden');
+            document.getElementById('dashboardSection').classList.remove('hidden');
+            document.getElementById('userNationalCodeDisplay').innerText = 'کد ملی: ' + currentUser;
+            loadOrders();
+        } else {
+            if (currentUser) logout();
+        }
+        window.addEventListener('online', () => {
+            const bar = document.getElementById('connectionStatus');
+            bar.textContent = 'اتصال برقرار شد';
+            bar.className = 'online-bar';
+            bar.classList.remove('hidden');
+            setTimeout(() => bar.classList.add('hidden'), 3000);
+        });
+        window.addEventListener('offline', () => {
+            const bar = document.getElementById('connectionStatus');
+            bar.textContent = 'ارتباط با اینترنت قطع شده است';
+            bar.className = 'offline-bar';
+            bar.classList.remove('hidden');
+        });
+    }
+
+    function handleAuth() {
+        const nationalCode = sanitizeExcel(document.getElementById('nationalCode').value.trim());
+        const password = document.getElementById('password').value.trim();
+        if (!nationalCode || !password) return Swal.fire('خطا', 'کد ملی و رمز عبور را وارد کنید.', 'warning');
+        if (!isValidNationalCode(nationalCode)) return Swal.fire('خطا', 'کد ملی معتبر نیست.', 'error');
+
+        Swal.fire({ title: 'در حال بررسی امنیتی و برقراری ارتباط...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() }});
+
+        grecaptcha.ready(function() {
+            grecaptcha.execute('6Lf4KyUtAAAAACXMJ67b8p2lxG6tsmj9wI9z11tk', {action: 'login'}).then(function(recaptchaToken) {
+                fetch(GAS_URL, {
+                    method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({ 
+                        action: "login", 
+                        nationalCode: nationalCode, 
+                        password: password,
+                        recaptchaToken: recaptchaToken
+                    })
+                }).then(res => res.json()).then(data => {
+                    if (data.status === "success") {
+                        Swal.fire({title:'موفق', text:'با موفقیت وارد شدید', icon:'success', timer:1500, showConfirmButton:false});
+                        localStorage.setItem('userNationalCode', nationalCode);
+                        localStorage.setItem('userAuthToken', data.token); // ذخیره توکن امنیتی
+                        setTimeout(() => window.location.reload(), 1500);
+                    } else Swal.fire('خطا', data.message, 'error');
+                }).catch(err => { Swal.close(); Swal.fire('خطا', 'مشکل ارتباطی.', 'error'); });
+            });
+        });
+    }
+
+    function changePassword() {
+        Swal.fire({
+            title: '<span class="font-bold">تغییر رمز عبور</span>',
+            html: `<input type="password" id="oldPass" class="w-full p-3 border rounded-xl mb-3 focus:ring-2 focus:ring-blue-400 outline-none transition" placeholder="رمز فعلی">
+                   <input type="password" id="newPass" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-400 outline-none transition" placeholder="رمز جدید">`,
+            confirmButtonText: 'تغییر رمز', showCancelButton: true, cancelButtonText: 'انصراف',
+            customClass: { confirmButton: 'bg-blue-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg', cancelButton: 'bg-gray-200 text-gray-800 px-6 py-3 rounded-xl font-bold' },
+            preConfirm: () => {
+                const oldPass = Swal.getPopup().querySelector('#oldPass').value;
+                const newPass = Swal.getPopup().querySelector('#newPass').value;
+                if (!oldPass || !newPass) Swal.showValidationMessage('پر کردن هر دو فیلد الزامی است');
+                return { oldPass: oldPass, newPass: newPass };
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({ title: 'در حال تغییر...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() }});
+                fetch(GAS_URL, {
+                    method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({ action: "change_password", nationalCode: currentUser, token: currentToken, oldPassword: result.value.oldPass, newPassword: result.value.newPass })
+                }).then(res => res.json()).then(data => {
+                    if(data.status === 'success') Swal.fire('موفق', data.message, 'success');
+                    else Swal.fire('خطا', data.message, 'error');
+                });
+            }
+        });
+    }
+
+    function logout() { 
+        localStorage.removeItem('userNationalCode'); 
+        localStorage.removeItem('userAuthToken'); 
+        window.location.reload(); 
+    }
+
+    function showOrderForm() {
+        document.getElementById('newOrderForm').classList.remove('hidden');
+        document.getElementById('step1').classList.remove('hidden');
+        document.getElementById('step2').classList.add('hidden');
+        document.getElementById('orderFormTitle').innerText = 'ثبت سفارش جدید';
+    }
+    function closeOrderForm() { document.getElementById('newOrderForm').classList.add('hidden'); }
+
+    function submitStep1() {
+        const siteName = sanitizeExcel(document.getElementById('siteName').value);
+        const slogan = sanitizeExcel(document.getElementById('slogan').value);
+        const template = sanitizeExcel(document.getElementById('template').value);
+        if (!siteName || !slogan || !template) return Swal.fire('خطا', 'همه موارد الزامی است', 'warning');
+
+        const btn = document.getElementById('btnSubmitStep1');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> در حال ثبت...';
+
+        Swal.fire({ title: 'در حال ایجاد سفارش...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() }});
+        fetch(GAS_URL, {
+            method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ action: "create_order", nationalCode: currentUser, token: currentToken, siteName: siteName, slogan: slogan, template: template })
+        }).then(res => res.json()).then(data => {
+            Swal.close(); 
+            btn.disabled = false;
+            btn.innerHTML = 'ثبت اولیه و ادامه';
+            if(data.status === "error") return Swal.fire('خطا', data.message, 'error');
+            currentOrderId = data.orderId;
+            document.getElementById('step1').classList.add('hidden');
+            document.getElementById('step2').classList.remove('hidden');
+            document.getElementById('orderFormTitle').innerText = 'تکمیل اطلاعات سفارش: ' + siteName;
+            loadOrders();
+        }).catch(err => { 
+            Swal.close(); 
+            btn.disabled = false;
+            btn.innerHTML = 'ثبت اولیه و ادامه';
+            Swal.fire('خطا', 'خطا در ارتباط با سرور', 'error'); 
+        });
+    }
+
+    function saveDetailsAndEnablePay() {
+        const rawBio = sanitizeExcel(document.getElementById('bio').value);
+        const designNotes = sanitizeExcel(document.getElementById('designNotes').value);
+        const wantsSeoDomain = document.getElementById('wantsSeoDomain').checked ? "بله" : "خیر";
+        const combinedBioAndNotes = rawBio + "|||NOTES|||" + designNotes;
+        const combinedContact = packDataToString(''); 
+        
+        if (!rawBio || combinedContact === '') {
+            return Swal.fire('خطا', 'وارد کردن بیوگرافی و حداقل یک راه ارتباطی الزامی است.', 'warning');
+        }
+
+        const btn = document.getElementById('btnSaveDetails');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin ml-2"></i> در حال ذخیره...';
+
+        Swal.fire({ title: 'در حال ذخیره...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() }});
+        fetch(GAS_URL, {
+            method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ 
+                action: "update_order_details", 
+                nationalCode: currentUser, token: currentToken,
+                orderId: currentOrderId, 
+                bio: combinedBioAndNotes, 
+                contact: combinedContact, 
+                wantsSeoDomain: wantsSeoDomain 
+            })
+        }).then(res => res.json()).then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save ml-2"></i> ذخیره نهایی اطلاعات';
+            if(data.status === "error") return Swal.fire('خطا', data.message, 'error');
+            Swal.fire({
+                title: 'ذخیره شد',
+                text: 'اطلاعات با موفقیت ذخیره شد. فرم اکنون بسته می‌شود و در صورت نیاز می‌توانید پرداخت خود را از طریق لیست سفارشات انجام دهید.',
+                icon: 'success'
+            }).then(() => {
+                closeOrderForm();
+                loadOrders(); 
+            });
+        }).catch(err => { 
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save ml-2"></i> ذخیره نهایی اطلاعات';
+            Swal.close(); 
+            Swal.fire('خطا', 'خطا در ارتباط با سرور', 'error'); 
+        });
+    }
+
+    function openCardPaymentModal(orderId, stage, amount) {
+        activePayOrderId = orderId;
+        activePayStage = stage;
+        activePayAmount = amount;
+        
+        document.getElementById('paymentAmountDisplay').innerText = amount.toLocaleString() + ' تومان';
+        document.getElementById('receiptInput').value = '';
+        document.getElementById('receiptPreview').classList.add('hidden');
+        document.getElementById('cardPaymentModal').classList.remove('hidden');
+    }
+
+    async function uploadReceipt() {
+        const fileInput = document.getElementById('receiptInput');
+        const file = fileInput.files[0];
+        
+        if(!file) return Swal.fire('خطا', 'لطفاً تصویر رسید واریزی را انتخاب کنید.', 'error');
+
+        const btn = document.getElementById('uploadReceiptBtn');
+        const oldHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin ml-2"></i> در حال آپلود و ثبت...';
+        btn.disabled = true;
+
+        Swal.fire({ title: 'فشرده‌سازی خودکار', text: 'حجم تصویر در حال کاهش است...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() }});
+
+        try {
+            const compressed = await smartCompressImage(file, 190);
+            const base64Data = compressed.base64;
+            const mimeType = compressed.mimeType;
+
+            fetch(GAS_URL, {
+                method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({
+                    action: "upload_receipt", 
+                    nationalCode: currentUser, token: currentToken,
+                    orderId: activePayOrderId,
+                    stage: activePayStage,
+                    amount: activePayAmount,
+                    base64: base64Data,
+                    mimeType: mimeType,
+                    fileName: `Receipt_${activePayOrderId}_Stage${activePayStage}`
+                })
+            }).then(res => res.json()).then(data => {
+                btn.innerHTML = oldHtml; btn.disabled = false;
+                if(data.status === 'success') {
+                    closeModal('cardPaymentModal');
+                    Swal.fire('ثبت موفق', 'رسید شما با موفقیت آپلود شد و پس از بررسی توسط مدیریت، وضعیت پرداخت آپدیت می‌شود.', 'success');
+                    loadOrders();
+                } else Swal.fire('خطا', data.message, 'error');
+            }).catch(err => { btn.innerHTML = oldHtml; btn.disabled = false; Swal.fire('خطا', 'مشکل ارتباط با سرور', 'error'); });
+        } catch (error) {
+            btn.innerHTML = oldHtml; btn.disabled = false;
+            Swal.fire('خطا', 'خطا در پردازش تصویر', 'error');
+        }
+    }
+
+    function deleteOrder(orderId) {
+        Swal.fire({
+            title: 'حذف سفارش',
+            text: "آیا مطمئن هستید؟ این سفارش و تمامی فایل‌های آپلود شده مرتبط با آن به طور کامل پاک خواهند شد و قابل بازگشت نیستند.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#3b82f6',
+            confirmButtonText: 'بله، حذف شود',
+            cancelButtonText: 'انصراف'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({ title: 'در حال حذف ایمن داده‌ها از سرور...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() }});
+                fetch(GAS_URL, {
+                    method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({ action: "delete_order", nationalCode: currentUser, token: currentToken, orderId: orderId })
+                }).then(res => res.json()).then(data => {
+                    if(data.status === 'success') {
+                        Swal.fire('حذف شد!', 'سفارش و فایل‌های شما با موفقیت پاک شدند.', 'success');
+                        loadOrders();
+                    } else {
+                        Swal.fire('خطا', data.message, 'error');
+                    }
+                });
+            }
+        });
+    }
+
+    function renderSkeleton() {
+        const list = document.getElementById('ordersList');
+        const skeletonCard = `<div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100"><div class="skeleton-box h-8 w-1/2 mb-4"></div><div class="skeleton-box h-4 w-1/3 mb-2"></div><div class="skeleton-box h-4 w-1/4 mb-4"></div><div class="skeleton-box h-12 w-full mt-4 rounded-xl"></div></div>`;
+        list.innerHTML = skeletonCard + skeletonCard;
+    }
+
+    function loadOrders() {
+        renderSkeleton(); 
+        fetch(GAS_URL, {
+            method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ action: "get_orders", nationalCode: currentUser, token: currentToken })
+        }).then(res => res.json()).then(data => {
+            if(data.status === "error") return Swal.fire('خطا', data.message, 'error');
+            if(data.userInfo) {
+                globalUserInfo = data.userInfo;
+            }
+
+            const list = document.getElementById('ordersList');
+            list.innerHTML = '';
+            
+            if(data.orders.length === 0) {
+                list.innerHTML = '<div class="col-span-full text-center text-gray-500 bg-white p-10 rounded-2xl border shadow-sm"><i class="fas fa-folder-open text-4xl mb-3 text-gray-300 block"></i>شما هنوز سفارشی ثبت نکرده‌اید.</div>';
+                return;
+            }
+
+            data.orders.reverse();
+            allLoadedOrders = data.orders;
+
+            data.orders.forEach(order => {
+                let statusColor = order.orderStatus === 'Completed' || order.orderStatus === 'تکمیل شده' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800';
+                
+                let isAdvancePaid = order.paymentStatus.includes("قسط اول") || order.paymentStatus.includes("پیش پرداخت") || order.paymentStatus === "تسویه کامل انجام شد" || order.paymentStatus.includes("در انتظار تایید فیش");
+                let isReadyForFinal = order.orderStatus === "آماده تحویل";
+                let isFullyPaid = order.paymentStatus === "تسویه کامل انجام شد" || order.orderStatus === "تکمیل شده";
+                let isPendingReceipt = order.paymentStatus.includes("در انتظار تایید فیش");
+                let isFinalReady = order.orderStatus.trim() === "تکمیل شده";
+
+                let canDelete = (!isAdvancePaid && (order.paymentStatus === "پرداخت نشده" || order.paymentStatus === "ناموفق"));
+
+                let hasUnreadAdminMessage = false;
+                if (order.tickets && order.tickets.length > 0) {
+                    const lastTicket = order.tickets[order.tickets.length - 1];
+                    if (lastTicket.sender === "پشتیبانی ToWeb") {
+                        hasUnreadAdminMessage = true;
+                    }
+                }
+
+                let needsDetails = !order.contactInfo || order.contactInfo.trim() === '';
+                let actionBtn = '';
+                let instAmount = order.installmentPrice ? parseInt(order.installmentPrice) : 1000000;
+                let dispTotal = order.totalPrice ? parseInt(order.totalPrice).toLocaleString() : '2,000,000';
+                let instStage = 1;
+                if (isReadyForFinal && !isFullyPaid) instStage = 2;
+                
+                let isRejected = order.paymentStatus.includes('رد شده') || order.paymentsHistory.some(p => p.status === 'رد شده');
+                let rejectAlert = '';
+
+                if (isRejected) {
+                    const rejectedReason = order.paymentsHistory.find(p => p.status === 'رد شده')?.rejectReason || '';
+                    rejectAlert = `
+                        <div class="bg-orange-50 border border-orange-300 rounded-xl p-4 mb-4 flex items-center gap-3 cursor-pointer shadow-sm hover:shadow-md transition"
+                             onclick="scrollToPaymentSection('${order.orderId}')">
+                            <div class="bg-orange-100 p-2 rounded-full"><i class="fas fa-exclamation-triangle text-orange-500 text-xl"></i></div>
+                            <div>
+                                <p class="font-bold text-orange-800">فیش پرداخت تأیید نشد</p>
+                                <p class="text-xs text-orange-600 mt-1">جهت مشاهده دلیل و آپلود فیش جدید کلیک کنید</p>
+                            </div>
+                        </div>`;
+                }
+
+                if (isRejected) {
+                    actionBtn = `<button onclick="openCardPaymentModal('${order.orderId}', ${instStage}, ${instAmount})" class="mt-4 w-full bg-orange-500 text-white p-4 rounded-xl hover:bg-orange-600 font-bold shadow-lg animate-pulse text-lg flex justify-center items-center gap-2"><i class="fas fa-redo"></i> آپلود مجدد فیش (فیش قبلی رد شده)</button>`;
+                } else if (needsDetails) {
+                    actionBtn = `<button onclick="openOrderDetailsModal('${order.orderId}')" class="mt-4 w-full bg-indigo-500 text-white p-4 rounded-xl hover:bg-indigo-600 font-bold shadow-lg animate-pulse text-lg flex justify-center items-center gap-2"><i class="fas fa-list-alt"></i> لطفا اطلاعات سفارش را تکمیل کنید</button>`;
+                } else if (isPendingReceipt) {
+                    actionBtn = `<button disabled class="mt-4 w-full bg-gray-400 text-white p-4 rounded-xl font-bold cursor-not-allowed shadow flex justify-center items-center gap-2"><i class="fas fa-hourglass-half"></i> در انتظار تایید فیش توسط مدیر...</button>`;
+                } else if (!isAdvancePaid && order.paymentStatus !== 'قسط اول - در حال بررسی') {
+                    actionBtn = `<button onclick="openCardPaymentModal('${order.orderId}', 1, ${instAmount})" class="mt-4 w-full bg-yellow-500 text-white p-4 rounded-xl hover:bg-yellow-600 font-bold shadow-lg text-lg flex justify-center items-center gap-2"><i class="fas fa-credit-card"></i> پرداخت بیعانه شروع (${instAmount.toLocaleString()} تومان)</button>`;
+                } else if (isReadyForFinal && !isFullyPaid) {
+                    actionBtn = `<button onclick="openCardPaymentModal('${order.orderId}', 2, ${instAmount})" class="mt-4 w-full bg-blue-600 text-white p-4 rounded-xl hover:bg-blue-700 font-bold animate-bounce shadow-xl text-lg flex justify-center items-center gap-2"><i class="fas fa-gem"></i> پرداخت تسویه نهایی (${instAmount.toLocaleString()} تومان)</button>`;
+                } else if (isFinalReady && isFullyPaid && !isRejected) {
+                    actionBtn = `<button onclick='showFinalData(${JSON.stringify(order)})' class="mt-4 w-full bg-green-600 text-white p-4 rounded-xl hover:bg-green-700 shadow-xl animate-pulse font-bold text-lg flex justify-center items-center gap-2"><i class="fas fa-download"></i> دریافت فایل‌های نهایی سایت</button>`;
+                }
+
+                list.innerHTML += 
+                    `<div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 relative hover:shadow-lg transition">
+                        ${rejectAlert}
+                        
+                        <div class="flex gap-2 bg-gray-50 px-3 py-1.5 rounded-xl border mb-3 w-fit shadow-sm">
+                            ${canDelete ? `<span class="cursor-pointer text-red-400 hover:text-red-600 transition p-1" onclick="deleteOrder('${order.orderId}')" title="حذف کامل سفارش"><i class="fas fa-trash-alt text-lg"></i></span>` : ''}
+                            ${order.seoDomainChoice === "بله" ? `<span class="cursor-pointer text-gray-500 hover:text-purple-600 transition p-1" onclick="openDomainModal('${order.orderId}')" title="اتصال دامنه"><i class="fas fa-globe text-lg"></i></span>` : ''}
+                            <span class="cursor-pointer text-gray-500 hover:text-blue-600 transition p-1" onclick="openImageModal('${order.orderId}')" title="ارسال تصاویر"><i class="fas fa-images text-lg"></i></span>
+                            <span class="cursor-pointer text-gray-500 hover:text-orange-500 transition p-1" onclick="openOrderDetailsModal('${order.orderId}')" title="ویرایش/مشاهده اطلاعات"><i class="fas fa-edit text-lg"></i></span>
+                            <span class="cursor-pointer text-gray-500 hover:text-blue-500 transition p-1 border-r border-gray-300 pr-3 ml-1 relative" onclick="openTicketsModal('${order.orderId}')" title="پشتیبانی">
+                                <i class="fas fa-comments text-lg"></i>
+                                ${hasUnreadAdminMessage ? `<span class="absolute top-1 right-2 flex h-3 w-3"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span></span>` : ''}
+                            </span>
+                        </div>
+
+                        <h3 class="font-bold text-xl mb-2 text-gray-800">${order.siteName}</h3>
+                        <p class="text-sm text-gray-600 mb-2"><span class="font-bold">قالب:</span> <span dir="ltr" class="bg-gray-100 px-2 py-1 rounded-md">${order.template}</span></p>
+                        <p class="text-sm text-gray-600 mb-1"><span class="font-bold">کد سفارش:</span> <span class="font-mono text-gray-500">${order.orderId}</span></p>
+                        
+                        <div class="mt-4 p-3 bg-gray-50 rounded-xl border flex flex-wrap gap-2 items-center justify-center sm:justify-start">
+                            <span class="text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm ${statusColor}">${order.orderStatus}</span>
+                            <span class="text-xs font-bold px-3 py-1.5 rounded-lg bg-white border text-gray-800 shadow-sm">${order.paymentStatus}</span>
+                            <span class="text-xs font-bold px-3 py-1.5 rounded-lg bg-purple-50 text-purple-800 border border-purple-200 shadow-sm">هزینه کل: ${dispTotal} تومان</span>
+                        </div>
+                        
+                        <div class="text-xs text-gray-400 mt-4 flex items-center justify-between border-t pt-3">
+                            <span><i class="far fa-calendar-alt ml-1"></i> ثبت: <span dir="ltr" class="font-bold">${order.regDate}</span></span>
+                            <span>آخرین پرداختی: <span dir="ltr" class="font-bold text-gray-500">${order.payDate}</span></span>
+                        </div>
+                        
+                        <button onclick="openPaymentsHistory('${order.orderId}')" class="mt-4 w-full bg-gray-50 border border-gray-200 text-gray-700 p-3 rounded-xl hover:bg-gray-100 text-sm font-bold transition shadow-sm flex items-center justify-center gap-2">
+                            <i class="fas fa-list-ul"></i> مشاهده تاریخچه پرداخت‌ها
+                        </button>
+                        
+                        ${actionBtn}
+                    </div>`;
+            });
+        }).catch(err => {
+            document.getElementById('ordersList').innerHTML = '<div class="col-span-full text-red-500 text-center font-bold bg-red-50 p-6 rounded-xl border border-red-200">خطا در ارتباط با سرور. لطفاً صفحه را رفرش کنید.</div>';
+        });
+    }
+
+    function scrollToPaymentSection(orderId) {
+        openPaymentsHistory(orderId);
+        setTimeout(() => {
+            const rows = document.querySelectorAll('#paymentsHistoryTableBody tr');
+            rows.forEach(row => {
+                if (row.innerText.includes('رد شده')) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+        }, 500);
+    }
+
+    function openPaymentsHistory(orderId) {
+        const order = allLoadedOrders.find(o => o.orderId === orderId);
+        if(!order) return;
+        
+        const tbody = document.getElementById('paymentsHistoryTableBody');
+        tbody.innerHTML = '';
+
+        if(order.paymentsHistory && order.paymentsHistory.length > 0) {
+            order.paymentsHistory.forEach(pay => {
+                let statClass = 'text-gray-500';
+                let statusHtml = '';
+                if (pay.status.includes('تایید') || pay.status === 'success') statClass = 'text-green-600 font-bold';
+                else if (pay.status === 'رد شده') {
+                    statClass = 'text-red-600 font-bold';
+                    statusHtml = `
+                        <span class="${statClass} block"><i class="fas fa-times-circle ml-1"></i> رد شده</span>
+                        ${pay.rejectReason ? `
+                            <div class="mt-2 bg-red-50 border border-red-200 rounded-lg p-2 text-xs text-red-700 font-bold leading-relaxed shadow-inner">
+                                <i class="fas fa-exclamation-triangle ml-1"></i> دلیل: ${pay.rejectReason}
+                            </div>
+                        ` : ''}
+                    `;
+                } else if (pay.status.includes('در انتظار')) statClass = 'text-yellow-600 font-bold';
+
+                let receiptImgDiv = '';
+                if (pay.fileId) {
+                    receiptImgDiv = `<div id="receipt_img_${pay.fileId}" class="mt-3 w-full h-24 bg-gray-100 rounded-xl border flex items-center justify-center overflow-hidden shadow-sm"><i class="fas fa-circle-notch fa-spin text-gray-400 text-2xl"></i></div>`;
+                }
+
+                let replaceBtn = '';
+                if (pay.status === 'رد شده') {
+                    replaceBtn = `<button onclick="replaceReceipt('${orderId}', ${pay.rowIdx}, ${pay.stage}, ${pay.amount})" class="mt-3 w-full bg-orange-500 text-white px-3 py-2 rounded-lg text-xs hover:bg-orange-600 transition font-bold shadow flex items-center justify-center gap-1"><i class="fas fa-exchange-alt"></i> جایگزینی فیش</button>`;
+                }
+
+                tbody.innerHTML += 
+                    `<tr class="bg-white border-b hover:bg-gray-50 transition">
+                        <td class="px-6 py-5 font-bold text-gray-800 bg-gray-50">${pay.type}</td>
+                        <td class="px-6 py-5 font-bold text-green-700">${parseInt(pay.amount).toLocaleString()} تومان</td>
+                        <td class="px-6 py-5" dir="ltr"><span class="bg-white border px-2 py-1 rounded text-xs text-gray-500 font-mono shadow-sm">${pay.date}</span></td>
+                        <td class="px-6 py-5 border-r border-gray-100">
+                            ${pay.status === 'رد شده' ? statusHtml : `<span class="${statClass} bg-white px-3 py-1 rounded-full border shadow-sm">${pay.status}</span>`}
+                            ${receiptImgDiv}
+                            ${replaceBtn}
+                        </td>
+                    </tr>`;
+            });
+
+            order.paymentsHistory.forEach(pay => {
+                if (pay.fileId) {
+                    loadImageBase64(pay.fileId, (result) => {
+                        const container = document.getElementById(`receipt_img_${pay.fileId}`);
+                        if (!container) return;
+                        if (result.success) {
+                            container.innerHTML = `<img src="data:${result.mime};base64,${result.base64}" class="h-full w-full object-cover clickable-img" alt="رسید" onclick="openLightbox(this.src)">`;
+                        } else {
+                            container.innerHTML = '<span class="text-xs text-red-500 font-bold"><i class="fas fa-times-circle"></i> خطا</span>';
+                        }
+                    });
+                }
+            });
+        } else {
+            tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-10 text-center text-gray-500 font-bold bg-gray-50"><i class="fas fa-receipt text-3xl mb-2 text-gray-300 block"></i>هنوز پرداختی برای این سفارش ثبت نشده است.</td></tr>`;
+        }
+        
+        document.getElementById('paymentsHistoryModal').classList.remove('hidden');
+    }
+
+    async function replaceReceipt(orderId, oldReceiptRow, stage, amount) {
+        const result = await Swal.fire({
+            title: 'جایگزینی فیش',
+            text: 'آیا از جایگزینی فیش اطمینان دارید؟ فیش قبلی حذف خواهد شد.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'بله، فیش جدید آپلود کن',
+            cancelButtonText: 'انصراف',
+            confirmButtonColor: '#f97316',
+            cancelButtonColor: '#6b7280'
+        });
+        if (!result.isConfirmed) return;
+        
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.onchange = async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            Swal.fire({ title: 'در حال فشرده‌سازی و آپلود...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            try {
+                const compressed = await smartCompressImage(file, 190);
+                const base64Data = compressed.base64;
+                const mimeType = compressed.mimeType;
+                const response = await fetch(GAS_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({
+                        action: "replace_receipt",
+                        nationalCode: currentUser, token: currentToken,
+                        orderId: orderId,
+                        oldReceiptRow: oldReceiptRow,
+                        stage: stage,
+                        amount: amount,
+                        base64: base64Data,
+                        mimeType: mimeType,
+                        fileName: `Receipt_${orderId}_Stage${stage}_Replace`
+                    })
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    Swal.fire('موفق', 'فیش جدید با موفقیت جایگزین شد و در انتظار تأیید مدیر است.', 'success');
+                    loadOrders();
+                    closeModal('paymentsHistoryModal');
+                } else {
+                    Swal.fire('خطا', data.message, 'error');
+                }
+            } catch (error) {
+                Swal.fire('خطا', 'مشکل در ارتباط با سرور', 'error');
+            }
+        };
+        fileInput.click();
+    }
+
+    function openOrderDetailsModal(orderId) {
+        const order = allLoadedOrders.find(o => o.orderId === orderId);
+        if(!order) return;
+        activeEditOrderId = orderId;
+
+        document.getElementById('viewOrderId').innerText = orderId;
+        document.getElementById('viewSiteName').value = order.siteName;
+        document.getElementById('viewSlogan').value = order.slogan;
+        document.getElementById('viewTemplate').value = order.template;
+        
+        const rawBio = order.bio || "";
+        const bioParts = rawBio.split("|||NOTES|||");
+        document.getElementById('viewBio').value = bioParts[0];
+        document.getElementById('viewDesignNotes').value = bioParts.length > 1 ? bioParts[1] : "";
+        
+        unpackStringToInputs(order.contactInfo, 'view');
+        document.getElementById('viewWantsSeoDomain').checked = (order.seoDomainChoice === "بله");
+
+        const lockedStatuses = ["در حال طراحی", "در حال انجام", "آماده تحویل", "تکمیل شده"];
+        const isLockedByAdmin = lockedStatuses.includes(order.orderStatus.trim());
+        
+        let isAdvancePaid = order.paymentStatus.includes("قسط اول") || order.paymentStatus.includes("پیش پرداخت") || order.paymentStatus === "تسویه کامل انجام شد" || order.paymentStatus.includes("در انتظار تایید فیش");
+        
+        if (isAdvancePaid) {
+            document.getElementById('editSeoSection').classList.add('hidden');
+        } else {
+            document.getElementById('editSeoSection').classList.remove('hidden');
+        }
+
+        const fields = [
+            'viewSiteName', 'viewSlogan', 'viewTemplate', 'viewBio', 'viewDesignNotes', 'viewWantsSeoDomain',
+            'view_inp_Email', 'view_inp_Address', 'view_inp_GoogleMap', 
+            'view_inp_Neshan', 'view_inp_Balad', 'view_inp_Insta', 'view_inp_Wa', 
+            'view_inp_Telegram', 'view_inp_Eitaa', 'view_inp_Rubika',
+            'view_inp_YouTube', 'view_inp_Bale', 'view_inp_Soroush', 'view_inp_Twitter', 'view_inp_LinkedIn', 'view_inp_Aparat',
+            'view_inp_CTA_TYPE', 'view_inp_CTA_TEXT', 'view_inp_CTA_LINK',
+            'view_inp_WORK_DAYS', 'view_inp_WORK_START', 'view_inp_WORK_END',
+            'view_inp_SERVICES', 'view_inp_ADDITIONAL'
+        ];
+        
+        fields.forEach(f => {
+            const el = document.getElementById(f);
+            if(el) el.disabled = isLockedByAdmin;
+        });
+
+        const vPhoneContainer = document.getElementById('view_phoneContainer');
+        if(vPhoneContainer) {
+            vPhoneContainer.querySelectorAll('input, button').forEach(el => el.disabled = isLockedByAdmin);
+        }
+        document.getElementById('btnViewAddPhone').disabled = isLockedByAdmin;
+        
+        const vSecContainer = document.getElementById('view_sectionsContainer');
+        if(vSecContainer) {
+            vSecContainer.querySelectorAll('input').forEach(el => el.disabled = isLockedByAdmin);
+        }
+
+        if(!isLockedByAdmin) {
+            document.getElementById('editWarningMessage').classList.remove('hidden');
+            document.getElementById('viewOnlyMessage').classList.add('hidden');
+            document.getElementById('saveEditBtn').classList.remove('hidden');
+        } else {
+            document.getElementById('editWarningMessage').classList.add('hidden');
+            document.getElementById('viewOnlyMessage').classList.remove('hidden');
+            document.getElementById('saveEditBtn').classList.add('hidden');
+        }
+        document.getElementById('orderDetailsModal').classList.remove('hidden');
+    }
+
+    function saveEditedOrder() {
+        const btn = document.getElementById('saveEditBtn');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin ml-2"></i> در حال ذخیره...'; btn.disabled = true;
+        
+        const wantsSeoDomain = document.getElementById('viewWantsSeoDomain').checked ? "بله" : "خیر";
+        const editBio = sanitizeExcel(document.getElementById('viewBio').value);
+        const editNotes = sanitizeExcel(document.getElementById('viewDesignNotes').value);
+        const combinedBioAndNotes = editBio + "|||NOTES|||" + editNotes;
+        const combinedContact = packDataToString('view');
+
+        fetch(GAS_URL, {
+            method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({
+                action: "update_full_order", nationalCode: currentUser, token: currentToken, orderId: activeEditOrderId,
+                siteName: sanitizeExcel(document.getElementById('viewSiteName').value), 
+                slogan: sanitizeExcel(document.getElementById('viewSlogan').value),
+                template: sanitizeExcel(document.getElementById('viewTemplate').value), 
+                bio: combinedBioAndNotes,
+                contact: combinedContact,
+                wantsSeoDomain: wantsSeoDomain
+            })
+        }).then(res => res.json()).then(data => {
+            btn.innerHTML = '<i class="fas fa-save ml-2"></i> ذخیره تغییرات سفارش'; btn.disabled = false;
+            if(data.status === 'success') {
+                Swal.fire({title: 'موفق', text: 'اطلاعات با موفقیت ذخیره شد.', icon: 'success', timer: 1500, showConfirmButton: false});
+                closeModal('orderDetailsModal');
+                loadOrders(); 
+            } else Swal.fire('خطا', data.message, 'error');
+        }).catch(err => { btn.innerHTML = '<i class="fas fa-save ml-2"></i> ذخیره تغییرات سفارش'; btn.disabled = false; });
+    }
+
+    function openDomainModal(orderId) {
+        const order = allLoadedOrders.find(o => o.orderId === orderId);
+        if (order.seoDomainChoice !== "بله") {
+            return Swal.fire('خطا', 'شما خدمات سئو و دامنه را انتخاب نکرده‌اید.', 'error');
+        }
+        activeActionOrderId = orderId;
+        
+        if (order.domainStatus === "نیاز به ثبت دامنه") {
+            document.querySelector('input[name="domainRadio"][value="needs_domain"]').checked = true;
+            if(order.proposedDomains) {
+                let props = order.proposedDomains.split(',');
+                document.getElementById('propDomain1').value = props[0] || '';
+                document.getElementById('propDomain2').value = props[1] || '';
+                document.getElementById('propDomain3').value = props[2] || '';
+                document.getElementById('propDomain4').value = props[3] || '';
+                document.getElementById('propDomain5').value = props[4] || '';
+            }
+        } else {
+            document.querySelector('input[name="domainRadio"][value="has_domain"]').checked = true;
+            document.getElementById('customDomainInput').value = order.domainStatus || "";
+        }
+        
+        toggleDomainInputs();
+        document.getElementById('domainModal').classList.remove('hidden');
+    }
+
+    function toggleDomainInputs() {
+        const choice = document.querySelector('input[name="domainRadio"]:checked').value;
+        if(choice === "has_domain") {
+            document.getElementById('hasDomainSection').classList.remove('hidden');
+            document.getElementById('needsDomainSection').classList.add('hidden');
+        } else {
+            document.getElementById('hasDomainSection').classList.add('hidden');
+            document.getElementById('needsDomainSection').classList.remove('hidden');
+        }
+    }
+
+    function saveDomainOnly() {
+        const choice = document.querySelector('input[name="domainRadio"]:checked').value;
+        let domainStatus = "";
+        let proposedDomains = "";
+
+        if(choice === "has_domain") {
+            domainStatus = sanitizeExcel(document.getElementById('customDomainInput').value.trim());
+            if(!domainStatus) return Swal.fire('خطا', 'لطفاً نام دامنه خود را وارد کنید', 'warning');
+        } else {
+            domainStatus = "نیاز به ثبت دامنه";
+            let p1 = sanitizeExcel(document.getElementById('propDomain1').value.trim());
+            let p2 = sanitizeExcel(document.getElementById('propDomain2').value.trim());
+            let p3 = sanitizeExcel(document.getElementById('propDomain3').value.trim());
+            let p4 = sanitizeExcel(document.getElementById('propDomain4').value.trim());
+            let p5 = sanitizeExcel(document.getElementById('propDomain5').value.trim());
+            
+            if(!p1) return Swal.fire('خطا', 'وارد کردن حداقل یک نام دامنه پیشنهادی الزامی است.', 'warning');
+            proposedDomains = [p1, p2, p3, p4, p5].filter(Boolean).join(',');
+        }
+
+        Swal.fire({ title: 'در حال ذخیره...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() }});
+        fetch(GAS_URL, {
+            method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ 
+                action: "save_domain", 
+                nationalCode: currentUser, token: currentToken,
+                orderId: activeActionOrderId, 
+                domainStatus: domainStatus,
+                proposedDomains: proposedDomains
+            })
+        }).then(res => res.json()).then(data => {
+            if(data.status === 'success') {
+                Swal.fire({title:'موفق', text:data.message, icon:'success', timer:1500, showConfirmButton:false});
+                closeModal('domainModal');
+                loadOrders(); 
+            } else Swal.fire('خطا', data.message, 'error');
+        });
+    }
+
+    function openImageModal(orderId) {
+        activeActionOrderId = orderId;
+        const order = allLoadedOrders.find(o => o.orderId === orderId);
+        renderImagesGallery(order);
+        document.getElementById('imageModal').classList.remove('hidden');
+    }
+
+    async function uploadOrderImage() {
+        const fileInput = document.getElementById('imageInput');
+        const descInput = document.getElementById('imageDescription');
+        const files = fileInput.files;
+        const baseDesc = sanitizeExcel(descInput.value.trim());
+        
+        if(files.length === 0) return alert('تصویری انتخاب نشده است.');
+        if(!baseDesc) return alert('نوشتن توضیح برای تصویر الزامی است.');
+
+        const order = allLoadedOrders.find(o => o.orderId === activeActionOrderId);
+        if(order.images && (order.images.length + files.length) > 10) {
+            return Swal.fire('خطا', `شما الان ${order.images.length} تصویر دارید و می‌خواهید ${files.length} تصویر دیگر اضافه کنید که از سقف مجاز (10) عبور می‌کند.`, 'error');
+        }
+
+        const btn = document.getElementById('uploadImgBtn');
+        const oldHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin ml-2"></i> در حال ارسال...';
+        btn.disabled = true;
+
+        const gallery = document.getElementById('uploadedImagesGallery');
+        const emptyText = gallery.querySelector('.col-span-full');
+        if (emptyText) emptyText.remove();
+
+        const badge = document.getElementById('imageCountBadge');
+        let currentImgCount = order.images ? order.images.length : 0;
+
+        for(let i = 0; i < files.length; i++) {
+            let file = files[i];
+            let desc = baseDesc + (files.length > 1 ? ` (${i+1})` : '');
+            
+            const tempId = 'img_temp_' + Date.now() + '_' + i;
+            const localObjUrl = URL.createObjectURL(file);
+            
+            badge.innerText = `${currentImgCount + 1} / 10`;
+
+            gallery.innerHTML += 
+                `<div id="${tempId}" class="border rounded-2xl p-2 bg-white shadow-sm flex flex-col relative overflow-hidden transition-all duration-300">
+                    <div class="absolute inset-0 bg-white bg-opacity-80 flex flex-col items-center justify-center z-10 backdrop-blur-sm">
+                        <i class="fas fa-spinner fa-spin text-4xl text-blue-600 mb-3"></i>
+                        <span class="text-sm font-bold text-blue-800 bg-white px-3 py-1 rounded-full shadow-sm">آپلود (${i+1}/${files.length})...</span>
+                    </div>
+                    <div class="h-36 w-full mb-2 bg-gray-50 rounded-xl overflow-hidden flex items-center justify-center shadow-inner">
+                        <img src="${localObjUrl}" alt="${desc}" class="h-full w-full object-cover">
+                    </div>
+                    <p class="text-xs text-gray-700 font-bold bg-gray-50 p-2 rounded-lg text-center truncate border shadow-sm" title="${desc}">${currentImgCount + 1}. ${desc}</p>
+                </div>`;
+            gallery.scrollTop = gallery.scrollHeight;
+
+            try {
+                const compressed = await smartCompressImage(file, 190);
+                const fullBase64Data = compressed.base64;
+                const mimeType = compressed.mimeType;
+                const base64Content = fullBase64Data.split(',')[1];
+                
+                const response = await fetch(GAS_URL, {
+                    method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({
+                        action: "upload_image", nationalCode: currentUser, token: currentToken, orderId: activeActionOrderId,
+                        base64Full: base64Content, mimeType: mimeType, fileName: file.name, description: desc
+                    })
+                });
+                const data = await response.json();
+                
+                if(data.status === 'success') {
+                    const tempEl = document.getElementById(tempId);
+                    if(tempEl) {
+                        const overlay = tempEl.querySelector('.absolute.inset-0');
+                        if(overlay) overlay.remove();
+                    }
+                    if(!order.images) order.images = [];
+                    order.images.push({ id: 'pending_refresh', desc: desc, localUrl: localObjUrl });
+                    currentImgCount++;
+                } else {
+                    document.getElementById(tempId).remove();
+                    badge.innerText = `${currentImgCount} / 10`;
+                    Swal.fire('خطا', `خطا در آپلود عکس ${i+1}: ` + data.message, 'error');
+                }
+            } catch (error) {
+                document.getElementById(tempId).remove();
+                badge.innerText = `${currentImgCount} / 10`;
+                Swal.fire('خطا', `خطا در پردازش عکس ${i+1}`, 'error');
+            }
+        }
+        
+        btn.innerHTML = oldHtml; btn.disabled = false;
+        fileInput.value = ''; descInput.value = '';
+        document.getElementById('imagePreviewContainer').classList.add('hidden');
+        document.getElementById('multiImgOverlay').classList.add('hidden');
+        loadOrders();
+    }
+
+    function renderImagesGallery(order) {
+        const gallery = document.getElementById('uploadedImagesGallery');
+        const badge = document.getElementById('imageCountBadge');
+        gallery.innerHTML = '';
+        
+        if(!order || !order.images || order.images.length === 0) {
+            badge.innerText = '0 / 10';
+            gallery.innerHTML = '<div class="col-span-full text-center bg-gray-50 p-8 rounded-2xl border text-gray-400 font-bold w-11/12 mx-auto"><i class="fas fa-images text-4xl mb-3 block text-gray-300"></i>هنوز تصویری ارسال نشده است.</div>';
+            return;
+        }
+
+        const images = order.images;
+        badge.innerText = `${images.length} / 10`;
+        
+        const editableStatuses = ["ثبت اولیه", "در انتظار شروع انجام"];
+        const canEdit = editableStatuses.includes(order.orderStatus.trim());
+
+        images.forEach((img, index) => {
+            const containerId = `img_container_${img.id || index}`;
+            const imgElementId = `gallery_img_${img.id || index}`;
+            gallery.innerHTML += `
+                <div id="${containerId}" class="border rounded-2xl p-2 bg-white shadow-sm flex flex-col hover:shadow-lg transition">
+                    <div class="h-36 w-full mb-3 bg-gray-50 rounded-xl overflow-hidden flex items-center justify-center relative shadow-inner" id="${imgElementId}_wrapper">
+                        <i class="fas fa-circle-notch fa-spin text-blue-400 text-4xl" id="${imgElementId}_spinner"></i>
+                    </div>
+                    <div class="flex items-center justify-between bg-gray-50 p-2 rounded-lg border shadow-sm">
+                        <p class="text-xs text-gray-700 font-bold truncate flex-1 ml-2" id="${imgElementId}_desc" title="${img.desc}">${index+1}. ${img.desc}</p>
+                        <div class="flex gap-1">
+                            ${canEdit ? `<button onclick="editImageDescription('${order.orderId}', '${img.id}', '${img.desc.replace(/'/g, "\\'")}')" class="text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-1.5 rounded transition text-sm" title="ویرایش"><i class="fas fa-pencil-alt"></i></button>` : ''}
+                            ${canEdit ? `<button onclick="replaceImage('${order.orderId}', '${img.id}')" class="text-green-500 hover:text-green-700 hover:bg-green-50 p-1.5 rounded transition text-sm" title="جایگزینی"><i class="fas fa-exchange-alt"></i></button>` : ''}
+                            ${canEdit ? `<button onclick="deleteImage('${order.orderId}', '${img.id}')" class="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded transition text-sm" title="حذف"><i class="fas fa-trash-alt"></i></button>` : ''}
+                        </div>
+                    </div>
+                </div>`;
+        });
+
+        images.forEach((img, index) => {
+            const spinnerId = `gallery_img_${img.id || index}_spinner`;
+            const wrapperId = `gallery_img_${img.id || index}_wrapper`;
+            if (!img.id || img.id === 'pending_refresh') {
+                if (img.localUrl) {
+                    document.getElementById(spinnerId)?.remove();
+                    const wrapper = document.getElementById(wrapperId);
+                    if (wrapper) wrapper.innerHTML = `<img src="${img.localUrl}" class="h-full w-full object-cover clickable-img" alt="${img.desc}" onclick="openLightbox(this.src)">`;
+                }
+                return;
+            }
+            loadImageBase64(img.id, (result) => {
+                const spinner = document.getElementById(spinnerId);
+                const wrapper = document.getElementById(wrapperId);
+                if (!wrapper) return;
+                if (result.success) {
+                    wrapper.innerHTML = `<img src="data:${result.mime};base64,${result.base64}" class="h-full w-full object-cover clickable-img transition-transform hover:scale-105" alt="${img.desc}" onclick="openLightbox(this.src)">`;
+                } else {
+                    wrapper.innerHTML = '<span class="text-xs text-red-500 font-bold bg-red-50 px-2 py-1 rounded"><i class="fas fa-times-circle"></i> خطا در بارگذاری</span>';
+                }
+            });
+        });
+    }
+
+    async function deleteImage(orderId, fileId) {
+        if(fileId === 'pending_refresh') return Swal.fire('خطا', 'لطفا برای حذف این عکس ابتدا صفحه را رفرش کنید.', 'warning');
+        const confirmResult = await Swal.fire({
+            title: 'حذف تصویر',
+            text: 'آیا از حذف این تصویر مطمئن هستید؟',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            confirmButtonText: 'بله، حذف شود',
+            cancelButtonText: 'انصراف'
+        });
+        if (!confirmResult.isConfirmed) return;
+        
+        Swal.fire({ title: 'در حال حذف...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        fetch(GAS_URL, {
+            method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ action: "delete_image", nationalCode: currentUser, token: currentToken, orderId: orderId, fileId: fileId })
+        }).then(res => res.json()).then(data => {
+            if (data.status === 'success') {
+                Swal.fire({title:'موفق', text:'تصویر با موفقیت حذف شد.', icon:'success', timer:1500, showConfirmButton:false});
+                loadOrders();
+            } else {
+                Swal.fire('خطا', data.message, 'error');
+            }
+        }).catch(() => Swal.fire('خطا', 'مشکل ارتباطی', 'error'));
+    }
+
+    async function editImageDescription(orderId, fileId, currentDesc) {
+        if(fileId === 'pending_refresh') return Swal.fire('خطا', 'لطفا برای ویرایش این عکس ابتدا صفحه را رفرش کنید.', 'warning');
+        const { value: newDesc } = await Swal.fire({
+            title: 'ویرایش توضیح تصویر',
+            input: 'text',
+            inputValue: currentDesc,
+            showCancelButton: true,
+            inputValidator: (value) => {
+                if (!value) return 'توضیح نمی‌تواند خالی باشد';
+                if (value.length > 150) return 'حداکثر ۱۵۰ کاراکتر';
+            }
+        });
+        if (!newDesc) return;
+        
+        Swal.fire({ title: 'در حال ذخیره...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        fetch(GAS_URL, {
+            method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ action: "update_image_description", nationalCode: currentUser, token: currentToken, orderId: orderId, fileId: fileId, description: sanitizeExcel(newDesc) })
+        }).then(res => res.json()).then(data => {
+            if (data.status === 'success') {
+                Swal.fire({title:'موفق', text:'توضیح تصویر به‌روزرسانی شد.', icon:'success', timer:1500, showConfirmButton:false});
+                loadOrders();
+            } else {
+                Swal.fire('خطا', data.message, 'error');
+            }
+        });
+    }
+
+    async function replaceImage(orderId, oldFileId) {
+        if(oldFileId === 'pending_refresh') return Swal.fire('خطا', 'لطفا برای جایگزینی این عکس ابتدا صفحه را رفرش کنید.', 'warning');
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.onchange = async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const newDesc = prompt('توضیح جدید (اختیاری)', '');
+            Swal.fire({ title: 'در حال جایگزینی...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            try {
+                const compressed = await smartCompressImage(file, 190);
+                const base64Content = compressed.base64.split(',')[1];
+                fetch(GAS_URL, {
+                    method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({
+                        action: "replace_image",
+                        nationalCode: currentUser, token: currentToken,
+                        orderId: orderId,
+                        oldFileId: oldFileId,
+                        base64Full: base64Content,
+                        mimeType: compressed.mimeType,
+                        fileName: file.name,
+                        description: newDesc || 'بدون توضیح'
+                    })
+                }).then(res => res.json()).then(data => {
+                    if (data.status === 'success') {
+                        Swal.fire({title:'موفق', text:'تصویر با موفقیت جایگزین گردید.', icon:'success', timer:1500, showConfirmButton:false});
+                        loadOrders();
+                    } else {
+                        Swal.fire('خطا', data.message, 'error');
+                    }
+                });
+            } catch (error) {
+                Swal.fire('خطا', 'خطا در پردازش تصویر', 'error');
+            }
+        };
+        fileInput.click();
+    }
+
+    function openTicketsModal(orderId) {
+        activeTicketOrderId = orderId;
+        document.getElementById('ticketOrderIdDisplay').innerText = orderId;
+        const chatBox = document.getElementById('ticketsChatBox');
+        chatBox.innerHTML = '';
+        
+        const order = allLoadedOrders.find(o => o.orderId === orderId);
+        if(order && order.tickets && order.tickets.length > 0) {
+            order.tickets.forEach(ticket => {
+                const isUser = String(ticket.sender).trim() === String(currentUser).trim();
+                const bubbleClass = isUser ? 'chat-user' : 'chat-admin shadow-md';
+                const senderName = isUser ? 'شما' : '<i class="fas fa-headset ml-1 text-blue-500"></i> پشتیبانی ToWeb';
+                chatBox.innerHTML += 
+                    `<div class="chat-bubble shadow-sm ${bubbleClass}">
+                        <div class="text-xs opacity-70 mb-2 font-bold border-b pb-1 border-opacity-20 flex justify-between items-center">
+                            <span>${senderName}</span>
+                            <span class="font-normal text-[10px] bg-white bg-opacity-30 px-2 py-0.5 rounded">${ticket.date}</span>
+                        </div>
+                        <div class="leading-relaxed text-sm whitespace-pre-wrap">${ticket.message}</div>
+                    </div>`;
+            });
+            setTimeout(() => { chatBox.scrollTop = chatBox.scrollHeight; }, 100);
+        } else {
+            chatBox.innerHTML = '<div class="text-center text-gray-400 mt-8 font-bold empty-ticket-text bg-white p-6 rounded-2xl w-11/12 mx-auto shadow-sm border"><i class="fas fa-comment-dots text-4xl mb-3 text-gray-300 block"></i>پیامی در این تیکت وجود ندارد.</div>';
+        }
+        document.getElementById('ticketsModal').classList.remove('hidden');
+    }
+
+    function sendNewTicket() {
+        const msgInput = document.getElementById('newTicketMessage');
+        const rawMsg = msgInput.value.trim();
+        
+        if(!rawMsg || !activeTicketOrderId) return;
+        
+        // کنترل تعداد کلمات (حداکثر 300 کلمه)
+        const wordCount = rawMsg.split(/\s+/).length;
+        if(wordCount > 300) {
+            Swal.fire('خطا', 'متن پیام نمی‌تواند بیشتر از ۳۰۰ کلمه باشد.', 'warning');
+            return;
+        }
+
+        // کاملا ایمن کردن متن در برابر کدهای مخرب
+        const msg = sanitizeExcel(rawMsg);
+        
+        const chatBox = document.getElementById('ticketsChatBox');
+        const emptyText = chatBox.querySelector('.empty-ticket-text');
+        if (emptyText) emptyText.remove();
+
+        const tempId = 'msg_temp_' + Date.now();
+        const currentDate = new Date().toLocaleDateString('fa-IR');
+        
+        chatBox.innerHTML += 
+            `<div id="${tempId}" class="chat-bubble shadow-sm chat-user opacity-60">
+                <div class="text-xs opacity-70 mb-2 font-bold border-b pb-1 border-opacity-20 flex justify-between items-center">
+                    <span>شما</span>
+                    <span class="font-normal text-[10px] bg-white bg-opacity-30 px-2 py-0.5 rounded"><i class="fas fa-spinner fa-spin"></i> در حال ارسال...</span>
+                </div>
+                <div class="leading-relaxed text-sm whitespace-pre-wrap">${msg}</div>
+            </div>`;
+        setTimeout(() => { chatBox.scrollTop = chatBox.scrollHeight; }, 50);
+
+        msgInput.value = ''; 
+        msgInput.disabled = true;
+        const btnSend = document.getElementById('btnSendTicket');
+        btnSend.disabled = true;
+
+        fetch(GAS_URL, {
+            method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ action: "submit_ticket", nationalCode: currentUser, token: currentToken, orderId: activeTicketOrderId, message: msg })
+        }).then(res => res.json()).then(data => {
+            msgInput.disabled = false;
+            btnSend.disabled = false;
+            msgInput.focus();
+            
+            if (data.status === 'success') {
+                const tempBubble = document.getElementById(tempId);
+                if (tempBubble) {
+                    tempBubble.classList.remove('opacity-60');
+                    tempBubble.innerHTML = 
+                        `<div class="text-xs opacity-70 mb-2 font-bold border-b pb-1 border-opacity-20 flex justify-between items-center">
+                            <span>شما</span>
+                            <span class="font-normal text-[10px] bg-white bg-opacity-30 px-2 py-0.5 rounded">${currentDate}</span>
+                        </div>
+                        <div class="leading-relaxed text-sm whitespace-pre-wrap">${msg}</div>`;
+                }
+                const order = allLoadedOrders.find(o => o.orderId === activeTicketOrderId);
+                if(order) {
+                    if(!order.tickets) order.tickets = [];
+                    order.tickets.push({ sender: currentUser, message: msg, date: currentDate });
+                }
+                loadOrders(); 
+            } else {
+                document.getElementById(tempId).remove();
+                Swal.fire('خطا', 'مشکل در ارسال پیام: ' + data.message, 'error');
+            }
+        }).catch(err => { 
+            msgInput.disabled = false; btnSend.disabled = false; 
+            document.getElementById(tempId).remove();
+            Swal.fire('خطا', 'مشکل در ارتباط با سرور', 'error'); 
+        });
+    }
+
+    function showFinalData(order) {
+        let githubLinkHtml = '';
+        if(order.githubLink && order.githubLink.trim() !== '') {
+            githubLinkHtml = `<a href="${order.githubLink}" target="_blank" class="block text-center w-full bg-gray-800 text-white font-bold p-4 rounded-xl hover:bg-gray-900 shadow-xl transition transform hover:-translate-y-1 mt-6 text-lg flex items-center justify-center gap-2"><i class="fab fa-github text-2xl"></i> دانلود / مشاهده سورس فایل‌ها</a>`;
+        } else {
+            githubLinkHtml = `<p class="text-sm text-red-600 font-bold text-center mt-6 border border-red-200 p-4 rounded-xl bg-red-50 flex items-center justify-center gap-2"><i class="fas fa-exclamation-circle text-xl"></i> لینک دریافت فایل‌ها هنوز توسط مدیریت قرار داده نشده است.</p>`;
+        }
+
+        const content = 
+            `<div class="space-y-4">
+                <div class="bg-blue-50 p-5 rounded-2xl border border-blue-100 flex flex-col items-start shadow-sm">
+                    <strong class="text-blue-800 mb-2 flex items-center gap-2"><i class="fas fa-link"></i> آدرس سایت شما:</strong> 
+                    <a href="${order.siteUrl}" target="_blank" class="text-blue-600 font-bold hover:underline bg-white px-4 py-2 rounded-lg border w-full text-center shadow-sm" dir="ltr">${order.siteUrl}</a>
+                </div>
+                <div class="bg-gray-50 p-5 rounded-2xl border flex items-center justify-between shadow-sm">
+                    <strong class="text-gray-700 flex items-center gap-2"><i class="fas fa-user-shield"></i> ایمیل ادمین:</strong> 
+                    <span dir="ltr" class="font-bold bg-white px-3 py-1 rounded border shadow-sm">${order.siteEmail}</span>
+                </div>
+                <div class="bg-gray-50 p-5 rounded-2xl border flex items-center justify-between shadow-sm">
+                    <strong class="text-gray-700 flex items-center gap-2"><i class="fas fa-key"></i> رمز عبور:</strong> 
+                    <span dir="ltr" class="font-bold tracking-widest bg-white px-3 py-1 border rounded shadow-sm">${order.sitePass}</span>
+                </div>
+                ${githubLinkHtml}
+            </div>`;
+        document.getElementById('finalDataContent').innerHTML = content;
+        document.getElementById('finalDataModal').classList.remove('hidden');
+    }
+
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+</script>
+</body>
+</html>          
