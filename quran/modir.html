@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -333,6 +333,26 @@
             .class-list-title-row { flex-direction:column; }
             .class-list-actions .btn-sm { flex:1; }
         }
+
+        /* Requested dashboard overflow fix: never let dashboard cards/content force the page wider. */
+        .dashboard-two-col > .card,
+        .dashboard-section { min-width: 0; max-width: 100%; }
+        .dashboard-section-title > *,
+        .mini-item > *,
+        .trainer-dashboard-card,
+        .trainer-class-row { min-width: 0; max-width: 100%; }
+        .dashboard-section-title h3,
+        .mini-item .mini-title,
+        .mini-item .mini-sub,
+        .trainer-dashboard-card strong,
+        .trainer-class-row strong,
+        .trainer-class-row span { overflow-wrap: anywhere; word-break: break-word; }
+        .dashboard-table-wrap { width: 100%; max-width: 100%; overflow-x: auto; overflow-y: hidden; }
+        .dashboard-table { min-width: 0; }
+        .dashboard-two-col { min-width: 0; width: 100%; }
+        @media (max-width: 560px) {
+            .trainee-export-fields { grid-template-columns: 1fr !important; }
+        }
     </style>
 </head>
 <body>
@@ -416,6 +436,7 @@
                     <h2><i class="fas fa-users"></i> لیست متربیان</h2>
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
                         <button class="btn-info btn-sm" onclick="triggerExcelUpload(null)"><i class="fas fa-file-excel"></i> ورود اطلاعات با اکسل</button>
+                        <button class="btn-success btn-sm" onclick="openTraineeExportModal()"><i class="fas fa-file-excel"></i> خروجی اکسل متربیان</button>
                         <button class="btn-primary btn-sm" onclick="openTraineeForm()">➕ افزودن متربی جدید</button>
                     </div>
                 </div>
@@ -440,7 +461,7 @@
                     </table>
                 </div>
                 <div id="load-more-trainees-container" style="text-align:center; margin-top:20px; display:none;">
-                    <button class="btn-outline btn-sm" onclick="loadMoreTrainees()">⬇️ نمایش ۳۰ متربی بعدی</button>
+                    <button class="btn-outline btn-sm" onclick="loadMoreTrainees()">⬇️ نمایش ۱۰۰ متربی بعدی</button>
                 </div>
             </div>
         </div>
@@ -499,7 +520,7 @@
     // ================== STATE MANAGEMENT ==================
     let appData = { trainees: [], trainers: [], classes: [], staff: [] };
     let internetDateObj = null;
-    let traineeDisplayLimit = 30; // Limit for trainees pagination
+    let traineeDisplayLimit = 100; // Limit for trainees pagination
     let targetClassForImport = null; // Used for Excel Import
     let selectedTraineeIds = new Set();
     let selectedClassTraineeIds = new Set();
@@ -839,7 +860,7 @@
             if(!Array.isArray(fresh.staff)) fresh.staff = [];
             fresh.trainees = fresh.trainees.map(t => { const copy = {...t}; delete copy.cardNumber; return copy; });
             appData = fresh;
-            traineeDisplayLimit = Math.max(traineeDisplayLimit, 30);
+            traineeDisplayLimit = Math.max(traineeDisplayLimit, 100);
             saveLocalDataCache(appData);
             renderClasses();
             renderTrainees();
@@ -927,7 +948,7 @@
                 if(!Array.isArray(appData.classes)) appData.classes = [];
                 if(!Array.isArray(appData.staff)) appData.staff = [];
                 appData.trainees = appData.trainees.map(t => { const copy = {...t}; delete copy.cardNumber; return copy; });
-                traineeDisplayLimit = 30;
+                traineeDisplayLimit = 100;
                 renderClasses();
                 renderTrainees();
                 renderTrainers();
@@ -1183,7 +1204,7 @@
             <div class="dashboard-two-col">
                 <div class="card dashboard-section">
                     <div class="dashboard-section-title">
-                        <h3><i class="fas fa-calendar-check"></i> درآمد ملی هر ماه</h3>
+                        <h3><i class="fas fa-calendar-check"></i> درآمد کلی هر ماه</h3>
                         <span style="font-size:.76rem;color:var(--text-light);">تا ${currentKey ? formatJalaliMonthYear(`${currentKey.replace('-', '/')}/01`) : 'امروز'}</span>
                     </div>
                     <div class="dashboard-table-wrap">
@@ -1473,6 +1494,151 @@
     };
 
     // ================== TRAINEES ==================
+    const TRAINEE_EXPORT_FIELDS = [
+        { key: 'rowNumber', label: 'ردیف' },
+        { key: 'nationality', label: 'ملیت' },
+        { key: 'nationalId', label: 'کد ملی / کد اتباع' },
+        { key: 'firstName', label: 'نام' },
+        { key: 'lastName', label: 'نام خانوادگی' },
+        { key: 'gender', label: 'جنسیت' },
+        { key: 'fatherName', label: 'نام پدر' },
+        { key: 'issuePlace', label: 'محل صدور' },
+        { key: 'phone', label: 'شماره همراه' },
+        { key: 'birthDate', label: 'تاریخ تولد' },
+        { key: 'province', label: 'استان' },
+        { key: 'city', label: 'شهر' },
+        { key: 'education', label: 'تحصیلات' },
+        { key: 'studyField', label: 'رشته تحصیلی' }
+    ];
+
+    function getTraineesNewestFirst() {
+        // ترتیب جدیدترین به قدیمی‌ترین: رکوردهای جدیدتر در انتهای داده‌های شیت ثبت می‌شوند.
+        return [...appData.trainees].reverse();
+    }
+
+    function getSelectedTraineeExportFields() {
+        return TRAINEE_EXPORT_FIELDS.filter(field =>
+            document.getElementById(`trainee-export-field-${field.key}`)?.checked
+        );
+    }
+
+    function toggleAllTraineeExportFields(checked) {
+        TRAINEE_EXPORT_FIELDS.forEach(field => {
+            const checkbox = document.getElementById(`trainee-export-field-${field.key}`);
+            if(checkbox) checkbox.checked = checked;
+        });
+    }
+
+    window.openTraineeExportModal = () => {
+        const trainees = getTraineesNewestFirst();
+        const total = trainees.length;
+        if(total === 0) {
+            showToast('هیچ متربی‌ای برای خروجی اکسل وجود ندارد.', 'warning');
+            return;
+        }
+
+        const fieldOptions = TRAINEE_EXPORT_FIELDS.map(field => `
+            <label style="display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid var(--border-color);border-radius:10px;background:var(--bg-main);cursor:pointer;">
+                <input type="checkbox" id="trainee-export-field-${field.key}" class="selection-checkbox" checked>
+                <span>${field.label}</span>
+            </label>
+        `).join('');
+
+        const html = `
+        <div class="modal-overlay show" onclick="if(event.target===this) closeModal()">
+            <div class="modal-box" style="max-width:760px;">
+                <button class="modal-close-btn" onclick="closeModal()"><i class="fas fa-times"></i></button>
+                <h3 style="margin-bottom:12px;color:var(--success);"><i class="fas fa-file-excel"></i> خروجی اکسل لیست متربیان</h3>
+
+                <div class="payment-summary-box">
+                    <strong>${total.toLocaleString('fa-IR')} متربی</strong> در فهرست وجود دارد.
+                    شماره ردیف‌ها در این خروجی بر اساس ترتیب <strong>جدیدترین به قدیمی‌ترین</strong> محاسبه می‌شوند؛ بنابراین ردیف ۱ جدیدترین متربی است.
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="trainee-export-start-row">از ردیف</label>
+                        <input type="number" id="trainee-export-start-row" class="form-input" min="1" max="${total}" step="1" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="trainee-export-end-row">تا ردیف</label>
+                        <input type="number" id="trainee-export-end-row" class="form-input" min="1" max="${total}" step="1" value="${total}">
+                    </div>
+                </div>
+
+                <div class="section-toolbar" style="margin-top:4px;">
+                    <div>
+                        <h4><i class="fas fa-table-columns"></i> ستون‌های خروجی</h4>
+                        <div class="muted-note">هر ستونی که تیک خورده باشد در فایل اکسل ذخیره می‌شود.</div>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button type="button" class="btn-outline btn-sm" onclick="toggleAllTraineeExportFields(true)">انتخاب همه</button>
+                        <button type="button" class="btn-outline btn-sm" onclick="toggleAllTraineeExportFields(false)">لغو همه</button>
+                    </div>
+                </div>
+
+                <div class="trainee-export-fields" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:360px;overflow-y:auto;padding:4px 1px;">
+                    ${fieldOptions}
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-outline btn-sm" onclick="closeModal()">انصراف</button>
+                    <button type="button" class="btn-success btn-sm" onclick="exportSelectedTraineesToExcel()">
+                        <span class="btn-icon"><i class="fas fa-download"></i></span>
+                        <span class="btn-text">دانلود فایل اکسل</span>
+                        <div class="btn-spinner"></div>
+                    </button>
+                </div>
+            </div>
+        </div>`;
+
+        document.getElementById('modal-container').innerHTML = html;
+    };
+
+    window.exportSelectedTraineesToExcel = () => {
+        const allTrainees = getTraineesNewestFirst();
+        const total = allTrainees.length;
+        const startInput = document.getElementById('trainee-export-start-row');
+        const endInput = document.getElementById('trainee-export-end-row');
+        const startRow = parseInt(startInput?.value, 10);
+        const endRow = parseInt(endInput?.value, 10);
+        const fields = getSelectedTraineeExportFields();
+
+        if(!Number.isInteger(startRow) || !Number.isInteger(endRow) || startRow < 1 || endRow < 1 || startRow > total || endRow > total || startRow > endRow) {
+            showToast(`بازه ردیف نامعتبر است. بازه مجاز: ۱ تا ${total.toLocaleString('fa-IR')}.`, 'warning');
+            return;
+        }
+
+        if(fields.length === 0) {
+            showToast('حداقل یک ستون برای خروجی انتخاب کنید.', 'warning');
+            return;
+        }
+
+        const selectedTrainees = allTrainees.slice(startRow - 1, endRow);
+        const dataToExport = [fields.map(field => field.label)];
+
+        selectedTrainees.forEach((t, index) => {
+            const exportRowNumber = startRow + index;
+            dataToExport.push(fields.map(field => {
+                if(field.key === 'rowNumber') return String(exportRowNumber);
+                return String(t[field.key] ?? '');
+            }));
+        });
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(dataToExport);
+        ws['!rtl'] = true;
+        ws['!cols'] = fields.map((field, fieldIndex) => {
+            const maxLen = dataToExport.reduce((max, row) => Math.max(max, String(row[fieldIndex] || '').length), String(field.label).length);
+            return { wch: Math.min(34, Math.max(10, maxLen + 2)) };
+        });
+        ws['!autofilter'] = { ref: `A1:${XLSX.utils.encode_col(fields.length - 1)}${dataToExport.length}` };
+        XLSX.utils.book_append_sheet(wb, ws, 'Trainees');
+        XLSX.writeFile(wb, `Trainees_${startRow}-${endRow}.xlsx`);
+        closeModal();
+        showToast(`✅ خروجی ${selectedTrainees.length.toLocaleString('fa-IR')} متربی با موفقیت آماده شد.`);
+    };
+
     function normalizeSearchText(value) {
         return String(value || '')
             .replace(/ي/g, 'ی')
@@ -1523,7 +1689,7 @@
 
     window.toggleAllVisibleTrainees = (checked) => {
         const searchQuery = normalizeSearchText(document.getElementById('trainee_search_input')?.value || '');
-        let filteredList = [...appData.trainees].reverse();
+        let filteredList = getTraineesNewestFirst();
         if(searchQuery) {
             filteredList = filteredList.filter(t => String(t.nationalId || '').includes(searchQuery));
         }
@@ -1535,7 +1701,7 @@
     };
 
     function loadMoreTrainees() {
-        traineeDisplayLimit += 30;
+        traineeDisplayLimit += 100;
         renderTrainees();
     }
 
@@ -1545,7 +1711,7 @@
         const searchQuery = normalizeSearchText(document.getElementById('trainee_search_input')?.value || '');
         if(!tbody || !btnContainer) return;
 
-        let filteredList = [...appData.trainees].reverse();
+        let filteredList = getTraineesNewestFirst();
         if(searchQuery) {
             filteredList = filteredList.filter(t => String(t.nationalId || '').includes(searchQuery));
         }
