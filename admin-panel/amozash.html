@@ -1,4 +1,4 @@
-        <!DOCTYPE html> 
+      <!DOCTYPE html> 
 <html lang="fa" dir="rtl">  
 <head>  
     <meta charset="UTF-8"> 
@@ -80,7 +80,7 @@
         .pagination-controls { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px; }
 
         /* --- مدیریت دوره‌های عمومی --- */
-        .course-management-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .course-management-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
         .course-management-stat { background: var(--light-bg); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 15px; text-align: center; }
         .course-management-stat strong { display: block; color: var(--primary-color); font-size: 1.35rem; margin-bottom: 4px; }
         .course-management-stat span { color: var(--light-text); font-size: 0.88rem; }
@@ -113,7 +113,8 @@
         .course-editor-actions { display: flex; justify-content: flex-start; gap: 10px; flex-wrap: wrap; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border-color); }
         .btn-secondary { background: #64748b; }
         .btn-secondary:hover:not(:disabled) { background: #475569; }
-        .course-delete-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn-danger { background: var(--danger-color); }
+        .btn-danger:hover:not(:disabled) { background: #991b1b; }
         @media (max-width: 760px) {
             .course-management-summary { grid-template-columns: 1fr; }
             .course-editor-grid { grid-template-columns: 1fr; }
@@ -157,8 +158,9 @@
         <div class="admin-card" id="course-management-section">
             <h2><i class="fas fa-sliders-h" style="margin-left: 10px; color: var(--secondary-color);"></i>مدیریت دوره‌های عمومی</h2>
             <div class="course-management-summary" id="course-management-summary">
-                <div class="course-management-stat"><strong id="course-management-count">۰</strong><span>تعداد دوره‌های تعریف‌شده</span></div>
-                <div class="course-management-stat"><strong id="course-management-used-count">۰</strong><span>تعداد برگزاری‌های دوره‌های مؤسسه</span></div>
+                <div class="course-management-stat"><strong id="course-management-count">۰</strong><span>تعداد دوره‌های عمومی مؤسسه</span></div>
+                <div class="course-management-stat"><strong id="course-management-used-count">۰</strong><span>تعداد دوره‌های دارای سابقه برگزاری</span></div>
+                <div class="course-management-stat"><strong id="course-management-duration-total">۰</strong><span>مجموع مدت دوره‌ها (روز)</span></div>
                 <div class="course-management-stat"><strong id="course-management-warning-count">۰</strong><span>تعداد کدهای تکراری</span></div>
             </div>
             <div class="course-management-toolbar">
@@ -275,7 +277,7 @@
     const sessionKey = 'generalAdminSessionToken';
     const ITEMS_PER_PAGE = 5;
 
-    let fullData = { students: { '2': {}, '5': {}, '0': {} }, pendingCourses: [], courseCatalog: [], courseCatalogCount: 0, courseCatalogUsageTotal: 0, courseCatalogWarnings: [] };
+    let fullData = { students: { '2': {}, '5': {}, '0': {} }, pendingCourses: [], courseCatalog: [], courseCatalogCount: 0, courseCatalogUsedCount: 0, courseCatalogTotalDurationInDays: 0, courseCatalogWarnings: [] };
     let currentPages = { 'pending': 1, 'issued': 1, 'rejected': 1 };
     let courseManagementFiltered = [];
     
@@ -382,7 +384,8 @@
             fullData.pendingCourses = res.data.pendingCourses;
             fullData.courseCatalog = Array.isArray(res.data.courseCatalog) ? res.data.courseCatalog : [];
             fullData.courseCatalogCount = Number(res.data.courseCatalogCount || fullData.courseCatalog.length || 0);
-            fullData.courseCatalogUsageTotal = Number(res.data.courseCatalogUsageTotal || 0);
+            fullData.courseCatalogUsedCount = Number(res.data.courseCatalogUsedCount || 0);
+            fullData.courseCatalogTotalDurationInDays = Number(res.data.courseCatalogTotalDurationInDays || 0);
             fullData.courseCatalogWarnings = Array.isArray(res.data.courseCatalogWarnings) ? res.data.courseCatalogWarnings : [];
             displayData('2', 'pending');
             displayData('0', 'rejected');
@@ -588,10 +591,20 @@
         const container = document.getElementById('course-management-container');
         const courseCountEl = document.getElementById('course-management-count');
         const usedCountEl = document.getElementById('course-management-used-count');
+        const totalDurationEl = document.getElementById('course-management-duration-total');
         const warningCountEl = document.getElementById('course-management-warning-count');
 
-        courseCountEl.innerText = toPersianDigits(fullData.courseCatalogCount || 0);
-        usedCountEl.innerText = toPersianDigits(fullData.courseCatalogUsageTotal || 0);
+        const catalog = Array.isArray(fullData.courseCatalog) ? fullData.courseCatalog : [];
+        const usedCourseCount = Number.isFinite(fullData.courseCatalogUsedCount) && fullData.courseCatalogUsedCount > 0
+            ? fullData.courseCatalogUsedCount
+            : catalog.filter(course => Number(course.usageCount || 0) > 0).length;
+        const totalDuration = Number.isFinite(fullData.courseCatalogTotalDurationInDays)
+            ? fullData.courseCatalogTotalDurationInDays
+            : catalog.reduce((sum, course) => sum + (Number(course.durationInDays) || 0), 0);
+
+        courseCountEl.innerText = toPersianDigits(fullData.courseCatalogCount || catalog.length || 0);
+        usedCountEl.innerText = toPersianDigits(usedCourseCount);
+        totalDurationEl.innerText = toPersianDigits(totalDuration);
         warningCountEl.innerText = toPersianDigits((fullData.courseCatalogWarnings || []).length);
 
         if (!courses || courses.length === 0) {
@@ -599,23 +612,25 @@
             return;
         }
 
+        let warningText = '';
         if (fullData.courseCatalogWarnings && fullData.courseCatalogWarnings.length > 0) {
-            let warningText = '<div class="course-warning-box"><strong><i class="fas fa-exclamation-triangle"></i> هشدار کدهای تکراری:</strong><br>';
+            warningText = '<div class="course-warning-box"><strong><i class="fas fa-exclamation-triangle"></i> هشدار کدهای تکراری:</strong><br>';
             warningText += fullData.courseCatalogWarnings.map(item =>
                 `کد <strong>${escapeHtml(item.code)}</strong> برای ${item.names.length} عنوان استفاده شده است.`
             ).join('<br>');
-            warningText += '<br><small>برای جلوگیری از ایجاد ابهام جدید، کد دوره جدید همیشه به‌صورت خودکار از اولین شماره آزاد انتخاب می‌شود.</small></div>';
-        } else {
-            warningText = '';
+            warningText += '<br><small>کد دوره جدید همیشه به‌صورت خودکار تولید می‌شود و از کدهای موجود استفاده مجدد نمی‌کند.</small></div>';
         }
 
         let tableHtml = warningText;
-        tableHtml += '<div class="table-responsive-wrapper"><table class="data-table course-management-table"><thead><tr><th>ردیف</th><th>نام دوره</th><th>کد</th><th>مدت</th><th>آزمون</th><th>سابقه برگزاری</th><th>الگو</th><th>فایل</th><th>وضعیت کد</th><th>عملیات</th></tr></thead><tbody>';
+        tableHtml += '<div class="table-responsive-wrapper"><table class="data-table course-management-table"><thead><tr><th>ردیف</th><th>نام دوره</th><th>کد</th><th>مدت</th><th>آزمون</th><th>سابقه برگزاری</th><th>الگو</th><th>شیوه‌نامه</th><th>فایل</th><th>وضعیت کد</th><th>عملیات</th></tr></thead><tbody>';
 
         courses.forEach((course, index) => {
-            const templateLabel = course.templateId ? 'ثبت شده' : 'ثبت نشده';
+            const templateLabel = course.templateId ? 'ثبت شده' : '<span style="color: var(--danger-color);">ثبت نشده</span>';
             const fileHtml = course.teachingFileUrl
                 ? `<a class="course-management-link" href="${sanitizeUrl(course.teachingFileUrl)}" target="_blank" rel="noopener noreferrer">مشاهده</a>`
+                : '<span style="color: var(--light-text);">-</span>';
+            const policyLabel = course.policyHtml
+                ? '<span style="color: var(--success-color); font-weight: 700;">ثبت شده</span>'
                 : '<span style="color: var(--light-text);">-</span>';
             const examHtml = Number(course.hasExam) === 5
                 ? '<span class="course-exam-badge">دارد</span>'
@@ -623,12 +638,11 @@
             const duplicateHtml = course.duplicateCode
                 ? '<span class="course-warning-badge">تکراری</span>'
                 : '<span style="color: var(--success-color); font-weight: 700;">یکتا</span>';
-
-            const deleteDisabled = Number(course.usageCount || 0) > 0;
-            const deleteTitle = deleteDisabled
-                ? 'به دلیل وجود سابقه برگزاری، حذف این دوره مجاز نیست'
+            const usageCount = Number(course.usageCount || 0);
+            const deleteDisabled = usageCount > 0 ? 'disabled' : '';
+            const deleteTitle = usageCount > 0
+                ? 'به دلیل وجود سابقه برگزاری قابل حذف نیست'
                 : 'حذف دوره';
-            const deleteButtonHtml = `<button type="button" class="btn course-delete-btn" data-row-index="${course.rowIndex}" data-course-name="${escapeHtml(course.courseName || '')}" ${deleteDisabled ? 'disabled' : ''} title="${deleteTitle}" style="padding: 7px 12px; font-size: 0.85rem; background-color: var(--danger-color);"><i class="fas fa-trash-alt"></i><span class="btn-text">حذف</span></button>`;
 
             tableHtml += `<tr>
                 <td>${index + 1}</td>
@@ -636,22 +650,63 @@
                 <td><span class="course-code-badge">${escapeHtml(course.courseCode || 'خودکار')}</span></td>
                 <td>${course.durationInDays ? toPersianDigits(course.durationInDays) + ' روز' : '<span style="color: var(--danger-color);">ثبت نشده</span>'}</td>
                 <td>${examHtml}</td>
-                <td>${toPersianDigits(course.usageCount || 0)} برگزاری</td>
+                <td>${toPersianDigits(usageCount)} دوره</td>
                 <td>${templateLabel}</td>
+                <td>${policyLabel}</td>
                 <td>${fileHtml}</td>
                 <td>${duplicateHtml}</td>
-                <td><div class="action-buttons"><button type="button" class="btn course-edit-btn" data-row-index="${course.rowIndex}" style="padding: 7px 12px; font-size: 0.85rem;"><i class="fas fa-edit"></i><span class="btn-text">ویرایش</span></button>${deleteButtonHtml}</div></td>
+                <td><div class="action-buttons">
+                    <button type="button" class="btn course-edit-btn" data-row-index="${course.rowIndex}" style="padding: 7px 12px; font-size: 0.85rem;"><i class="fas fa-edit"></i><span class="btn-text">ویرایش</span></button>
+                    <button type="button" class="btn btn-danger course-delete-btn" data-row-index="${course.rowIndex}" ${deleteDisabled} title="${deleteTitle}" style="padding: 7px 12px; font-size: 0.85rem;"><i class="fas fa-trash-alt"></i><span class="btn-text">حذف</span></button>
+                </div></td>
             </tr>`;
         });
 
         tableHtml += '</tbody></table></div>';
         container.innerHTML = tableHtml;
+
         container.querySelectorAll('.course-edit-btn').forEach(button => {
             button.addEventListener('click', () => openCourseEditor(Number(button.dataset.rowIndex)));
         });
-        container.querySelectorAll('.course-delete-btn:not(:disabled)').forEach(button => {
-            button.addEventListener('click', () => handleDeleteCourse(Number(button.dataset.rowIndex), button.dataset.courseName));
+
+        container.querySelectorAll('.course-delete-btn').forEach(button => {
+            button.addEventListener('click', () => handleDeleteCourse(Number(button.dataset.rowIndex), button));
         });
+    }
+
+    async function handleDeleteCourse(rowIndex, button) {
+        const course = (fullData.courseCatalog || []).find(item => Number(item.rowIndex) === Number(rowIndex));
+        if (!course) {
+            alert('اطلاعات دوره مورد نظر پیدا نشد. لطفاً ابتدا اطلاعات را به‌روزرسانی کنید.');
+            return;
+        }
+
+        const usageCount = Number(course.usageCount || 0);
+        if (usageCount > 0) {
+            alert(`این دوره ${usageCount} سابقه برگزاری دارد و برای حفظ سوابق قابل حذف نیست.`);
+            return;
+        }
+
+        if (!confirm(`آیا از حذف دوره «${course.courseName}» اطمینان دارید؟\nاین عملیات فقط تعریف دوره را از بخش K:Q حذف می‌کند.`)) {
+            return;
+        }
+
+        const originalHtml = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span class="btn-text">حذف...</span>';
+
+        const res = await callAppsScript('deleteCourseDefinition', { rowIndex }, button);
+        if (res && res.success) {
+            alert(res.message);
+            await fetchDashboardData();
+        } else if (res) {
+            alert('خطا: ' + (res.message || 'حذف دوره انجام نشد.'));
+            button.disabled = false;
+            button.innerHTML = originalHtml;
+        } else {
+            button.disabled = false;
+            button.innerHTML = originalHtml;
+        }
     }
 
     function openCourseEditor(rowIndex) {
@@ -752,23 +807,6 @@
         } finally {
             saveButton.disabled = false;
             saveButton.classList.remove('btn-loading');
-        }
-    }
-
-    async function handleDeleteCourse(rowIndex, courseName) {
-        const cleanName = String(courseName || '').trim();
-        if (!cleanName) return;
-
-        if (!confirm(`آیا از حذف کامل دوره «${cleanName}» از فهرست دوره‌های مؤسسه اطمینان دارید؟\n\nاین عملیات فقط برای دوره‌ای مجاز است که سابقه برگزاری نداشته باشد.`)) {
-            return;
-        }
-
-        const res = await callAppsScript('deleteCourseDefinition', { rowIndex });
-        if (res && res.success) {
-            alert(res.message || 'دوره با موفقیت حذف شد.');
-            await fetchDashboardData();
-        } else if (res) {
-            alert('خطا در حذف دوره: ' + (res.message || 'حذف دوره انجام نشد.'));
         }
     }
 
