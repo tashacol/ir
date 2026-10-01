@@ -1,4 +1,4 @@
-     <!DOCTYPE html> 
+ <!DOCTYPE html> 
 <html lang="fa" dir="rtl">  
 <head>  
     <meta charset="UTF-8"> 
@@ -132,7 +132,6 @@
                 <div class="input-wrapper"><i class="fas fa-user input-icon"></i><input type="text" id="username" class="form-input" placeholder="نام کاربری" required></div>
                 <div class="input-wrapper"><i class="fas fa-lock input-icon"></i><input type="password" id="password" class="form-input" placeholder="رمز عبور" required></div>
                 
-                <!-- دکمه ورود با اتصال به reCAPTCHA -->
                 <button type="submit" id="login-btn" class="btn g-recaptcha" 
                         data-sitekey="6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq" 
                         data-callback="onRecaptchaSuccess"
@@ -220,7 +219,7 @@
                 <button type="button" id="course-editor-close" class="course-editor-close" title="بستن" aria-label="بستن"><i class="fas fa-times"></i></button>
             </div>
             <form id="course-editor-form">
-                <input type="hidden" id="course-editor-row-index" value="">
+                <input type="hidden" id="course-editor-code-hidden" value="">
                 <div class="course-editor-grid">
                     <div class="course-editor-field full-width">
                         <label for="course-editor-name">نام دوره</label>
@@ -229,12 +228,12 @@
                     <div class="course-editor-field">
                         <label for="course-editor-code">کد نام دوره</label>
                         <input type="text" id="course-editor-code" class="form-input readonly-field" readonly>
-                        <small>این کد توسط سامانه به‌صورت خودکار مدیریت می‌شود و از فرم قابل تغییر نیست.</small>
+                        <small>این کد کلید یکتای سیستم است و قابل تغییر نمی‌باشد.</small>
                     </div>
                     <div class="course-editor-field">
                         <label for="course-editor-duration">مدت دوره (روز)</label>
                         <input type="number" id="course-editor-duration" class="form-input" min="1" max="3650" step="1" required>
-                        <small>همین مقدار از ستون Q برای محاسبه دقیق تاریخ پایان گواهی استفاده می‌شود.</small>
+                        <small>محاسبه دقیق تاریخ پایان گواهی.</small>
                     </div>
                     <div class="course-editor-field">
                         <label for="course-editor-template">شناسه داکس الگو</label>
@@ -258,7 +257,6 @@
                     <div class="course-editor-field full-width">
                         <label for="course-editor-policy">شیوه‌نامه</label>
                         <textarea id="course-editor-policy" placeholder="متن شیوه‌نامه یا HTML مربوط به بالای صفحه دوره را وارد کنید..."></textarea>
-                        <small>این مقدار مستقیماً در ستون N ذخیره می‌شود.</small>
                     </div>
                 </div>
                 <div class="course-editor-actions">
@@ -593,7 +591,7 @@
         warningCountEl.innerText = toPersianDigits((fullData.courseCatalogWarnings || []).length);
 
         if (!courses || courses.length === 0) {
-            container.innerHTML = '<p style="text-align: center; color: var(--light-text); padding: 20px;">دوره‌ای مطابق جستجوی شما پیدا نشد.</p>';
+            container.innerHTML = '<p style="text-align: center; color: var(--light-text); padding: 20px;">دوره‌ای یافت نشد.</p>';
             return;
         }
 
@@ -641,8 +639,8 @@
                 <td>${fileHtml}</td>
                 <td>${duplicateHtml}</td>
                 <td><div class="action-buttons">
-                    <button type="button" class="btn course-edit-btn" data-row-index="${course.rowIndex}" style="padding: 7px 12px; font-size: 0.85rem;"><i class="fas fa-edit"></i><span class="btn-text">ویرایش</span></button>
-                    <button type="button" class="btn btn-danger course-delete-btn" data-row-index="${course.rowIndex}" ${deleteDisabled} title="${deleteTitle}" style="padding: 7px 12px; font-size: 0.85rem;"><i class="fas fa-trash-alt"></i><span class="btn-text">حذف</span></button>
+                    <button type="button" class="btn course-edit-btn" data-course-code="${course.courseCode}" style="padding: 7px 12px; font-size: 0.85rem;"><i class="fas fa-edit"></i><span class="btn-text">ویرایش</span></button>
+                    <button type="button" class="btn btn-danger course-delete-btn" data-course-code="${course.courseCode}" ${deleteDisabled} title="${deleteTitle}" style="padding: 7px 12px; font-size: 0.85rem;"><i class="fas fa-trash-alt"></i><span class="btn-text">حذف</span></button>
                 </div></td>
             </tr>`;
         });
@@ -651,16 +649,21 @@
         container.innerHTML = tableHtml;
 
         container.querySelectorAll('.course-edit-btn').forEach(button => {
-            button.addEventListener('click', () => openCourseEditor(Number(button.dataset.rowIndex)));
+            button.addEventListener('click', () => openCourseEditor(button.dataset.courseCode));
         });
 
         container.querySelectorAll('.course-delete-btn').forEach(button => {
-            button.addEventListener('click', () => handleDeleteCourse(Number(button.dataset.rowIndex), button));
+            button.addEventListener('click', () => handleDeleteCourse(button.dataset.courseCode, button));
         });
     }
 
-    async function handleDeleteCourse(rowIndex, button) {
-        const course = (fullData.courseCatalog || []).find(item => Number(item.rowIndex) === Number(rowIndex));
+    async function handleDeleteCourse(courseCode, button) {
+        if (!courseCode) {
+            alert('کد دوره برای حذف نامشخص است.');
+            return;
+        }
+
+        const course = (fullData.courseCatalog || []).find(item => String(item.courseCode) === String(courseCode));
         if (!course) {
             alert('اطلاعات دوره مورد نظر پیدا نشد. لطفاً ابتدا اطلاعات را به‌روزرسانی کنید.');
             return;
@@ -672,7 +675,7 @@
             return;
         }
 
-        if (!confirm(`آیا از حذف دوره «${course.courseName}» اطمینان دارید؟\nاین عملیات فقط تعریف دوره را از بخش K:Q حذف می‌کند.`)) {
+        if (!confirm(`آیا از حذف دوره «${course.courseName}» اطمینان دارید؟\nاین عملیات فقط تعریف دوره را حذف می‌کند.`)) {
             return;
         }
 
@@ -680,7 +683,7 @@
         button.disabled = true;
         button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span class="btn-text">حذف...</span>';
 
-        const res = await callAppsScript('deleteCourseDefinition', { rowIndex }, button);
+        const res = await callAppsScript('deleteCourseDefinition', { courseCode: courseCode }, button);
         if (res && res.success) {
             alert(res.message);
             await fetchDashboardData();
@@ -694,10 +697,10 @@
         }
     }
 
-    function openCourseEditor(rowIndex) {
+    function openCourseEditor(courseCode) {
         const modal = document.getElementById('course-editor-modal');
         const title = document.getElementById('course-editor-title');
-        const rowIndexInput = document.getElementById('course-editor-row-index');
+        const codeHiddenInput = document.getElementById('course-editor-code-hidden');
         const nameInput = document.getElementById('course-editor-name');
         const codeInput = document.getElementById('course-editor-code');
         const templateInput = document.getElementById('course-editor-template');
@@ -708,14 +711,14 @@
         const usageInput = document.getElementById('course-editor-usage');
 
         let course = null;
-        if (rowIndex !== null) {
-            course = (fullData.courseCatalog || []).find(item => Number(item.rowIndex) === Number(rowIndex));
+        if (courseCode) {
+            course = (fullData.courseCatalog || []).find(item => String(item.courseCode) === String(courseCode));
             if (!course) {
                 alert('اطلاعات دوره مورد نظر در پنل پیدا نشد. لطفاً اطلاعات را به‌روزرسانی کنید.');
                 return;
             }
             title.innerText = 'ویرایش دوره عمومی';
-            rowIndexInput.value = String(course.rowIndex);
+            codeHiddenInput.value = course.courseCode || '';
             nameInput.value = course.courseName || '';
             codeInput.value = course.courseCode || '';
             templateInput.value = course.templateId || '';
@@ -726,7 +729,7 @@
             usageInput.value = `${course.usageCount || 0} دوره`;
         } else {
             title.innerText = 'افزودن دوره عمومی جدید';
-            rowIndexInput.value = '';
+            codeHiddenInput.value = '';
             nameInput.value = '';
             codeInput.value = 'توسط سامانه تولید می‌شود';
             templateInput.value = '';
@@ -752,7 +755,7 @@
         event.preventDefault();
 
         const saveButton = document.getElementById('course-editor-save');
-        const rowIndex = document.getElementById('course-editor-row-index').value.trim();
+        const courseCode = document.getElementById('course-editor-code-hidden').value.trim();
         const courseData = {
             courseName: document.getElementById('course-editor-name').value.trim(),
             templateId: document.getElementById('course-editor-template').value.trim(),
@@ -776,10 +779,11 @@
         saveButton.disabled = true;
 
         try {
-            const action = rowIndex ? 'updateCourseDefinition' : 'createCourseDefinition';
-            const params = rowIndex
-                ? { rowIndex: Number(rowIndex), courseData }
-                : { courseData };
+            const action = courseCode ? 'updateCourseDefinition' : 'createCourseDefinition';
+            const params = courseCode
+                ? { courseCode: courseCode, courseData: courseData }
+                : { courseData: courseData };
+            
             const res = await callAppsScript(action, params, saveButton);
 
             if (res && res.success) {
