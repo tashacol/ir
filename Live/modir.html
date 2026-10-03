@@ -9,6 +9,7 @@
 html, body { overscroll-behavior: none; }
 body { font-family: Tahoma, sans-serif; background: #0f172a; color: #e2e8f0; overflow: hidden; min-height: 100vh; }
 
+/* ===== لودینگ ===== */
 #fullLoader { position: fixed; inset: 0; background: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 70%); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; gap: 40px; overflow: hidden; transition: opacity 0.4s; }
 #fullLoader.fade-out { opacity: 0; pointer-events: none; }
 #fullLoader::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(37,99,235,0.15) 0%, transparent 60%); animation: bgPulse 3s ease-in-out infinite; }
@@ -41,6 +42,7 @@ body { font-family: Tahoma, sans-serif; background: #0f172a; color: #e2e8f0; ove
 .loader-dots span:nth-child(3) { animation-delay: 0.4s; }
 @keyframes dotBounce { 0%,80%,100% { transform: scale(0.6); opacity: 0.5; } 40% { transform: scale(1.3); opacity: 1; } }
 
+/* ===== ورود ===== */
 #loginBox { position: fixed; inset: 0; display: flex; justify-content: center; align-items: center; padding: 20px; z-index: 100; }
 .box { background: #1e293b; padding: 40px 30px; border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); text-align: center; width: 100%; max-width: 420px; border: 1px solid #334155; }
 h1 { margin-bottom: 8px; font-size: 22px; color: #f1f5f9; }
@@ -52,31 +54,34 @@ input:focus { outline: none; border-color: #2563eb; }
 .btn-login:disabled { opacity: 0.7; cursor: not-allowed; }
 .error { color: #f87171; margin-top: 14px; font-size: 14px; min-height: 20px; }
 
+/* ===== Jitsi ===== */
 #meet { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 50; }
 #meet iframe { width: 100% !important; height: 100% !important; }
 
-/* ⬅️ آیکن تنظیمات — سمت چپ، ساده */
+/* ===== دکمه چرخ‌دنده — سمت چپ، همیشه در دسترس ===== */
 #panelToggle {
   position: fixed;
-  top: 16px;
-  left: 16px;
-  width: 42px;
-  height: 42px;
+  top: 70px;
+  left: 12px;
+  width: 44px;
+  height: 44px;
   border-radius: 10px;
-  background: rgba(30, 41, 59, 0.9);
-  border: 1px solid #334155;
-  color: #94a3b8;
+  background: rgba(30, 41, 59, 0.95);
+  border: 1px solid #475569;
+  color: #cbd5e1;
   cursor: pointer;
-  z-index: 600;
-  display: none;
+  z-index: 2147483647;
+  display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
   transition: all 0.2s;
   padding: 0;
+  visibility: hidden;
+  opacity: 0;
 }
-#panelToggle.show { display: flex; }
-#panelToggle:hover { background: #334155; color: #f1f5f9; }
+#panelToggle.ready { visibility: visible; opacity: 1; }
+#panelToggle:hover { background: #334155; color: #fff; transform: scale(1.05); }
 #panelToggle svg { width: 22px; height: 22px; }
 #panelToggle .notif-dot {
   position: absolute;
@@ -91,7 +96,7 @@ input:focus { outline: none; border-color: #2563eb; }
 }
 #panelToggle .notif-dot.show { display: block; }
 
-/* ⬅️ پنل مدیریت — سمت چپ */
+/* ===== پنل — سمت چپ ===== */
 #adminPanel {
   position: fixed;
   top: 0;
@@ -101,7 +106,7 @@ input:focus { outline: none; border-color: #2563eb; }
   height: 100vh;
   background: #0f172a;
   border-right: 1px solid #334155;
-  z-index: 700;
+  z-index: 2147483646;
   display: flex;
   flex-direction: column;
   transform: translateX(-100%);
@@ -176,7 +181,6 @@ input:focus { outline: none; border-color: #2563eb; }
 
 <div id="meet" class="hidden"></div>
 
-<!-- آیکن تنظیمات سمت چپ -->
 <button id="panelToggle" onclick="togglePanel()" title="پنل مدیریت">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="12" cy="12" r="3"></circle>
@@ -185,7 +189,6 @@ input:focus { outline: none; border-color: #2563eb; }
   <span class="notif-dot" id="notifDot"></span>
 </button>
 
-<!-- پنل سمت چپ -->
 <div id="adminPanel">
   <div class="panel-header"><h2>🎛️ پنل مدیریت</h2><button class="panel-close" onclick="togglePanel()">✕</button></div>
   <div class="panel-tabs">
@@ -317,17 +320,20 @@ function startJitsi(token) {
   jitsiApi.addEventListener('videoConferenceJoined', () => {
     hideLoader();
     document.getElementById('meet').classList.remove('hidden');
+    // ⬇️ نمایش دکمه بعد از ورود موفق
     setTimeout(() => {
-      document.getElementById('panelToggle').classList.add('show');
+      document.getElementById('panelToggle').classList.add('ready');
       try { jitsiApi.executeCommand('toggleLobby', true); } catch(e) {}
       addEvent('admit', 'اتاق انتظار فعال شد');
-    }, 500);
+    }, 800);
   });
 
+  // پشتیبان — اگه event اجرا نشد
   setTimeout(() => {
     hideLoader();
     document.getElementById('meet').classList.remove('hidden');
-  }, 2500);
+    document.getElementById('panelToggle').classList.add('ready');
+  }, 4000);
 
   jitsiApi.addEventListener('knockingParticipant', (e) => {
     const id = e.id || (e.participant && e.participant.id);
@@ -435,7 +441,7 @@ function updateUserBadge() {
   b.textContent = c; b.classList.toggle('show', c > 0);
 }
 
-// ⬇️ اخراج کاربر — بعدش کاربر باید دوباره درخواست بده
+// اخراج کاربر — نیاز به درخواست مجدد
 function kickUser(id) {
   if (!jitsiApi) return;
   if (!confirm('اخراج این کاربر؟\n\nبعد از اخراج، برای ورود مجدد باید دوباره درخواست بده.')) return;
