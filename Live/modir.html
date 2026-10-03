@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ورود مدیر - اتاق مشاوره</title>
+  <title>ورود مدیر</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Tahoma, sans-serif; background: #0f172a; color: #e2e8f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
@@ -20,27 +20,25 @@
 <body>
   <div class="box" id="loginBox">
     <h1>🔐 ورود مدیر</h1>
-    <input type="password" id="adminPassword" placeholder="رمز عبور مدیر">
+    <input type="password" id="adminPassword" placeholder="رمز عبور">
     <button onclick="adminLogin()">ورود به اتاق مشاوره</button>
     <p class="error" id="errorMsg"></p>
   </div>
-
   <div id="meet" class="hidden"></div>
 
   <script src="https://8x8.vc/external_api.js"></script>
   <script>
-    // ⚠️ آدرس Web App خودت رو اینجا بذار
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxw9l22lZMQSydH08Jdfghi66C8h5iPyc-ul2nrzFflXNzQSa1qCEu9TkXsd5bKoIOf/exec";
+    const SCRIPT_URL = "https://moshverat-api.aboalid...workers.dev";
 
     async function adminLogin() {
       const password = document.getElementById('adminPassword').value;
       const errorMsg = document.getElementById('errorMsg');
-
-      if (!password) { errorMsg.textContent = "لطفاً رمز عبور را وارد کنید"; return; }
+      if (!password) { errorMsg.textContent = "رمز را وارد کنید"; return; }
 
       try {
         const response = await fetch(SCRIPT_URL, {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'admin_login', password: password })
         });
         const data = await response.json();
@@ -50,10 +48,10 @@
           document.getElementById('meet').classList.remove('hidden');
           startJitsi(data.token);
         } else {
-          errorMsg.textContent = data.error;
+          errorMsg.textContent = data.error || "خطا";
         }
       } catch (err) {
-        errorMsg.textContent = "خطا در ارتباط با سرور";
+        errorMsg.textContent = "خطای ارتباط: " + err.message;
       }
     }
 
@@ -67,12 +65,10 @@
         configOverwrite: {
           startWithAudioMuted: false,
           startWithVideoMuted: false,
-          prejoinPageEnabled: true
+          prejoinConfig: { enabled: true }
         }
       };
       const api = new JitsiMeetExternalAPI("8x8.vc", options);
-      
-      // فعال‌سازی اتاق انتظار به‌عنوان مدیر
       api.addEventListener('videoConferenceJoined', () => {
         api.executeCommand('toggleLobby', true);
       });
