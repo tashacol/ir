@@ -53,68 +53,17 @@ input:focus { outline: none; border-color: #2563eb; }
 .error { color: #f87171; margin-top: 14px; font-size: 14px; min-height: 20px; }
 
 #meet { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 50; }
-#meet iframe { width: 100% !important; height: 100% !important; }
+#meet iframe { width: 100% !important; height: 100% !important; border: 0; }
 
-/* ============================================
-   دکمه تنظیمات ساده — سمت چپ
-   ============================================ */
-#panelToggle {
-  position: fixed;
-  top: 16px;
-  left: 16px;
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
-  background: rgba(30, 41, 59, 0.9);
-  border: 1px solid #334155;
-  color: #cbd5e1;
-  font-size: 20px;
-  cursor: pointer;
-  z-index: 600;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-  transition: all 0.2s;
-  backdrop-filter: blur(6px);
-  line-height: 1;
-}
+/* آیکن تنظیمات سمت چپ */
+#panelToggle { position: fixed; top: 16px; left: 16px; width: 44px; height: 44px; border-radius: 50%; background: #1e293b; border: 1px solid #334155; color: #cbd5e1; font-size: 20px; cursor: pointer; z-index: 600; display: none; align-items: center; justify-content: center; box-shadow: 0 2px 10px rgba(0,0,0,0.4); transition: 0.2s; }
 #panelToggle.show { display: flex; }
 #panelToggle:hover { background: #334155; color: #fff; }
-#panelToggle .notif-dot {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  width: 14px;
-  height: 14px;
-  background: #dc2626;
-  border-radius: 50%;
-  border: 2px solid #0f172a;
-  display: none;
-  animation: pulse 1s infinite;
-}
+#panelToggle .notif-dot { position: absolute; top: -2px; right: -2px; width: 12px; height: 12px; background: #dc2626; border-radius: 50%; border: 2px solid #0f172a; display: none; }
 #panelToggle .notif-dot.show { display: block; }
-@keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.2); } }
 
-/* ============================================
-   پنل مدیریت — سمت چپ
-   ============================================ */
-#adminPanel {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 320px;
-  max-width: 90vw;
-  height: 100vh;
-  background: #0f172a;
-  border-right: 1px solid #334155;
-  z-index: 700;
-  display: flex;
-  flex-direction: column;
-  transform: translateX(-100%);
-  transition: transform 0.3s ease;
-  box-shadow: 4px 0 20px rgba(0,0,0,0.5);
-}
+/* پنل سمت چپ */
+#adminPanel { position: fixed; top: 0; left: 0; width: 320px; max-width: 90vw; height: 100vh; background: #0f172a; border-right: 1px solid #334155; z-index: 700; display: flex; flex-direction: column; transform: translateX(-100%); transition: transform 0.3s ease; box-shadow: 4px 0 20px rgba(0,0,0,0.5); }
 #adminPanel.open { transform: translateX(0); }
 .panel-header { padding: 14px 16px; background: #1e293b; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
 .panel-header h2 { font-size: 15px; color: #f1f5f9; }
@@ -183,11 +132,7 @@ input:focus { outline: none; border-color: #2563eb; }
 
 <div id="meet" class="hidden"></div>
 
-<!-- دکمه تنظیمات ساده — سمت چپ -->
-<button id="panelToggle" onclick="togglePanel()" title="پنل مدیریت">
-  ☰
-  <span class="notif-dot" id="notifDot"></span>
-</button>
+<button id="panelToggle" onclick="togglePanel()" title="پنل مدیریت">⚙️<span class="notif-dot" id="notifDot"></span></button>
 
 <div id="adminPanel">
   <div class="panel-header"><h2>🎛️ پنل مدیریت</h2><button class="panel-close" onclick="togglePanel()">✕</button></div>
@@ -215,7 +160,10 @@ let heartbeatInterval = null;
 const pendingRequests = {};
 const activeUsers = {};
 
-function showLoader() { document.getElementById('fullLoader').classList.remove('hidden'); document.getElementById('fullLoader').classList.remove('fade-out'); }
+function showLoader() { 
+  const l = document.getElementById('fullLoader');
+  l.classList.remove('hidden'); l.classList.remove('fade-out'); 
+}
 function hideLoader() { 
   const l = document.getElementById('fullLoader');
   l.classList.add('fade-out');
@@ -276,12 +224,18 @@ async function stopHeartbeat() {
 }
 
 function startJitsi(token) {
+  document.getElementById('meet').innerHTML = '';
+
   const options = {
     roomName: ROOM_NAME,
     width: "100%", height: "100%",
     parentNode: document.getElementById("meet"),
     jwt: token,
     lang: 'fa',
+
+    // کدک در سطح بالا
+    preferredCodec: 'VP8',
+
     configOverwrite: {
       startWithAudioMuted: false,
       startWithVideoMuted: false,
@@ -289,11 +243,20 @@ function startJitsi(token) {
       toolbar: { alwaysVisible: true, timeout: 0, autoHideWhileChatIsOpen: false },
       lobby: { autoKnock: false, enableChat: true },
       enableLobby: true,
+
+      // پایداری و سرعت (اصلاح‌شده)
+      constraints: {
+        video: {
+          height: { ideal: 480, max: 480, min: 240 },
+          frameRate: { ideal: 20, max: 25 }
+        }
+      },
       p2p: { enabled: false },
-      disableAudioLevels: true,
       enableAdaptiveMode: true,
-      preferredCodec: 'VP8',
-      videoQuality: { maxHeight: 480 },
+      enableLayerSuspension: true,
+      channelLastN: 2,
+      startBitrate: 'low',
+
       disableDeepLinking: true,
       enableWelcomePage: false,
       enableClosePage: false,
@@ -352,13 +315,20 @@ function startJitsi(token) {
     removeUser(e.id);
   });
 
+  // خروج بدون رفرش
   jitsiApi.addEventListener('readyToClose', () => { exitSystem(); });
 }
 
 async function exitSystem() {
   await stopHeartbeat();
-  if (jitsiApi) { try { jitsiApi.executeCommand('hangup'); } catch {} }
-  setTimeout(() => { window.location.reload(); }, 500);
+  try { if (jitsiApi) jitsiApi.dispose(); } catch(e) {}
+  jitsiApi = null;
+  document.getElementById('meet').innerHTML = '';
+  document.getElementById('meet').classList.add('hidden');
+  document.getElementById('loginBox').classList.remove('hidden');
+  hideLoader();
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = false; btn.textContent = 'ورود به اتاق مشاوره';
 }
 
 function togglePanel() {
@@ -437,22 +407,14 @@ function updateUserBadge() {
   const b = document.getElementById('userBadge');
   b.textContent = c; b.classList.toggle('show', c > 0);
 }
-
-// اخراج کاربر — بعد از اخراج، Lobby فعال می‌مونه و کاربر باید دوباره درخواست بده
 function kickUser(id) {
   if (!jitsiApi) return;
-  if (!confirm('اخراج این کاربر؟\nبعد از اخراج، برای ورود مجدد باید دوباره درخواست بده.')) return;
+  if (!confirm('اخراج این کاربر؟ برای ورود مجدد باید دوباره درخواست بده.')) return;
   try {
-    const name = activeUsers[id]?.name || 'کاربر';
     jitsiApi.executeCommand('kickParticipant', id);
-    addEvent('kick', `«${name}» اخراج شد — نیاز به درخواست مجدد`);
+    addEvent('kick', `«${activeUsers[id]?.name || 'کاربر'}» اخراج شد`);
     removeUser(id);
-    // مطمئن شو Lobby فعاله
-    jitsiApi.executeCommand('toggleLobby', true);
-  } catch (e) {
-    console.error('Kick error:', e);
-    alert('خطا در اخراج: ' + e.message);
-  }
+  } catch (e) { alert('خطا در اخراج: ' + e.message); }
 }
 
 function addEvent(type, text) {
