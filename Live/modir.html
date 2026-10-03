@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -58,7 +58,7 @@ input:focus { outline: none; border-color: #2563eb; }
 #meet { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 50; }
 #meet iframe { width: 100% !important; height: 100% !important; }
 
-/* ===== دکمه چرخ‌دنده — سمت چپ، همیشه در دسترس ===== */
+/* ===== دکمه چرخ‌دنده سمت چپ ===== */
 #panelToggle {
   position: fixed;
   top: 70px;
@@ -96,7 +96,7 @@ input:focus { outline: none; border-color: #2563eb; }
 }
 #panelToggle .notif-dot.show { display: block; }
 
-/* ===== پنل — سمت چپ ===== */
+/* ===== پنل سمت چپ ===== */
 #adminPanel {
   position: fixed;
   top: 0;
@@ -287,8 +287,8 @@ function startJitsi(token) {
       startWithVideoMuted: false,
       prejoinConfig: { enabled: false },
       toolbar: { alwaysVisible: true, timeout: 0, autoHideWhileChatIsOpen: false },
-      lobby: { autoKnock: false, enableChat: true },
       enableLobby: true,
+      lobby: { autoKnock: false, enableChat: false, lobbyMessageEnabled: true },
       p2p: { enabled: false },
       disableAudioLevels: true,
       enableAdaptiveMode: true,
@@ -320,19 +320,29 @@ function startJitsi(token) {
   jitsiApi.addEventListener('videoConferenceJoined', () => {
     hideLoader();
     document.getElementById('meet').classList.remove('hidden');
-    // ⬇️ نمایش دکمه بعد از ورود موفق
+
+    // نمایش دکمه و فعال‌سازی اتاق انتظار
     setTimeout(() => {
       document.getElementById('panelToggle').classList.add('ready');
+
+      // اولین تلاش
       try { jitsiApi.executeCommand('toggleLobby', true); } catch(e) {}
+
+      // تلاش دوم برای اطمینان
+      setTimeout(() => {
+        try { jitsiApi.executeCommand('toggleLobby', true); } catch(e) {}
+      }, 1500);
+
       addEvent('admit', 'اتاق انتظار فعال شد');
     }, 800);
   });
 
-  // پشتیبان — اگه event اجرا نشد
+  // پشتیبان
   setTimeout(() => {
     hideLoader();
     document.getElementById('meet').classList.remove('hidden');
     document.getElementById('panelToggle').classList.add('ready');
+    try { jitsiApi.executeCommand('toggleLobby', true); } catch(e) {}
   }, 4000);
 
   jitsiApi.addEventListener('knockingParticipant', (e) => {
@@ -441,7 +451,6 @@ function updateUserBadge() {
   b.textContent = c; b.classList.toggle('show', c > 0);
 }
 
-// اخراج کاربر — نیاز به درخواست مجدد
 function kickUser(id) {
   if (!jitsiApi) return;
   if (!confirm('اخراج این کاربر؟\n\nبعد از اخراج، برای ورود مجدد باید دوباره درخواست بده.')) return;
