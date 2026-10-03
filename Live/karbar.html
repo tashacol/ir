@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -96,15 +96,22 @@ const ROOM_NAME = APP_ID + "/taali-andishe-va-roshd";
 
 let jitsiApi = null;
 
-function getVisitorId() {
-  let id = localStorage.getItem('visitor_id');
+// ==========================================
+// Visitor ID پایدار — یک بار ساخته میشه و برای همیشه می‌مونه
+// حتی اگه کاربر ۱۰۰ بار بیاد، JaaS همون یک نفر رو می‌بینه
+// ==========================================
+function getPersistentVisitorId() {
+  let id = localStorage.getItem('visitor_id_v2');
   if (!id) {
-    id = 'visitor-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-    localStorage.setItem('visitor_id', id);
+    // ساخت شناسه یکتا
+    const random = Math.random().toString(36).substr(2, 9);
+    const timestamp = Date.now();
+    id = 'user-' + timestamp + '-' + random;
+    localStorage.setItem('visitor_id_v2', id);
   }
   return id;
 }
-const VISITOR_ID = getVisitorId();
+const VISITOR_ID = getPersistentVisitorId();
 
 const savedName = localStorage.getItem('visitor_name');
 if (savedName) document.getElementById('guestName').value = savedName;
@@ -165,15 +172,11 @@ function startJitsi(token, userName) {
       toolbar: { alwaysVisible: true, timeout: 0, autoHideWhileChatIsOpen: false },
       lobby: { autoKnock: false, enableChat: true },
       enableLobby: true,
-
-      // ⬇️⬇️⬇️ کلیدهای اصلی برای پایداری و سرعت ⬇️⬇️⬇️
       p2p: { enabled: false },
       disableAudioLevels: true,
       enableAdaptiveMode: true,
       preferredCodec: 'VP8',
       videoQuality: { maxHeight: 480 },
-      // ⬆️⬆️⬆️
-
       disableDeepLinking: true,
       enableWelcomePage: false,
       enableClosePage: false,
@@ -206,8 +209,18 @@ function startJitsi(token, userName) {
     document.getElementById('meet').classList.remove('hidden');
   }, 2500);
 
+  // وقتی کاربر از اتاق خارج میشه یا اخراج میشه
   jitsiApi.addEventListener('readyToClose', () => {
-    window.location.reload();
+    // بعد از اخراج یا خروج، دوباره به صفحه‌ی ورود برمی‌گرده
+    document.getElementById('loginBox').classList.remove('hidden');
+    document.getElementById('meet').classList.add('hidden');
+    hideLoader();
+    // پاک‌سازی متغیر jitsiApi تا اتصال جدید تمیز باشه
+    jitsiApi = null;
+    // ریست کردن دکمه ورود
+    const btn = document.getElementById('loginBtn');
+    btn.disabled = false;
+    btn.textContent = 'ورود به جلسه';
   });
 }
 
