@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -53,7 +53,7 @@ button:disabled { opacity: 0.7; cursor: not-allowed; }
 .error { color: #dc2626; margin-top: 14px; font-size: 14px; min-height: 20px; line-height: 1.6; }
 
 #meet { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 50; }
-#meet iframe { width: 100% !important; height: 100% !important; }
+#meet iframe { width: 100% !important; height: 100% !important; border: 0; }
 
 .hidden { display: none !important; }
 </style>
@@ -96,10 +96,24 @@ const ROOM_NAME = APP_ID + "/taali-andishe-va-roshd";
 
 let jitsiApi = null;
 
+// شناسه پایدار کاربر
+function getVisitorId() {
+  let id = localStorage.getItem('visitor_id');
+  if (!id) {
+    id = 'visitor-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('visitor_id', id);
+  }
+  return id;
+}
+const VISITOR_ID = getVisitorId();
+
 const savedName = localStorage.getItem('visitor_name');
 if (savedName) document.getElementById('guestName').value = savedName;
 
-function showLoader() { document.getElementById('fullLoader').classList.remove('hidden'); document.getElementById('fullLoader').classList.remove('fade-out'); }
+function showLoader() { 
+  const l = document.getElementById('fullLoader');
+  l.classList.remove('hidden'); l.classList.remove('fade-out'); 
+}
 function hideLoader() { 
   const l = document.getElementById('fullLoader');
   l.classList.add('fade-out');
@@ -118,12 +132,10 @@ async function guestLogin() {
   btn.disabled = true; btn.textContent = 'در حال بررسی...';
 
   try {
-    // ⚠️ شناسه‌ی کاربر از سمت Worker بر اساس IP ساخته میشه
-    // پس نیازی به فرستادن visitorId نیست
     const r = await fetch(SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'guest_login', userName })
+      body: JSON.stringify({ action: 'guest_login', userName, visitorId: VISITOR_ID })
     });
     const data = await r.json();
 
@@ -143,6 +155,9 @@ async function guestLogin() {
 }
 
 function startJitsi(token, userName) {
+  // پاکسازی اتاق قبلی
+  document.getElementById('meet').innerHTML = '';
+
   const options = {
     roomName: ROOM_NAME,
     width: "100%", height: "100%",
@@ -150,18 +165,36 @@ function startJitsi(token, userName) {
     jwt: token,
     lang: 'fa',
     userInfo: { displayName: userName },
+
+    // ⬇️⬇️⬇️ کدک در سطح بالا (اصلاح شده) ⬇️⬇️⬇️
+    preferredCodec: 'VP8',
+
     configOverwrite: {
       startWithAudioMuted: true,
       startWithVideoMuted: true,
       prejoinConfig: { enabled: false },
+
+      // نوار ابزار همیشه
       toolbar: { alwaysVisible: true, timeout: 0, autoHideWhileChatIsOpen: false },
+
+      // اتاق انتظار
       lobby: { autoKnock: false, enableChat: true },
       enableLobby: true,
+
+      // ⬇️⬇️⬇️ پایداری و سرعت (اصلاح‌شده) ⬇️⬇️⬇️
+      constraints: {
+        video: {
+          height: { ideal: 480, max: 480, min: 240 },
+          frameRate: { ideal: 20, max: 25 }
+        }
+      },
       p2p: { enabled: false },
-      disableAudioLevels: true,
-      enableAdaptiveMode: true,
-      preferredCodec: 'VP8',
-      videoQuality: { maxHeight: 480 },
+      enableAdaptiveMode: true,      // تطبیق خودکار کیفیت
+      enableLayerSuspension: true,   // تعلیق لایه‌های بی‌استفاده
+      channelLastN: 2,               // فقط ۲ ویدیو (مدیر + خودش)
+      startBitrate: 'low',           // شروع با بیت‌ریت پایین
+      // ⬆️⬆️⬆️
+
       disableDeepLinking: true,
       enableWelcomePage: false,
       enableClosePage: false,
@@ -189,24 +222,23 @@ function startJitsi(token, userName) {
     document.getElementById('meet').classList.remove('hidden');
   });
 
+  // پشتیبان: بعد از ۲.۵ ثانیه لودر رو مخفی کن
   setTimeout(() => {
     hideLoader();
     document.getElementById('meet').classList.remove('hidden');
   }, 2500);
 
-  // وقتی کاربر از اتاق خارج میشه یا اخراج میشه
+  // ⬇️⬇️⬇️ خروج بدون رفرش (اصلاح صفحه سفید) ⬇️⬇️⬇️
   jitsiApi.addEventListener('readyToClose', () => {
-    document.getElementById('loginBox').classList.remove('hidden');
-    document.getElementById('meet').classList.add('hidden');
-    hideLoader();
+    try { jitsiApi.dispose(); } catch(e) {}
     jitsiApi = null;
+    document.getElementById('meet').innerHTML = '';
+    document.getElementById('meet').classList.add('hidden');
+    document.getElementById('loginBox').classList.remove('hidden');
+    hideLoader();
     const btn = document.getElementById('loginBtn');
     btn.disabled = false;
     btn.textContent = 'ورود به جلسه';
-    // پیام آموزشی به کاربر
-    const errorBox = document.getElementById('errorMsg');
-    errorBox.style.color = '#1e40af';
-    errorBox.textContent = 'از اتاق خارج شدید. برای ورود مجدد روی دکمه بزنید.';
   });
 }
 
@@ -216,4 +248,4 @@ document.getElementById('guestName').addEventListener('keypress', e => {
 window.addEventListener('load', () => document.getElementById('guestName').focus());
 </script>
 </body>
-</html>
+</html> 
