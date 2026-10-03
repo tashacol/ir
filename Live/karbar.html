@@ -96,17 +96,15 @@ const ROOM_NAME = APP_ID + "/taali-andishe-va-roshd";
 
 let jitsiApi = null;
 
-function getPersistentVisitorId() {
-  let id = localStorage.getItem('visitor_id_v2');
+function getVisitorId() {
+  let id = localStorage.getItem('visitor_id');
   if (!id) {
-    const random = Math.random().toString(36).substring(2, 11);
-    const timestamp = Date.now();
-    id = 'user-' + timestamp + '-' + random;
-    localStorage.setItem('visitor_id_v2', id);
+    id = 'visitor-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('visitor_id', id);
   }
   return id;
 }
-const VISITOR_ID = getPersistentVisitorId();
+const VISITOR_ID = getVisitorId();
 
 const savedName = localStorage.getItem('visitor_name');
 if (savedName) document.getElementById('guestName').value = savedName;
@@ -161,20 +159,27 @@ function startJitsi(token, userName) {
     lang: 'fa',
     userInfo: { displayName: userName },
     configOverwrite: {
+      // صدای و تصویر پیش‌فرض خاموش
       startWithAudioMuted: true,
       startWithVideoMuted: true,
+
+      // ⚠️ حذف prejoin — کاربر مستقیم میره توی اتاق انتظار (سریع‌تر)
       prejoinConfig: { enabled: false },
+      prejoinPageEnabled: false,
+
+      // نوار ابزار همیشه نمایش داده بشه
       toolbar: { alwaysVisible: true, timeout: 0, autoHideWhileChatIsOpen: false },
+
+      // اتاق انتظار
+      lobby: { autoKnock: false, enableChat: true },
       enableLobby: true,
-      lobby: { autoKnock: false, enableChat: false, lobbyMessageEnabled: true },
-      p2p: { enabled: false },
-      disableAudioLevels: true,
-      enableAdaptiveMode: true,
-      preferredCodec: 'VP8',
-      videoQuality: { maxHeight: 480 },
+
+      // ساده‌سازی (بدون این‌ها سریع‌تر می‌شه)
       disableDeepLinking: true,
       enableWelcomePage: false,
       enableClosePage: false,
+      hideConferenceSubject: true,
+      hideConferenceTimer: false,
       notifications: [],
       disablePolls: true,
       disableReactions: true
@@ -194,24 +199,20 @@ function startJitsi(token, userName) {
 
   jitsiApi = new JitsiMeetExternalAPI("8x8.vc", options);
 
+  // ⚠️ وقتی Jitsi آماده شد، لودر رو مخفی کن (حتی در حالت انتظار)
   jitsiApi.addEventListener('videoConferenceJoined', () => {
     hideLoader();
     document.getElementById('meet').classList.remove('hidden');
   });
 
+  // پشتیبان: بعد از ۲.۵ ثانیه حتماً لودر بره (چه کاربر وارد بشه چه توی Lobby بمونه)
   setTimeout(() => {
     hideLoader();
     document.getElementById('meet').classList.remove('hidden');
-  }, 3000);
+  }, 2500);
 
   jitsiApi.addEventListener('readyToClose', () => {
-    document.getElementById('loginBox').classList.remove('hidden');
-    document.getElementById('meet').classList.add('hidden');
-    hideLoader();
-    jitsiApi = null;
-    const btn = document.getElementById('loginBtn');
-    btn.disabled = false;
-    btn.textContent = 'ورود به جلسه';
+    window.location.reload();
   });
 }
 
