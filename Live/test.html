@@ -1,1 +1,78 @@
 
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تست Worker</title>
+<style>
+body { font-family: Tahoma, sans-serif; padding: 20px; background: #f0f4f8; color: #1a365d; }
+.box { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); margin-bottom: 16px; }
+h1 { font-size: 18px; margin-bottom: 12px; }
+.result { padding: 14px; border-radius: 8px; font-family: monospace; font-size: 13px; line-height: 1.6; word-break: break-all; }
+.success { background: #d1fae5; color: #065f46; border: 1px solid #10b981; }
+.error { background: #fee2e2; color: #991b1b; border: 1px solid #dc2626; }
+.waiting { background: #fef3c7; color: #92400e; border: 1px solid #f59e0b; }
+button { padding: 12px 24px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-family: inherit; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+
+<div class="box">
+  <h1>🧪 تست اتصال به Worker</h1>
+  <button onclick="runTest()">شروع تست</button>
+  <div id="result" class="result waiting">در انتظار...</div>
+</div>
+
+<div class="box">
+  <h1>📋 نتیجه تست دوم (check_admin)</h1>
+  <div id="result2" class="result waiting">در انتظار...</div>
+</div>
+
+<script>
+const WORKER = 'https://moshverat-api.aboalidadgostar.workers.dev/';
+
+async function runTest() {
+  const r1 = document.getElementById('result');
+  const r2 = document.getElementById('result2');
+
+  // تست ۱: GET به Worker
+  r1.className = 'result waiting';
+  r1.textContent = '⏳ در حال تست...';
+  try {
+    const res = await fetch(WORKER);
+    const text = await res.text();
+    r1.className = 'result success';
+    r1.textContent = '✅ Worker پاسخ داد:\n' + text;
+  } catch (e) {
+    r1.className = 'result error';
+    r1.textContent = '❌ خطا در تست ۱:\n' + e.message;
+  }
+
+  // تست ۲: POST check_admin
+  r2.className = 'result waiting';
+  r2.textContent = '⏳ در حال تست...';
+  try {
+    const res = await fetch(WORKER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'check_admin' })
+    });
+    const data = await res.json();
+    r2.className = 'result success';
+    r2.textContent = '✅ پاسخ:\n' + JSON.stringify(data, null, 2);
+
+    // تحلیل خودکار
+    if (data.success && typeof data.online !== 'undefined') {
+      r2.textContent += '\n\n🎉 کد جدید Worker فعاله!';
+    } else if (data.success === false && data.error === 'درخواست نامعتبر') {
+      r2.textContent += '\n\n⚠️ کد قدیمی Worker نصب شده! باید کد جدید رو Deploy کنی.';
+    }
+  } catch (e) {
+    r2.className = 'result error';
+    r2.textContent = '❌ خطا در تست ۲:\n' + e.message;
+  }
+}
+</script>
+</body>
+</html>
