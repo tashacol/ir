@@ -49,11 +49,8 @@ input { width: 100%; padding: 14px 16px; margin-bottom: 16px; border: 2px solid 
 input:focus { outline: none; border-color: #2563eb; background: #fff; }
 button { width: 100%; padding: 14px; background: #2563eb; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer; font-weight: bold; font-family: inherit; min-height: 50px; transition: 0.2s; }
 button:hover:not(:disabled) { background: #1d4ed8; }
-button:disabled { opacity: 0.5; cursor: not-allowed; }
+button:disabled { opacity: 0.7; cursor: not-allowed; }
 .error { color: #dc2626; margin-top: 14px; font-size: 14px; min-height: 20px; line-height: 1.6; }
-.status-box { background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 13px; color: #92400e; text-align: center; display: none; }
-.status-box.show { display: block; }
-.status-box.online { background: #d1fae5; border-color: #10b981; color: #065f46; }
 
 #meet { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 50; }
 #meet iframe { width: 100% !important; height: 100% !important; }
@@ -82,10 +79,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 <div id="loginBox">
   <div class="box">
     <h1>📞 ورود به اتاق مشاوره</h1>
-    <p class="subtitle">لطفاً نام خود را وارد کنید</p>
-    
-    <div class="status-box" id="statusBox"></div>
-    
+    <p class="subtitle">لطفاً نام خود را وارد کنید و روی دکمه ورود بزنید</p>
     <input type="text" id="guestName" placeholder="نام و نام خانوادگی" maxlength="50">
     <button id="loginBtn" onclick="guestLogin()">ورود به جلسه</button>
     <p class="error" id="errorMsg"></p>
@@ -101,8 +95,6 @@ const APP_ID = "vpaas-magic-cookie-9e86f3c71b2d4fe287d643cfae775d17";
 const ROOM_NAME = APP_ID + "/taali-andishe-va-roshd";
 
 let jitsiApi = null;
-let adminPollInterval = null;
-let isInRoom = false;
 
 function getVisitorId() {
   let id = localStorage.getItem('visitor_id');
@@ -126,67 +118,6 @@ function hideLoader() {
 function showError(m) { document.getElementById('errorMsg').textContent = m; }
 function clearError() { document.getElementById('errorMsg').textContent = ''; }
 
-// ==========================================
-// چک کردن وضعیت مدیر (آنلاین / آفلاین)
-// ==========================================
-async function checkAdminStatus() {
-  try {
-    const r = await fetch(SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'check_admin' })
-    });
-    const data = await r.json();
-    return data.online === true;
-  } catch (e) {
-    return false;
-  }
-}
-
-async function updateAdminStatusUI() {
-  const online = await checkAdminStatus();
-  const statusBox = document.getElementById('statusBox');
-  const loginBtn = document.getElementById('loginBtn');
-
-  if (online) {
-    statusBox.className = 'status-box online show';
-    statusBox.textContent = '🟢 مدیر آنلاین است — می‌توانید وارد شوید';
-    loginBtn.disabled = false;
-  } else {
-    statusBox.className = 'status-box show';
-    statusBox.textContent = '🔴 مدیر آنلاین نیست — لطفاً بعداً تلاش کنید';
-    loginBtn.disabled = true;
-  }
-  return online;
-}
-
-// ==========================================
-// Polling وضعیت مدیر (هر ۵ ثانیه)
-// ==========================================
-function startAdminPolling() {
-  if (adminPollInterval) clearInterval(adminPollInterval);
-  adminPollInterval = setInterval(async () => {
-    // فقط وقتی کاربر داخل اتاقه چک کن
-    if (!isInRoom) return;
-    const online = await checkAdminStatus();
-    if (!online) {
-      // مدیر رفت — کاربر رو پرت کن بیرون
-      if (jitsiApi) {
-        try { jitsiApi.executeCommand('hangup'); } catch(e) {}
-      }
-      alert('مدیر اتاق را ترک کرده است. جلسه پایان یافت.');
-      window.location.reload();
-    }
-  }, 5000);
-}
-
-function stopAdminPolling() {
-  if (adminPollInterval) { clearInterval(adminPollInterval); adminPollInterval = null; }
-}
-
-// ==========================================
-// ورود کاربر
-// ==========================================
 async function guestLogin() {
   const userName = document.getElementById('guestName').value.trim();
   clearError();
@@ -195,15 +126,6 @@ async function guestLogin() {
 
   const btn = document.getElementById('loginBtn');
   btn.disabled = true; btn.textContent = 'در حال بررسی...';
-
-  // چک فوری: مدیر آنلاینه؟
-  const online = await checkAdminStatus();
-  if (!online) {
-    showError('مدیر آنلاین نیست. لطفاً بعداً تلاش کنید.');
-    btn.disabled = false; btn.textContent = 'ورود به جلسه';
-    updateAdminStatusUI();
-    return;
-  }
 
   try {
     const r = await fetch(SCRIPT_URL, {
@@ -228,9 +150,6 @@ async function guestLogin() {
   }
 }
 
-// ==========================================
-// راه‌اندازی Jitsi
-// ==========================================
 function startJitsi(token, userName) {
   const options = {
     roomName: ROOM_NAME,
@@ -244,18 +163,16 @@ function startJitsi(token, userName) {
       startWithVideoMuted: true,
       prejoinConfig: { enabled: false },
       toolbar: { alwaysVisible: true, timeout: 0, autoHideWhileChatIsOpen: false },
-      
-      // ⬇️⬇️⬇️ اجبار به اتاق انتظار ⬇️⬇️⬇️
       lobby: { autoKnock: false, enableChat: true },
       enableLobby: true,
-      // ⬆️⬆️⬆️
 
-      // پایداری و سرعت
+      // ⬇️⬇️⬇️ کلیدهای اصلی برای پایداری و سرعت ⬇️⬇️⬇️
       p2p: { enabled: false },
       disableAudioLevels: true,
       enableAdaptiveMode: true,
       preferredCodec: 'VP8',
       videoQuality: { maxHeight: 480 },
+      // ⬆️⬆️⬆️
 
       disableDeepLinking: true,
       enableWelcomePage: false,
@@ -279,51 +196,25 @@ function startJitsi(token, userName) {
 
   jitsiApi = new JitsiMeetExternalAPI("8x8.vc", options);
 
-  // وقتی کاربر وارد اتاق شد (بعد از تأیید مدیر)
   jitsiApi.addEventListener('videoConferenceJoined', () => {
-    isInRoom = true;
     hideLoader();
     document.getElementById('meet').classList.remove('hidden');
-    startAdminPolling();  // شروع چک کردن آنلاین بودن مدیر
   });
 
-  // پشتیبان برای مخفی کردن لودر
   setTimeout(() => {
     hideLoader();
     document.getElementById('meet').classList.remove('hidden');
   }, 2500);
 
-  // اگه مدیر کاربر رو رد کرد
-  jitsiApi.addEventListener('participantRoleChanged', (e) => {
-    if (e.role === 'none') {
-      alert('مدیر درخواست شما را رد کرد.');
-      window.location.reload();
-    }
-  });
-
-  // اگه کاربر از اتاق اخراج شد
   jitsiApi.addEventListener('readyToClose', () => {
-    isInRoom = false;
-    stopAdminPolling();
     window.location.reload();
   });
 }
 
-// ==========================================
-// راه‌اندازی اولیه
-// ==========================================
-window.addEventListener('load', async () => {
-  document.getElementById('guestName').focus();
-  await updateAdminStatusUI();
-  // هر ۱۰ ثانیه چک کن تا وضعیت مدیر رو نشون بدی (قبل از ورود)
-  setInterval(async () => {
-    if (!isInRoom) await updateAdminStatusUI();
-  }, 10000);
-});
-
 document.getElementById('guestName').addEventListener('keypress', e => {
-  if (e.key === 'Enter' && !document.getElementById('loginBtn').disabled) guestLogin();
+  if (e.key === 'Enter') guestLogin();
 });
+window.addEventListener('load', () => document.getElementById('guestName').focus());
 </script>
 </body>
 </html>
