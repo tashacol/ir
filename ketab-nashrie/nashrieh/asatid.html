@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -289,12 +289,18 @@
 
     async function callApi(action, params = {}) {
         try {
-            const payload = { action, params, professorNid: currentProfessor?.nationalId, professorName: currentProfessor?.name };
+            const payload = { action, params, token: currentProfessor?.token };
             const response = await fetch(GOOGLE_SCRIPT_URL, {
                 method: 'POST', mode: 'cors', body: JSON.stringify(payload)
             });
             if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
             const data = await response.json();
+            if (data.code === 'AUTH_REQUIRED') {
+                localStorage.removeItem('currentProfessor');
+                currentProfessor = null;
+                window.location.reload();
+                return data;
+            }
             if (data.status === 'error') {
                 showCustomAlert(data.message, 'error');
             }
@@ -307,7 +313,12 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        currentProfessor = JSON.parse(localStorage.getItem('currentProfessor'));
+        try { currentProfessor = JSON.parse(localStorage.getItem('currentProfessor')); }
+        catch (error) { currentProfessor = null; }
+        if (!currentProfessor || typeof currentProfessor.token !== 'string' || !/^[a-f0-9]{64}$/i.test(currentProfessor.token)) {
+            currentProfessor = null;
+            localStorage.removeItem('currentProfessor');
+        }
         if (currentProfessor) {
             showDashboard(currentProfessor);
         }
