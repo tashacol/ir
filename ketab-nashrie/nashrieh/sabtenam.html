@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+   <!DOCTYPE html> 
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -284,10 +284,15 @@
             return str && /^[\u0600-\u06FF\s]+$/.test(str);
         }
 
-        function isValidNationalCode(code) {
-            if (!/^\d{10}$/.test(code)) return false;
-            const check = parseInt(code[9]);
-            const sum = code.split('').slice(0, 9).reduce((acc, x, i) => acc + parseInt(x) * (10 - i), 0) % 11;
+        function normalizeDigits(value) {
+            return String(value || '').replace(/[۰-۹]/g, ch => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(ch))).replace(/[٠-٩]/g, ch => String('٠١٢٣٤٥٦٧٨٩'.indexOf(ch)));
+        }
+
+        function isValidNationalCode(value) {
+            const code = normalizeDigits(value).trim();
+            if (!/^\d{10}$/.test(code) || /^(\d)\1{9}$/.test(code)) return false;
+            const check = parseInt(code[9], 10);
+            const sum = code.slice(0, 9).split('').reduce((acc, digit, i) => acc + parseInt(digit, 10) * (10 - i), 0) % 11;
             return sum < 2 ? check === sum : check + sum === 11;
         }
 
@@ -331,7 +336,7 @@
             // Send Data
             const formData = {
                 name: nameEl.value.trim(),
-                nid: nidEl.value.trim()
+                nid: normalizeDigits(nidEl.value).trim()
             };
 
             fetch(SCRIPT_URL, {
