@@ -452,11 +452,18 @@
         'CATEGORY_DELETE_SUCCESS': { title: 'حذف حیطه دانشی', icon: 'fa-folder-minus', color: 'var(--danger)' },
         'CATEGORY_EDIT_SUCCESS': { title: 'ویرایش حیطه دانشی', icon: 'fa-folder-open', color: 'var(--info)' },
         'ADMIN_PASSWORD_CHANGED': { title: 'تغییر رمز عبور مدیر', icon: 'fa-key', color: 'var(--success)' },
+        'PUBLISHED_ARTICLE_LOGS_CLEANED': { title: 'آزادسازی فضای لاگ‌ها', icon: 'fa-broom', color: 'var(--warning)' },
+        'PUBLISHED_ARTICLE_LOG_CLEANUP_ERROR': { title: 'خطای آزادسازی فضای لاگ‌ها', icon: 'fa-triangle-exclamation', color: 'var(--danger)' },
         'default': { title: 'اقدام نامشخص', icon: 'fa-question-circle', color: 'var(--text-light)'}
     };
 
     document.addEventListener('DOMContentLoaded', () => {
-        appState.currentUser = JSON.parse(localStorage.getItem('journalAdmin'));
+        try { appState.currentUser = JSON.parse(localStorage.getItem('journalAdmin')); }
+        catch (error) { appState.currentUser = null; }
+        if (!appState.currentUser || typeof appState.currentUser.token !== 'string' || !/^[a-f0-9]{64}$/i.test(appState.currentUser.token)) {
+            appState.currentUser = null;
+            localStorage.removeItem('journalAdmin');
+        }
         if (appState.currentUser) {
             document.getElementById('login-page').classList.add('hidden');
             document.getElementById('main-app').classList.remove('hidden');
@@ -509,10 +516,16 @@
     async function callApi(action, params = {}, button = null) {
         if (button) button.classList.add('btn-loading');
         try {
-            const payload = { action, params, adminUsername: appState.currentUser?.username };
+            const payload = { action, params, adminUsername: appState.currentUser?.username, adminToken: appState.currentUser?.token };
             const response = await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
             if (!response.ok) throw new Error(`خطای شبکه: ${response.statusText}`);
             const data = await response.json();
+            if (data.code === 'AUTH_REQUIRED') {
+                localStorage.removeItem('journalAdmin');
+                appState.currentUser = null;
+                window.location.reload();
+                return null;
+            }
             if (data.status === 'error') throw new Error(data.message);
             return data;
         } catch (error) {
@@ -1021,6 +1034,7 @@
                 <div class="card-header" style="background:#fff; display:flex; gap:10px; flex-wrap:wrap;">
                     <input type="text" id="server-log-search" placeholder="جستجوی سرور (شناسه کاربر، کد مقاله یا اقدام)..." style="flex-grow:1; max-width:400px; border-color:var(--border-color);">
                     <button class="btn-primary" id="server-log-search-btn" onclick="executeLogSearch()"><i class="fas fa-search"></i> جستجو در سرور</button>
+                    <button class="btn-warning" id="cleanup-published-logs-btn" onclick="runPublishedLogsCleanup(this)"><i class="fas fa-broom"></i> آزادسازی فضای شیت</button>
                 </div>
                 <div id="logs-table-container" style="padding:0;"></div>
             </div>`;
@@ -1030,6 +1044,22 @@
         document.getElementById('server-log-search').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') executeLogSearch();
         });
+    }
+
+    async function runPublishedLogsCleanup(button) {
+        const confirmed = window.confirm('فقط لاگ‌های مرتبط با مقالات تایید نهایی‌شده‌ای حذف می‌شوند که به شماره نشر واقعی تخصیص یافته‌اند و تاریخ چاپ آن‌ها گذشته است. لاگ سایر موارد حفظ می‌شود. ادامه می‌دهید؟');
+        if (!confirmed) return;
+        const result = await callApi('cleanupPublishedArticleLogs', {}, button);
+        if (!result || result.status !== 'success') return;
+        showToast(result.message, 'success');
+        const refreshed = await callApi('getAllData');
+        if (refreshed && refreshed.status === 'success') {
+            appState.data = refreshed.data;
+            appState.isDataLoaded = true;
+            currentLogsList = [...(appState.data.logs || [])].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            visibleLogsCount = 20;
+            renderLogsTable();
+        }
     }
 
     function renderLogsTable() {
