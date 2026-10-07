@@ -696,6 +696,7 @@
             </div>
             <form id="course-editor-form">
                 <input type="hidden" id="course-editor-code-hidden" value="">
+                <input type="hidden" id="course-editor-row-hidden" value="">
                 <div class="course-editor-grid">
                     <div class="course-editor-field full-width">
                         <label for="course-editor-name">نام دوره</label>
@@ -752,6 +753,7 @@
             </div>
             <form id="exam-settings-form">
                 <input type="hidden" id="exam-settings-code-hidden" value="">
+                <input type="hidden" id="exam-settings-row-hidden" value="">
                 <div class="course-editor-grid">
                     <div class="course-editor-field full-width">
                         <label for="exam-settings-course-name">دوره مربوطه</label>
@@ -844,35 +846,91 @@
     let currentPages = { 'pending': 1, 'issued': 1, 'rejected': 1, 'courseManagement': 1 };
     let courseManagementFiltered = [];
 
-    async function callAppsScript(action, params = {}, button = null) {
-        if(button) button.classList.add('btn-loading');
-        
+    async function callAppsScript(action, params = {}, button = null, options = {}) {
+        if (button) button.classList.add('btn-loading');
+
+        const requestParams = { ...(params || {}) };
         const token = localStorage.getItem(sessionKey);
-        if (token) {
-            params.token = token;
+        if (token && !requestParams.token) {
+            requestParams.token = token;
         }
 
-        try { 
-            const res = await fetch(SCRIPT_URL, { method: 'POST', mode: 'cors', headers: {'Content-Type': 'text/plain;charset=utf-8'}, body: JSON.stringify({ action, params }) }); 
-            if (!res.ok) throw new Error('Network error'); 
-            
-            const data = await res.json();
-            
-            if (data.reauth) {
-                alert(data.message || 'نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
-                handleLogout();
-                return { success: false }; 
+        try {
+            const res = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ action, params: requestParams })
+            });
+
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}`);
             }
-            
-            return data;
-        } catch (error) { 
-            alert('خطا در ارتباط با سرور.'); 
-            return { success: false, message: error.message };
-        } finally { 
-            if(button) button.classList.remove('btn-loading'); 
+
+            const responseText = await res.text();
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                throw new Error('پاسخ سرور قابل پردازش نیست.');
+            }
+
+            if (data && data.reauth) {
+                if (!options.allowReauth) {
+                    localStorage.removeItem(sessionKey);
+                    showLoginScreen(data.message || 'نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
+                }
+                return {
+                    success: false,
+                    reauth: true,
+                    message: data.message || 'نشست شما منقضی شده است.'
+                };
+            }
+
+            return data || { success: false, message: 'پاسخ خالی از سرور دریافت شد.' };
+        } catch (error) {
+            console.error(`Apps Script [${action}] error:`, error);
+            return {
+                success: false,
+                message: error && error.message ? error.message : 'خطای نامشخص در ارتباط با سرور.'
+            };
+        } finally {
+            if (button) button.classList.remove('btn-loading');
         }
     }
-    
+
+    function showLoginScreen(message = '') {
+        const loginContainer = document.getElementById('login-container');
+        const dashboardContainer = document.getElementById('dashboard-container');
+        const errorP = document.getElementById('error-message');
+
+        if (dashboardContainer) dashboardContainer.classList.add('hidden');
+        if (loginContainer) loginContainer.classList.remove('hidden');
+
+        if (errorP) {
+            if (message) {
+                errorP.innerText = message;
+                errorP.classList.remove('hidden');
+            } else {
+                errorP.innerText = '';
+                errorP.classList.add('hidden');
+            }
+        }
+    }
+
+    function resetLoginRecaptcha() {
+        try {
+            if (typeof grecaptcha !== 'undefined' && grecaptcha && typeof grecaptcha.reset === 'function') {
+                grecaptcha.reset();
+            }
+        } catch (error) {
+            console.warn('Unable to reset reCAPTCHA:', error);
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('login-form').addEventListener('submit', (e) => e.preventDefault());
         document.getElementById('logout-btn').addEventListener('click', handleLogout);
@@ -915,23 +973,51 @@
         const loginButton = document.getElementById('login-btn');
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
-        
-        const res = await callAppsScript('checkLogin', { username, password, recaptchaToken: token }, loginButton);
-        
-        if (res.success && res.token) {
-            localStorage.setItem(sessionKey, res.token);
-            showDashboard();
-        } else {
-            const errorP = document.getElementById('error-message');
-            errorP.innerText = res.message || "خطای ورود.";
-            errorP.classList.remove('hidden');
+        const errorP = document.getElementById('error-message');
+
+        if (errorP) {
+            errorP.innerText = '';
+            errorP.classList.add('hidden');
+        }
+
+        try {
+            const res = await callAppsScript(
+                'checkLogin',
+                { username, password, recaptchaToken: token },
+                loginButton,
+                { allowReauth: true }
+            );
+
+            if (res && res.success && res.token) {
+                localStorage.setItem(sessionKey, res.token);
+                showDashboard();
+            } else {
+                if (errorP) {
+                    errorP.innerText = (res && res.message) || 'خطای ورود.';
+                    errorP.classList.remove('hidden');
+                }
+                resetLoginRecaptcha();
+            }
+        } catch (error) {
+            if (errorP) {
+                errorP.innerText = 'خطا در ورود. لطفاً دوباره تلاش کنید.';
+                errorP.classList.remove('hidden');
+            }
+            resetLoginRecaptcha();
         }
     }
 
-    function handleLogout() {
-        callAppsScript('logout', {}); 
+    async function handleLogout() {
+        const token = localStorage.getItem(sessionKey);
         localStorage.removeItem(sessionKey);
-        window.location.reload();
+
+        try {
+            if (token) {
+                await callAppsScript('logout', { token }, null, { allowReauth: true });
+            }
+        } finally {
+            window.location.reload();
+        }
     }
 
     async function fetchDashboardData() {
@@ -1039,9 +1125,10 @@
         if (teacherSearchTerm) { filteredCourses = filteredCourses.filter(course => course.masterNationalId.includes(teacherSearchTerm)); }
         if (studentSearchTerm) { filteredCourses = filteredCourses.filter(course => course.students.some(student => student.nationalId.includes(studentSearchTerm)));}
 
-        const currentPage = currentPages[sectionPrefix];
         const totalItems = filteredCourses.length;
-        const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+        const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+        const currentPage = Math.min(Math.max(Number(currentPages[sectionPrefix]) || 1, 1), totalPages);
+        currentPages[sectionPrefix] = currentPage;
         const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
         const endIndex = startIndex + ITEMS_PER_PAGE;
         const paginatedCourses = filteredCourses.slice(startIndex, endIndex);
@@ -1143,7 +1230,12 @@
     }
 
     function normalizeSearchText(value) {
-        return String(value || '').trim().toLowerCase();
+        return String(value || '')
+            .replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+            .replace(/[٠-٩]/g, digit => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toLowerCase();
     }
 
     function renderCourseManagement(courses) {
@@ -1171,9 +1263,10 @@
             return;
         }
 
-        const currentPage = currentPages.courseManagement;
         const totalItems = courses.length;
-        const totalPages = Math.ceil(totalItems / COURSES_PER_PAGE);
+        const totalPages = Math.max(1, Math.ceil(totalItems / COURSES_PER_PAGE));
+        const currentPage = Math.min(Math.max(Number(currentPages.courseManagement) || 1, 1), totalPages);
+        currentPages.courseManagement = currentPage;
         const startIndex = (currentPage - 1) * COURSES_PER_PAGE;
         const endIndex = startIndex + COURSES_PER_PAGE;
         const paginatedCourses = courses.slice(startIndex, endIndex);
@@ -1215,21 +1308,21 @@
         container.querySelectorAll('.course-edit-btn').forEach(button => {
             button.addEventListener('click', (e) => {
                 e.stopPropagation();
-                openCourseEditor(button.dataset.courseCode);
+                openCourseEditor(button.dataset.courseCode, button.dataset.catalogRow);
             });
         });
 
         container.querySelectorAll('.course-exam-settings-btn').forEach(button => {
             button.addEventListener('click', (e) => {
                 e.stopPropagation();
-                openExamSettings(button.dataset.courseCode);
+                openExamSettings(button.dataset.courseCode, button.dataset.catalogRow);
             });
         });
 
         container.querySelectorAll('.course-delete-btn').forEach(button => {
             button.addEventListener('click', (e) => {
                 e.stopPropagation();
-                handleDeleteCourse(button.dataset.courseCode, button);
+                handleDeleteCourse(button.dataset.courseCode, button.dataset.catalogRow, button);
             });
         });
 
@@ -1281,7 +1374,7 @@
             : 'حذف دوره';
 
         const examButtonHtml = Number(course.hasExam) === 5
-            ? `<button type="button" class="btn btn-warning course-exam-settings-btn" data-course-code="${escapeHtml(course.courseCode || '')}"><i class="fas fa-cog"></i>تنظیمات آزمون</button>`
+            ? `<button type="button" class="btn btn-warning course-exam-settings-btn" data-course-code="${escapeHtml(course.courseCode || '')}" data-catalog-row="${escapeHtml(course.catalogRowIndex || '')}"><i class="fas fa-cog"></i>تنظیمات آزمون</button>`
             : '';
 
         const duplicateBadge = course.duplicateCode
@@ -1305,7 +1398,7 @@
             : '<span style="color: var(--success-color); font-weight: 700;"><i class="fas fa-check-circle"></i> یکتا</span>';
 
         return `
-            <div class="course-accordion-card" data-course-code="${escapeHtml(course.courseCode || '')}">
+            <div class="course-accordion-card" data-course-code="${escapeHtml(course.courseCode || '')}" data-catalog-row="${escapeHtml(course.catalogRowIndex || '')}">
                 <div class="course-accordion-header">
                     <div class="course-accordion-index">${toPersianDigits(displayIndex)}</div>
                     <div class="course-accordion-title">
@@ -1357,9 +1450,9 @@
                             </div>
                         </div>
                         <div class="course-actions">
-                            <button type="button" class="btn course-edit-btn" data-course-code="${escapeHtml(course.courseCode || '')}"><i class="fas fa-edit"></i>مشاهده/ویرایش</button>
+                            <button type="button" class="btn course-edit-btn" data-course-code="${escapeHtml(course.courseCode || '')}" data-catalog-row="${escapeHtml(course.catalogRowIndex || '')}"><i class="fas fa-edit"></i>مشاهده/ویرایش</button>
                             ${examButtonHtml}
-                            <button type="button" class="btn btn-danger course-delete-btn" data-course-code="${escapeHtml(course.courseCode || '')}" ${deleteDisabled} title="${deleteTitle}"><i class="fas fa-trash-alt"></i>حذف</button>
+                            <button type="button" class="btn btn-danger course-delete-btn" data-course-code="${escapeHtml(course.courseCode || '')}" data-catalog-row="${escapeHtml(course.catalogRowIndex || '')}" ${deleteDisabled} title="${deleteTitle}"><i class="fas fa-trash-alt"></i>حذف</button>
                         </div>
                     </div>
                 </div>
@@ -1367,13 +1460,28 @@
         `;
     }
 
-    async function handleDeleteCourse(courseCode, button) {
+    function findCourseCatalogItem(courseCode, catalogRowIndex = '') {
+        const normalizedCode = String(courseCode || '').trim();
+        const normalizedRow = Number(catalogRowIndex);
+        const catalog = Array.isArray(fullData.courseCatalog) ? fullData.courseCatalog : [];
+
+        if (Number.isInteger(normalizedRow) && normalizedRow > 0) {
+            const byRow = catalog.find(item => Number(item.catalogRowIndex) === normalizedRow);
+            if (byRow && (!normalizedCode || String(byRow.courseCode || '').trim() === normalizedCode)) {
+                return byRow;
+            }
+        }
+
+        return catalog.find(item => String(item.courseCode || '').trim() === normalizedCode) || null;
+    }
+
+    async function handleDeleteCourse(courseCode, catalogRowIndex, button) {
         if (!courseCode) {
             alert('کد دوره برای حذف نامشخص است.');
             return;
         }
 
-        const course = (fullData.courseCatalog || []).find(item => String(item.courseCode) === String(courseCode));
+        const course = findCourseCatalogItem(courseCode, catalogRowIndex);
         if (!course) {
             alert('اطلاعات دوره مورد نظر پیدا نشد. لطفاً ابتدا اطلاعات را به‌روزرسانی کنید.');
             return;
@@ -1393,9 +1501,14 @@
         button.disabled = true;
         button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>حذف...';
 
-        const res = await callAppsScript('deleteCourseDefinition', { courseCode: courseCode }, button);
+        const res = await callAppsScript(
+            'deleteCourseDefinition',
+            { courseCode: courseCode, catalogRowIndex: Number(course.catalogRowIndex || catalogRowIndex || 0) },
+            button
+        );
+
         if (res && res.success) {
-            alert(res.message);
+            alert(res.message || 'دوره با موفقیت حذف شد.');
             await fetchDashboardData();
         } else if (res) {
             alert('خطا: ' + (res.message || 'حذف دوره انجام نشد.'));
@@ -1407,10 +1520,11 @@
         }
     }
 
-    function openCourseEditor(courseCode) {
+    function openCourseEditor(courseCode, catalogRowIndex = '') {
         const modal = document.getElementById('course-editor-modal');
         const title = document.getElementById('course-editor-title');
         const codeHiddenInput = document.getElementById('course-editor-code-hidden');
+        const rowHiddenInput = document.getElementById('course-editor-row-hidden');
         const nameInput = document.getElementById('course-editor-name');
         const codeInput = document.getElementById('course-editor-code');
         const templateInput = document.getElementById('course-editor-template');
@@ -1422,13 +1536,14 @@
 
         let course = null;
         if (courseCode) {
-            course = (fullData.courseCatalog || []).find(item => String(item.courseCode) === String(courseCode));
+            course = findCourseCatalogItem(courseCode, catalogRowIndex);
             if (!course) {
                 alert('اطلاعات دوره مورد نظر در پنل پیدا نشد. لطفاً اطلاعات را به‌روزرسانی کنید.');
                 return;
             }
             title.innerText = 'مشاهده و ویرایش دوره عمومی';
             codeHiddenInput.value = course.courseCode || '';
+            rowHiddenInput.value = course.catalogRowIndex || '';
             nameInput.value = course.courseName || '';
             codeInput.value = course.courseCode || '';
             templateInput.value = course.templateId || '';
@@ -1440,6 +1555,7 @@
         } else {
             title.innerText = 'افزودن دوره عمومی جدید';
             codeHiddenInput.value = '';
+            rowHiddenInput.value = '';
             nameInput.value = '';
             codeInput.value = 'توسط سامانه تولید می‌شود';
             templateInput.value = '';
@@ -1466,6 +1582,7 @@
 
         const saveButton = document.getElementById('course-editor-save');
         const courseCode = document.getElementById('course-editor-code-hidden').value.trim();
+        const catalogRowIndex = Number(document.getElementById('course-editor-row-hidden').value || 0);
         const courseData = {
             courseName: document.getElementById('course-editor-name').value.trim(),
             templateId: document.getElementById('course-editor-template').value.trim(),
@@ -1491,7 +1608,7 @@
         try {
             const action = courseCode ? 'updateCourseDefinition' : 'createCourseDefinition';
             const params = courseCode
-                ? { courseCode: courseCode, courseData: courseData }
+                ? { courseCode: courseCode, catalogRowIndex: catalogRowIndex, courseData: courseData }
                 : { courseData: courseData };
             
             const res = await callAppsScript(action, params, saveButton);
@@ -1509,10 +1626,11 @@
         }
     }
 
-    function openExamSettings(courseCode) {
+    function openExamSettings(courseCode, catalogRowIndex = '') {
         const modal = document.getElementById('exam-settings-modal');
         const title = document.getElementById('exam-settings-title');
         const codeHidden = document.getElementById('exam-settings-code-hidden');
+        const rowHidden = document.getElementById('exam-settings-row-hidden');
         const courseNameInput = document.getElementById('exam-settings-course-name');
         const examCodeInput = document.getElementById('exam-settings-exam-code');
         const q1TitleInput = document.getElementById('exam-settings-q1-title');
@@ -1526,7 +1644,7 @@
         const q4ScoreInput = document.getElementById('exam-settings-q4-score');
         const q5ScoreInput = document.getElementById('exam-settings-q5-score');
 
-        const course = (fullData.courseCatalog || []).find(item => String(item.courseCode) === String(courseCode));
+        const course = findCourseCatalogItem(courseCode, catalogRowIndex);
         if (!course) {
             alert('اطلاعات دوره مورد نظر در پنل پیدا نشد. لطفاً اطلاعات را به‌روزرسانی کنید.');
             return;
@@ -1539,6 +1657,7 @@
 
         title.innerText = 'تنظیمات آزمون';
         codeHidden.value = course.courseCode || '';
+        rowHidden.value = course.catalogRowIndex || '';
         courseNameInput.value = course.courseName || '';
         examCodeInput.value = course.examCode || '';
         q1TitleInput.value = course.question1Title || '';
@@ -1568,6 +1687,7 @@
 
         const saveButton = document.getElementById('exam-settings-save');
         const courseCode = document.getElementById('exam-settings-code-hidden').value.trim();
+        const catalogRowIndex = Number(document.getElementById('exam-settings-row-hidden').value || 0);
         const examData = {
             examCode: document.getElementById('exam-settings-exam-code').value.trim(),
             question1Title: document.getElementById('exam-settings-q1-title').value,
@@ -1591,7 +1711,7 @@
         saveButton.disabled = true;
 
         try {
-            const res = await callAppsScript('updateExamSettings', { courseCode: courseCode, examData: examData }, saveButton);
+            const res = await callAppsScript('updateExamSettings', { courseCode: courseCode, catalogRowIndex: catalogRowIndex, examData: examData }, saveButton);
 
             if (res && res.success) {
                 alert(res.message || 'تنظیمات آزمون با موفقیت ذخیره شد.');
