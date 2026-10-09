@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>نظرسنجی</title>
+<style>
+  * { box-sizing: border-box; font-family: Tahoma, sans-serif; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    padding: 14px;
+  }
+  .container { max-width: 560px; margin: 0 auto; }
+  .topbar {
+    background: #fff; border-radius: 12px; padding: 14px 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px; box-shadow: 0 4px 16px rgba(0,0,0,.15);
+  }
+  .topbar h1 { margin: 0; font-size: 16px; color: #1e3c72; }
+  .topbar a { color: #2a5298; text-decoration: none; font-size: 14px; }
+
+  .card {
+    background: #fff; border-radius: 14px; padding: 22px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.12);
+  }
+  .card h2 { margin: 0 0 16px; color: #1e3c72; font-size: 17px; }
+  label { display: block; font-size: 14px; color: #333; margin-bottom: 8px; }
+  textarea {
+    width: 100%; min-height: 130px; padding: 12px;
+    border: 2px solid #ddd; border-radius: 8px; font-size: 14px;
+    font-family: inherit; resize: vertical;
+  }
+  textarea:focus { outline: none; border-color: #2a5298; }
+
+  .stars { display: flex; gap: 8px; margin: 12px 0 20px; direction: ltr; justify-content: center; }
+  .star {
+    font-size: 32px; cursor: pointer; color: #ddd;
+    transition: color .15s; user-select: none;
+  }
+  .star.active { color: #f5b301; }
+
+  button {
+    width: 100%; padding: 14px; font-size: 15px; font-weight: bold;
+    background: #2a5298; color: #fff; border: none; border-radius: 8px;
+    cursor: pointer; font-family: inherit;
+  }
+  button:disabled { opacity: .6; }
+
+  .msg {
+    margin-top: 12px; padding: 10px; border-radius: 8px;
+    font-size: 14px; text-align: center; display: none;
+  }
+  .msg.err { background: #ffe5e5; color: #c00; display: block; }
+  .msg.ok  { background: #e5ffe5; color: #080; display: block; }
+  .alert {
+    padding: 14px; border-radius: 12px; font-size: 14px;
+    line-height: 1.7; margin-bottom: 14px;
+  }
+  .alert.danger { background: #f8d7da; color: #721c24; }
+  .alert.ok     { background: #d4edda; color: #155724; }
+  .alert.info   { background: #d1ecf1; color: #0c5460; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="topbar">
+    <h1>📝 نظرسنجی</h1>
+    <a href="dashboard.html">← بازگشت</a>
+  </div>
+
+  <div id="state"></div>
+
+  <div class="card" id="formCard" style="display:none">
+    <h2>نظر شما درباره این دوره</h2>
+
+    <label>امتیاز کلی (۱ تا ۵):</label>
+    <div class="stars" id="stars">
+      <span class="star" data-v="1">★</span>
+      <span class="star" data-v="2">★</span>
+      <span class="star" data-v="3">★</span>
+      <span class="star" data-v="4">★</span>
+      <span class="star" data-v="5">★</span>
+    </div>
+
+    <label>نظر یا پیشنهاد شما:</label>
+    <textarea id="text" placeholder="تجربه، نقاط قوت، نقاط ضعف، پیشنهادات..."></textarea>
+
+    <button id="submitBtn" style="margin-top:16px">ارسال نظرسنجی</button>
+    <div class="msg" id="msg"></div>
+  </div>
+</div>
+
+<script src="assets/api.js"></script>
+<script>
+const COURSE_CODE = sessionStorage.getItem('activeCourse');
+let RATING = 0;
+
+document.querySelectorAll('.star').forEach(s => {
+  s.addEventListener('click', () => {
+    RATING = Number(s.dataset.v);
+    document.querySelectorAll('.star').forEach(x => {
+      x.classList.toggle('active', Number(x.dataset.v) <= RATING);
+    });
+  });
+});
+
+async function load() {
+  if (!COURSE_CODE) {
+    document.getElementById('state').innerHTML =
+      '<div class="alert danger">دوره‌ای انتخاب نشده. به داشبورد برگردید.</div>';
+    return;
+  }
+
+  try {
+    const res = await api('surveyStatus', { courseCode: COURSE_CODE });
+
+    if (!res.isFinished) {
+      document.getElementById('state').innerHTML =
+        '<div class="alert danger">برای ثبت نظرسنجی، ابتدا باید تمام روزهای دوره را با موفقیت بگذرانید.</div>';
+      return;
+    }
+    if (res.alreadySubmitted) {
+      document.getElementById('state').innerHTML =
+        '<div class="alert ok">✅ شما قبلاً نظرسنجی این دوره را ثبت کرده‌اید. متشکریم!</div>';
+      return;
+    }
+
+    document.getElementById('formCard').style.display = 'block';
+  } catch (e) {
+    document.getElementById('state').innerHTML =
+      '<div class="alert danger">خطا: ' + e.message + '</div>';
+  }
+}
+
+document.getElementById('submitBtn').onclick = async () => {
+  const msg = document.getElementById('msg');
+  const btn = document.getElementById('submitBtn');
+  const text = document.getElementById('text').value.trim();
+
+  if (RATING < 1) { msg.className = 'msg err'; msg.textContent = 'امتیاز را انتخاب کنید'; return; }
+  if (text.length < 5) { msg.className = 'msg err'; msg.textContent = 'متن نظر خیلی کوتاه است'; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'در حال ارسال...';
+  msg.className = 'msg';
+
+  try {
+    await api('submitSurvey', {
+      courseCode: COURSE_CODE,
+      text: text,
+      rating: RATING
+    });
+    msg.className = 'msg ok';
+    msg.textContent = '✅ نظرسنجی شما با موفقیت ثبت شد. متشکریم!';
+    document.getElementById('formCard').style.display = 'none';
+    setTimeout(() => {
+      document.getElementById('state').innerHTML =
+        '<div class="alert ok">✅ شما قبلاً نظرسنجی این دوره را ثبت کرده‌اید. متشکریم!</div>';
+    }, 1500);
+  } catch (e) {
+    const map = {
+      NOT_FINISHED: 'ابتدا باید دوره را کامل کنید',
+      ALREADY_SUBMITTED: 'قبلاً نظرسنجی داده‌اید',
+      EMPTY_TEXT: 'متن نظر خالی است',
+      INVALID_RATING: 'امتیاز معتبر نیست'
+    };
+    msg.className = 'msg err';
+    msg.textContent = map[e.message] || ('خطا: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = 'ارسال نظرسنجی';
+  }
+};
+
+load();
+</script>
+</body>
+</html>
