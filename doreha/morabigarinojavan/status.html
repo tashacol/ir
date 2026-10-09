@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>وضعیت تحصیلی</title>
+<style>
+  * { box-sizing: border-box; font-family: Tahoma, sans-serif; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    padding: 14px;
+  }
+  .container { max-width: 560px; margin: 0 auto; }
+  .topbar {
+    background: #fff; border-radius: 12px; padding: 14px 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px; box-shadow: 0 4px 16px rgba(0,0,0,.15);
+  }
+  .topbar h1 { margin: 0; font-size: 16px; color: #1e3c72; }
+  .topbar a { color: #2a5298; text-decoration: none; font-size: 14px; }
+
+  .card {
+    background: #fff; border-radius: 14px; padding: 20px;
+    margin-bottom: 14px; box-shadow: 0 6px 24px rgba(0,0,0,.12);
+  }
+  .card h2 { margin: 0 0 14px; color: #1e3c72; font-size: 16px; }
+  .row {
+    display: flex; justify-content: space-between; padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0; font-size: 14px;
+  }
+  .row:last-child { border-bottom: none; }
+  .row .lbl { color: #666; }
+  .row .val { color: #1e3c72; font-weight: bold; }
+
+  .bar-wrap {
+    height: 18px; background: #eef2f7; border-radius: 10px;
+    overflow: hidden; margin: 8px 0 4px;
+  }
+  .bar {
+    height: 100%;
+    background: linear-gradient(90deg, #2a5298, #4a90e2);
+    border-radius: 10px; transition: width .4s;
+  }
+  .pct { text-align: center; font-size: 13px; color: #666; }
+
+  .alert {
+    border-radius: 12px; padding: 14px; margin-bottom: 14px;
+    font-size: 14px; line-height: 1.8;
+  }
+  .alert.warn   { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+  .alert.danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+  .alert.ok     { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+  .alert.info   { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+
+  .btn {
+    width: 100%; padding: 14px; border: none; border-radius: 8px;
+    font-size: 15px; font-weight: bold; cursor: pointer;
+    font-family: inherit; margin-top: 8px;
+  }
+  .btn.primary { background: #2a5298; color: #fff; }
+  .btn.green   { background: #2e7d32; color: #fff; }
+  .btn:disabled { opacity: .6; }
+
+  .msg {
+    margin-top: 10px; padding: 10px; border-radius: 8px;
+    font-size: 13px; text-align: center; display: none;
+  }
+  .msg.err { background: #ffe5e5; color: #c00; display: block; }
+  .msg.ok  { background: #e5ffe5; color: #080; display: block; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="topbar">
+    <h1 id="title">📊 وضعیت تحصیلی</h1>
+    <a href="dashboard.html">← بازگشت</a>
+  </div>
+
+  <div id="alerts"></div>
+
+  <div class="card">
+    <h2>پیشرفت</h2>
+    <div class="bar-wrap"><div class="bar" id="bar" style="width:0%"></div></div>
+    <div class="pct" id="pct">۰٪</div>
+
+    <div class="row"><span class="lbl">روزهای گذرانده</span><span class="val" id="passed">—</span></div>
+    <div class="row"><span class="lbl">مجموع روزها</span><span class="val" id="total">—</span></div>
+    <div class="row"><span class="lbl">تاریخ شروع</span><span class="val" id="start">—</span></div>
+    <div class="row"><span class="lbl">تاریخ پایان</span><span class="val" id="end">—</span></div>
+    <div class="row"><span class="lbl">روز گذشته از دوره</span><span class="val" id="elapsed">—</span></div>
+    <div class="row"><span class="lbl">روز باقی‌مانده</span><span class="val" id="remaining">—</span></div>
+  </div>
+
+  <div class="card" id="actionCard" style="display:none">
+    <h2>اقدامات</h2>
+    <div id="actionContent"></div>
+    <div class="msg" id="actMsg"></div>
+  </div>
+</div>
+
+<script src="assets/api.js"></script>
+<script>
+const COURSE_CODE = sessionStorage.getItem('activeCourse');
+let GRACE = 0;
+
+function faNum(n) { return String(n).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]); }
+
+async function load() {
+  if (!COURSE_CODE) {
+    document.getElementById('alerts').innerHTML =
+      '<div class="alert danger">دوره‌ای انتخاب نشده. به داشبورد برگردید.</div>';
+    return;
+  }
+  try {
+    const res = await api('status', { courseCode: COURSE_CODE });
+    render(res);
+  } catch (e) {
+    document.getElementById('alerts').innerHTML =
+      '<div class="alert danger">خطا: ' + e.message + '</div>';
+  }
+}
+
+function render(res) {
+  const info = res.info;
+  GRACE = res.graceDays || 0;
+
+  document.getElementById('bar').style.width = info.percent + '%';
+  document.getElementById('pct').textContent = faNum(info.percent) + '٪';
+  document.getElementById('passed').textContent = faNum(info.passedDays);
+  document.getElementById('total').textContent = faNum(info.totalDays);
+  document.getElementById('start').textContent = info.start;
+  document.getElementById('end').textContent = info.end;
+  document.getElementById('elapsed').textContent = faNum(info.daysElapsed) + ' روز';
+  document.getElementById('remaining').textContent = faNum(info.daysRemaining) + ' روز';
+
+  const alerts = [];
+
+  if (GRACE > 0) {
+    if (GRACE >= 6) {
+      alerts.push('<div class="alert warn">⏳ شما <b>' + faNum(GRACE) + ' روز</b> مهلت دارید.</div>');
+    } else if (GRACE >= 2) {
+      alerts.push('<div class="alert danger">🚨 فقط <b>' + faNum(GRACE) + ' روز</b> مهلت دارید! پس از پایان، اطلاعات حذف می‌شود.</div>');
+    } else if (GRACE === 1) {
+      alerts.push('<div class="alert danger">⚠️ <b>آخرین روز مهلت!</b> امشب ساعت ۰۰:۰۱ حذف می‌شوید اگر تکمیل نکنید.</div>');
+    }
+  }
+
+  if (info.isFinished) {
+    alerts.push('<div class="alert ok">🎉 تبریک! شما دوره را کامل گذراندید.</div>');
+  } else if (info.isExpired && GRACE === 0) {
+    alerts.push('<div class="alert danger">⌛ دوره پایان یافته و تکمیل نشده است.</div>');
+  }
+
+  if (res.hasCert) {
+    alerts.push('<div class="alert ok">🎓 گواهی شما صادر شده است.</div>');
+  }
+
+  document.getElementById('alerts').innerHTML = alerts.join('');
+
+  const actCard = document.getElementById('actionCard');
+  const actContent = document.getElementById('actionContent');
+  let actionHtml = '';
+  actCard.style.display = 'none';
+
+  if (res.hasCert) {
+    actCard.style.display = 'block';
+    actionHtml = '<a class="btn primary" href="cert_download.html" style="display:block;text-align:center;text-decoration:none">🎓 دانلود گواهی</a>';
+  } else if (info.isFinished && res.userStatus.indexOf('درخواست گواهی') >= 0) {
+    actCard.style.display = 'block';
+    actionHtml = '<div class="alert info">درخواست گواهی ثبت شد. منتظر تایید مدیر.</div>';
+  } else if (info.isFinished) {
+    actCard.style.display = 'block';
+    actionHtml = '<p style="font-size:14px;color:#555;margin-top:0">شما دوره را کامل کردید. برای دریافت گواهی، درخواست بدهید.</p><button class="btn green" id="certBtn">📜 درخواست صدور گواهی</button>';
+  } else if (info.isExpired && GRACE === 0) {
+    actCard.style.display = 'block';
+    actionHtml = '<p style="font-size:14px;color:#555;margin-top:0">دوره پایان یافته. می‌توانید ۱۰ روز مهلت بگیرید.</p><button class="btn primary" id="graceBtn">⏳ درخواست ۱۰ روز مهلت</button>';
+  }
+
+  actContent.innerHTML = actionHtml;
+
+  const certBtn = document.getElementById('certBtn');
+  if (certBtn) certBtn.onclick = askCert;
+
+  const graceBtn = document.getElementById('graceBtn');
+  if (graceBtn) graceBtn.onclick = askGrace;
+}
+
+async function askGrace() {
+  const btn = document.getElementById('graceBtn');
+  const msg = document.getElementById('actMsg');
+  if (!confirm('مطمئنید؟ پس از پایان مهلت اگر تکمیل نکنید، اطلاعات کاملاً حذف می‌شود.')) return;
+  btn.disabled = true;
+  btn.textContent = 'در حال ثبت...';
+  try {
+    await api('requestGrace', { courseCode: COURSE_CODE });
+    msg.className = 'msg ok';
+    msg.textContent = '✅ مهلت ۱۰ روزه فعال شد.';
+    setTimeout(load, 1500);
+  } catch (e) {
+    msg.className = 'msg err';
+    msg.textContent = 'خطا: ' + e.message;
+    btn.disabled = false;
+    btn.textContent = '⏳ درخواست ۱۰ روز مهلت';
+  }
+}
+
+async function askCert() {
+  const btn = document.getElementById('certBtn');
+  const msg = document.getElementById('actMsg');
+  if (!confirm('درخواست صدور گواهی ارسال شود؟')) return;
+  btn.disabled = true;
+  btn.textContent = 'در حال ارسال...';
+  try {
+    await api('requestCert', { courseCode: COURSE_CODE });
+    msg.className = 'msg ok';
+    msg.textContent = '✅ ثبت شد. منتظر تایید مدیر.';
+    setTimeout(load, 1500);
+  } catch (e) {
+    msg.className = 'msg err';
+    msg.textContent = 'خطا: ' + e.message;
+    btn.disabled = false;
+    btn.textContent = '📜 درخواست صدور گواهی';
+  }
+}
+
+load();
+</script>
+</body>
+</html>
