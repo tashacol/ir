@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>پنل درسی</title>
+<style>
+  * { box-sizing: border-box; font-family: Tahoma, sans-serif; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    padding: 14px;
+  }
+  .container { max-width: 720px; margin: 0 auto; }
+  .topbar {
+    background: #fff; border-radius: 12px; padding: 14px 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.15);
+    gap: 8px;
+  }
+  .topbar h1 { margin: 0; font-size: 15px; color: #1e3c72; flex: 1; }
+  .topbar a { color: #2a5298; text-decoration: none; font-size: 13px; white-space: nowrap; }
+
+  .weeks {
+    display: flex; overflow-x: auto; gap: 8px; margin-bottom: 14px;
+    padding-bottom: 4px;
+  }
+  .weeks::-webkit-scrollbar { display: none; }
+  .wbtn {
+    flex-shrink: 0; padding: 8px 16px; border-radius: 20px;
+    background: rgba(255,255,255,.25); color: #fff;
+    border: none; font-size: 13px; cursor: pointer;
+    font-family: inherit;
+  }
+  .wbtn.active { background: #fff; color: #1e3c72; font-weight: bold; }
+
+  .days {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 8px; margin-bottom: 14px;
+  }
+  .dbtn {
+    padding: 14px 6px; border-radius: 12px; border: none;
+    background: #fff; color: #1e3c72; font-family: inherit;
+    font-size: 13px; cursor: pointer; text-align: center;
+    box-shadow: 0 3px 10px rgba(0,0,0,.12);
+    position: relative;
+  }
+  .dbtn.active { background: #ffd54f; color: #1e3c72; font-weight: bold; }
+  .dbtn.locked { opacity: .45; cursor: not-allowed; }
+  .dbtn.passed::after {
+    content: "✓"; position: absolute; top: 4px; left: 6px;
+    color: #2e7d32; font-weight: bold; font-size: 14px;
+  }
+  .dbtn .lbl { font-size: 12px; margin-top: 4px; color: #666; }
+  .dbtn .date { font-size: 10px; color: #999; margin-top: 2px; direction: ltr; }
+
+  .content {
+    background: #fff; border-radius: 12px; padding: 18px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.15);
+  }
+  .content h2 { margin: 0 0 12px; color: #1e3c72; font-size: 17px; }
+  .links { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .links a {
+    flex: 1; min-width: 140px; padding: 12px;
+    background: #e3f2fd; color: #1565c0; border-radius: 8px;
+    text-decoration: none; text-align: center; font-size: 14px;
+  }
+  .links a.video { background: #fce4ec; color: #ad1457; }
+
+  .q {
+    background: #f7f9fc; border-radius: 10px; padding: 14px;
+    margin-bottom: 12px; border-right: 4px solid #2a5298;
+  }
+  .q .qtxt { font-weight: bold; font-size: 14px; margin-bottom: 10px; color: #333; }
+  .opt { display: block; padding: 8px 12px; margin-bottom: 6px;
+         background: #fff; border-radius: 8px; cursor: pointer;
+         border: 2px solid #e0e0e0; font-size: 13px; }
+  .opt input { margin-left: 8px; }
+  .opt.selected { border-color: #2a5298; background: #e3f2fd; }
+
+  .submit {
+    width: 100%; padding: 14px; font-size: 16px; font-weight: bold;
+    background: #2a5298; color: #fff; border: none; border-radius: 8px;
+    cursor: pointer; font-family: inherit;
+  }
+  .submit:disabled { opacity: .6; }
+
+  .msg {
+    margin-top: 12px; padding: 10px; border-radius: 8px;
+    font-size: 14px; text-align: center; display: none;
+  }
+  .msg.err { background: #ffe5e5; color: #c00; display: block; }
+  .msg.ok  { background: #e5ffe5; color: #080; display: block; }
+
+  .empty {
+    text-align: center; padding: 40px 20px; color: #888; font-size: 14px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="topbar">
+    <h1 id="courseTitle">📚 پنل درسی</h1>
+    <a href="dashboard.html">← بازگشت</a>
+  </div>
+
+  <div class="weeks" id="weeks"></div>
+  <div class="days" id="days"></div>
+  <div class="content" id="content">
+    <div class="empty">یک روز را انتخاب کنید</div>
+  </div>
+</div>
+
+<script src="assets/api.js"></script>
+<script>
+let STRUCT = null;
+let COURSE_CODE = null;
+
+const WEEKDAY_NAMES = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه'];
+
+function toJalali(gy, gm, gd) {
+  const g_d_m = [0,31,59,90,120,151,181,212,243,273,304,334];
+  let jy = (gy <= 1600) ? 0 : 979;
+  gy -= (gy <= 1600) ? 621 : 1600;
+  const gy2 = (gm > 2) ? (gy + 1) : gy;
+  let days = (365 * gy) + Math.floor((gy2 + 3) / 4) -
+             Math.floor((gy2 + 99) / 100) + Math.floor((gy2 + 399) / 400) -
+             80 + gd + g_d_m[gm - 1];
+  jy += 33 * Math.floor(days / 12053);
+  days %= 12053;
+  jy += 4 * Math.floor(days / 1461);
+  days %= 1461;
+  if (days > 365) { jy += Math.floor((days - 1) / 365); days = (days - 1) % 365; }
+  const jm = (days < 186) ? 1 + Math.floor(days / 31) : 7 + Math.floor((days - 186) / 30);
+  const jd = 1 + ((days < 186) ? (days % 31) : ((days - 186) % 30));
+  return `${jy}/${String(jm).padStart(2,'0')}/${String(jd).padStart(2,'0')}`;
+}
+
+function dateLabel(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return toJalali(y, m, d);
+}
+
+async function init() {
+  COURSE_CODE = sessionStorage.getItem('activeCourse');
+  if (!COURSE_CODE) {
+    document.getElementById('content').innerHTML =
+      '<div class="empty">دوره‌ای انتخاب نشده. به داشبورد برگردید.</div>';
+    return;
+  }
+  try {
+    const listRes = await api('myCourses', {});
+    const c = (listRes.courses || []).find(x => x.code === COURSE_CODE);
+    if (c) document.getElementById('courseTitle').textContent = '📚 ' + c.name;
+  } catch (e) {}
+  loadStructure();
+}
+
+async function loadStructure() {
+  const weeksEl = document.getElementById('weeks');
+  const daysEl = document.getElementById('days');
+  try {
+    const res = await api('courseStructure', { courseCode: COURSE_CODE });
+    STRUCT = res.schedule;
+
+    if (!STRUCT.length) {
+      weeksEl.innerHTML = '';
+      daysEl.innerHTML = '';
+      document.getElementById('content').innerHTML =
+        '<div class="empty">هنوز برنامه‌ای برای این دوره تعریف نشده است.</div>';
+      return;
+    }
+
+    const weekSet = [...new Set(STRUCT.map(x => x.w))].sort((a,b)=>a-b);
+    weeksEl.innerHTML = '';
+    weekSet.forEach(w => {
+      const b = document.createElement('button');
+      b.className = 'wbtn';
+      b.textContent = 'هفته ' + w;
+      b.dataset.week = w;
+      b.onclick = () => selectWeek(w);
+      weeksEl.appendChild(b);
+    });
+
+    let firstOpen = weekSet.find(w => STRUCT.some(x => x.w === w && !x.locked));
+    if (!firstOpen) firstOpen = weekSet[weekSet.length - 1];
+    selectWeek(firstOpen);
+
+  } catch (e) {
+    weeksEl.innerHTML = '';
+    daysEl.innerHTML = '';
+    document.getElementById('content').innerHTML =
+      '<div class="empty">خطا: ' + e.message + '</div>';
+  }
+}
+
+function selectWeek(w) {
+  document.querySelectorAll('.wbtn').forEach(b => {
+    b.classList.toggle('active', Number(b.dataset.week) === w);
+  });
+
+  const dayItems = STRUCT.filter(x => x.w === w).sort((a,b)=>a.d-b.d);
+  const daysEl = document.getElementById('days');
+  daysEl.innerHTML = '';
+  dayItems.forEach(item => {
+    const b = document.createElement('button');
+    b.className = 'dbtn';
+    if (item.locked) b.classList.add('locked');
+    if (item.passed) b.classList.add('passed');
+    b.innerHTML = `${WEEKDAY_NAMES[item.d-1] || 'روز '+item.d}
+      <div class="lbl">${item.locked ? '🔒 قفل' : (item.passed ? 'تکمیل' : 'باز')}</div>
+      <div class="date">${dateLabel(item.date)}</div>`;
+    if (!item.locked) {
+      b.onclick = () => selectDay(w, item.d, b);
+    }
+    daysEl.appendChild(b);
+  });
+
+  document.getElementById('content').innerHTML =
+    '<div class="empty">یک روز را انتخاب کنید</div>';
+}
+
+async function selectDay(w, d, btn) {
+  document.querySelectorAll('.dbtn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const contentEl = document.getElementById('content');
+  contentEl.innerHTML = '<div class="empty">در حال بارگذاری...</div>';
+
+  try {
+    const res = await api('courseDay', { courseCode: COURSE_CODE, week: w, day: d });
+    renderDay(res, w, d);
+  } catch (e) {
+    const map = {
+      LOCKED: 'این روز هنوز باز نشده',
+      NO_CONTENT: 'محتوای این روز هنوز ثبت نشده',
+      NOT_FOUND: 'روز پیدا نشد',
+      FORBIDDEN_COURSE: 'شما به این دوره دسترسی ندارید'
+    };
+    contentEl.innerHTML = '<div class="empty">' + (map[e.message] || e.message) + '</div>';
+  }
+}
+
+function renderDay(res, w, d) {
+  const el = document.getElementById('content');
+
+  let html = `<h2>هفته ${w} — ${WEEKDAY_NAMES[d-1] || ('روز '+d)}</h2>`;
+  if (res.title) html += `<p style="color:#555;font-size:14px;margin:0 0 12px">${res.title}</p>`;
+
+  html += '<div class="links">';
+  if (res.pdfUrl)   html += `<a href="${res.pdfUrl}" target="_blank" rel="noopener">📄 دانلود جزوه</a>`;
+  if (res.videoUrl) html += `<a class="video" href="${res.videoUrl}" target="_blank" rel="noopener">🎬 تماشای ویدیو</a>`;
+  html += '</div>';
+
+  if (res.alreadyPassed) {
+    html += '<div class="msg ok" style="display:block">✅ شما این روز را قبلاً با موفقیت گذراندید</div>';
+    el.innerHTML = html;
+    return;
+  }
+
+  html += '<h2 style="font-size:15px;margin-top:8px">آزمون (هر ۳ سؤال باید درست باشد)</h2>';
+  res.questions.forEach((q, qi) => {
+    const opts = [q.o1, q.o2, q.o3];
+    html += `<div class="q"><div class="qtxt">${qi+1}. ${q.q || '(بدون متن)'}</div>`;
+    opts.forEach((o, oi) => {
+      html += `<label class="opt" data-q="${qi}" data-o="${oi+1}">
+        <input type="radio" name="q${qi}" value="${oi+1}"> ${o || '(خالی)'}
+      </label>`;
+    });
+    html += '</div>';
+  });
+
+  html += '<button class="submit" id="submitBtn">ارسال پاسخ‌ها</button>';
+  html += '<div class="msg" id="ansMsg"></div>';
+  el.innerHTML = html;
+
+  el.querySelectorAll('.opt').forEach(lbl => {
+    lbl.addEventListener('click', () => {
+      const q = lbl.dataset.q;
+      el.querySelectorAll(`.opt[data-q="${q}"]`).forEach(x => x.classList.remove('selected'));
+      lbl.classList.add('selected');
+    });
+  });
+
+  document.getElementById('submitBtn').onclick = () => submitAnswers(w, d);
+}
+
+async function submitAnswers(w, d) {
+  const el = document.getElementById('content');
+  const msg = document.getElementById('ansMsg');
+  const btn = document.getElementById('submitBtn');
+
+  const answers = [null, null, null];
+  for (let i = 0; i < 3; i++) {
+    const sel = el.querySelector(`input[name="q${i}"]:checked`);
+    if (!sel) {
+      msg.className = 'msg err';
+      msg.textContent = 'به همه‌ی سؤالات پاسخ دهید';
+      return;
+    }
+    answers[i] = Number(sel.value);
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'در حال بررسی...';
+  msg.className = 'msg';
+
+  try {
+    await api('courseAnswer', { courseCode: COURSE_CODE, week: w, day: d, answers });
+    msg.className = 'msg ok';
+    msg.textContent = '✅ آفرین! همه‌ی پاسخ‌ها درست بود.';
+    btn.textContent = 'تکمیل شد';
+    setTimeout(() => loadStructure(), 1200);
+  } catch (e) {
+    if (e.message === 'WRONG_ANSWERS') {
+      msg.className = 'msg err';
+      msg.textContent = '❌ یکی از پاسخ‌ها اشتباه است. مجدد تلاش کنید.';
+    } else {
+      msg.className = 'msg err';
+      msg.textContent = 'خطا: ' + e.message;
+    }
+    btn.disabled = false;
+    btn.textContent = 'ارسال پاسخ‌ها';
+  }
+}
+
+init();
+</script>
+</body>
+</html>
