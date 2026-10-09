@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ورود به سامانه</title>
+<style>
+  * { box-sizing: border-box; font-family: Tahoma, sans-serif; }
+  body {
+    margin: 0; min-height: 100vh; display: flex;
+    align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    padding: 20px;
+  }
+  .box {
+    background: #fff; border-radius: 16px; padding: 30px;
+    width: 100%; max-width: 380px;
+    box-shadow: 0 10px 40px rgba(0,0,0,.2);
+  }
+  h1 { text-align: center; margin: 0 0 20px; color: #1e3c72; font-size: 22px; }
+  label { display: block; margin-bottom: 6px; font-size: 14px; color: #333; }
+  input {
+    width: 100%; padding: 12px; font-size: 16px; direction: ltr;
+    border: 2px solid #ddd; border-radius: 8px; text-align: center;
+    margin-bottom: 14px; letter-spacing: 2px;
+  }
+  input:focus { outline: none; border-color: #2a5298; }
+  button {
+    width: 100%; padding: 14px; font-size: 16px; font-weight: bold;
+    background: #2a5298; color: #fff; border: none; border-radius: 8px;
+    cursor: pointer;
+  }
+  button:active { transform: scale(.98); }
+  button:disabled { opacity: .6; }
+  .msg {
+    margin-top: 14px; padding: 10px; border-radius: 8px;
+    font-size: 14px; text-align: center; display: none;
+  }
+  .msg.err { background: #ffe5e5; color: #c00; display: block; }
+  .msg.ok  { background: #e5ffe5; color: #080; display: block; }
+  .link { text-align: center; margin-top: 16px; font-size: 14px; }
+  .link a { color: #2a5298; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>ورود به سامانه</h1>
+
+  <label>کد ملی</label>
+  <input id="nid" type="tel" inputmode="numeric" maxlength="10" placeholder="۱۰ رقم">
+
+  <label>رمز (فقط برای مدیر)</label>
+  <input id="pw" type="password" placeholder="خالی بگذارید اگر دانشجو هستید">
+
+  <button id="btn">ورود</button>
+  <div id="msg" class="msg"></div>
+
+  <div class="link">
+    <a href="register.html">ثبت‌نام نکرده‌اید؟ کلیک کنید</a>
+  </div>
+</div>
+
+<script src="assets/api.js"></script>
+<script>
+  const btn = document.getElementById('btn');
+  const msg = document.getElementById('msg');
+
+  function show(text, isErr) {
+    msg.textContent = text;
+    msg.className = 'msg ' + (isErr ? 'err' : 'ok');
+  }
+
+  btn.addEventListener('click', async () => {
+    const nid = document.getElementById('nid').value.trim();
+    const pw  = document.getElementById('pw').value;
+
+    msg.className = 'msg';
+    if (!/^\d{10}$/.test(nid)) { show('کد ملی باید ۱۰ رقم باشد', true); return; }
+
+    btn.disabled = true;
+    btn.textContent = 'در حال بررسی...';
+
+    try {
+      const res = await api('login', { nationalId: nid, password: pw });
+      setToken(res.token);
+
+      if (res.role === 'admin') {
+        show('ورود مدیر موفق. در حال انتقال...', false);
+        setTimeout(() => location.href = 'admin.html', 700);
+      } else {
+        sessionStorage.setItem('user', JSON.stringify(res.user || {}));
+        show('خوش آمدید ' + (res.user?.name || ''), false);
+        setTimeout(() => location.href = 'dashboard.html', 700);
+      }
+    } catch (err) {
+      const map = {
+        INVALID_NID:     'کد ملی معتبر نیست',
+        BAD_CREDENTIALS: 'رمز ادمین اشتباه است',
+        NOT_REGISTERED:  'شما ثبت‌نام نکرده‌اید',
+        RATE_LIMITED:    'تعداد تلاش زیاد. یک دقیقه صبر کنید',
+        AUTH_REQUIRED:   'ابتدا وارد شوید'
+      };
+      show(map[err.message] || 'خطا: ' + err.message, true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'ورود';
+    }
+  });
+</script>
+</body>
+</html>
