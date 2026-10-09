@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+   <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -19,6 +19,17 @@
   }
   .header h1 { margin: 0 0 6px; color: #1e3c72; font-size: 20px; }
   .header p { margin: 0; color: #666; font-size: 14px; }
+  .course-box {
+    background: #fff; border-radius: 16px; padding: 16px;
+    margin-bottom: 16px; box-shadow: 0 6px 24px rgba(0,0,0,.12);
+  }
+  .course-box label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; }
+  .course-box select {
+    width: 100%; padding: 12px; font-size: 15px;
+    border: 2px solid #ddd; border-radius: 8px;
+    background: #f9fbff; font-family: inherit;
+  }
+  .course-box select:focus { outline: none; border-color: #2a5298; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .card {
     background: #fff; border-radius: 16px; padding: 24px 14px;
@@ -43,7 +54,12 @@
     <p id="ucourse"></p>
   </div>
 
-  <div class="grid">
+  <div class="course-box" id="courseBox" style="display:none">
+    <label>دوره فعال را انتخاب کنید:</label>
+    <select id="courseSel"></select>
+  </div>
+
+  <div class="grid" id="grid" style="display:none">
     <a class="card" href="course.html">
       <div class="icon">📚</div>
       <div class="label">پنل درسی</div>
@@ -69,12 +85,43 @@
 <script>
 (async function () {
   try {
-    const res = await api('me', {});
-    const u = res.user;
+    const meRes = await api('me', {});
+    const u = meRes.user;
     document.getElementById('uname').textContent = u.name || 'کاربر';
-    document.getElementById('ucourse').textContent = 'دوره: ' + (u.course || '—');
+
+    const codes = u.courses || [];
+    if (!codes.length) {
+      document.getElementById('ucourse').textContent = 'هیچ دوره‌ای ثبت نشده';
+      return;
+    }
+
+    const listRes = await api('myCourses', {});
+    const courses = listRes.courses || [];
+
+    const sel = document.getElementById('courseSel');
+    sel.innerHTML = '';
+    courses.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.code;
+      opt.textContent = c.name + ' (' + c.code + ')';
+      sel.appendChild(opt);
+    });
+
+    const saved = sessionStorage.getItem('activeCourse');
+    if (saved && codes.indexOf(saved) >= 0) sel.value = saved;
+    sessionStorage.setItem('activeCourse', sel.value);
+
+    document.getElementById('ucourse').textContent = courses.length + ' دوره ثبت‌نام شده';
+    document.getElementById('grid').style.display = 'grid';
+
+    if (courses.length > 1) {
+      document.getElementById('courseBox').style.display = 'block';
+      sel.addEventListener('change', () => {
+        sessionStorage.setItem('activeCourse', sel.value);
+      });
+    }
   } catch (e) {
-    document.getElementById('uname').textContent = 'خطا در بارگذاری';
+    document.getElementById('uname').textContent = 'خطا: ' + e.message;
   }
 })();
 </script>
