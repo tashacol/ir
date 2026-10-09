@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>استعلام گواهی</title>
+<style>
+  * { box-sizing: border-box; font-family: Tahoma, sans-serif; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    padding: 20px; display: flex; justify-content: center;
+    align-items: flex-start;
+  }
+  .box {
+    background: #fff; border-radius: 16px; padding: 26px;
+    width: 100%; max-width: 460px;
+    box-shadow: 0 10px 40px rgba(0,0,0,.2);
+    margin-top: 30px;
+  }
+  h1 { text-align: center; margin: 0 0 6px; color: #1e3c72; font-size: 20px; }
+  .sub { text-align: center; margin: 0 0 22px; color: #888; font-size: 13px; }
+  label { display: block; font-size: 14px; color: #333; margin-bottom: 6px; }
+  input {
+    width: 100%; padding: 13px; font-size: 16px; direction: ltr;
+    border: 2px solid #ddd; border-radius: 8px; text-align: center;
+    letter-spacing: 3px; margin-bottom: 14px;
+  }
+  input:focus { outline: none; border-color: #2a5298; }
+  button {
+    width: 100%; padding: 14px; font-size: 16px; font-weight: bold;
+    background: #2a5298; color: #fff; border: none; border-radius: 8px;
+    cursor: pointer; font-family: inherit;
+  }
+  button:disabled { opacity: .6; }
+  .msg {
+    margin-top: 14px; padding: 12px; border-radius: 8px;
+    font-size: 14px; text-align: center; display: none;
+  }
+  .msg.err { background: #ffe5e5; color: #c00; display: block; }
+  .msg.ok  { background: #e5ffe5; color: #080; display: block; }
+  .msg.info { background: #d1ecf1; color: #0c5460; display: block; }
+
+  .cert-card {
+    background: #f9fbff; border-right: 4px solid #2e7d32;
+    border-radius: 10px; padding: 16px; margin-top: 12px;
+    text-align: right;
+  }
+  .cert-card h3 {
+    margin: 0 0 10px; color: #2e7d32; font-size: 15px;
+    border-bottom: 1px dashed #c8e6c9; padding-bottom: 8px;
+  }
+  .row {
+    display: flex; justify-content: space-between;
+    padding: 6px 0; font-size: 13px;
+  }
+  .row .lbl { color: #666; }
+  .row .val { color: #1e3c72; font-weight: bold; }
+
+  .back { text-align: center; margin-top: 16px; font-size: 13px; }
+  .back a { color: #2a5298; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>🔍 استعلام گواهی</h1>
+  <p class="sub">برای بررسی اعتبار گواهی، کد ملی را وارد کنید</p>
+
+  <label>کد ملی:</label>
+  <input id="nid" type="tel" inputmode="numeric" maxlength="10" placeholder="۱۰ رقم">
+
+  <button id="btn">بررسی</button>
+  <div class="msg" id="msg"></div>
+  <div id="results"></div>
+
+  <div class="back"><a href="index.html">← بازگشت به صفحه ورود</a></div>
+</div>
+
+<script src="assets/api.js"></script>
+<script>
+const btn = document.getElementById('btn');
+const msg = document.getElementById('msg');
+const results = document.getElementById('results');
+
+btn.addEventListener('click', async () => {
+  const nid = document.getElementById('nid').value.trim();
+  results.innerHTML = '';
+  msg.className = 'msg';
+
+  if (!/^\d{10}$/.test(nid)) {
+    msg.className = 'msg err';
+    msg.textContent = 'کد ملی باید ۱۰ رقم باشد';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'در حال بررسی...';
+
+  try {
+    const res = await api('verifyCert', { nationalId: nid });
+
+    if (!res.found) {
+      msg.className = 'msg err';
+      msg.textContent = '❌ برای این کد ملی هیچ گواهی معتبری یافت نشد';
+      return;
+    }
+
+    msg.className = 'msg ok';
+    msg.textContent = '✅ ' + res.certificates.length + ' گواهی معتبر یافت شد';
+
+    res.certificates.forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'cert-card';
+      div.innerHTML =
+        '<h3>🎓 ' + c.courseName + '</h3>' +
+        '<div class="row"><span class="lbl">نام:</span><span class="val">' + c.fullName + '</span></div>' +
+        '<div class="row"><span class="lbl">کد دوره:</span><span class="val">' + c.courseCode + '</span></div>' +
+        '<div class="row"><span class="lbl">شماره گواهی:</span><span class="val">' + c.certNumber + '</span></div>' +
+        '<div class="row"><span class="lbl">تاریخ صدور:</span><span class="val">' + c.issueDate + '</span></div>';
+      results.appendChild(div);
+    });
+
+  } catch (e) {
+    msg.className = 'msg err';
+    msg.textContent = 'خطا: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'بررسی';
+  }
+});
+</script>
+</body>
+</html>
