@@ -1,11 +1,10 @@
-<!DOCTYPE html>
+   <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
 <title>پنل کاربری | مؤسسه تعالی اندیشه و رشد</title>
-<meta name="description" content="پنل کاربری مؤسسه تعالی اندیشه و رشد - دسترسی سریع به پنل درسی، وضعیت تحصیلی، نظرسنجی و دانلود گواهی">
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="https://tashacol.ir/1754843708220.png" type="image/png">
 
@@ -22,13 +21,11 @@
   --muted: #6b778c;
   --bg-card: rgba(255,255,255,0.98);
   --border: rgba(223,225,229,0.7);
-  --input-bg: rgba(250,251,252,0.9);
   --danger: #de350b;
   --success: #00875a;
   --warning: #ff991f;
   --purple: #6554c0;
   --teal: #00a3bf;
-  --pink: #e774bb;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -52,6 +49,23 @@ body {
   width: 100%;
   max-width: 720px;
   margin: 0 auto;
+}
+
+/* ───── Top Loading Bar ───── */
+.top-loader {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: rgba(255,255,255,0.15);
+  z-index: 9999;
+}
+.top-loader.show { display: block; }
+.top-loader .bar {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, #0065ff, #4a90e2);
+  transition: width .3s ease;
+  box-shadow: 0 0 10px rgba(0,101,255,0.6);
 }
 
 /* ───── Header Card ───── */
@@ -158,7 +172,7 @@ body {
   padding: 13px 14px;
   border: 1.5px solid var(--border);
   border-radius: 11px;
-  background: var(--input-bg);
+  background: rgba(250,251,252,0.9);
   font-family: inherit;
   font-size: .95rem;
   color: var(--text);
@@ -197,7 +211,6 @@ body {
   color: var(--text);
   transition: all .3s cubic-bezier(.4,0,.2,1);
   box-shadow: 0 6px 20px rgba(0,0,0,0.08);
-  display: block;
   position: relative;
   overflow: hidden;
   min-height: 130px;
@@ -373,11 +386,9 @@ body {
   font-size: .85rem;
   font-weight: 600;
   margin-top: 24px;
-  opacity: .9;
   text-align: center;
 }
 
-/* ───── Responsive ───── */
 @media (max-width: 480px) {
   body { padding: 12px; }
   .header-card { padding: 18px; }
@@ -390,9 +401,11 @@ body {
 </head>
 <body>
 
+<div class="top-loader" id="topLoader"><div class="bar" id="topBar"></div></div>
+
 <div class="container">
 
-  <!-- Skeleton (اول نمایش) -->
+  <!-- Skeleton -->
   <div id="skeleton">
     <div class="skeleton-header">
       <div class="skeleton sk-avatar"></div>
@@ -444,7 +457,7 @@ body {
       <a class="action-card" href="course.html">
         <div class="icon-wrap icon-blue"><i class="fas fa-book-open-reader"></i></div>
         <div class="label">پنل درسی</div>
-        <div class="hint">مشاهده جزوه، ویدیو و آزمون</div>
+        <div class="hint">جزوه، ویدیو و آزمون</div>
       </a>
 
       <a class="action-card" href="status.html">
@@ -494,9 +507,28 @@ body {
 
 <script src="assets/api.js"></script>
 <script>
+const DASH_CACHE_KEY = 'dashboard_cache_v2';
+const DASH_CACHE_TTL = 5 * 60 * 1000; // 5 دقیقه
+
 const overlay = document.getElementById('overlay');
 const overlayCap = document.getElementById('overlayCaption');
+const topLoader = document.getElementById('topLoader');
+const topBar = document.getElementById('topBar');
+let topTimer = null;
 
+function startTopLoad() {
+  topLoader.classList.add('show');
+  topBar.style.width = '30%';
+  topTimer = setTimeout(() => { topBar.style.width = '70%'; }, 400);
+}
+function endTopLoad() {
+  if (topTimer) clearTimeout(topTimer);
+  topBar.style.width = '100%';
+  setTimeout(() => {
+    topLoader.classList.remove('show');
+    topBar.style.width = '0%';
+  }, 250);
+}
 function showOverlay(caption) {
   overlayCap.textContent = caption || 'در حال انتقال...';
   overlay.classList.add('show');
@@ -512,66 +544,95 @@ function logout() {
 document.getElementById('logoutBtn').onclick = logout;
 document.getElementById('logoutBtn2').onclick = logout;
 
+/* ═══════════ بارگذاری داشبورد ═══════════ */
+
 async function load() {
   const skeleton = document.getElementById('skeleton');
   const main = document.getElementById('main');
 
+  // ۱) چک کش
   try {
-    const meRes = await api('me', {});
-    const u = meRes.user;
-    const name = u.name || 'کاربر';
+    const cached = sessionStorage.getItem(DASH_CACHE_KEY);
+    const cachedTime = Number(sessionStorage.getItem(DASH_CACHE_KEY + '_t') || 0);
+    if (cached && Date.now() - cachedTime < DASH_CACHE_TTL) {
+      const data = JSON.parse(cached);
+      renderDashboard(data);
+      skeleton.style.display = 'none';
+      main.style.display = 'block';
+      return;
+    }
+  } catch (e) {}
 
-    const codes = u.courses || [];
-    if (!codes.length) {
-      document.body.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#fff;font-family:Vazirmatn,sans-serif">' +
+  // ۲) کش نیست → یک تماس به سرور
+  startTopLoad();
+  try {
+    const res = await api('dashboardInit', {});
+    sessionStorage.setItem(DASH_CACHE_KEY, JSON.stringify(res));
+    sessionStorage.setItem(DASH_CACHE_KEY + '_t', String(Date.now()));
+
+    renderDashboard(res);
+    skeleton.style.display = 'none';
+    main.style.display = 'block';
+  } catch (e) {
+    skeleton.style.display = 'none';
+    document.body.innerHTML =
+      '<div style="text-align:center;padding:60px 20px;color:#fff;font-family:Vazirmatn,sans-serif">' +
+        '<i class="fas fa-exclamation-triangle" style="font-size:3rem;opacity:.8;color:#ffb84d"></i>' +
+        '<h2 style="margin-top:16px;font-weight:700">خطا در بارگذاری</h2>' +
+        '<p style="opacity:.8;margin-top:8px">' + e.message + '</p>' +
+        '<a href="index.html" style="display:inline-block;margin-top:20px;color:#fff;background:#0052cc;padding:10px 24px;border-radius:10px;text-decoration:none;font-weight:700">بازگشت به ورود</a>' +
+      '</div>';
+  } finally {
+    endTopLoad();
+  }
+}
+
+function renderDashboard(data) {
+  const user = data.user || {};
+  const courses = data.courses || [];
+
+  const name = user.name || 'کاربر';
+  const codes = user.courses || [];
+
+  // ─── اگر هیچ دوره‌ای نیست ───
+  if (!codes.length) {
+    document.body.innerHTML =
+      '<div style="text-align:center;padding:60px 20px;color:#fff;font-family:Vazirmatn,sans-serif">' +
         '<i class="fas fa-user-slash" style="font-size:3rem;opacity:.7"></i>' +
         '<h2 style="margin-top:16px;font-weight:700">هیچ دوره‌ای ثبت نشده</h2>' +
         '<p style="opacity:.8;margin-top:8px">با پشتیبانی تماس بگیرید</p>' +
         '<a href="index.html" style="display:inline-block;margin-top:20px;color:#fff;background:#0052cc;padding:10px 24px;border-radius:10px;text-decoration:none;font-weight:700">بازگشت</a>' +
-        '</div>';
-      return;
-    }
-
-    const listRes = await api('myCourses', {});
-    const courses = listRes.courses || [];
-
-    document.getElementById('uname').textContent = name;
-    document.getElementById('ucourse').textContent =
-      courses.length === 1
-        ? 'دوره: ' + courses[0].name
-        : courses.length + ' دوره فعال';
-
-    const sel = document.getElementById('courseSel');
-    sel.innerHTML = '';
-    courses.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c.code;
-      opt.textContent = c.name + ' (' + c.code + ')';
-      sel.appendChild(opt);
-    });
-
-    const saved = sessionStorage.getItem('activeCourse');
-    if (saved && codes.indexOf(saved) >= 0) sel.value = saved;
-    sessionStorage.setItem('activeCourse', sel.value);
-
-    if (courses.length > 1) {
-      document.getElementById('courseSelector').classList.add('show');
-      sel.addEventListener('change', () => {
-        sessionStorage.setItem('activeCourse', sel.value);
-      });
-    }
-
-    skeleton.style.display = 'none';
-    main.style.display = 'block';
-
-  } catch (e) {
-    skeleton.style.display = 'none';
-    document.body.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#fff;font-family:Vazirmatn,sans-serif">' +
-      '<i class="fas fa-exclamation-triangle" style="font-size:3rem;opacity:.8;color:#ffb84d"></i>' +
-      '<h2 style="margin-top:16px;font-weight:700">خطا در بارگذاری</h2>' +
-      '<p style="opacity:.8;margin-top:8px">' + e.message + '</p>' +
-      '<a href="index.html" style="display:inline-block;margin-top:20px;color:#fff;background:#0052cc;padding:10px 24px;border-radius:10px;text-decoration:none;font-weight:700">بازگشت به ورود</a>' +
       '</div>';
+    return;
+  }
+
+  document.getElementById('uname').textContent = name;
+  document.getElementById('ucourse').textContent =
+    courses.length === 1
+      ? 'دوره: ' + courses[0].name
+      : courses.length + ' دوره فعال';
+
+  const sel = document.getElementById('courseSel');
+  sel.innerHTML = '';
+  courses.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.code;
+    opt.textContent = c.name + ' (' + c.code + ')';
+    sel.appendChild(opt);
+  });
+
+  const saved = sessionStorage.getItem('activeCourse');
+  if (saved && codes.indexOf(saved) >= 0) sel.value = saved;
+  sessionStorage.setItem('activeCourse', sel.value);
+
+  if (courses.length > 1) {
+    document.getElementById('courseSelector').classList.add('show');
+    sel.addEventListener('change', () => {
+      sessionStorage.setItem('activeCourse', sel.value);
+      // وقتی دوره عوض می‌شود، کش course را پاک کن
+      sessionStorage.removeItem('course_init_cache');
+      sessionStorage.removeItem('course_init_cache_time');
+    });
   }
 }
 
