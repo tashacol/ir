@@ -17,7 +17,9 @@
     width: 100%; max-width: 380px;
     box-shadow: 0 10px 40px rgba(0,0,0,.2);
   }
-  h1 { text-align: center; margin: 0 0 20px; color: #1e3c72; font-size: 22px; }
+  h1 { text-align: center; margin: 0 0 6px; color: #1e3c72; font-size: 22px; }
+  .subtitle { text-align: center; margin: 0 0 20px; color: #888; font-size: 13px; }
+
   label { display: block; margin-bottom: 6px; font-size: 14px; color: #333; }
   input {
     width: 100%; padding: 12px; font-size: 16px; direction: ltr;
@@ -25,87 +27,177 @@
     margin-bottom: 14px; letter-spacing: 2px;
   }
   input:focus { outline: none; border-color: #2a5298; }
+
   button {
     width: 100%; padding: 14px; font-size: 16px; font-weight: bold;
     background: #2a5298; color: #fff; border: none; border-radius: 8px;
-    cursor: pointer;
+    cursor: pointer; font-family: inherit;
   }
   button:active { transform: scale(.98); }
   button:disabled { opacity: .6; }
+
   .msg {
     margin-top: 14px; padding: 10px; border-radius: 8px;
     font-size: 14px; text-align: center; display: none;
   }
   .msg.err { background: #ffe5e5; color: #c00; display: block; }
   .msg.ok  { background: #e5ffe5; color: #080; display: block; }
+
   .link { text-align: center; margin-top: 16px; font-size: 14px; }
   .link a { color: #2a5298; text-decoration: none; }
+
+  /* دکمه‌ی حالت ادمین */
+  .admin-toggle {
+    text-align: center; margin-top: 22px;
+    padding-top: 16px; border-top: 1px dashed #e0e0e0;
+  }
+  .admin-toggle button {
+    background: transparent; color: #999;
+    padding: 6px 12px; font-size: 12px;
+    font-weight: normal; width: auto;
+    border: 1px solid #e0e0e0; border-radius: 20px;
+  }
+  .admin-toggle button:hover { color: #1e3c72; border-color: #1e3c72; }
+
+  /* حالت ادمین - هدر قرمز */
+  .admin-badge {
+    background: #2c1810; color: #fff; text-align: center;
+    padding: 8px; border-radius: 8px; margin-bottom: 20px;
+    font-size: 13px; font-weight: bold; display: none;
+  }
+  .admin-badge .lock { margin-left: 4px; }
+
+  /* وقتی در حالت ادمین هستیم */
+  .admin-mode h1 { color: #4a2818; }
+  .admin-mode button[type="submit"] { background: #4a2818; }
+  .admin-mode input:focus { border-color: #4a2818; }
 </style>
 </head>
 <body>
-<div class="box">
-  <h1>ورود به سامانه</h1>
+<div class="box" id="box">
+  <div class="admin-badge" id="adminBadge">
+    <span class="lock">🔒</span> حالت ورود مدیران
+  </div>
 
-  <label>کد ملی</label>
-  <input id="nid" type="tel" inputmode="numeric" maxlength="10" placeholder="۱۰ رقم">
+  <h1 id="title">ورود به سامانه</h1>
+  <p class="subtitle" id="subtitle">با کد ملی خود وارد شوید</p>
 
-  <label>رمز (فقط برای مدیر)</label>
-  <input id="pw" type="password" placeholder="خالی بگذارید اگر دانشجو هستید">
+  <form id="loginForm">
+    <label>کد ملی</label>
+    <input id="nid" type="tel" inputmode="numeric" maxlength="10" placeholder="۱۰ رقم">
 
-  <button id="btn">ورود</button>
-  <div id="msg" class="msg"></div>
+    <div id="pwField" style="display:none">
+      <label>رمز مدیر</label>
+      <input id="pw" type="password" placeholder="رمز مدیر را وارد کنید" dir="ltr">
+    </div>
 
-  <div class="link">
+    <button type="submit" id="btn">ورود</button>
+    <div id="msg" class="msg"></div>
+  </form>
+
+  <div class="link" id="registerLink">
     <a href="register.html">ثبت‌نام نکرده‌اید؟ کلیک کنید</a>
+  </div>
+
+  <div class="admin-toggle" id="adminToggle">
+    <button type="button" id="adminBtn">🔒 ورود مدیران</button>
   </div>
 </div>
 
 <script src="assets/api.js"></script>
 <script>
-  const btn = document.getElementById('btn');
-  const msg = document.getElementById('msg');
+const box       = document.getElementById('box');
+const title     = document.getElementById('title');
+const subtitle  = document.getElementById('subtitle');
+const pwField   = document.getElementById('pwField');
+const adminBadge = document.getElementById('adminBadge');
+const adminToggle = document.getElementById('adminToggle');
+const registerLink = document.getElementById('registerLink');
+const form      = document.getElementById('loginForm');
+const btn       = document.getElementById('btn');
+const msg       = document.getElementById('msg');
 
-  function show(text, isErr) {
-    msg.textContent = text;
-    msg.className = 'msg ' + (isErr ? 'err' : 'ok');
+let adminMode = false;
+
+function setAdminMode(on) {
+  adminMode = on;
+  if (on) {
+    box.classList.add('admin-mode');
+    title.textContent = 'ورود مدیران';
+    subtitle.textContent = 'کد ملی و رمز مدیر را وارد کنید';
+    pwField.style.display = 'block';
+    adminBadge.style.display = 'block';
+    registerLink.style.display = 'none';
+    adminToggle.innerHTML = '<button type="button" id="backBtn">← بازگشت به ورود کاربران</button>';
+    document.getElementById('backBtn').onclick = () => setAdminMode(false);
+    document.getElementById('pw').value = '';
+    document.getElementById('pw').focus();
+  } else {
+    box.classList.remove('admin-mode');
+    title.textContent = 'ورود به سامانه';
+    subtitle.textContent = 'با کد ملی خود وارد شوید';
+    pwField.style.display = 'none';
+    adminBadge.style.display = 'none';
+    registerLink.style.display = 'block';
+    adminToggle.innerHTML = '<button type="button" id="adminBtn">🔒 ورود مدیران</button>';
+    document.getElementById('adminBtn').onclick = () => setAdminMode(true);
+    document.getElementById('pw').value = '';
+  }
+  msg.className = 'msg';
+}
+
+document.getElementById('adminBtn').onclick = () => setAdminMode(true);
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const nid = document.getElementById('nid').value.trim();
+  const pw  = document.getElementById('pw').value;
+
+  msg.className = 'msg';
+
+  if (!/^\d{10}$/.test(nid)) {
+    showMsg('کد ملی باید ۱۰ رقم باشد', 'err');
+    return;
+  }
+  if (adminMode && !pw) {
+    showMsg('رمز مدیر را وارد کنید', 'err');
+    return;
   }
 
-  btn.addEventListener('click', async () => {
-    const nid = document.getElementById('nid').value.trim();
-    const pw  = document.getElementById('pw').value;
+  btn.disabled = true;
+  btn.textContent = 'در حال بررسی...';
 
-    msg.className = 'msg';
-    if (!/^\d{10}$/.test(nid)) { show('کد ملی باید ۱۰ رقم باشد', true); return; }
+  try {
+    const res = await api('login', { nationalId: nid, password: pw });
+    setToken(res.token);
 
-    btn.disabled = true;
-    btn.textContent = 'در حال بررسی...';
-
-    try {
-      const res = await api('login', { nationalId: nid, password: pw });
-      setToken(res.token);
-
-      if (res.role === 'admin') {
-        show('ورود مدیر موفق. در حال انتقال...', false);
-        setTimeout(() => location.href = 'admin.html', 700);
-      } else {
-        sessionStorage.setItem('user', JSON.stringify(res.user || {}));
-        show('خوش آمدید ' + (res.user?.name || ''), false);
-        setTimeout(() => location.href = 'dashboard.html', 700);
-      }
-    } catch (err) {
-      const map = {
-        INVALID_NID:     'کد ملی معتبر نیست',
-        BAD_CREDENTIALS: 'رمز ادمین اشتباه است',
-        NOT_REGISTERED:  'شما ثبت‌نام نکرده‌اید',
-        RATE_LIMITED:    'تعداد تلاش زیاد. یک دقیقه صبر کنید',
-        AUTH_REQUIRED:   'ابتدا وارد شوید'
-      };
-      show(map[err.message] || 'خطا: ' + err.message, true);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'ورود';
+    if (res.role === 'admin') {
+      showMsg('ورود مدیر موفق. در حال انتقال...', 'ok');
+      setTimeout(() => location.href = 'admin.html', 700);
+    } else {
+      sessionStorage.setItem('user', JSON.stringify(res.user || {}));
+      showMsg('خوش آمدید ' + (res.user?.name || ''), 'ok');
+      setTimeout(() => location.href = 'dashboard.html', 700);
     }
-  });
+  } catch (err) {
+    const map = {
+      INVALID_NID:     'کد ملی معتبر نیست',
+      BAD_CREDENTIALS: 'رمز مدیر اشتباه است',
+      NOT_REGISTERED:  'شما ثبت‌نام نکرده‌اید',
+      RATE_LIMITED:    'تعداد تلاش زیاد. یک دقیقه صبر کنید',
+      AUTH_REQUIRED:   'ابتدا وارد شوید'
+    };
+    showMsg(map[err.message] || ('خطا: ' + err.message), 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'ورود';
+  }
+});
+
+function showMsg(text, type) {
+  msg.textContent = text;
+  msg.className = 'msg ' + (type || 'err');
+}
 </script>
 </body>
 </html>
