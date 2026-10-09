@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>پنل مدیریت سیستم آموزشی</title>
+    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.0.0/Vazirmatn-font-face.css" rel="stylesheet">
+    <style>
+        :root { --primary: #2c3e50; --accent: #e67e22; --bg: #ecf0f1; --success: #27ae60; --danger: #c0392b; }
+        body { font-family: 'Vazirmatn', sans-serif; background-color: var(--bg); margin: 0; padding: 0; }
+        
+        /* بخش ورود */
+        #loginSection { display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .login-box { background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 300px; text-align: center; }
+        
+        /* بخش پنل */
+        #adminPanel { display: none; max-width: 900px; margin: 30px auto; background: #fff; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: var(--primary); color: white; padding: 20px; text-align: center; font-size: 20px; font-weight: bold; }
+        
+        /* تب ها */
+        .tabs { display: flex; background: #34495e; cursor: pointer; }
+        .tab { flex: 1; padding: 15px; text-align: center; color: white; transition: 0.3s; }
+        .tab:hover, .tab.active { background: var(--accent); }
+        
+        /* محتوای تب ها */
+        .tab-content { padding: 30px; display: none; }
+        .tab-content.active { display: block; }
+        
+        /* فرم ها */
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group.full { grid-column: 1 / -1; }
+        label { font-size: 14px; margin-bottom: 5px; color: #333; font-weight: bold; }
+        input, select { padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-family: inherit; font-size: 14px; }
+        input:focus, select:focus { border-color: var(--accent); outline: none; }
+        
+        .btn { padding: 12px 20px; background: var(--success); color: white; border: none; border-radius: 5px; cursor: pointer; font-family: inherit; font-size: 16px; width: 100%; transition: 0.3s; }
+        .btn:hover { background: #219a52; }
+        .btn:disabled { background: #95a5a6; cursor: not-allowed; }
+        
+        /* باکس سوالات */
+        .quiz-box { border: 1px solid #bdc3c7; padding: 15px; border-radius: 5px; margin-bottom: 15px; background: #f9f9f9; }
+        .quiz-box h4 { margin: 0 0 10px 0; color: var(--primary); }
+        
+        #messageBox { text-align: center; padding: 10px; margin: 15px; border-radius: 5px; display: none; font-weight: bold; }
+        .msg-success { background: #d5f5e3; color: #145a32; }
+        .msg-error { background: #fadbd8; color: #7b241c; }
+    </style>
+</head>
+<body>
+
+    <!-- فرم لاگین مدیر -->
+    <div id="loginSection">
+        <div class="login-box">
+            <h2 style="color: var(--primary); margin-top: 0;">ورود مدیریت</h2>
+            <div class="form-group" style="text-align: right; margin-bottom: 15px;">
+                <label>کد ملی (نام کاربری):</label>
+                <input type="text" id="adminUser" inputmode="numeric" placeholder="3020366763">
+            </div>
+            <div class="form-group" style="text-align: right; margin-bottom: 15px;">
+                <label>رمز عبور:</label>
+                <input type="password" id="adminPass" inputmode="numeric" placeholder="******">
+            </div>
+            <button class="btn" onclick="loginAdmin()">ورود به پنل</button>
+            <div id="loginMsg" style="margin-top: 10px; font-size: 14px; color: red;"></div>
+        </div>
+    </div>
+
+    <!-- پنل اصلی مدیر -->
+    <div id="adminPanel">
+        <div class="header">داشبورد مدیریت دوره‌های آموزشی</div>
+        
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('courseTab', this)">تعریف دوره جدید</div>
+            <div class="tab" onclick="switchTab('lessonTab', this)">افزودن محتوای درسی</div>
+        </div>
+
+        <div id="messageBox"></div>
+
+        <!-- تب ایجاد دوره -->
+        <div id="courseTab" class="tab-content active">
+            <form id="courseForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>کد دوره (یکتا):</label>
+                        <input type="text" id="c_code" required placeholder="مثال: 1403-01">
+                    </div>
+                    <div class="form-group">
+                        <label>نام دوره:</label>
+                        <input type="text" id="c_name" required placeholder="مثال: اندیشه نوین">
+                    </div>
+                    <div class="form-group">
+                        <label>تاریخ شروع:</label>
+                        <input type="text" id="c_start" required placeholder="1405/07/01">
+                    </div>
+                    <div class="form-group">
+                        <label>تاریخ پایان:</label>
+                        <input type="text" id="c_end" required placeholder="1405/12/29">
+                    </div>
+                    <div class="form-group">
+                        <label>مدت زمان (ساعت):</label>
+                        <input type="number" id="c_hours" required placeholder="مثال: 40">
+                    </div>
+                    <div class="form-group">
+                        <label>وضعیت ثبت نام:</label>
+                        <select id="c_status" required>
+                            <option value="باز">باز</option>
+                            <option value="بسته">بسته</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn" id="btnCourse">ذخیره دوره</button>
+            </form>
+        </div>
+
+        <!-- تب افزودن محتوا و آزمون -->
+        <div id="lessonTab" class="tab-content">
+            <form id="lessonForm">
+                <div class="form-grid">
+                    <div class="form-group full">
+                        <label>انتخاب دوره:</label>
+                        <select id="l_courseCode" required>
+                            <option value="">در حال بارگذاری...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>شماره هفته:</label>
+                        <input type="number" id="l_week" required min="1" max="50" placeholder="مثلاً: 1">
+                    </div>
+                    <div class="form-group">
+                        <label>روز هفته:</label>
+                        <select id="l_day" required>
+                            <option value="1">شنبه (روز 1)</option>
+                            <option value="2">یکشنبه (روز 2)</option>
+                            <option value="3">دوشنبه (روز 3)</option>
+                            <option value="4">سه‌شنبه (روز 4)</option>
+                        </select>
+                    </div>
+                    <div class="form-group full">
+                        <label>عنوان درس:</label>
+                        <input type="text" id="l_title" required placeholder="عنوان درس این روز">
+                    </div>
+                    <div class="form-group">
+                        <label>لینک دانلود جزوه (PDF):</label>
+                        <input type="url" id="l_pdf" required placeholder="https://...">
+                    </div>
+                    <div class="form-group">
+                        <label>لینک تماشای کلیپ:</label>
+                        <input type="url" id="l_video" required placeholder="https://...">
+                    </div>
+                </div>
+
+                <!-- سوال 1 -->
+                <div class="quiz-box">
+                    <h4>سوال آزمون 1</h4>
+                    <input type="text" id="q1_text" placeholder="متن سوال 1" required style="width: 100%; margin-bottom: 10px; box-sizing: border-box;">
+                    <div class="form-grid" style="margin-bottom: 0;">
+                        <input type="text" id="q1_o1" placeholder="گزینه 1" required>
+                        <input type="text" id="q1_o2" placeholder="گزینه 2" required>
+                        <input type="text" id="q1_o3" placeholder="گزینه 3" required>
+                        <select id="q1_ans" required>
+                            <option value="">کدام گزینه صحیح است؟</option>
+                            <option value="1">گزینه 1 صحیح است</option>
+                            <option value="2">گزینه 2 صحیح است</option>
+                            <option value="3">گزینه 3 صحیح است</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- سوال 2 -->
+                <div class="quiz-box">
+                    <h4>سوال آزمون 2</h4>
+                    <input type="text" id="q2_text" placeholder="متن سوال 2" required style="width: 100%; margin-bottom: 10px; box-sizing: border-box;">
+                    <div class="form-grid" style="margin-bottom: 0;">
+                        <input type="text" id="q2_o1" placeholder="گزینه 1" required>
+                        <input type="text" id="q2_o2" placeholder="گزینه 2" required>
+                        <input type="text" id="q2_o3" placeholder="گزینه 3" required>
+                        <select id="q2_ans" required>
+                            <option value="">کدام گزینه صحیح است؟</option>
+                            <option value="1">گزینه 1 صحیح است</option>
+                            <option value="2">گزینه 2 صحیح است</option>
+                            <option value="3">گزینه 3 صحیح است</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- سوال 3 -->
+                <div class="quiz-box">
+                    <h4>سوال آزمون 3</h4>
+                    <input type="text" id="q3_text" placeholder="متن سوال 3" required style="width: 100%; margin-bottom: 10px; box-sizing: border-box;">
+                    <div class="form-grid" style="margin-bottom: 0;">
+                        <input type="text" id="q3_o1" placeholder="گزینه 1" required>
+                        <input type="text" id="q3_o2" placeholder="گزینه 2" required>
+                        <input type="text" id="q3_o3" placeholder="گزینه 3" required>
+                        <select id="q3_ans" required>
+                            <option value="">کدام گزینه صحیح است؟</option>
+                            <option value="1">گزینه 1 صحیح است</option>
+                            <option value="2">گزینه 2 صحیح است</option>
+                            <option value="3">گزینه 3 صحیح است</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn" id="btnLesson">ذخیره محتوا و آزمون</button>
+            </form>
+        </div>
+    </div>
+
+<script>
+    // ==========================================
+    // لینک Web App دیپلوی شده از اسکریپت مدیر را اینجا بگذارید
+    const ADMIN_API_URL = "لینک_مربوط_به_وب_اپ_مدیر_را_اینجا_قرار_دهید";
+    // ==========================================
+
+    let sessionUser = "";
+    let sessionPass = "";
+
+    // لاگین موقت درون صفحه
+    function loginAdmin() {
+        const u = document.getElementById("adminUser").value;
+        const p = document.getElementById("adminPass").value;
+        if(u === "3020366763" && p === "366763") {
+            sessionUser = u; sessionPass = p;
+            document.getElementById("loginSection").style.display = "none";
+            document.getElementById("adminPanel").style.display = "block";
+            loadCourses(); // بارگذاری دوره‌ها برای تب دوم
+        } else {
+            document.getElementById("loginMsg").innerText = "کد ملی یا رمز عبور اشتباه است.";
+        }
+    }
+
+    // جابجایی بین تب ها
+    function switchTab(tabId, element) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        element.classList.add('active');
+        document.getElementById("messageBox").style.display = "none";
+        if(tabId === 'lessonTab') loadCourses();
+    }
+
+    function showMessage(text, isSuccess) {
+        const msgBox = document.getElementById("messageBox");
+        msgBox.style.display = "block";
+        msgBox.innerText = text;
+        msgBox.className = isSuccess ? "msg-success" : "msg-error";
+        setTimeout(() => { msgBox.style.display = "none"; }, 5000);
+    }
+
+    // گرفتن دوره‌ها از سرور
+    function loadCourses() {
+        if(ADMIN_API_URL === "https://script.google.com/macros/s/AKfycbxRSALUv4iFlaMzRctmcpW7wzZ6hGkaI6HCHhXvex1e2hY3cWuKk1c-tAJs3xhjvR2x/exec") return;
+        fetch(ADMIN_API_URL)
+            .then(res => res.json())
+            .then(res => {
+                if(res.success && res.data) {
+                    const sel = document.getElementById("l_courseCode");
+                    sel.innerHTML = '<option value="">انتخاب کنید...</option>';
+                    res.data.forEach(c => {
+                        sel.innerHTML += `<option value="${c.code}">${c.name} (${c.code})</option>`;
+                    });
+                }
+            }).catch(e => console.log("Error loading courses"));
+    }
+
+    // تابع کلی ارسال داده به سرور مدیر
+    function sendData(action, payload, btnId, formId) {
+        const btn = document.getElementById(btnId);
+        btn.disabled = true;
+        btn.innerText = "در حال ذخیره...";
+        
+        // الصاق اطلاعات هویتی به درخواست
+        payload.action = action;
+        payload.username = sessionUser;
+        payload.password = sessionPass;
+
+        fetch(ADMIN_API_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(result => {
+            btn.disabled = false;
+            btn.innerText = action === 'addCourse' ? "ذخیره دوره" : "ذخیره محتوا و آزمون";
+            showMessage(result.message, result.success);
+            if(result.success) document.getElementById(formId).reset();
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerText = "خطا! تلاش مجدد";
+            showMessage("خطا در ارتباط با سرور", false);
+        });
+    }
+
+    // فرم ثبت دوره جدید
+    document.getElementById("courseForm").addEventListener("submit", function(e) {
+        e.preventDefault();
+        const payload = {
+            code: document.getElementById("c_code").value,
+            name: document.getElementById("c_name").value,
+            start: document.getElementById("c_start").value,
+            end: document.getElementById("c_end").value,
+            hours: document.getElementById("c_hours").value,
+            status: document.getElementById("c_status").value
+        };
+        sendData("addCourse", payload, "btnCourse", "courseForm");
+    });
+
+    // فرم ثبت محتوای روزانه
+    document.getElementById("lessonForm").addEventListener("submit", function(e) {
+        e.preventDefault();
+        const payload = {
+            courseCode: document.getElementById("l_courseCode").value,
+            week: document.getElementById("l_week").value,
+            day: document.getElementById("l_day").value,
+            title: document.getElementById("l_title").value,
+            pdfUrl: document.getElementById("l_pdf").value,
+            videoUrl: document.getElementById("l_video").value,
+            
+            q1_text: document.getElementById("q1_text").value,
+            q1_o1: document.getElementById("q1_o1").value,
+            q1_o2: document.getElementById("q1_o2").value,
+            q1_o3: document.getElementById("q1_o3").value,
+            q1_ans: document.getElementById("q1_ans").value,
+            
+            q2_text: document.getElementById("q2_text").value,
+            q2_o1: document.getElementById("q2_o1").value,
+            q2_o2: document.getElementById("q2_o2").value,
+            q2_o3: document.getElementById("q2_o3").value,
+            q2_ans: document.getElementById("q2_ans").value,
+            
+            q3_text: document.getElementById("q3_text").value,
+            q3_o1: document.getElementById("q3_o1").value,
+            q3_o2: document.getElementById("q3_o2").value,
+            q3_o3: document.getElementById("q3_o3").value,
+            q3_ans: document.getElementById("q3_ans").value
+        };
+        sendData("addLesson", payload, "btnLesson", "lessonForm");
+    });
+</script>
+</body>
+</html>
