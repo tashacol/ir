@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+   <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -12,7 +12,6 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
-
 :root{
   --bg-gradient-start:#eef2f3; --bg-gradient-end:#d6e0e2;
   --primary-color:#007bff; --primary-hover:#0056b3;
@@ -140,6 +139,7 @@ h2{margin-bottom:25px;font-size:1.8rem;text-align:center;font-weight:700}
     </button>
   </form>
   <div id="statusMessage"></div>
+
   <div id="result">
     <div id="previewBox"><div id="certificatePreview"></div></div>
     <div id="downloadControls">
@@ -197,20 +197,26 @@ function toEnglishDigits(str){
   const a = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
   const e = ['0','1','2','3','4','5','6','7','8','9'];
   let r = String(str);
-  for(let i=0;i<10;i++){
+  for (let i=0;i<10;i++){
     r = r.replace(new RegExp(p[i],"g"), e[i]).replace(new RegExp(a[i],"g"), e[i]);
   }
   return r;
 }
-// 🔒 جلوگیری از XSS
 function escapeHtml(str){
   if (str === null || str === undefined) return '';
   return String(str)
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;')
-    .replace(/'/g,'&#39;');
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// 🔑 تابع مرکزی fetch — این مهم‌ترین تغییر است
+function callApi(payload) {
+  return fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // ← جلوگیری از Preflight
+    body: JSON.stringify(payload)
+    // ❌ mode: 'cors' حذف شد
+  }).then(r => r.json());
 }
 
 function getCertificateHTML(data){
@@ -283,59 +289,35 @@ certificateForm.addEventListener("submit", function(e){
   if (!captchaToken){ showMessage("لطفاً تأیید کنید که ربات نیستید.", 'error'); return; }
 
   setButtonLoading(generateButton, true);
-  authenticateAndGetToken(nationalId, verificationCode, captchaToken);
-});
 
-function authenticateAndGetToken(nationalId, verificationCode, captchaToken){
-  fetch(SCRIPT_URL, {
-    method: 'POST',
-    body: JSON.stringify({
-      action: 'authenticate',
-      nationalId: toEnglishDigits(nationalId),
-      verificationCode: toEnglishDigits(verificationCode),
-      captchaToken: captchaToken
-    })
+  callApi({
+    action: 'authenticate',
+    nationalId: toEnglishDigits(nationalId),
+    verificationCode: toEnglishDigits(verificationCode),
+    captchaToken: captchaToken
   })
-  .then(r => r.json())
   .then(res => {
     if (res.status === 'success_token_generated' && res.token){
       showMessage("احراز هویت موفق. در حال دریافت اطلاعات...", 'success');
-      fetchDataWithToken(res.token);
-    } else {
-      showMessage(res.message || 'خطای احراز هویت.', 'error');
-      setButtonLoading(generateButton, false);
-      grecaptcha.reset();
+      return callApi({ action: 'fetchData', token: res.token });
     }
+    throw new Error(res.message || 'خطای احراز هویت.');
   })
-  .catch(err => {
-    showMessage('خطا در ارتباط با سرور.', 'error');
-    console.error(err);
-    setButtonLoading(generateButton, false);
-    grecaptcha.reset();
-  });
-}
-
-function fetchDataWithToken(token){
-  fetch(SCRIPT_URL, {
-    method: 'POST',
-    body: JSON.stringify({ action: 'fetchData', token: token })
-  })
-  .then(r => r.json())
   .then(res => {
     if (res.status === 'success'){
       showMessage("اطلاعات دریافت شد. در حال تولید PDF...", 'success');
       renderCertificate(res.data);
     } else {
-      showMessage(res.message || 'خطا در دریافت اطلاعات.', 'error');
-      setButtonLoading(generateButton, false);
+      throw new Error(res.message || 'خطا در دریافت اطلاعات.');
     }
   })
   .catch(err => {
-    showMessage('خطا در ارتباط با سرور.', 'error');
+    showMessage(err.message || 'خطا در ارتباط با سرور.', 'error');
     console.error(err);
     setButtonLoading(generateButton, false);
+    if (window.grecaptcha) grecaptcha.reset();
   });
-}
+});
 
 function renderCertificate(data){
   certificateShareData = {
