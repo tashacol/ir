@@ -55,10 +55,11 @@ h2{margin-bottom:25px;font-size:1.8rem;text-align:center;font-weight:700;color:v
 .action-btn.loading .spinner{opacity:1}
 @keyframes blink{50%{opacity:0}}
 #statusMessage{text-align:center;padding:12px;border-radius:8px;font-weight:500;display:none;
-  margin-top:15px;animation:fadeInMsg .3s;white-space:pre-line}
+  margin-top:15px;animation:fadeInMsg .3s;white-space:pre-line;font-size:.95rem;line-height:1.7}
 #statusMessage.success{background-color:rgba(40,167,69,.1);color:var(--success-color)}
 #statusMessage.error{background-color:rgba(220,53,69,.1);color:var(--danger-color)}
 #statusMessage.info{background-color:rgba(0,123,255,.1);color:var(--primary-color)}
+#statusMessage code{background:rgba(0,0,0,.06);padding:2px 6px;border-radius:4px;font-family:monospace;font-size:.85rem;direction:ltr;display:inline-block}
 .recaptcha-container{display:flex;justify-content:center;margin-bottom:20px}
 #result{display:none;margin-top:30px;border-top:1px solid var(--card-border);padding-top:30px}
 #previewBox{width:100%;max-width:500px;margin-left:auto;margin-right:auto;padding:10px;
@@ -168,7 +169,11 @@ h2{margin-bottom:25px;font-size:1.8rem;text-align:center;font-weight:700;color:v
 <script>
 "use strict";
 
-// ⚠️ این آدرس را با آدرس Deployment واقعی خود جایگزین کنید
+// ═══════════════════════════════════════════════════════════════════════
+// ⚠️⚠️⚠️  مهم: این آدرس را با آدرس Deployment واقعی خود جایگزین کنید  ⚠️⚠️⚠️
+// مسیر دریافت: Apps Script → Deploy → Manage deployments → Copy URL
+// باید به /exec ختم شود
+// ═══════════════════════════════════════════════════════════════════════
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxFgslLkR-EHj41k936CI9TxDMfnY9MLQbI5TBrvm0ek_r9vWNG_b6iUhv3V-yK7MtyoQ/exec';
 
 let lastGeneratedPdfBlob = null;
@@ -187,7 +192,7 @@ const setButtonLoading = (btn, isLoading) => {
   btn.classList.toggle('loading', isLoading);
 };
 const showMessage = (message, type = 'error') => {
-  statusMessage.textContent = message;
+  statusMessage.innerHTML = message;
   statusMessage.className = type;
   statusMessage.style.display = 'block';
 };
@@ -215,69 +220,96 @@ function safeResetCaptcha() {
   try { if (typeof grecaptcha !== 'undefined') grecaptcha.reset(); } catch (_) {}
 }
 
-// ============================================================================
-// تابع مرکزی برای ارسال به Apps Script — با Content-Type صحیح
-// ============================================================================
-async function callServer(payload, timeoutMs = 25000) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+// ═══════════════════════════════════════════════════════════════════════
+// ارسال به سرور — با استفاده از XMLHttpRequest (پایدارتر از fetch در CORS)
+// ═══════════════════════════════════════════════════════════════════════
+function callServer(payload) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', SCRIPT_URL, true);
+    // ⚠️ کلید حل مشکل CORS: Content-Type متنی ساده
+    xhr.setRequestHeader('Content-Type', 'text/plain;charset=utf-8');
+    xhr.timeout = 30000;
 
-  let res;
-  try {
-    res = await fetch(SCRIPT_URL, {
-      method: 'POST',
-      mode: 'cors',
-      cache: 'no-cache',
-      redirect: 'follow',
-      // ⚠️ کلید اصلی حل مشکل: Content-Type متنی ساده، preflight را حذف می‌کند
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload),
-      signal: controller.signal
-    });
-  } catch (err) {
-    clearTimeout(timeoutId);
-    if (err.name === 'AbortError') {
-      throw new Error('TIMEOUT');
+    xhr.onload = function () {
+      console.log('[Server] Status:', xhr.status);
+      console.log('[Server] Response (first 500 chars):', (xhr.responseText || '').substring(0, 500));
+
+      if (xhr.status < 200 || xhr.status >= 300) {
+        return reject(new Error('HTTP_' + xhr.status));
+      }
+      const text = xhr.responseText;
+      if (!text || text.length === 0) return reject(new Error('EMPTY_RESPONSE'));
+
+      try {
+        const data = JSON.parse(text);
+        resolve(data);
+      } catch (_) {
+        console.error('Non-JSON response:', text.substring(0, 300));
+        reject(new Error('INVALID_JSON'));
+      }
+    };
+
+    xhr.onerror = function () {
+      console.error('[Server] Network error. Status:', xhr.status, 'StatusText:', xhr.statusText);
+      reject(new Error('NETWORK'));
+    };
+
+    xhr.ontimeout = function () {
+      console.error('[Server] Timeout');
+      reject(new Error('TIMEOUT'));
+    };
+
+    try {
+      xhr.send(JSON.stringify(payload));
+    } catch (e) {
+      reject(new Error('SEND_FAIL: ' + e.message));
     }
-    throw new Error('NETWORK: ' + (err.message || 'خطای شبکه'));
-  }
-  clearTimeout(timeoutId);
-
-  if (!res.ok) {
-    throw new Error('HTTP_' + res.status);
-  }
-
-  const text = await res.text();
-  if (!text) throw new Error('EMPTY_RESPONSE');
-
-  let data;
-  try { data = JSON.parse(text); }
-  catch (_) {
-    console.error('Server returned non-JSON:', text.substring(0, 300));
-    throw new Error('INVALID_JSON');
-  }
-  return data;
+  });
 }
 
-// ترجمه خطاها به پیام فارسی
 function translateError(err) {
   const msg = String(err && err.message || err);
-  if (msg === 'TIMEOUT') return 'زمان انتظار سرور به پایان رسید. اتصال اینترنت یا VPN خود را بررسی کنید و دوباره تلاش کنید.';
-  if (msg.startsWith('NETWORK')) return 'عدم دسترسی به سرور. اگر از VPN استفاده می‌کنید، آن را خاموش/روشن کنید و دوباره تلاش کنید.';
-  if (msg === 'EMPTY_RESPONSE') return 'سرور پاسخی برنگرداند. مطمئن شوید Deployment به‌روز شده است.';
-  if (msg === 'INVALID_JSON') return 'پاسخ سرور نامعتبر بود. ممکن است Deployment نیاز به به‌روزرسانی داشته باشد.';
+  console.error('[Translate Error]', msg);
+
+  if (msg === 'TIMEOUT') return '⏱ زمان انتظار سرور به پایان رسید.<br>اتصال اینترنت یا VPN خود را بررسی کنید.';
+  if (msg === 'NETWORK') return '🌐 عدم دسترسی به سرور.<br><br>دلایل احتمالی:<br>• VPN قطع/وصل است<br>• Deployment روی "Anyone" نیست<br>• آدرس SCRIPT_URL اشتباه است<br>• افزونه Ad-blocker مانع است';
+  if (msg === 'EMPTY_RESPONSE') return '📭 سرور پاسخی برنگرداند.<br>مطمئن شوید Deployment به‌روز شده است.';
+  if (msg === 'INVALID_JSON') return '📄 پاسخ سرور نامعتبر بود.<br>کد Apps Script را به‌روزرسانی و مجدد Deploy کنید.';
+  if (msg.startsWith('SEND_FAIL')) return '⚠️ خطا در ارسال درخواست.';
+
   if (msg.startsWith('HTTP_')) {
     const code = msg.split('_')[1];
-    if (code === '401' || code === '403') return 'دسترسی مسدود است. در تنظیمات Deployment گزینه "Who has access" را روی "Anyone" قرار دهید.';
-    if (code === '404') return 'آدرس Deployment پیدا نشد. دوباره Deploy کنید و SCRIPT_URL را به‌روز کنید.';
-    return 'خطای سرور: ' + code;
+    if (code === '401' || code === '403') return '🔒 دسترسی مسدود است.<br>در Deployment: "Who has access" = <code>Anyone</code>';
+    if (code === '404') return '🔍 آدرس Deployment پیدا نشد.<br>SCRIPT_URL را بررسی کنید و مجدد Deploy کنید.';
+    if (code === '500') return '💥 خطای داخلی سرور Apps Script.<br>لاگ‌ها را در Apps Script بررسی کنید.';
+    return '🚫 خطای سرور: <code>' + code + '</code>';
   }
-  return 'خطای نامشخص: ' + msg;
+  return '❌ خطای نامشخص:<br><code>' + msg + '</code>';
 }
 
-// ============================================================================
-// احراز هویت
-// ============================================================================
+// ═══════════════════════════════════════════════════════════════════════
+// تست خودکار اتصال هنگام بارگذاری
+// ═══════════════════════════════════════════════════════════════════════
+window.addEventListener('load', async () => {
+  console.log('[Test] SCRIPT_URL:', SCRIPT_URL);
+  console.log('[Test] Checking server connection...');
+  try {
+    const result = await callServer({ action: 'ping' });
+    if (result.status === 'pong') {
+      console.log('✅ [Test] Server connection OK');
+    } else {
+      console.warn('⚠️ [Test] Unexpected response:', result);
+    }
+  } catch (err) {
+    console.warn('⚠️ [Test] Server connection FAILED:', err.message);
+    console.warn('این هشدار مهم نیست اگر فرم کار می‌کند. اگر کار نمی‌کند، این را برای پشتیبانی بفرستید.');
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// ارسال فرم
+// ═══════════════════════════════════════════════════════════════════════
 certificateForm.addEventListener("submit", async function (event) {
   event.preventDefault();
   hideMessage();
@@ -303,53 +335,54 @@ certificateForm.addEventListener("submit", async function (event) {
   showMessage("در حال ارتباط با سرور...", 'info');
 
   try {
-    // مرحله ۱: احراز هویت
+    console.log('[Form] Sending authenticate request...');
     const authResult = await callServer({
       action: 'authenticate',
       nationalId: nationalId,
       verificationCode: verificationCode,
       captchaToken: captchaToken
     });
+    console.log('[Form] Auth response:', authResult);
 
     if (authResult.status !== 'success_token_generated' || !authResult.token) {
-      throw new Error('AUTH_FAIL: ' + (authResult.message || 'خطای احراز هویت'));
+      showMessage(authResult.message || 'خطای احراز هویت.', 'error');
+      setButtonLoading(generateButton, false);
+      safeResetCaptcha();
+      return;
     }
 
     showMessage("احراز هویت موفق. در حال دریافت اطلاعات...", 'success');
 
-    // مرحله ۲: دریافت داده
     const now = new Date();
+    console.log('[Form] Sending fetchData request...');
     const dataResult = await callServer({
       action: 'fetchData',
       token: authResult.token,
       issueDate: toEnglishDigits(now.toLocaleDateString('fa-IR')),
       certificateNumber: `${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}5`
     });
+    console.log('[Form] Data response:', dataResult);
 
     if (dataResult.status !== 'success') {
-      throw new Error('DATA_FAIL: ' + (dataResult.message || 'خطای دریافت داده'));
+      showMessage(dataResult.message || 'خطا در دریافت اطلاعات.', 'error');
+      setButtonLoading(generateButton, false);
+      return;
     }
 
     showMessage("اطلاعات دریافت شد. در حال تولید PDF...", 'success');
     renderCertificate(dataResult.data);
 
   } catch (err) {
-    console.error('Submit Error:', err);
-    let message = translateError(err);
-    if (String(err.message).startsWith('AUTH_FAIL:')) {
-      message = String(err.message).replace('AUTH_FAIL:', '').trim();
-    } else if (String(err.message).startsWith('DATA_FAIL:')) {
-      message = String(err.message).replace('DATA_FAIL:', '').trim();
-    }
-    showMessage(message, 'error');
+    console.error('[Form] Error:', err);
+    showMessage(translateError(err), 'error');
     setButtonLoading(generateButton, false);
     safeResetCaptcha();
   }
 });
 
-// ============================================================================
+// ═══════════════════════════════════════════════════════════════════════
 // ساخت HTML گواهی
-// ============================================================================
+// ═══════════════════════════════════════════════════════════════════════
 function getCertificateHTML(data) {
   const userInfo = data.user;
   const activities = data.activities || [];
@@ -399,9 +432,6 @@ function getCertificateHTML(data) {
     </div>`;
 }
 
-// ============================================================================
-// رندر گواهی
-// ============================================================================
 function renderCertificate(data) {
   const nowForShare = new Date();
   certificateShareData = {
@@ -432,9 +462,6 @@ function renderCertificate(data) {
   downloadPdf();
 }
 
-// ============================================================================
-// دانلود PDF
-// ============================================================================
 function downloadPdf() {
   setButtonLoading(downloadPdfBtn, true);
   try {
@@ -492,22 +519,6 @@ document.getElementById("sharePdfBtn").addEventListener("click", async (e) => {
 modalCloseBtn.addEventListener('click', () => { successModal.style.display = 'none'; });
 successModal.addEventListener('click', (e) => {
   if (e.target === successModal) successModal.style.display = 'none';
-});
-
-// ============================================================================
-// تست خودکار اتصال به سرور هنگام بارگذاری
-// ============================================================================
-window.addEventListener('load', async () => {
-  try {
-    const result = await callServer({ action: 'ping' }, 10000);
-    if (result.status === 'pong') {
-      console.log('✅ اتصال به سرور برقرار است.');
-    } else {
-      console.warn('⚠️ پاسخ غیرمنتظره از سرور:', result);
-    }
-  } catch (err) {
-    console.warn('⚠️ تست اتصال ناموفق:', err.message, '— این فقط هشدار است، می‌توانید فرم را پر کنید.');
-  }
 });
 </script>
 </body>
