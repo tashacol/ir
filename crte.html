@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -30,17 +30,25 @@
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            display: flex; align-items: flex-start; justify-content: center;
-            min-height: 100vh; padding: 20px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
             font-family: 'Vazirmatn', 'Tahoma', sans-serif;
             background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
             color: var(--text-dark);
         }
         .container {
-            width: 100%; max-width: 700px; background: var(--card-bg);
-            border: 1px solid var(--card-border); border-radius: 20px;
+            width: 100%;
+            max-width: 700px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
-            padding: 30px 40px; margin-top: 20px; animation: fadeIn 0.6s ease-out;
+            padding: 30px 40px;
+            margin-top: 20px;
+            animation: fadeIn 0.6s ease-out;
         }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-15px); } to { opacity: 1; transform: translateY(0); } }
         h2 { margin-bottom: 25px; font-size: 1.8rem; text-align: center; font-weight: 700; color: var(--text-dark); }
@@ -129,9 +137,11 @@
             <input type="password" id="verificationCode" class="form-input" inputmode="numeric" pattern="[0-9]*" placeholder=" " required>
             <label for="verificationCode" class="form-label">رمز عبور مدیریت</label>
         </div>
+
         <div class="recaptcha-container">
             <div class="g-recaptcha" data-sitekey="6Lc1vqkrAAAAAHLHbzPMzlREvKwgHDNSmakrB-aq"></div>
         </div>
+
         <button type="submit" id="generateButton" class="action-btn">
             <span class="btn-text">صدور و ذخیره گواهی</span>
             <span class="spinner">...</span>
@@ -166,7 +176,9 @@
 </div>
 
 <script>
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxFgslLkR-EHj41k936CI9TxDMfnY9MLQbI5TBrvm0ek_r9vWNG_b6iUhv3V-yK7MtyoQ/exec';
+    // چون HTML از خود Apps Script سرو می‌شود، آدرس درخواست همان آدرس صفحه است.
+    // این کار باعث می‌شود درخواست same-origin باشد و POST بدون redirect کار کند.
+    const SCRIPT_URL = window.location.href.split('?')[0].split('#')[0];
 
     let lastGeneratedPdfBlob = null;
     let certificateShareData = {};
@@ -206,7 +218,7 @@
         return result;
     }
 
-    // --------- محاسبه مدت فعالیت در مرورگر (بدون نیاز به ستون G در شیت) ---------
+    // --------- محاسبه مدت فعالیت در مرورگر ---------
     function parseJalaliDateJS(str) {
         if (!str) return null;
         const s = toEnglishDigits(str).trim();
@@ -256,7 +268,6 @@
         const signatureBase64 = data.signatureImageBase64;
         const meta = data.meta || { certificateNumber: '', issueDate: '' };
 
-        // محاسبه مدت در مرورگر
         const totalActivityMonths = activities.reduce((sum, activity) => {
             return sum + computeActivityDurationMonths(activity.startDate, activity.endDate);
         }, 0);
@@ -326,7 +337,12 @@
             verificationCode: toEnglishDigits(verificationCode),
             captchaToken: captchaToken
         };
-        fetch(SCRIPT_URL, { method: 'POST', mode: 'cors', body: JSON.stringify(authPayload) })
+        fetch(SCRIPT_URL, {
+            method: 'POST',
+            mode: 'cors',
+            redirect: 'follow',
+            body: JSON.stringify(authPayload)
+        })
         .then(r => r.json())
         .then(res => {
             if (res.status === 'success_token_generated' && res.token) {
@@ -335,20 +351,25 @@
             } else {
                 showMessage(res.message || 'خطای احراز هویت.', 'error');
                 setButtonLoading(generateButton, false);
-                grecaptcha.reset();
+                try { grecaptcha.reset(); } catch (e) {}
             }
         })
         .catch(err => {
             showMessage('خطا در ارتباط با سرور.', 'error');
             console.error(err);
             setButtonLoading(generateButton, false);
-            grecaptcha.reset();
+            try { grecaptcha.reset(); } catch (e) {}
         });
     }
 
     function fetchDataWithToken(token) {
         const dataPayload = { action: 'fetchData', token: token };
-        fetch(SCRIPT_URL, { method: 'POST', mode: 'cors', body: JSON.stringify(dataPayload) })
+        fetch(SCRIPT_URL, {
+            method: 'POST',
+            mode: 'cors',
+            redirect: 'follow',
+            body: JSON.stringify(dataPayload)
+        })
         .then(r => r.json())
         .then(res => {
             if (res.status === 'success') {
