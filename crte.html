@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -58,6 +58,7 @@ h2{margin-bottom:25px;font-size:1.8rem;text-align:center;font-weight:700;color:v
   margin-top:15px;animation:fadeInMsg .3s}
 #statusMessage.success{background-color:rgba(40,167,69,.1);color:var(--success-color)}
 #statusMessage.error{background-color:rgba(220,53,69,.1);color:var(--danger-color)}
+#statusMessage.info{background-color:rgba(0,123,255,.1);color:var(--primary-color)}
 .recaptcha-container{display:flex;justify-content:center;margin-bottom:20px}
 #result{display:none;margin-top:30px;border-top:1px solid var(--card-border);padding-top:30px}
 #previewBox{width:100%;max-width:500px;margin-left:auto;margin-right:auto;padding:10px;
@@ -167,7 +168,8 @@ h2{margin-bottom:25px;font-size:1.8rem;text-align:center;font-weight:700;color:v
 <script>
 "use strict";
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyVz_XTTNlLeM4r-oKEJ4R7tU4P0rOYXkYPwB2iPCdYpGBjWMa1W4GgDrCuQP9K1Z6F/exec';
-const FETCH_TIMEOUT_MS = 20000;
+const FETCH_TIMEOUT_MS = 45000; // ✅ افزایش به ۴۵ ثانیه
+const MAX_RETRIES = 1;          // ✅ یک retry خودکار
 
 let lastGeneratedPdfBlob = null;
 let certificateShareData = {};
@@ -208,16 +210,18 @@ function toEnglishDigits(str) {
   }
   return result;
 }
-
-// ✅ جلوگیری از HTML/JS Injection در محتوای شیت
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
   return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function makeRequestId() {
+  try {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  } catch (_) {}
+  return 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
 }
 
 async function fetchWithTimeout(url, options, timeoutMs = FETCH_TIMEOUT_MS) {
@@ -240,7 +244,6 @@ function getCertificateHTML(data) {
   const activities = data.activities || [];
   const signatureBase64 = data.signatureImageBase64;
 
-  // ✅ استفاده از محاسبات سرور
   const totalMonths = Number(data.totalMonths) || 0;
   const years  = Number(data.years) || 0;
   const months = Number(data.months) || 0;
@@ -291,7 +294,7 @@ function getCertificateHTML(data) {
     '</div>';
 }
 
-// ============================ احراز هویت ============================
+// ============================ ارسال تک‌مرحله‌ای ============================
 certificateForm.addEventListener("submit", function (event) {
   event.preventDefault();
   hideMessage();
@@ -305,63 +308,54 @@ certificateForm.addEventListener("submit", function (event) {
   if (!captchaToken) { showMessage("لطفاً تأیید کنید که ربات نیستید.", 'error'); return; }
 
   setButtonLoading(generateButton, true);
-  authenticateAndGetToken(nationalId, verificationCode, captchaToken);
+
+  // ✅ requestId یکسان در همه retryها → Idempotent
+  const requestId = makeRequestId();
+  const now = new Date();
+
+  const payload = {
+    action: 'process',              // ✅ اکشن جدید تک‌مرحله‌ای
+    requestId: requestId,
+    nationalId: nationalId,
+    verificationCode: verificationCode,
+    captchaToken: captchaToken,
+    issueDate: toEnglishDigits(now.toLocaleDateString('fa-IR')),
+    certificateNumber: String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0') + "5"
+  };
+
+  submitWithRetry(payload, 0);
 });
 
-async function authenticateAndGetToken(nationalId, verificationCode, captchaToken) {
+async function submitWithRetry(payload, attempt) {
   try {
     const res = await fetchWithTimeout(SCRIPT_URL, {
       method: 'POST',
-      body: JSON.stringify({
-        action: 'authenticate',
-        nationalId: nationalId,
-        verificationCode: verificationCode,
-        captchaToken: captchaToken
-      })
+      body: JSON.stringify(payload)
     });
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    const data = await res.json();
-    if (data.status === 'success_token_generated' && data.token) {
-      showMessage("احراز هویت موفق. در حال دریافت اطلاعات...", 'success');
-      await fetchDataWithToken(data.token);
-    } else {
-      showMessage(data.message || 'خطای احراز هویت.', 'error');
-      setButtonLoading(generateButton, false);
-      safeResetCaptcha();
-    }
-  } catch (err) {
-    console.error('Auth Error:', err);
-    showMessage('خطا در ارتباط با سرور.', 'error');
-    setButtonLoading(generateButton, false);
-    safeResetCaptcha();
-  }
-}
 
-async function fetchDataWithToken(token) {
-  const now = new Date();
-  try {
-    const res = await fetchWithTimeout(SCRIPT_URL, {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'fetchData',
-        token: token,
-        issueDate: toEnglishDigits(now.toLocaleDateString('fa-IR')),
-        certificateNumber: String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0') + "5"
-      })
-    });
     if (!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
+
     if (data.status === 'success') {
       showMessage("اطلاعات دریافت شد. در حال تولید PDF...", 'success');
       renderCertificate(data.data);
     } else {
-      showMessage(data.message || 'خطا در دریافت اطلاعات.', 'error');
+      showMessage(data.message || 'خطا در پردازش.', 'error');
       setButtonLoading(generateButton, false);
+      safeResetCaptcha();
     }
   } catch (err) {
-    console.error('Fetch Error:', err);
-    showMessage('خطا در ارتباط با سرور.', 'error');
+    console.error('Submit Error (attempt ' + attempt + '):', err);
+
+    if (attempt < MAX_RETRIES) {
+      showMessage("تلاش مجدد... (" + (attempt + 1) + "/" + MAX_RETRIES + ")", 'info');
+      // کمی صبر قبل از retry
+      setTimeout(() => submitWithRetry(payload, attempt + 1), 800);
+      return;
+    }
+    showMessage("خطا در ارتباط با سرور. لطفاً اتصال اینترنت را بررسی کنید.", 'error');
     setButtonLoading(generateButton, false);
+    safeResetCaptcha();
   }
 }
 
