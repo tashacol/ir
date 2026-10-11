@@ -55,9 +55,10 @@ h2{margin-bottom:25px;font-size:1.8rem;text-align:center;font-weight:700;color:v
 .action-btn.loading .spinner{opacity:1}
 @keyframes blink{50%{opacity:0}}
 #statusMessage{text-align:center;padding:12px;border-radius:8px;font-weight:500;display:none;
-  margin-top:15px;animation:fadeInMsg .3s}
+  margin-top:15px;animation:fadeInMsg .3s;white-space:pre-line}
 #statusMessage.success{background-color:rgba(40,167,69,.1);color:var(--success-color)}
 #statusMessage.error{background-color:rgba(220,53,69,.1);color:var(--danger-color)}
+#statusMessage.info{background-color:rgba(0,123,255,.1);color:var(--primary-color)}
 .recaptcha-container{display:flex;justify-content:center;margin-bottom:20px}
 #result{display:none;margin-top:30px;border-top:1px solid var(--card-border);padding-top:30px}
 #previewBox{width:100%;max-width:500px;margin-left:auto;margin-right:auto;padding:10px;
@@ -166,8 +167,9 @@ h2{margin-bottom:25px;font-size:1.8rem;text-align:center;font-weight:700;color:v
 
 <script>
 "use strict";
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxFgslLkR-EHj41k936CI9TxDMfnY9MLQbI5TBrvm0ek_r9vWNG_b6iUhv3V-yK7MtyoQ/exec';
-const FETCH_TIMEOUT_MS = 20000;
+
+// ⚠️ این آدرس را با آدرس Deployment واقعی خود جایگزین کنید
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxFgslLkR-EHj41k936CI9TxDMfnY9MLQbI5TBrvm0ek_r9v9vWNG_b6iUhv3V-yK7MtyoQ/exec';
 
 let lastGeneratedPdfBlob = null;
 let certificateShareData = {};
@@ -193,8 +195,8 @@ const hideMessage = () => { statusMessage.style.display = 'none'; };
 
 function toPersianDigits(input) {
   if (input === null || input === undefined) return '';
-  const persianDigits = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
-  return String(input).replace(/[0-9]/g, m => persianDigits[parseInt(m, 10)]);
+  const p = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
+  return String(input).replace(/[0-9]/g, m => p[parseInt(m, 10)]);
 }
 function toEnglishDigits(str) {
   if (str === null || str === undefined) return '';
@@ -209,40 +211,163 @@ function toEnglishDigits(str) {
   return result;
 }
 
-async function fetchWithTimeout(url, options, timeoutMs = FETCH_TIMEOUT_MS) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...options, signal: controller.signal });
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
 function safeResetCaptcha() {
   try { if (typeof grecaptcha !== 'undefined') grecaptcha.reset(); } catch (_) {}
 }
 
+// ============================================================================
+// تابع مرکزی برای ارسال به Apps Script — با Content-Type صحیح
+// ============================================================================
+async function callServer(payload, timeoutMs = 25000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  let res;
+  try {
+    res = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      mode: 'cors',
+      cache: 'no-cache',
+      redirect: 'follow',
+      // ⚠️ کلید اصلی حل مشکل: Content-Type متنی ساده، preflight را حذف می‌کند
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error('TIMEOUT');
+    }
+    throw new Error('NETWORK: ' + (err.message || 'خطای شبکه'));
+  }
+  clearTimeout(timeoutId);
+
+  if (!res.ok) {
+    throw new Error('HTTP_' + res.status);
+  }
+
+  const text = await res.text();
+  if (!text) throw new Error('EMPTY_RESPONSE');
+
+  let data;
+  try { data = JSON.parse(text); }
+  catch (_) {
+    console.error('Server returned non-JSON:', text.substring(0, 300));
+    throw new Error('INVALID_JSON');
+  }
+  return data;
+}
+
+// ترجمه خطاها به پیام فارسی
+function translateError(err) {
+  const msg = String(err && err.message || err);
+  if (msg === 'TIMEOUT') return 'زمان انتظار سرور به پایان رسید. اتصال اینترنت یا VPN خود را بررسی کنید و دوباره تلاش کنید.';
+  if (msg.startsWith('NETWORK')) return 'عدم دسترسی به سرور. اگر از VPN استفاده می‌کنید، آن را خاموش/روشن کنید و دوباره تلاش کنید.';
+  if (msg === 'EMPTY_RESPONSE') return 'سرور پاسخی برنگرداند. مطمئن شوید Deployment به‌روز شده است.';
+  if (msg === 'INVALID_JSON') return 'پاسخ سرور نامعتبر بود. ممکن است Deployment نیاز به به‌روزرسانی داشته باشد.';
+  if (msg.startsWith('HTTP_')) {
+    const code = msg.split('_')[1];
+    if (code === '401' || code === '403') return 'دسترسی مسدود است. در تنظیمات Deployment گزینه "Who has access" را روی "Anyone" قرار دهید.';
+    if (code === '404') return 'آدرس Deployment پیدا نشد. دوباره Deploy کنید و SCRIPT_URL را به‌روز کنید.';
+    return 'خطای سرور: ' + code;
+  }
+  return 'خطای نامشخص: ' + msg;
+}
+
+// ============================================================================
+// احراز هویت
+// ============================================================================
+certificateForm.addEventListener("submit", async function (event) {
+  event.preventDefault();
+  hideMessage();
+
+  const nationalId = toEnglishDigits(document.getElementById("nationalIdInput").value).trim();
+  const verificationCode = toEnglishDigits(document.getElementById("verificationCode").value).trim();
+  const captchaToken = (typeof grecaptcha !== 'undefined') ? grecaptcha.getResponse() : '';
+
+  if (!/^\d{10}$/.test(nationalId)) {
+    showMessage("کد ملی باید ۱۰ رقم عددی باشد.", 'error');
+    return;
+  }
+  if (!verificationCode) {
+    showMessage("لطفاً رمز عبور مدیریت را وارد کنید.", 'error');
+    return;
+  }
+  if (!captchaToken) {
+    showMessage("لطفاً تأیید کنید که ربات نیستید.", 'error');
+    return;
+  }
+
+  setButtonLoading(generateButton, true);
+  showMessage("در حال ارتباط با سرور...", 'info');
+
+  try {
+    // مرحله ۱: احراز هویت
+    const authResult = await callServer({
+      action: 'authenticate',
+      nationalId: nationalId,
+      verificationCode: verificationCode,
+      captchaToken: captchaToken
+    });
+
+    if (authResult.status !== 'success_token_generated' || !authResult.token) {
+      throw new Error('AUTH_FAIL: ' + (authResult.message || 'خطای احراز هویت'));
+    }
+
+    showMessage("احراز هویت موفق. در حال دریافت اطلاعات...", 'success');
+
+    // مرحله ۲: دریافت داده
+    const now = new Date();
+    const dataResult = await callServer({
+      action: 'fetchData',
+      token: authResult.token,
+      issueDate: toEnglishDigits(now.toLocaleDateString('fa-IR')),
+      certificateNumber: `${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}5`
+    });
+
+    if (dataResult.status !== 'success') {
+      throw new Error('DATA_FAIL: ' + (dataResult.message || 'خطای دریافت داده'));
+    }
+
+    showMessage("اطلاعات دریافت شد. در حال تولید PDF...", 'success');
+    renderCertificate(dataResult.data);
+
+  } catch (err) {
+    console.error('Submit Error:', err);
+    let message = translateError(err);
+    if (String(err.message).startsWith('AUTH_FAIL:')) {
+      message = String(err.message).replace('AUTH_FAIL:', '').trim();
+    } else if (String(err.message).startsWith('DATA_FAIL:')) {
+      message = String(err.message).replace('DATA_FAIL:', '').trim();
+    }
+    showMessage(message, 'error');
+    setButtonLoading(generateButton, false);
+    safeResetCaptcha();
+  }
+});
+
+// ============================================================================
+// ساخت HTML گواهی
+// ============================================================================
 function getCertificateHTML(data) {
   const userInfo = data.user;
   const activities = data.activities || [];
   const signatureBase64 = data.signatureImageBase64;
 
-  // ⭐ استفاده از مجموع ادغام‌شده که از سرور می‌آید
   const totalMonths = Number(data.totalMonths) || 0;
   const years  = Number(data.years) || 0;
   const months = Number(data.months) || 0;
 
   let durationText;
   if (years > 0 && months > 0) durationText = `${toPersianDigits(years)} سال و ${toPersianDigits(months)} ماه`;
-  else if (years > 0)         durationText = `${toPersianDigits(years)} سال`;
-  else                        durationText = `${toPersianDigits(months)} ماه`;
+  else if (years > 0)          durationText = `${toPersianDigits(years)} سال`;
+  else                         durationText = `${toPersianDigits(months)} ماه`;
 
   const now = new Date();
   const certificateNumber = `${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}5`;
   const date = toPersianDigits(now.toLocaleDateString("fa-IR", { year: 'numeric', month: '2-digit', day: '2-digit' }));
 
-  // جدول: فعالیت‌های اصلی (بدون ادغام)
   let tableRows = '';
   activities.forEach(a => {
     const endDate = a.endDate ? a.endDate : 'تا هم اکنون';
@@ -274,95 +399,9 @@ function getCertificateHTML(data) {
     </div>`;
 }
 
-// ============================ مرحله ۱: احراز هویت ============================
-certificateForm.addEventListener("submit", function (event) {
-  event.preventDefault();
-  hideMessage();
-
-  const nationalId = toEnglishDigits(document.getElementById("nationalIdInput").value).trim();
-  const verificationCode = toEnglishDigits(document.getElementById("verificationCode").value).trim();
-  const captchaToken = (typeof grecaptcha !== 'undefined') ? grecaptcha.getResponse() : '';
-
-  if (!/^\d{10}$/.test(nationalId)) {
-    showMessage("کد ملی باید ۱۰ رقم عددی باشد.", 'error');
-    return;
-  }
-  if (!verificationCode) {
-    showMessage("لطفاً رمز عبور مدیریت را وارد کنید.", 'error');
-    return;
-  }
-  if (!captchaToken) {
-    showMessage("لطفاً تأیید کنید که ربات نیستید.", 'error');
-    return;
-  }
-
-  setButtonLoading(generateButton, true);
-  authenticateAndGetToken(nationalId, verificationCode, captchaToken);
-});
-
-async function authenticateAndGetToken(nationalId, verificationCode, captchaToken) {
-  try {
-    const res = await fetchWithTimeout(SCRIPT_URL, {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'authenticate',
-        nationalId: nationalId,
-        verificationCode: verificationCode,
-        captchaToken: captchaToken
-      })
-    });
-
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    const data = await res.json();
-
-    if (data.status === 'success_token_generated' && data.token) {
-      showMessage("احراز هویت موفق. در حال دریافت اطلاعات...", 'success');
-      await fetchDataWithToken(data.token);
-    } else {
-      showMessage(data.message || 'خطای احراز هویت.', 'error');
-      setButtonLoading(generateButton, false);
-      safeResetCaptcha();
-    }
-  } catch (err) {
-    console.error('Auth Error:', err);
-    showMessage('خطا در ارتباط با سرور. اتصال اینترنت را بررسی کنید.', 'error');
-    setButtonLoading(generateButton, false);
-    safeResetCaptcha();
-  }
-}
-
-// ============================ مرحله ۲: دریافت داده ============================
-async function fetchDataWithToken(token) {
-  const now = new Date();
-  try {
-    const res = await fetchWithTimeout(SCRIPT_URL, {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'fetchData',
-        token: token,
-        issueDate: toEnglishDigits(now.toLocaleDateString('fa-IR')),
-        certificateNumber: `${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}5`
-      })
-    });
-
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    const data = await res.json();
-
-    if (data.status === 'success') {
-      showMessage("اطلاعات دریافت شد. در حال تولید PDF...", 'success');
-      renderCertificate(data.data);
-    } else {
-      showMessage(data.message || 'خطا در دریافت اطلاعات.', 'error');
-      setButtonLoading(generateButton, false);
-    }
-  } catch (err) {
-    console.error('Fetch Error:', err);
-    showMessage('خطا در ارتباط با سرور هنگام دریافت داده.', 'error');
-    setButtonLoading(generateButton, false);
-  }
-}
-
-// ============================ رندر گواهی ============================
+// ============================================================================
+// رندر گواهی
+// ============================================================================
 function renderCertificate(data) {
   const nowForShare = new Date();
   certificateShareData = {
@@ -376,8 +415,12 @@ function renderCertificate(data) {
   document.getElementById('certificatePreview').innerHTML = certificateHTML;
   document.getElementById('certificateForPrint').innerHTML = certificateHTML;
 
-  const qrCodeUrl = "https://tashacol.ir/enameh.html";
-  const qrCodeOptions = { text: qrCodeUrl, width: 70, height: 70, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H };
+  const qrCodeOptions = {
+    text: "https://tashacol.ir/enameh.html",
+    width: 70, height: 70,
+    colorDark: "#000000", colorLight: "#ffffff",
+    correctLevel: QRCode.CorrectLevel.H
+  };
   try {
     new QRCode(document.querySelector("#certificatePreview .qrcode-placeholder-container"), qrCodeOptions);
     new QRCode(document.querySelector("#certificateForPrint .qrcode-placeholder-container"), qrCodeOptions);
@@ -389,7 +432,9 @@ function renderCertificate(data) {
   downloadPdf();
 }
 
-// ============================ دانلود PDF ============================
+// ============================================================================
+// دانلود PDF
+// ============================================================================
 function downloadPdf() {
   setButtonLoading(downloadPdfBtn, true);
   try {
@@ -447,6 +492,22 @@ document.getElementById("sharePdfBtn").addEventListener("click", async (e) => {
 modalCloseBtn.addEventListener('click', () => { successModal.style.display = 'none'; });
 successModal.addEventListener('click', (e) => {
   if (e.target === successModal) successModal.style.display = 'none';
+});
+
+// ============================================================================
+// تست خودکار اتصال به سرور هنگام بارگذاری
+// ============================================================================
+window.addEventListener('load', async () => {
+  try {
+    const result = await callServer({ action: 'ping' }, 10000);
+    if (result.status === 'pong') {
+      console.log('✅ اتصال به سرور برقرار است.');
+    } else {
+      console.warn('⚠️ پاسخ غیرمنتظره از سرور:', result);
+    }
+  } catch (err) {
+    console.warn('⚠️ تست اتصال ناموفق:', err.message, '— این فقط هشدار است، می‌توانید فرم را پر کنید.');
+  }
 });
 </script>
 </body>
