@@ -1,1 +1,90 @@
 
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ورود به مشاوره</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Tahoma, sans-serif; background: #f0f4f8;
+           display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .box { background: white; padding: 40px; border-radius: 16px;
+           box-shadow: 0 8px 30px rgba(0,0,0,0.1); text-align: center; width: 90%; max-width: 400px; }
+    h1 { margin-bottom: 20px; font-size: 24px; color: #1a365d; }
+    input { width: 100%; padding: 14px; margin-bottom: 16px;
+            border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
+    button { width: 100%; padding: 14px; background: #2563eb;
+             color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: bold; }
+    button:hover { background: #1d4ed8; }
+    .error { color: #f87171; margin-top: 12px; font-size: 14px; }
+    .hidden { display: none; }
+    #meet { width: 100%; height: 100vh; position: fixed; top: 0; left: 0; }
+  </style>
+</head>
+<body>
+  <div class="box" id="loginBox">
+    <h1>📞 ورود به اتاق مشاوره</h1>
+    <input type="text" id="guestName" placeholder="نام خود را وارد کنید">
+    <button onclick="guestLogin()">ورود به جلسه</button>
+    <p class="error" id="errorMsg"></p>
+  </div>
+  <div id="meet" class="hidden"></div>
+
+  <script src="https://8x8.vc/vpaas-magic-cookie-2595f123dff048dba8c17bb1a441a83a/external_api.js"></script>
+  <script>
+    // آدرس Worker شما
+    const SCRIPT_URL = "https://live-api.irtashacol.workers.dev/"; 
+
+    const APP_ID = "vpaas-magic-cookie-2595f123dff048dba8c17bb1a441a83a";
+    const ROOM_NAME = APP_ID + "/consult-room";
+
+    async function guestLogin() {
+      const userName = document.getElementById('guestName').value.trim() || "مراجع";
+      const errorMsg = document.getElementById('errorMsg');
+
+      try {
+        const response = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'guest_login', userName: userName })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+          document.getElementById('loginBox').classList.add('hidden');
+          document.getElementById('meet').classList.remove('hidden');
+          startJitsi(data.token);
+        } else {
+          errorMsg.textContent = "خطا در ورود";
+        }
+      } catch (err) {
+        errorMsg.textContent = "خطای ارتباط: " + err.message;
+      }
+    }
+
+    function startJitsi(token) {
+      const options = {
+        roomName: ROOM_NAME,
+        width: "100%", height: "100%",
+        parentNode: document.getElementById("meet"),
+        jwt: token,
+        configOverwrite: {
+          startWithAudioMuted: true, startWithVideoMuted: false,
+          prejoinConfig: { enabled: true },
+          toolbar: { alwaysVisible: true, timeout: 0 },
+          toolbarButtons: [
+            'microphone', 'camera', 'raisehand',
+            'chat', 'tileview', 'fullscreen', 'settings', 'hangup'
+          ]
+        },
+        interfaceConfigOverwrite: {
+          TOOLBAR_ALWAYS_VISIBLE: true, TOOLBAR_TIMEOUT: 999999,
+          SHOW_JITSI_WATERMARK: false, SHOW_WATERMARK_FOR_GUESTS: false, MOBILE_APP_PROMO: false
+        }
+      };
+      new JitsiMeetExternalAPI("8x8.vc", options);
+    }
+  </script>
+</body>
+</html>
