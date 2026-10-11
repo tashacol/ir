@@ -3,18 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ورود به مشاوره</title>
+  <title>ورود مدیر</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Tahoma, sans-serif; background: #f0f4f8;
+    body { font-family: Tahoma, sans-serif; background: #0f172a; color: #e2e8f0;
            display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-    .box { background: white; padding: 40px; border-radius: 16px;
-           box-shadow: 0 8px 30px rgba(0,0,0,0.1); text-align: center; width: 90%; max-width: 400px; }
-    h1 { margin-bottom: 20px; font-size: 24px; color: #1a365d; }
+    .box { background: #1e293b; padding: 40px; border-radius: 16px;
+           box-shadow: 0 8px 30px rgba(0,0,0,0.5); text-align: center;
+           width: 90%; max-width: 400px; }
+    h1 { margin-bottom: 20px; font-size: 24px; }
     input { width: 100%; padding: 14px; margin-bottom: 16px;
-            border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
+            border: 2px solid #334155; border-radius: 8px;
+            background: #0f172a; color: #fff; font-size: 16px; }
     button { width: 100%; padding: 14px; background: #2563eb;
-             color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: bold; }
+             color: white; border: none; border-radius: 8px;
+             font-size: 16px; cursor: pointer; font-weight: bold; }
     button:hover { background: #1d4ed8; }
     .error { color: #f87171; margin-top: 12px; font-size: 14px; }
     .hidden { display: none; }
@@ -23,9 +26,9 @@
 </head>
 <body>
   <div class="box" id="loginBox">
-    <h1>📞 ورود به اتاق مشاوره</h1>
-    <input type="text" id="guestName" placeholder="نام خود را وارد کنید">
-    <button onclick="guestLogin()">ورود به جلسه</button>
+    <h1>🔐 ورود مدیر</h1>
+    <input type="password" id="adminPassword" placeholder="رمز عبور">
+    <button onclick="adminLogin()">ورود به اتاق مشاوره</button>
     <p class="error" id="errorMsg"></p>
   </div>
   <div id="meet" class="hidden"></div>
@@ -40,15 +43,16 @@
     const ROOM_NAME = "consult-room";
     const FULL_ROOM_NAME = APP_ID + "/" + ROOM_NAME;
 
-    async function guestLogin() {
-      const userName = document.getElementById('guestName').value.trim() || "مراجع";
+    async function adminLogin() {
+      const password = document.getElementById('adminPassword').value;
       const errorMsg = document.getElementById('errorMsg');
+      if (!password) { errorMsg.textContent = "رمز را وارد کنید"; return; }
 
       try {
         const response = await fetch(SCRIPT_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'guest_login', userName: userName })
+          body: JSON.stringify({ action: 'admin_login', password: password })
         });
         const data = await response.json();
 
@@ -57,7 +61,7 @@
           document.getElementById('meet').classList.remove('hidden');
           startJitsi(data.token);
         } else {
-          errorMsg.textContent = "خطا در ورود";
+          errorMsg.textContent = data.error || "خطا";
         }
       } catch (err) {
         errorMsg.textContent = "خطای ارتباط: " + err.message;
@@ -67,16 +71,19 @@
     function startJitsi(token) {
       const options = {
         roomName: FULL_ROOM_NAME,
-        width: "100%", height: "100%",
+        width: "100%",
+        height: "100%",
         parentNode: document.getElementById("meet"),
         jwt: token,
         configOverwrite: {
-          startWithAudioMuted: true, startWithVideoMuted: false,
+          startWithAudioMuted: false,
+          startWithVideoMuted: false,
           prejoinConfig: { enabled: false }, // ✅ تغییر یافته
-          toolbar: { alwaysVisible: true, timeout: 0 },
+          toolbar: { alwaysVisible: true, timeout: 0, autoHideWhileChatIsOpen: false },
           toolbarButtons: [
-            'microphone', 'camera', 'raisehand',
-            'chat', 'tileview', 'fullscreen', 'settings', 'hangup'
+            'microphone', 'camera', 'desktop', 'chat',
+            'raisehand', 'tileview', 'videoquality',
+            'fullscreen', 'settings', 'hangup', 'security'
           ]
         },
         interfaceConfigOverwrite: {
@@ -84,8 +91,19 @@
           SHOW_JITSI_WATERMARK: false, SHOW_WATERMARK_FOR_GUESTS: false, MOBILE_APP_PROMO: false
         }
       };
-      new JitsiMeetExternalAPI("8x8.vc", options);
+      const api = new JitsiMeetExternalAPI("8x8.vc", options);
+
+      // ✅ کد جدید فعال‌سازی Lobby
+      api.addEventListener('participantRoleChanged', (event) => {
+        if (event.role === 'moderator') {
+          api.executeCommand('toggleLobby', true);
+        }
+      });
     }
+
+    document.getElementById('adminPassword').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') adminLogin();
+    });
   </script>
 </body>
 </html>
