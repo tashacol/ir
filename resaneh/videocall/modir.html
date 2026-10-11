@@ -15,30 +15,161 @@
     input { width: 100%; padding: 14px; margin-bottom: 16px;
             border: 2px solid #334155; border-radius: 8px;
             background: #0f172a; color: #fff; font-size: 16px; }
-    button { width: 100%; padding: 14px; background: #2563eb;
+    .btn-primary { width: 100%; padding: 14px; background: #2563eb;
              color: white; border: none; border-radius: 8px;
              font-size: 16px; cursor: pointer; font-weight: bold; }
-    button:hover { background: #1d4ed8; }
+    .btn-primary:hover { background: #1d4ed8; }
     .error { color: #f87171; margin-top: 12px; font-size: 14px; }
-    .hidden { display: none; }
+    .hidden { display: none !important; }
     #meet { width: 100%; height: 100vh; position: fixed; top: 0; left: 0; }
+    
+    /* ========== نوار کنترل اختصاصی ========== */
+    #customControls {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 12px;
+      background: rgba(15, 23, 42, 0.95);
+      padding: 12px 18px;
+      border-radius: 60px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+      z-index: 999999;
+      backdrop-filter: blur(10px);
+    }
+    .ctrl-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: none;
+      background: #334155;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .ctrl-btn:hover { background: #475569; transform: scale(1.08); }
+    .ctrl-btn:active { transform: scale(0.95); }
+    .ctrl-btn.off { background: #dc2626; }
+    .ctrl-btn.hangup { background: #dc2626; }
+    .ctrl-btn.hangup:hover { background: #b91c1c; }
+    .ctrl-btn.participants { background: #2563eb; }
+    .ctrl-btn.participants:hover { background: #1d4ed8; }
+    
+    /* ========== پنل شرکت‌کنندگان ========== */
+    #participantsPanel {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      width: 300px;
+      max-height: 60vh;
+      overflow-y: auto;
+      background: rgba(15, 23, 42, 0.97);
+      border-radius: 12px;
+      padding: 16px;
+      z-index: 999999;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+      backdrop-filter: blur(10px);
+      border: 1px solid #334155;
+    }
+    #participantsPanel h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: #e2e8f0;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #participantsPanel .close-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 0 6px;
+    }
+    #participantsPanel .close-btn:hover { color: #f87171; }
+    .participant-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      background: #1e293b;
+      border-radius: 8px;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+    .participant-item .name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-left: 8px;
+    }
+    .kick-btn {
+      background: #dc2626;
+      color: white;
+      border: none;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: Tahoma, sans-serif;
+    }
+    .kick-btn:hover { background: #b91c1c; }
+    
+    @media (max-width: 500px) {
+      .ctrl-btn { width: 48px; height: 48px; font-size: 20px; }
+      #customControls { gap: 8px; padding: 10px 14px; bottom: 15px; }
+      #participantsPanel { width: 90%; left: 5%; top: 10px; }
+    }
   </style>
 </head>
 <body>
   <div class="box" id="loginBox">
     <h1>🔐 ورود مدیر</h1>
     <input type="password" id="adminPassword" placeholder="رمز عبور">
-    <button onclick="adminLogin()">ورود به اتاق مشاوره</button>
+    <button class="btn-primary" onclick="adminLogin()">ورود به اتاق مشاوره</button>
     <p class="error" id="errorMsg"></p>
   </div>
+
   <div id="meet" class="hidden"></div>
+
+  <!-- نوار کنترل اختصاصی مدیر -->
+  <div id="customControls" class="hidden">
+    <button class="ctrl-btn" id="btnMic" title="میکروفون" onclick="toggleMic()">🎤</button>
+    <button class="ctrl-btn" id="btnCam" title="دوربین" onclick="toggleCam()">📹</button>
+    <button class="ctrl-btn participants" id="btnParticipants" title="شرکت‌کنندگان" onclick="toggleParticipantsPanel()">👥</button>
+    <button class="ctrl-btn hangup" id="btnHangup" title="پایان تماس" onclick="hangup()">📞</button>
+  </div>
+
+  <!-- پنل شرکت‌کنندگان (فقط مدیر) -->
+  <div id="participantsPanel" class="hidden">
+    <h3>
+      <span>👥 شرکت‌کنندگان</span>
+      <button class="close-btn" onclick="toggleParticipantsPanel()">✕</button>
+    </h3>
+    <div id="participantsList"></div>
+  </div>
 
   <script src="https://8x8.vc/vpaas-magic-cookie-2595f123dff048dba8c17bb1a441a83a/external_api.js"></script>
   <script>
-    const SCRIPT_URL = "https://live-api.irtashacol.workers.dev/"; 
+    const SCRIPT_URL = "https://live-api.irtashacol.workers.dev/";
     const APP_ID = "vpaas-magic-cookie-2595f123dff048dba8c17bb1a441a83a";
     const ROOM_NAME = "consult-room";
     const FULL_ROOM_NAME = APP_ID + "/" + ROOM_NAME;
+
+    let api = null;
+    let audioMuted = false;
+    let videoMuted = false;
+    let participants = [];
 
     async function adminLogin() {
       const password = document.getElementById('adminPassword').value;
@@ -56,6 +187,7 @@
         if (data.success) {
           document.getElementById('loginBox').classList.add('hidden');
           document.getElementById('meet').classList.remove('hidden');
+          document.getElementById('customControls').classList.remove('hidden');
           startJitsi(data.token);
         } else {
           errorMsg.textContent = data.error || "خطا";
@@ -75,27 +207,143 @@
         configOverwrite: {
           startWithAudioMuted: false,
           startWithVideoMuted: false,
-          // ✅ فقط این بخش برای نوار ابزار - حذف interfaceConfigOverwrite
-          toolbar: { 
-            alwaysVisible: true, 
-            timeout: 0, 
-            autoHideWhileChatIsOpen: false 
-          },
-          // ✅ محدود کردن به ۸ دکمه و درج hangup و overflowmenu
-          toolbarButtons: [
-            'microphone', 'camera', 'desktop', 'chat',
-            'raisehand', 'tileview', 'hangup', 'overflowmenu'
-          ]
+          prejoinConfig: { enabled: false },
+          toolbarButtons: [],           // مخفی کردن نوار ابزار Jitsi
+          disableDeepLinking: true,
+          notifications: [],
+          disableInviteFunctions: true,
+          fileRecordingsEnabled: false,
+          liveStreamingEnabled: false,
+          remoteVideoMenu: { disabled: false }
+        },
+        interfaceConfigOverwrite: {
+          TOOLBAR_BUTTONS: []           // پشتیبان برای نسخه‌های قدیمی
         }
-        // interfaceConfigOverwrite کاملاً حذف شد
       };
-      const api = new JitsiMeetExternalAPI("8x8.vc", options);
+      api = new JitsiMeetExternalAPI("8x8.vc", options);
+
+      api.addEventListener('videoConferenceJoined', () => {
+        console.log('Admin joined');
+      });
 
       api.addEventListener('participantRoleChanged', (event) => {
         if (event.role === 'moderator') {
           api.executeCommand('toggleLobby', true);
         }
       });
+
+      api.addEventListener('audioMuteStatusChanged', (e) => {
+        audioMuted = e.muted;
+        updateMicButton();
+      });
+
+      api.addEventListener('videoMuteStatusChanged', (e) => {
+        videoMuted = e.muted;
+        updateCamButton();
+      });
+
+      api.addEventListener('participantJoined', () => {
+        setTimeout(refreshParticipants, 500);
+      });
+
+      api.addEventListener('participantLeft', () => {
+        setTimeout(refreshParticipants, 500);
+      });
+
+      setTimeout(refreshParticipants, 2500);
+    }
+
+    function updateMicButton() {
+      const btn = document.getElementById('btnMic');
+      if (audioMuted) {
+        btn.classList.add('off');
+        btn.textContent = '🔇';
+      } else {
+        btn.classList.remove('off');
+        btn.textContent = '🎤';
+      }
+    }
+
+    function updateCamButton() {
+      const btn = document.getElementById('btnCam');
+      if (videoMuted) {
+        btn.classList.add('off');
+        btn.textContent = '📷';
+      } else {
+        btn.classList.remove('off');
+        btn.textContent = '📹';
+      }
+    }
+
+    function toggleMic() { if (api) api.executeCommand('toggleAudio'); }
+    function toggleCam() { if (api) api.executeCommand('toggleVideo'); }
+
+    function hangup() {
+      if (!api) return;
+      if (confirm('آیا می‌خواهید جلسه را پایان دهید؟')) {
+        api.executeCommand('hangup');
+        setTimeout(() => window.location.reload(), 800);
+      }
+    }
+
+    function toggleParticipantsPanel() {
+      const panel = document.getElementById('participantsPanel');
+      panel.classList.toggle('hidden');
+      if (!panel.classList.contains('hidden')) refreshParticipants();
+    }
+
+    function refreshParticipants() {
+      if (!api) return;
+      try {
+        participants = api.getParticipantsInfo() || [];
+        renderParticipants();
+      } catch (e) { console.log('Err:', e); }
+    }
+
+    function renderParticipants() {
+      const container = document.getElementById('participantsList');
+      if (!container) return;
+      container.innerHTML = '';
+
+      if (participants.length === 0) {
+        const p = document.createElement('p');
+        p.style.color = '#94a3b8';
+        p.style.fontSize = '13px';
+        p.textContent = 'شرکت‌کننده‌ای وجود ندارد';
+        container.appendChild(p);
+        return;
+      }
+
+      participants.forEach(p => {
+        const displayName = p.displayName || 'بدون نام';
+        const isModerator = p.role === 'moderator';
+
+        const item = document.createElement('div');
+        item.className = 'participant-item';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'name';
+        nameSpan.textContent = (isModerator ? '👑 ' : '') + displayName;
+        item.appendChild(nameSpan);
+
+        if (!isModerator) {
+          const kickBtn = document.createElement('button');
+          kickBtn.className = 'kick-btn';
+          kickBtn.textContent = 'اخراج';
+          kickBtn.addEventListener('click', () => kickUser(p.participantId, displayName));
+          item.appendChild(kickBtn);
+        }
+
+        container.appendChild(item);
+      });
+    }
+
+    function kickUser(participantId, name) {
+      if (!api) return;
+      if (confirm('آیا مطمئن هستید که می‌خواهید "' + name + '" را اخراج کنید؟')) {
+        api.executeCommand('kickParticipant', participantId);
+        setTimeout(refreshParticipants, 1000);
+      }
     }
 
     document.getElementById('adminPassword').addEventListener('keypress', (e) => {
