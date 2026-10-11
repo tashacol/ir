@@ -1,10 +1,5 @@
-// Service Worker - مؤسسه تعالی اندیشه و رشد
-const CACHE_NAME = 'tashacol-v1';
-const urlsToCache = [
-  '/',
-  '/index.html',
-  '/manifest.json'
-];
+ const CACHE_NAME = 'tashacol-v1';
+const urlsToCache = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', event => {
   self.skipWaiting();
@@ -20,9 +15,7 @@ self.addEventListener('activate', event => {
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
-          }
+          if (cacheName !== CACHE_NAME) return caches.delete(cacheName);
         })
       );
     }).then(() => self.clients.claim())
