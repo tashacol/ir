@@ -2,34 +2,101 @@
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
   <title>ورود مدیر</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Tahoma, sans-serif; background: #0f172a; color: #e2e8f0;
-           display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-    .box { background: #1e293b; padding: 40px; border-radius: 16px;
-           box-shadow: 0 8px 30px rgba(0,0,0,0.5); text-align: center;
-           width: 90%; max-width: 400px; }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      position: fixed;
+      inset: 0;
+      font-family: Tahoma, sans-serif;
+    }
+
+    body {
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+
+    /* صفحه لاگین */
+    #loginBox {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #0f172a;
+      z-index: 100;
+    }
+
+    .box {
+      background: #1e293b;
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+      text-align: center;
+      width: 90%;
+      max-width: 400px;
+    }
+
     h1 { margin-bottom: 20px; font-size: 24px; }
-    input { width: 100%; padding: 14px; margin-bottom: 16px;
-            border: 2px solid #334155; border-radius: 8px;
-            background: #0f172a; color: #fff; font-size: 16px; }
-    button { width: 100%; padding: 14px; background: #2563eb;
-             color: white; border: none; border-radius: 8px;
-             font-size: 16px; cursor: pointer; font-weight: bold; }
+    input {
+      width: 100%;
+      padding: 14px;
+      margin-bottom: 16px;
+      border: 2px solid #334155;
+      border-radius: 8px;
+      background: #0f172a;
+      color: #fff;
+      font-size: 16px;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      font-weight: bold;
+    }
     button:hover { background: #1d4ed8; }
     .error { color: #f87171; margin-top: 12px; font-size: 14px; }
-    .hidden { display: none; }
-    #meet { width: 100%; height: 100vh; position: fixed; top: 0; left: 0; }
+    .hidden { display: none !important; }
+
+    /* کانتینر Jitsi - پر کردن کل صفحه قابل مشاهده */
+    #meet {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh; /* Dynamic Viewport Height */
+      z-index: 50;
+      background: #000;
+    }
+
+    /* اجبار به پر کردن کامل iframe داخل Jitsi */
+    #meet iframe {
+      width: 100% !important;
+      height: 100% !important;
+      border: 0 !important;
+      display: block !important;
+    }
   </style>
 </head>
 <body>
-  <div class="box" id="loginBox">
-    <h1>🔐 ورود مدیر</h1>
-    <input type="password" id="adminPassword" placeholder="رمز عبور">
-    <button onclick="adminLogin()">ورود به اتاق مشاوره</button>
-    <p class="error" id="errorMsg"></p>
+  <div id="loginBox">
+    <div class="box">
+      <h1>🔐 ورود مدیر</h1>
+      <input type="password" id="adminPassword" placeholder="رمز عبور">
+      <button onclick="adminLogin()">ورود به اتاق مشاوره</button>
+      <p class="error" id="errorMsg"></p>
+    </div>
   </div>
   <div id="meet" class="hidden"></div>
 
@@ -39,6 +106,40 @@
     const APP_ID = "vpaas-magic-cookie-2595f123dff048dba8c17bb1a441a83a";
     const ROOM_NAME = "consult-room";
     const FULL_ROOM_NAME = APP_ID + "/" + ROOM_NAME;
+
+    let api = null;
+
+    // ✅ تابعی که ارتفاع دقیق صفحه رو محاسبه می‌کنه
+    function getRealHeight() {
+      return window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    }
+
+    // ✅ آپدیت سایز Jitsi بر اساس ارتفاع واقعی صفحه
+    function resizeMeet() {
+      const meetEl = document.getElementById('meet');
+      if (meetEl && !meetEl.classList.contains('hidden')) {
+        const h = getRealHeight();
+        meetEl.style.height = h + 'px';
+        meetEl.style.width = window.innerWidth + 'px';
+        // اگر api ساخته شده، به Jitsi هم بگو خودش رو رفرش کنه
+        if (api && typeof api.executeCommand === 'function') {
+          try {
+            api.executeCommand('resize', {
+              width: window.innerWidth,
+              height: h
+            });
+          } catch(e) {}
+        }
+      }
+    }
+
+    // ✅ هر بار که صفحه چرخید یا ارتفاع تغییر کرد، سایز رو آپدیت کن
+    window.addEventListener('resize', resizeMeet);
+    window.addEventListener('orientationchange', () => setTimeout(resizeMeet, 300));
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', resizeMeet);
+      window.visualViewport.addEventListener('scroll', resizeMeet);
+    }
 
     async function adminLogin() {
       const password = document.getElementById('adminPassword').value;
@@ -55,7 +156,10 @@
 
         if (data.success) {
           document.getElementById('loginBox').classList.add('hidden');
-          document.getElementById('meet').classList.remove('hidden');
+          const meetEl = document.getElementById('meet');
+          meetEl.classList.remove('hidden');
+          // ✅ قبل از ساخت Jitsi، سایز رو ست کن
+          resizeMeet();
           startJitsi(data.token);
         } else {
           errorMsg.textContent = data.error || "خطا";
@@ -66,22 +170,22 @@
     }
 
     function startJitsi(token) {
+      const h = getRealHeight();
       const options = {
         roomName: FULL_ROOM_NAME,
-        width: "100%",
-        height: "100%",
+        width: window.innerWidth,
+        height: h,
         parentNode: document.getElementById("meet"),
         jwt: token,
         configOverwrite: {
           startWithAudioMuted: false,
           startWithVideoMuted: false,
           prejoinConfig: { enabled: false },
-          // ✅ نوار ابزار همیشه نمایش داده شود
+          // ✅ نوار ابزار همیشه نمایان باشه
           toolbar: {
             alwaysVisible: true,
             timeout: 0,
             autoHideWhileChatIsOpen: false,
-            // ✅ لیست دکمه‌ها با نام صحیح Jitsi
             buttons: [
               'microphone',
               'camera',
@@ -90,7 +194,6 @@
               'participants-pane',
               'raisehand',
               'tileview',
-              'videoquality',
               'filmstrip',
               'fullscreen',
               'settings',
@@ -98,44 +201,55 @@
               'security'
             ]
           },
-          // ✅ تنظیمات اضافه برای موبایل
           toolbarConfig: {
             alwaysVisible: true,
             timeout: 0
           },
-          // ✅ جلوگیری از پنهان شدن فیلم‌استریپ
-          filmstrip: {
-            disableResizable: false
-          },
-          // ✅ غیرفعال کردن پروموت اپ موبایل
-          disableMobileAppPromo: true
+          // ✅ جلوگیری از پنهان شدن نوار ابزار روی موبایل
+          disableMobileAppPromo: true,
+          // ✅ چیدمان مناسب موبایل
+          disableTileEnlargement: false,
+          // ✅ حذف صفحه pre-join اضافه
+          requireDisplayName: false,
+          enableWelcomePage: false,
+          enableClosePage: false,
+          // ✅ جلوگیری از رفتار عجیب روی موبایل
+          mobile: {
+            autoHideToolbar: false
+          }
         },
         interfaceConfigOverwrite: {
           TOOLBAR_ALWAYS_VISIBLE: true,
-          TOOLBAR_TIMEOUT: 999999999,
+          TOOLBAR_TIMEOUT: 2147483647,
           SHOW_JITSI_WATERMARK: false,
           SHOW_WATERMARK_FOR_GUESTS: false,
           MOBILE_APP_PROMO: false,
           DISABLE_JOIN_LEAVE_NOTIFICATIONS: false,
           VERTICAL_FILMSTRIP: false,
           FILMSTRIP_BREAKPOINTS: [],
-          DEFAULT_BACKGROUND: "#0f172a"
+          DEFAULT_BACKGROUND: "#0f172a",
+          // ✅ جلوگیری از انیمیشن‌های مشکل‌ساز
+          DISABLE_FOCUS_INDICATOR: true
         }
       };
-      const api = new JitsiMeetExternalAPI("8x8.vc", options);
 
-      // ✅ لاگ برای دیباگ
+      api = new JitsiMeetExternalAPI("8x8.vc", options);
+
+      // ✅ بعد از لود کامل، سایز رو دوباره چک کن
       api.addEventListener('videoConferenceJoined', () => {
-        console.log('مدیر وارد شد. فعال‌سازی Lobby...');
+        resizeMeet();
         setTimeout(() => {
           api.executeCommand('toggleLobby', true);
-          console.log('Lobby فعال شد!');
         }, 2000);
       });
 
-      api.addEventListener('participantRoleChanged', (event) => {
-        console.log('نقش کاربر تغییر کرد:', event.role);
-      });
+      // ✅ هر ۲ ثانیه یکبار سایز رو چک کن (برای اطمینان)
+      const resizeInterval = setInterval(() => {
+        const curH = getRealHeight();
+        if (Math.abs(parseInt(document.getElementById('meet').style.height) - curH) > 5) {
+          resizeMeet();
+        }
+      }, 2000);
     }
 
     document.getElementById('adminPassword').addEventListener('keypress', (e) => {
@@ -143,4 +257,4 @@
     });
   </script>
 </body>
-</html>
+</html> 
