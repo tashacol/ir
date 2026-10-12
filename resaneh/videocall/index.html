@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+    <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
@@ -33,7 +33,6 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ==================== پس‌زمینه ==================== */
     body::before {
       content: '';
       position: fixed;
@@ -46,7 +45,6 @@
       z-index: -1;
     }
 
-    /* ==================== صفحه ورود ==================== */
     #loginBox {
       position: fixed;
       inset: 0;
@@ -161,9 +159,7 @@
       outline: none;
     }
 
-    .input-wrapper input::placeholder {
-      color: #94a3b8;
-    }
+    .input-wrapper input::placeholder { color: #94a3b8; }
 
     .input-wrapper input:focus {
       border-color: var(--brand-1);
@@ -180,9 +176,7 @@
       transition: color 0.25s;
     }
 
-    .input-wrapper input:focus + .input-icon {
-      color: var(--brand-1);
-    }
+    .input-wrapper input:focus + .input-icon { color: var(--brand-1); }
 
     .btn-primary {
       width: 100%;
@@ -211,14 +205,8 @@
       box-shadow: 0 12px 28px -6px rgba(99, 102, 241, 0.7);
     }
 
-    .btn-primary:active:not(:disabled) {
-      transform: translateY(0);
-    }
-
-    .btn-primary:disabled {
-      opacity: 0.75;
-      cursor: not-allowed;
-    }
+    .btn-primary:active:not(:disabled) { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.75; cursor: not-allowed; }
 
     .btn-primary .spinner {
       width: 18px;
@@ -244,7 +232,6 @@
 
     .hidden { display: none !important; }
 
-    /* ==================== لودینگ اتصال ==================== */
     #loadingScreen {
       position: fixed;
       inset: 0;
@@ -256,7 +243,10 @@
       z-index: 80;
       gap: 24px;
       animation: fadeIn 0.4s ease;
+      transition: opacity 0.5s ease;
     }
+
+    #loadingScreen.fade-out { opacity: 0; pointer-events: none; }
 
     .loader-ring {
       width: 70px;
@@ -328,7 +318,6 @@
       animation: dots 1.4s steps(4, end) infinite;
     }
 
-    /* ==================== کانتینر Jitsi ==================== */
     #meet {
       position: fixed;
       inset: 0;
@@ -337,7 +326,11 @@
       height: 100dvh;
       z-index: 50;
       background: #000;
+      opacity: 0;
+      transition: opacity 0.5s ease;
     }
+
+    #meet.visible { opacity: 1; }
 
     #meet iframe {
       width: 100% !important;
@@ -346,7 +339,6 @@
       display: block !important;
     }
 
-    /* ==================== انیمیشن‌ها ==================== */
     @keyframes spin { to { transform: rotate(360deg); } }
 
     @keyframes pulse {
@@ -371,7 +363,6 @@
       80%, 100% { content: '...'; }
     }
 
-    /* ==================== موبایل ==================== */
     @media (max-width: 480px) {
       .login-card { padding: 32px 24px 26px; border-radius: 20px; }
       .brand-title { font-size: 18px; }
@@ -382,7 +373,6 @@
 </head>
 <body>
 
-  <!-- ==================== صفحه ورود ==================== -->
   <div id="loginBox">
     <div class="login-card">
       <div class="brand-logo">
@@ -415,7 +405,6 @@
     </div>
   </div>
 
-  <!-- ==================== صفحه لودینگ ==================== -->
   <div id="loadingScreen" class="hidden">
     <div class="loader-ring">
       <div class="loader-icon">
@@ -431,8 +420,7 @@
     </div>
   </div>
 
-  <!-- ==================== کانتینر Jitsi ==================== -->
-  <div id="meet" class="hidden"></div>
+  <div id="meet"></div>
 
   <script src="https://8x8.vc/vpaas-magic-cookie-2595f123dff048dba8c17bb1a441a83a/external_api.js"></script>
   <script>
@@ -449,16 +437,13 @@
 
     function resizeMeet() {
       const meetEl = document.getElementById('meet');
-      if (meetEl && !meetEl.classList.contains('hidden')) {
+      if (meetEl) {
         const h = getRealHeight();
         meetEl.style.height = h + 'px';
         meetEl.style.width = window.innerWidth + 'px';
         if (api && typeof api.executeCommand === 'function') {
           try {
-            api.executeCommand('resize', {
-              width: window.innerWidth,
-              height: h
-            });
+            api.executeCommand('resize', { width: window.innerWidth, height: h });
           } catch(e) {}
         }
       }
@@ -477,11 +462,22 @@
     }
 
     function showLoadingScreen() {
-      document.getElementById('loadingScreen').classList.remove('hidden');
+      const el = document.getElementById('loadingScreen');
+      el.classList.remove('hidden');
+      el.classList.remove('fade-out');
+      el.style.display = 'flex';
+      el.style.opacity = '1';
     }
 
     function hideLoadingScreen() {
-      document.getElementById('loadingScreen').classList.add('hidden');
+      const el = document.getElementById('loadingScreen');
+      if (el.style.display === 'none') return;
+      el.classList.add('fade-out');
+      setTimeout(() => { el.style.display = 'none'; }, 500);
+    }
+
+    function revealMeet() {
+      document.getElementById('meet').classList.add('visible');
     }
 
     function setLoginLoading(isLoading) {
@@ -516,14 +512,19 @@
         if (data.success) {
           document.getElementById('loginBox').classList.add('hidden');
           showLoadingScreen();
-          setLoadingMessage("در حال اتصال به اتاق مشاوره", "لطفاً منتظر تأیید مدیر باشید");
+          setLoadingMessage("در حال اتصال به اتاق مشاوره", "لطفاً چند لحظه صبر کنید");
 
-          // اجازه بده انیمیشن لودینگ دیده بشه
+          // Jitsi رو زیر لودینگ لود کن
+          resizeMeet();
+          startJitsi(data.token);
+
+          // ✅ راه‌حل: بعد از ۳ ثانیه لودینگ رو محو کن و صفحه Jitsi رو نشون بده
+          // (حتی اگر کاربر هنوز در اتاق انتظار باشه)
           setTimeout(() => {
-            document.getElementById('meet').classList.remove('hidden');
-            resizeMeet();
-            startJitsi(data.token);
-          }, 800);
+            hideLoadingScreen();
+            revealMeet();
+            setLoadingMessage("در اتاق انتظار هستید", "منتظر تأیید مدیر باشید");
+          }, 3000);
         } else {
           setLoginLoading(false);
           errorMsg.textContent = "خطا در ورود. لطفاً دوباره تلاش کنید";
@@ -580,27 +581,18 @@
 
       api = new JitsiMeetExternalAPI("8x8.vc", options);
 
+      // وقتی مدیر تأیید کرد و وارد اتاق اصلی شد
       api.addEventListener('videoConferenceJoined', () => {
-        hideLoadingScreen();
         resizeMeet();
-        // در صفحه انتظار، پیام به مراجع می‌دهیم
-        setLoadingMessage("در اتاق انتظار هستید", "منتظر تأیید مدیر باشید");
-      });
-
-      // وقتی مراجع تأیید شد و وارد شد
-      api.addEventListener('participantRoleChanged', (event) => {
-        if (event.role === 'participant') {
-          hideLoadingScreen();
-        }
+        // اطمینان از مخفی بودن لودینگ و نمایش Jitsi
+        hideLoadingScreen();
+        revealMeet();
       });
 
       setInterval(() => {
-        const meetEl = document.getElementById('meet');
-        if (meetEl && !meetEl.classList.contains('hidden')) {
-          const curH = getRealHeight();
-          if (Math.abs(parseInt(meetEl.style.height) - curH) > 5) {
-            resizeMeet();
-          }
+        const curH = getRealHeight();
+        if (Math.abs(parseInt(document.getElementById('meet').style.height) - curH) > 5) {
+          resizeMeet();
         }
       }, 2000);
     }
