@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منچ</title>
+    <style>
+        :root {
+            --red: #e53935;
+            --blue: #1e88e5;
+            --green: #43a047;
+            --yellow: #fdd835;
+            /* تغییر به رنگ‌های بسیار لوکس، روشن، مدرن و آرام‌بخش (سبک 2026) */
+            --path-bg: #fdfbf7;
+            --board-bg: linear-gradient(135deg, #ffffff, #f4f4f7); /* پس زمینه میز روشن و تمیز */
+            --bg-light: #f5f5f7; /* رنگ پایه پس‌زمینه - شیک و همه‌پسند */
+            --text-dark: #1d1d1f; /* رنگ متن زغالی تیره برای خوانایی عالی روی زمینه روشن */
+            --cell-border: #d4af37; /* رنگ طلایی لوکس برای حاشیه ها */
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--bg-light);
+            /* پس زمینه فوق‌العاده ملایم، روشن و مدرن (Soft Mesh/Linear style) */
+            background-image: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+            background-attachment: fixed;
+            background-size: cover;
+            color: var(--text-dark);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            max-width: 100vw;
+            overflow-x: hidden;
+            padding: 20px;
+        }
+
+        /* ──────────── Setup Screen ──────────── */
+        #setup-screen,
+        #result-screen {
+            /* استایل کارت‌های روشن، مات و بسیار لوکس (Light Frosted Glass) */
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 1);
+            padding: 30px;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.06);
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+            margin: auto;
+            color: var(--text-dark);
+        }
+        #setup-screen h3 {
+            color: #aa8323; /* طلایی تیره‌تر برای خوانایی روی سفید */
+            margin-top: 0;
+            font-size: 24px;
+            text-shadow: none; /* حذف سایه متن برای سادگی و مدرن بودن */
+            font-weight: 800;
+        }
+        #setup-screen p {
+            color: #666;
+        }
+        .player-setup {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 15px 0;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-weight: bold;
+            color: #1d1d1f;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03); /* سایه بسیار ملایم */
+        }
+        .ps-red { background: linear-gradient(90deg, #fff0f0, #fff); border-right: 6px solid var(--red); }
+        .ps-blue { background: linear-gradient(90deg, #f0f7ff, #fff); border-right: 6px solid var(--blue); }
+        .ps-green { background: linear-gradient(90deg, #f0fff0, #fff); border-right: 6px solid var(--green); }
+        .ps-yellow { background: linear-gradient(90deg, #fffde6, #fff); border-right: 6px solid var(--yellow); }
+        .ps-sound { background: linear-gradient(90deg, #f5f5f5, #fff); border-right: 6px solid #888; margin-top: 25px; }
+        
+        select,
+        button {
+            padding: 8px 16px;
+            font-family: inherit;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-size: 14px;
+            cursor: pointer;
+            outline: none;
+            background: #fff;
+            color: #333;
+            transition: all 0.2s ease;
+        }
+        select:hover {
+            border-color: #aaa;
+        }
+        button.start-btn {
+            background: linear-gradient(135deg, #d4af37, #b8860b);
+            color: #fff; /* متن سفید روی دکمه طلایی */
+            font-size: 18px;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 25px;
+            border: none;
+            transition: all 0.3s ease;
+            padding: 15px;
+            box-shadow: 0 10px 20px rgba(212, 175, 55, 0.25);
+            border-radius: 14px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+        button.start-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 25px rgba(212, 175, 55, 0.4);
+            background: linear-gradient(135deg, #e6c258, #c99a1c);
+        }
+
+        /* ──────────── Game Screen & Layout ──────────── */
+        #game-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            flex-grow: 1;
+            max-width: 100vw;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+
+        #game-layout {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 520px;
+            margin: auto;
+        }
+
+        /* ──────────── 4 Corner Dice Layout ──────────── */
+        .dice-row {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            padding: 15px 5px;
+            box-sizing: border-box;
+            z-index: 10;
+        }
+
+        .dice-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 75px;
+            height: 75px;
+        }
+
+        .corner-dice {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(145deg, #ffffff, #f0f0f0);
+            border-radius: 14px;
+            cursor: pointer;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08), inset -3px -3px 8px rgba(0,0,0,0.03), inset 3px 3px 8px rgba(255,255,255,1);
+            transition: all 0.3s ease;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+            border: 1px solid #ebebeb;
+        }
+
+        .corner-dice.inactive {
+            opacity: 0.5;
+            pointer-events: none;
+            filter: grayscale(60%) brightness(0.95);
+            transform: scale(0.9);
+            border-color: #e0e0e0;
+        }
+
+        .corner-dice.active-dice {
+            transform: scale(1.2);
+            animation: pulse-dice 1.2s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 15;
+            cursor: pointer;
+        }
+
+        @keyframes pulse-dice {
+            0% { transform: scale(1.15); }
+            100% { transform: scale(1.25); }
+        }
+
+        .p0-dice.active-dice { border-color: var(--red); box-shadow: 0 0 20px 5px rgba(229,57,53,0.3); }
+        .p1-dice.active-dice { border-color: var(--blue); box-shadow: 0 0 20px 5px rgba(30,136,229,0.3); }
+        .p2-dice.active-dice { border-color: var(--green); box-shadow: 0 0 20px 5px rgba(67,160,71,0.3); }
+        .p3-dice.active-dice { border-color: var(--yellow); box-shadow: 0 0 20px 5px rgba(253,216,53,0.3); }
+
+        /* ──────────── Layout برای نقطه‌های تاس ──────────── */
+        .dice-layout {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            width: 100%;
+            height: 100%;
+            padding: 16%;
+            box-sizing: border-box;
+        }
+        .dot {
+            width: 100%;
+            height: 100%;
+            max-width: 14px;
+            max-height: 14px;
+            background: #333; /* نقطه‌های تیره شیک */
+            border-radius: 50%;
+            margin: auto;
+            box-shadow: inset -1px -1px 3px rgba(255,255,255,0.5), inset 1px 1px 3px rgba(0,0,0,0.3);
+        }
+        .d-tl { grid-area: 1 / 1 / 2 / 2; }
+        .d-tc { grid-area: 1 / 2 / 2 / 3; }
+        .d-tr { grid-area: 1 / 3 / 2 / 4; }
+        .d-ml { grid-area: 2 / 1 / 3 / 2; }
+        .d-mc { grid-area: 2 / 2 / 3 / 3; }
+        .d-mr { grid-area: 2 / 3 / 3 / 4; }
+        .d-bl { grid-area: 3 / 1 / 4 / 2; }
+        .d-bc { grid-area: 3 / 2 / 4 / 3; }
+        .d-br { grid-area: 3 / 3 / 4 / 4; }
+
+        /* ──────────── Board Container ──────────── */
+        #board-container {
+            background: var(--board-bg);
+            border: 3px solid var(--cell-border);
+            border-radius: 20px;
+            padding: 12px;
+            /* سایه‌های ملایم و مدرن برای محیط روشن */
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08), inset 0 0 20px rgba(0,0,0,0.03);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            width: 100%;
+            max-width: 520px;
+            aspect-ratio: 1 / 1;
+            margin: 0 auto;
+            overflow: hidden;
+            z-index: 5;
+        }
+        #board {
+            display: grid;
+            grid-template-columns: repeat(11, 1fr);
+            grid-template-rows: repeat(11, 1fr);
+            gap: 2px; 
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            position: relative;
+        }
+
+        /* ──────────── سلول‌های گرید ──────────── */
+        .cell {
+            visibility: hidden;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+        }
+
+        .cell.path-cell {
+            visibility: visible;
+            background: linear-gradient(135deg, #ffffff, #f7f7f7);
+            border: 2px solid #e0ce9a; /* رنگ حاشیه طلایی ملایم برای تم روشن */
+            border-radius: 50%;
+            z-index: 3;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05), inset 0 -2px 4px rgba(0,0,0,0.02);
+            width: 85%;
+            height: 85%;
+            margin: auto;
+        }
+
+        .cell.start-red { background: radial-gradient(circle, #ff8a80, #e53935) !important; border-color: #b71c1c !important; }
+        .cell.start-blue { background: radial-gradient(circle, #82b1ff, #1e88e5) !important; border-color: #0d47a1 !important; }
+        .cell.start-green { background: radial-gradient(circle, #69f0ae, #43a047) !important; border-color: #1b5e20 !important; }
+        .cell.start-yellow { background: radial-gradient(circle, #ffe57f, #fdd835) !important; border-color: #f57f17 !important; }
+
+        .cell.path-red { background: linear-gradient(135deg, #ef9a9a, #d32f2f) !important; border-color: #b71c1c !important; }
+        .cell.path-blue { background: linear-gradient(135deg, #90caf9, #1976d2) !important; border-color: #0d47a1 !important; }
+        .cell.path-green { background: linear-gradient(135deg, #a5d6a7, #388e3c) !important; border-color: #1b5e20 !important; }
+        .cell.path-yellow { background: linear-gradient(135deg, #fff59d, #fbc02d) !important; border-color: #f57f17 !important; }
+
+        .cell.base-circle-red { visibility: visible; background: radial-gradient(circle at 30% 30%, #ff5252, var(--red)) !important; border: 3px solid #b71c1c !important; border-radius: 50%; z-index: 5 !important; box-shadow: inset 0 0 8px rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.2); width: 92%; height: 92%; margin: auto; }
+        .cell.base-circle-blue { visibility: visible; background: radial-gradient(circle at 30% 30%, #448aff, var(--blue)) !important; border: 3px solid #0d47a1 !important; border-radius: 50%; z-index: 5 !important; box-shadow: inset 0 0 8px rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.2); width: 92%; height: 92%; margin: auto; }
+        .cell.base-circle-green { visibility: visible; background: radial-gradient(circle at 30% 30%, #69f0ae, var(--green)) !important; border: 3px solid #1b5e20 !important; border-radius: 50%; z-index: 5 !important; box-shadow: inset 0 0 8px rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.2); width: 92%; height: 92%; margin: auto; }
+        .cell.base-circle-yellow { visibility: visible; background: radial-gradient(circle at 30% 30%, #ffd740, var(--yellow)) !important; border: 3px solid #f57f17 !important; border-radius: 50%; z-index: 5 !important; box-shadow: inset 0 0 8px rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.2); width: 92%; height: 92%; margin: auto; }
+
+        .cell.center-cell {
+            visibility: visible;
+            background: radial-gradient(circle, #ffffff, #fdf6e3) !important;
+            border: 4px solid #d4af37 !important;
+            border-radius: 50% !important;
+            z-index: 6 !important;
+            font-size: 26px;
+            font-weight: bold;
+            width: 95%;
+            height: 95%;
+            margin: auto;
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.4), inset 0 0 10px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* ──────────── Tokens ──────────── */
+        .token {
+            width: 70%;
+            height: 70%;
+            border-radius: 50%;
+            cursor: pointer;
+            background-blend-mode: overlay;
+            /* سایه‌ها ملایم‌تر شدند تا در صفحه روشن زیباتر بنشینند */
+            box-shadow: 
+                inset -3px -3px 6px rgba(0,0,0,0.4), 
+                inset 3px 3px 6px rgba(255,255,255,0.8), 
+                0 4px 8px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.8);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s;
+            z-index: 15;
+            position: absolute;
+        }
+        
+        .p0 { background: radial-gradient(circle at 30% 30%, #ff8a80 0%, var(--red) 60%, #b71c1c 100%); }
+        .p1 { background: radial-gradient(circle at 30% 30%, #82b1ff 0%, var(--blue) 60%, #0d47a1 100%); }
+        .p2 { background: radial-gradient(circle at 30% 30%, #69f0ae 0%, var(--green) 60%, #1b5e20 100%); }
+        .p3 { background: radial-gradient(circle at 30% 30%, #ffff8d 0%, var(--yellow) 60%, #f57f17 100%); }
+
+        .token:hover {
+            transform: scale(1.3) translateY(-3px);
+            z-index: 30;
+            box-shadow: inset -3px -3px 6px rgba(0,0,0,0.4), inset 3px 3px 6px rgba(255,255,255,0.8), 0 8px 15px rgba(0,0,0,0.4);
+        }
+        .token.highlight {
+            animation: pulse-token 1s infinite alternate;
+            border: 2px solid #fff;
+            z-index: 25;
+        }
+        @keyframes pulse-token {
+            0% { transform: scale(1); box-shadow: 0 0 8px 3px rgba(255,255,255,0.8), inset -3px -3px 6px rgba(0,0,0,0.4), inset 3px 3px 6px rgba(255,255,255,0.8); }
+            100% { transform: scale(1.4); box-shadow: 0 0 20px 8px rgba(255,255,255,0.9), inset -3px -3px 6px rgba(0,0,0,0.4), inset 3px 3px 6px rgba(255,255,255,0.8); }
+        }
+
+        /* ──────────── Leaderboard ──────────── */
+        #leaderboard {
+            width: 100%;
+            max-width: 500px;
+            background: rgba(255, 255, 255, 0.9); /* پنل روشن و تمیز */
+            backdrop-filter: blur(20px);
+            padding: 25px;
+            border-radius: 20px;
+            margin-top: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(255, 255, 255, 1);
+            color: var(--text-dark);
+            margin: auto;
+        }
+        #leaderboard h3 {
+            color: #aa8323;
+            text-shadow: none;
+            font-weight: 800;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background: #fff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+        }
+        th, td {
+            border: 1px solid #eee;
+            padding: 12px;
+            text-align: center;
+        }
+        th { background: #fdfbf7; font-weight: bold; color: #aa8323; }
+
+        /* ──────────── پاپ‌آپ 3D لوکس و حرفه‌ای در مرکز صفحه ──────────── */
+        #dice-modal {
+            display: none; 
+            position: fixed;
+            top: 50%; 
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 240px; 
+            height: 240px;
+            z-index: 99999;
+            justify-content: center;
+            align-items: center;
+            /* استایل فوق‌لوکس شیشه‌ای روشن (Light Glassmorphism 2026) */
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border-radius: 35px;
+            border: 2px solid rgba(255,255,255,1);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.12), inset 0 0 30px rgba(255,255,255,0.5);
+            transition: box-shadow 0.5s ease, border-color 0.5s ease;
+            perspective: 1200px;
+        }
+        
+        .scene {
+            width: 120px;
+            height: 120px;
+            perspective: 1000px;
+        }
+
+        .cube {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 2.5s cubic-bezier(0.1, 0.9, 0.2, 1);
+        }
+
+        .cube-face {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, #ffffff, #f4f4f4);
+            border: 1px solid #e0e0e0;
+            border-radius: 20px;
+            box-shadow: inset 0 0 25px rgba(0,0,0,0.03), 0 5px 15px rgba(0,0,0,0.08);
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            backface-visibility: hidden;
+        }
+
+        .front  { transform: rotateY(  0deg) translateZ(60px); }
+        .back   { transform: rotateY(180deg) translateZ(60px); }
+        .right  { transform: rotateY( 90deg) translateZ(60px); }
+        .left   { transform: rotateY(-90deg) translateZ(60px); }
+        .top    { transform: rotateX( 90deg) translateZ(60px); }
+        .bottom { transform: rotateX(-90deg) translateZ(60px); }
+
+        /* ──────────── Responsive Mobile ──────────── */
+        @media (max-width: 600px) {
+            body { padding: 5px; }
+            #setup-screen, #result-screen { max-width: 95%; padding: 20px; }
+            #board-container {
+                width: 100%;
+                max-width: 98vw;
+                padding: 6px;
+                border-width: 2px;
+                border-radius: 12px;
+                margin: 0 auto;
+                box-sizing: border-box;
+            }
+            #board { max-width: 100%; width: 100%; height: 100%; }
+            .cell.path-cell { border-width: 1.5px; }
+            .token { width: 80%; height: 80%; }
+            .cell.center-cell { font-size: 16px; border-width: 2px !important; }
+            .corner-dice { width: 50px; height: 50px; border-radius: 12px; }
+            .dot { max-width: 10px; max-height: 10px; }
+            #dice-modal { width: 200px; height: 200px; }
+            .scene { width: 90px; height: 90px; }
+            .cube-face { width: 90px; height: 90px; border-radius: 15px; }
+            .front  { transform: rotateY(  0deg) translateZ(45px); }
+            .back   { transform: rotateY(180deg) translateZ(45px); }
+            .right  { transform: rotateY( 90deg) translateZ(45px); }
+            .left   { transform: rotateY(-90deg) translateZ(45px); }
+            .top    { transform: rotateX( 90deg) translateZ(45px); }
+            .bottom { transform: rotateX(-90deg) translateZ(45px); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Setup Screen -->
+    <div id="setup-screen">
+        <h3>✨ تنظیمات بازی</h3>
+        <p>نوع بازیکنان را برای هر رنگ انتخاب کنید:</p>
+        <div class="player-setup ps-red"><span>قرمز 🔴</span><select id="p0-type"><option value="human">انسان</option><option value="ai">ربات</option><option value="none">حذف</option></select></div>
+        <div class="player-setup ps-blue"><span>آبی 🔵</span><select id="p1-type"><option value="human">انسان</option><option value="ai">ربات</option><option value="none">حذف</option></select></div>
+        <div class="player-setup ps-green"><span>سبز 🟢</span><select id="p2-type"><option value="human">انسان</option><option value="ai">ربات</option><option value="none">حذف</option></select></div>
+        <div class="player-setup ps-yellow"><span>زرد 🟡</span><select id="p3-type"><option value="human">انسان</option><option value="ai">ربات</option><option value="none">حذف</option></select></div>
+        
+        <div class="player-setup ps-sound">
+            <span>صدا و موسیقی حرفه‌ای 🔊</span>
+            <select id="sound-toggle">
+                <option value="on">روشن</option>
+                <option value="off">خاموش</option>
+            </select>
+        </div>
+
+        <button class="start-btn" onclick="startGame()">🎯 ورود به بازی</button>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen">
+        
+        <div id="game-layout">
+            <!-- ردیف بالای تاس‌ها (قرمز در بالا-چپ، آبی در بالا-راست) -->
+            <div class="dice-row top-row">
+                <div class="dice-wrapper" id="wrapper-p0">
+                    <div id="dice-p0" class="corner-dice p0-dice" onclick="handleDiceClick(0)"></div>
+                </div>
+                <div class="dice-wrapper" id="wrapper-p1">
+                    <div id="dice-p1" class="corner-dice p1-dice" onclick="handleDiceClick(1)"></div>
+                </div>
+            </div>
+            
+            <div id="board-container"><div id="board"></div></div>
+            
+            <!-- ردیف پایین تاس‌ها (زرد در پایین-چپ، سبز در پایین-راست) -->
+            <div class="dice-row bottom-row">
+                <div class="dice-wrapper" id="wrapper-p3">
+                    <div id="dice-p3" class="corner-dice p3-dice" onclick="handleDiceClick(3)"></div>
+                </div>
+                <div class="dice-wrapper" id="wrapper-p2">
+                    <div id="dice-p2" class="corner-dice p2-dice" onclick="handleDiceClick(2)"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="leaderboard" style="display:none;">
+            <h3 style="text-align:center;">🏆 نتایج بازی (برندگان)</h3>
+            <table><thead><tr><th>رتبه</th><th>رنگ بازیکن</th><th>نوع</th></tr></thead><tbody id="leaderboard-body"></tbody></table>
+            <button class="start-btn" style="margin-top:20px; padding: 12px 30px;" onclick="location.reload()">🔄 بازی جدید</button>
+        </div>
+    </div>
+
+    <!-- پاپ‌آپ اختصاصی برای تاس انداختن واقعی -->
+    <div id="dice-modal">
+        <div class="scene">
+            <div class="cube" id="cube">
+                <div class="cube-face front"><div class="dice-layout"><div class="dot d-mc" style="background:radial-gradient(circle, #ff5252, #b71c1c);"></div></div></div>
+                <div class="cube-face right"><div class="dice-layout"><div class="dot d-tl"></div><div class="dot d-br"></div></div></div>
+                <div class="cube-face back"><div class="dice-layout"><div class="dot d-tl"></div><div class="dot d-mc"></div><div class="dot d-br"></div></div></div>
+                <div class="cube-face left"><div class="dice-layout"><div class="dot d-tl"></div><div class="dot d-tr"></div><div class="dot d-bl"></div><div class="dot d-br"></div></div></div>
+                <div class="cube-face top"><div class="dice-layout"><div class="dot d-tl"></div><div class="dot d-tr"></div><div class="dot d-mc"></div><div class="dot d-bl"></div><div class="dot d-br"></div></div></div>
+                <div class="cube-face bottom"><div class="dice-layout"><div class="dot d-tl"></div><div class="dot d-ml"></div><div class="dot d-bl"></div><div class="dot d-tr"></div><div class="dot d-mr"></div><div class="dot d-br"></div></div></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== ADVANCED AUDIO SYSTEM (Web Audio API) ==========
+        let isSoundEnabled = true;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // تابع کمکی برای پخش یک نت موسیقی خاص
+        function playTone(freq, type, duration, startTime, volume = 0.5) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, startTime);
+            
+            gain.gain.setValueAtTime(volume, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(startTime);
+            osc.stop(startTime + duration);
+        }
+
+        // تابع پیشرفته برای تولید صداهای لوکس متناسب با هر اتفاق
+        function playSound(type, val = 0) {
+            if (!isSoundEnabled || !audioCtx) return;
+            const t = audioCtx.currentTime;
+            
+            if (type === 'move') {
+                // افکت صدای نشستن مهره شبیه مهره‌های سنگی روی تخته چوبی
+                playTone(400, 'sine', 0.1, t, 1);
+                playTone(800, 'triangle', 0.05, t, 0.5);
+            } 
+            else if (type === 'roll') {
+                // طبق دستور شما: آهنگ موقع چرخیدن تاس حذف شد. (بخش خالی ماند تا اجرا نشود)
+            } 
+            else if (type === 'land') {
+                // پخش موسیقی/صدا دقیقاً متناسب با عدد تاس
+                if (val === 6) {
+                    // صدای جایزه و پیروزی (آرپژ درخشان)
+                    playTone(523.25, 'sine', 0.3, t, 0.8); // C5
+                    playTone(659.25, 'sine', 0.3, t + 0.1, 0.8); // E5
+                    playTone(783.99, 'sine', 0.3, t + 0.2, 0.8); // G5
+                    playTone(1046.50, 'triangle', 0.6, t + 0.3, 1); // C6
+                } 
+                else if (val === 1) {
+                    // صدای بم و سنگین برای عدد 1
+                    playTone(130.81, 'square', 0.4, t, 0.8); // C3
+                }
+                else {
+                    // برای اعداد 2 تا 5، به همان تعداد نت کوتاه و سریع پخش می‌شود
+                    let delay = 0;
+                    for (let i = 0; i < val; i++) {
+                        playTone(440 + (i * 50), 'triangle', 0.15, t + delay, 0.5); // بالا رفتن فرکانس با هر ضربه
+                        delay += 0.12;
+                    }
+                }
+            }
+        }
+
+        // ========== CONSTANTS ==========
+        const PATH_COORDS = [
+            [4, 0], [4, 1], [4, 2], [4, 3], [4, 4], 
+            [3, 4], [2, 4], [1, 4], [0, 4], [0, 5], 
+            [0, 6], [1, 6], [2, 6], [3, 6], [4, 6], 
+            [4, 7], [4, 8], [4, 9], [4, 10], [5, 10], 
+            [6, 10], [6, 9], [6, 8], [6, 7], [6, 6], 
+            [7, 6], [8, 6], [9, 6], [10, 6], [10, 5], 
+            [10, 4], [9, 4], [8, 4], [7, 4], [6, 4], 
+            [6, 3], [6, 2], [6, 1], [6, 0], [5, 0] 
+        ];
+
+        const START_INDICES = [0, 10, 20, 30]; 
+        const SAFE_ZONES = [0, 8, 10, 18, 20, 28, 30, 38];
+
+        const HOME_PATHS = {
+            0: [[5, 1], [5, 2], [5, 3], [5, 4]], 
+            1: [[1, 5], [2, 5], [3, 5], [4, 5]], 
+            2: [[5, 9], [5, 8], [5, 7], [5, 6]], 
+            3: [[9, 5], [8, 5], [7, 5], [6, 5]] 
+        };
+
+        const BASE_COORDS = {
+            0: [[1, 1], [1, 2], [2, 1], [2, 2]], 
+            1: [[1, 8], [1, 9], [2, 8], [2, 9]], 
+            2: [[8, 8], [8, 9], [9, 8], [9, 9]], 
+            3: [[8, 1], [8, 2], [9, 1], [9, 2]] 
+        };
+
+        const COLOR_NAMES = ['قرمز 🔴', 'آبی 🔵', 'سبز 🟢', 'زرد 🟡'];
+        const COLOR_CLASSES = ['p0', 'p1', 'p2', 'p3'];
+
+        let currentRotationX = 0;
+        let currentRotationY = 0;
+
+        // ========== GAME STATE ==========
+        let players = [];
+        let currentPlayer = 0;
+        let diceValue = 0;
+        let hasRolled = false;
+        let hasMoved = false;
+        let activePlayersCount = 0;
+        let rankCounter = 1;
+        let winnersList = [];
+        
+        let lastRolls = [6, 6, 6, 6];
+
+        function getSecureRandomDice() {
+            // جایگزینی با روش صد درصد استاندارد ریاضی برای جلوگیری از گیر کردن منطق و باگ تولید تصادفی
+            return Math.floor(Math.random() * 6) + 1;
+        }
+
+        function getDiceFaceHTML(num) {
+            switch(num) {
+                case 1: return `<div class="dice-layout"><div class="dot d-mc" style="background:radial-gradient(circle, #ff5252, #b71c1c);"></div></div>`;
+                case 2: return `<div class="dice-layout"><div class="dot d-tl"></div><div class="dot d-br"></div></div>`;
+                case 3: return `<div class="dice-layout"><div class="dot d-tl"></div><div class="dot d-mc"></div><div class="dot d-br"></div></div>`;
+                case 4: return `<div class="dice-layout"><div class="dot d-tl"></div><div class="dot d-tr"></div><div class="dot d-bl"></div><div class="dot d-br"></div></div>`;
+                case 5: return `<div class="dice-layout"><div class="dot d-tl"></div><div class="dot d-tr"></div><div class="dot d-mc"></div><div class="dot d-bl"></div><div class="dot d-br"></div></div>`;
+                case 6: return `<div class="dice-layout"><div class="dot d-tl"></div><div class="dot d-ml"></div><div class="dot d-bl"></div><div class="dot d-tr"></div><div class="dot d-mr"></div><div class="dot d-br"></div></div>`;
+                default: return `<div class="dice-layout"><div class="dot d-mc" style="background:radial-gradient(circle, #ff5252, #b71c1c);"></div></div>`;
+            }
+        }
+
+        // ========== BOARD UI ==========
+        function initBoardUI() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+
+            const pathSet = new Set(PATH_COORDS.map(p => `${p[0]}-${p[1]}`));
+            const homePathSet = new Set();
+            const homePathColor = {};
+            for (let i = 0; i < 4; i++) {
+                HOME_PATHS[i].forEach(p => {
+                    const key = `${p[0]}-${p[1]}`;
+                    homePathSet.add(key);
+                    homePathColor[key] = ['path-red', 'path-blue', 'path-green', 'path-yellow'][i];
+                });
+            }
+
+            const baseCircleSet = new Set();
+            const baseCircleClass = {};
+            for (let i = 0; i < 4; i++) {
+                BASE_COORDS[i].forEach(p => {
+                    const key = `${p[0]}-${p[1]}`;
+                    baseCircleSet.add(key);
+                    baseCircleClass[key] = ['base-circle-red', 'base-circle-blue', 'base-circle-green',
+                        'base-circle-yellow'
+                    ][i];
+                });
+            }
+
+            const startPositions = {};
+            for (let i = 0; i < 4; i++) {
+                startPositions[`${PATH_COORDS[START_INDICES[i]][0]}-${PATH_COORDS[START_INDICES[i]][1]}`] = i;
+            }
+            const startClasses = ['start-red', 'start-blue', 'start-green', 'start-yellow'];
+
+            for (let r = 0; r < 11; r++) {
+                for (let c = 0; c < 11; c++) {
+                    const cell = document.createElement('div');
+                    const key = `${r}-${c}`;
+                    cell.id = `cell-${r}-${c}`;
+                    cell.className = 'cell';
+
+                    if (r === 5 && c === 5) {
+                        cell.classList.add('center-cell');
+                        cell.innerHTML = '<span>🏆</span>';
+                        board.appendChild(cell);
+                        continue;
+                    }
+
+                    if (baseCircleSet.has(key)) {
+                        cell.classList.add(baseCircleClass[key]);
+                        board.appendChild(cell);
+                        continue;
+                    }
+
+                    if (homePathSet.has(key)) {
+                        cell.classList.add('path-cell', homePathColor[key]);
+                        board.appendChild(cell);
+                        continue;
+                    }
+
+                    if (pathSet.has(key)) {
+                        cell.classList.add('path-cell');
+                        if (startPositions[key] !== undefined) {
+                            cell.classList.add(startClasses[startPositions[key]]);
+                        }
+                        board.appendChild(cell);
+                        continue;
+                    }
+
+                    board.appendChild(cell);
+                }
+            }
+        }
+
+        // ========== GAME LOGIC ==========
+        function startGame() {
+            isSoundEnabled = document.getElementById('sound-toggle').value === 'on';
+            initAudio();
+
+            const pTypes = [
+                document.getElementById('p0-type').value,
+                document.getElementById('p1-type').value,
+                document.getElementById('p2-type').value,
+                document.getElementById('p3-type').value
+            ];
+            players = [];
+            activePlayersCount = 0;
+            for (let i = 0; i < 4; i++) {
+                players.push({
+                    id: i,
+                    colorName: COLOR_NAMES[i],
+                    type: pTypes[i],
+                    pieces: [-1, -1, -1, -1],
+                    hasWon: false
+                });
+                if (pTypes[i] !== 'none') activePlayersCount++;
+            }
+            if (activePlayersCount < 2) {
+                alert("⚠️ حداقل باید ۲ بازیکن در بازی باشند!");
+                return;
+            }
+            
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'flex';
+            document.getElementById('leaderboard').style.display = 'none';
+            initBoardUI();
+            
+            currentPlayer = -1;
+            winnersList = [];
+            rankCounter = 1;
+            lastRolls = [6, 6, 6, 6];
+            hasRolled = false;
+            hasMoved = false;
+            
+            currentRotationX = 0;
+            currentRotationY = 0;
+            document.getElementById('cube').style.transform = `rotateX(0deg) rotateY(0deg)`;
+            
+            setNextPlayer();
+            updateBoard();
+            updateUI(); 
+        }
+
+        function getAbsoluteCoords(pIdx, pceIdx, pos) {
+            if (pos === -1) return BASE_COORDS[pIdx][pceIdx];
+            if (pos === 44) return null; 
+            if (pos >= 40) return HOME_PATHS[pIdx][pos - 40];
+            const absIndex = (START_INDICES[pIdx] + pos) % 40; 
+            return PATH_COORDS[absIndex];
+        }
+
+        function updateBoard() {
+            document.querySelectorAll('.token').forEach(e => e.remove());
+            for (let pIdx = 0; pIdx < 4; pIdx++) {
+                if (players[pIdx].type === 'none') continue;
+                for (let pceIdx = 0; pceIdx < 4; pceIdx++) {
+                    const pos = players[pIdx].pieces[pceIdx];
+                    const coords = getAbsoluteCoords(pIdx, pceIdx, pos);
+                    if (coords) {
+                        const cell = document.getElementById(`cell-${coords[0]}-${coords[1]}`);
+                        if (!cell) continue;
+                        const token = document.createElement('div');
+                        token.className = `token ${COLOR_CLASSES[pIdx]}`;
+                        if (pIdx === currentPlayer && hasRolled && !hasMoved && players[pIdx].type === 'human') {
+                            if (isValidMove(pIdx, pceIdx, diceValue)) {
+                                token.classList.add('highlight');
+                                token.onclick = () => handlePieceClick(pIdx, pceIdx);
+                            }
+                        }
+                        cell.appendChild(token);
+                    }
+                }
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('dice-modal').style.display = 'none';
+
+            for (let i = 0; i < 4; i++) {
+                const diceEl = document.getElementById(`dice-p${i}`);
+                const wrapperEl = document.getElementById(`wrapper-p${i}`);
+                
+                if (players[i].type === 'none') {
+                    wrapperEl.style.visibility = 'hidden';
+                    continue;
+                } else {
+                    wrapperEl.style.visibility = 'visible';
+                }
+                
+                diceEl.innerHTML = getDiceFaceHTML(lastRolls[i]);
+                
+                if (i === currentPlayer && !hasRolled) {
+                    diceEl.classList.add('active-dice');
+                    diceEl.classList.remove('inactive');
+                } else {
+                    diceEl.classList.remove('active-dice');
+                    diceEl.classList.add('inactive');
+                }
+            }
+
+            if (players[currentPlayer].type === 'ai' && !hasRolled) {
+                setTimeout(() => handleDiceClick(currentPlayer, true), 1200);
+            }
+        }
+
+        function handleDiceClick(pIdx, isAuto = false) {
+            if (pIdx !== currentPlayer || hasRolled) return;
+            if (players[pIdx].type !== 'human' && !isAuto) return;
+            
+            initAudio();
+            
+            hasRolled = true; 
+            
+            document.getElementById(`dice-p${pIdx}`).classList.remove('active-dice');
+            
+            showDiceModal();
+            
+            // تاخیر 50 میلی‌ثانیه‌ای برای اطمینان از رندر شدن پاپ‌آپ در مرورگر قبل از شروع انیمیشن
+            setTimeout(() => {
+                process3DRoll();
+            }, 50);
+        }
+
+        function showDiceModal() {
+            const modal = document.getElementById('dice-modal');
+            
+            const colorsHex = ['#e53935', '#1e88e5', '#43a047', '#fdd835'];
+            const colorsRgb = ['229, 57, 53', '30, 136, 229', '67, 160, 71', '253, 216, 53'];
+            
+            const activeColor = colorsHex[currentPlayer];
+            const activeRgb = colorsRgb[currentPlayer];
+
+            modal.style.borderColor = activeColor;
+            // در استایل روشن، سایه زیر پاپ آپ تاس به 0.15 کاهش یافته تا تاریک و زشت نشود
+            modal.style.boxShadow = `0 30px 60px rgba(0, 0, 0, 0.15), 0 0 40px rgba(${activeRgb}, 0.5), inset 0 0 30px rgba(${activeRgb}, 0.2)`;
+            modal.style.display = 'flex';
+        }
+
+        function process3DRoll() {
+            diceValue = getSecureRandomDice();
+            
+            // صدای چرخش مطابق درخواست حذف شد
+            
+            // افزایش تعداد دورها برای چرخش طولانی‌تر و واضح‌تر
+            let spinX = (Math.floor(Math.random() * 4) + 6) * 360; 
+            let spinY = (Math.floor(Math.random() * 4) + 6) * 360;
+            
+            let targetX = 0, targetY = 0;
+            // در اینجا باگ Mapping وجه‌های تاس دقیقاً و به درستیِ ۱۰۰٪ ریاضی حل شده است
+            switch(diceValue) {
+                case 1: targetX = 0;   targetY = 0;   break;   // وجه جلو (۱ نقطه)
+                case 2: targetX = 0;   targetY = -90; break;   // وجه راست (۲ نقطه)
+                case 3: targetX = 0;   targetY = 180; break;   // وجه عقب (۳ نقطه)
+                case 4: targetX = 0;   targetY = 90;  break;   // وجه چپ (۴ نقطه)
+                case 5: targetX = -90; targetY = 0;   break;   // وجه بالا (۵ نقطه)
+                case 6: targetX = 90;  targetY = 0;   break;   // وجه پایین (۶ نقطه)
+            }
+            
+            let modX = currentRotationX % 360;
+            let modY = currentRotationY % 360;
+            if (modX < 0) modX += 360;
+            if (modY < 0) modY += 360;
+            
+            currentRotationX += spinX + (targetX - modX);
+            currentRotationY += spinY + (targetY - modY);
+            
+            const cube = document.getElementById('cube');
+            cube.style.transform = `rotateX(${currentRotationX}deg) rotateY(${currentRotationY}deg)`;
+            
+            // انیمیشن حالا 2.5 ثانیه طول می‌کشد تا تاس با جزئیات کامل و باکلاس بچرخد
+            setTimeout(() => {
+                // پخش صدای متناسب با عددی که آمده است (این صداها حفظ شدند)
+                playSound('land', diceValue);
+                
+                setTimeout(() => {
+                    document.getElementById('dice-modal').style.display = 'none';
+                    lastRolls[currentPlayer] = diceValue;
+                    document.getElementById(`dice-p${currentPlayer}`).innerHTML = getDiceFaceHTML(diceValue);
+                    postRollLogic();
+                }, 1000); // 1 ثانیه مکث روی صفحه لوکس تا کاربر عدد و صدا را کاملا درک کند
+            }, 2500); // 2.5 ثانیه زمان چرخش 
+        }
+
+        function isValidMove(pIdx, pceIdx, dice) {
+            const pos = players[pIdx].pieces[pceIdx];
+            if (pos === -1) return dice === 6;
+            if (pos + dice > 44) return false; 
+            return true;
+        }
+
+        function getValidMoves(pIdx, dice) {
+            const moves = [];
+            for (let i = 0; i < 4; i++)
+                if (isValidMove(pIdx, i, dice)) moves.push({ pIdx, pceIdx: i });
+            return moves;
+        }
+
+        function postRollLogic() {
+            const validMoves = getValidMoves(currentPlayer, diceValue);
+            if (validMoves.length === 0) {
+                setTimeout(endTurn, 1000);
+            } else {
+                if (players[currentPlayer].type === 'ai') {
+                    setTimeout(() => executeAIMove(validMoves), 1000);
+                } else {
+                    updateBoard();
+                }
+            }
+        }
+
+        function executeAIMove(validMoves) {
+            let best = validMoves[0], maxS = -9999;
+            for (const m of validMoves) {
+                const s = evaluateMove(m.pIdx, m.pceIdx, diceValue);
+                if (s > maxS) { maxS = s; best = m; }
+            }
+            handlePieceClick(best.pIdx, best.pceIdx);
+        }
+
+        function evaluateMove(pIdx, pceIdx, dice) {
+            let score = 0;
+            const pos = players[pIdx].pieces[pceIdx];
+            if (pos === -1 && dice === 6) return 500;
+            const target = pos + dice;
+            if (target === 44) return 1000;
+            if (target >= 40) score += 100;
+            if (target < 40) {
+                const absTarget = (START_INDICES[pIdx] + target) % 40;
+                if (!SAFE_ZONES.includes(absTarget)) {
+                    for (let i = 0; i < 4; i++) {
+                        if (i === pIdx || players[i].type === 'none') continue;
+                        for (let j = 0; j < 4; j++) {
+                            const opos = players[i].pieces[j];
+                            if (opos >= 0 && opos < 40 && (START_INDICES[i] + opos) % 40 === absTarget) score += 300;
+                        }
+                    }
+                } else score += 50;
+            }
+            return score + pos + Math.random() * 10;
+        }
+
+        function handlePieceClick(pIdx, pceIdx) {
+            if (pIdx !== currentPlayer || !hasRolled || hasMoved) return;
+            if (!isValidMove(pIdx, pceIdx, diceValue)) return;
+            
+            hasMoved = true; 
+            playSound('move');
+            
+            if (players[pIdx].pieces[pceIdx] === -1 && diceValue === 6) players[pIdx].pieces[pceIdx] = 0;
+            else players[pIdx].pieces[pceIdx] += diceValue;
+            
+            checkKills(pIdx, pceIdx);
+            updateBoard();
+            checkWin(pIdx);
+            setTimeout(endTurn, 600);
+        }
+
+        function checkKills(pIdx, pceIdx) {
+            const pos = players[pIdx].pieces[pceIdx];
+            if (pos >= 40 || pos < 0) return; 
+            const absIndex = (START_INDICES[pIdx] + pos) % 40;
+            
+            if (SAFE_ZONES.includes(absIndex)) return;
+            
+            for (let i = 0; i < 4; i++) {
+                if (i === pIdx || players[i].type === 'none') continue; 
+                for (let j = 0; j < 4; j++) {
+                    const opos = players[i].pieces[j];
+                    if (opos >= 0 && opos < 40 && (START_INDICES[i] + opos) % 40 === absIndex) {
+                        players[i].pieces[j] = -1; 
+                        playSound('move');
+                    }
+                }
+            }
+        }
+
+        function checkWin(pIdx) {
+            if (players[pIdx].pieces.filter(p => p === 44).length === 4 && !players[pIdx].hasWon) {
+                players[pIdx].hasWon = true;
+                activePlayersCount--;
+                winnersList.push({ rank: rankCounter++, color: players[pIdx].colorName, type: players[pIdx].type === 'ai' ?
+                        'ربات' : 'انسان' });
+                try {
+                    localStorage.setItem('ludo_last_winners', JSON.stringify(winnersList));
+                } catch (e) {}
+            }
+        }
+
+        function setNextPlayer() {
+            const start = currentPlayer === -1 ? 0 : (currentPlayer + 1) % 4;
+            for (let i = 0; i < 4; i++) {
+                const idx = (start + i) % 4;
+                if (players[idx].type !== 'none' && !players[idx].hasWon) { currentPlayer = idx; return true; }
+            }
+            return false;
+        }
+
+        function endTurn() {
+            hasRolled = false;
+            hasMoved = false;
+            if (activePlayersCount <= 1) {
+                if (activePlayersCount === 1)
+                    for (const p of players)
+                        if (p.type !== 'none' && !p.hasWon)
+                            winnersList.push({ rank: rankCounter, color: p.colorName, type: p.type === 'ai' ? 'ربات' :
+                                    'انسان' });
+                showLeaderboard();
+                return;
+            }
+            if (diceValue !== 6 || players[currentPlayer].hasWon) setNextPlayer();
+            updateBoard();
+            updateUI();
+        }
+
+        function showLeaderboard() {
+            document.getElementById('game-layout').style.display = 'none';
+            const lb = document.getElementById('leaderboard');
+            document.getElementById('leaderboard-body').innerHTML = winnersList.map(w =>
+                `<tr><td>${w.rank}</td><td>${w.color}</td><td>${w.type}</td></tr>`).join('');
+            lb.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
